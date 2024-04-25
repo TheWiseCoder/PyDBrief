@@ -1,0 +1,11 @@
+.git/
+.idea/
+tmp/
+**/__pycache__
+.gitignore
+.gitlab-ci.yml
+dockertips.txt
+envs.bat
+README.md
+*.sh
+*.ps1

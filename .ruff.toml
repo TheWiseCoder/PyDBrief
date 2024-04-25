@@ -1,0 +1,130 @@
+# environment
+cache-dir = "~/.cache/ruff"
+force-exclude = true
+required-version = "0.0.282"
+target-version = "py310"
+respect-gitignore = true
+task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
+select = [
+    # flake8 group
+    "A",     # flake8-builtins - prevent shadowing of python builtins
+    "ANN",   # flake8-annotations - enforce PEP 3107-style function
+    "ARG",   # flake8-unused-arguments - check for unused function arguments
+    "ASYNC", # flake8-async - check for bad async / asyncio practices
+    "B",     # flake8-bugbear - warnings for likely bugs / antipatterns
+    "C4",    # flake8-comprehensions - check for bad use of list/set/dict comprehensions
+    "COM",   # flake8-commas - rules for trailing commas
+    "DTZ",   # flake8-datetimez - check for usage of unsafe naive datetime class
+    "EM",    # flake8-errmsg - enforce good formatting of error messages
+    "FA",    # flake8-future-annotations - verify use of 'from __future__ import annotations'
+    "FIX",   # flake8-fix_me - check for FIXMEs, TODOs and other temporary developer notes
+    "G",     # flake8-logging-format - validate logging format strings
+    "ICN",   # flake8-import-conventions - check for proper importing and aliasing of packages
+    "INP",   # flake8-no-pep420 - prevent PEP-420 implicit namespace packages
+    "INT",   # flake8-gettext - check formats resolved before function call
+    "ISC",   # flake8-implicit-str-concat - enforce correct string literal concatenation
+    "PIE",   # flake8-pie - miscellaneous lints
+    "PT",    # flake8-pytest-style - check common style issues or inconsistencies with pytest-based tests
+    "PTH",   # flake8-use-pathlib - check use of functions that can be replaced by pathlib module
+    "Q",     # flake8-quotes - linter for quotes
+    "RET",   # flake8-return - check return values
+    "RSE",   # flake8-raise - enforce proper coding of 'raise' statements
+    "S",     # flake8-bandit - security testing
+    "SIM",   # flake8-simplify - help simplify Python code
+    "SLF",   # flake8-self - private member access linting
+    "SLOT",  # flake8-slots -  require '__slots__' to be defined for subclasses of immutable types
+    "TD",    # flake8-todos - check TODOs in the project
+    "TCH",   # flake8-type-checking - move imports in or out of type-checking blocks
+    "TID",   # flake8-tidy-imports - help writing tidier imports
+    "YTT",   # flake8-2020 - check for misuse of sys.version / sys.version_info
+    # pycodestyle group
+    "E",     # pycodestyle (Errors) - enforce style conventions in PEP 8
+    "W",     # pycodestyle (Warnings) - enforce style conventions in PEP 8
+    # Ruff-specific group
+    "RUF",   # the Ruff developer's own rules
+    "NPY",   # NumPy-specific rules
+    # others
+    "C90",   # mccabe - check for excessive McCabe complexity
+    "D",     # pydocstyle - enforce docstring conventions
+    "F",     # Pyflakes - Python classic checker
+    "FLY",   # flynt - enforce use of 'f-strings' for formatting
+    "N",     # pep8-naming - enforce naming conventions in PEP 8
+    "PERF",  # Perflint - linter for performance anti-patterns
+    "PGH",   # pygrep-hooks - check pre-commit hooks
+    "PD",    # pandas-vet - provide opinionated linting for pandas code
+    "PL",    # Pylint - Python classic static code analyser
+    "SLF",   # flake8-return - lint private member access
+    "TRY",   # tryceratops - prevent exception handling antipatterns
+    "UP",    # pyupgrade - upgrade syntax for newer versions of the language
+#   unused
+#   "AIR",   # Airflow - check workflows
+#   "BLE",   # flake8-blind-except - check for except clauses that catch all exceptions
+#   "CPY",   # flake8-copyright - check for copyright notices in all python files
+#   "DJ",    # flake8-django - detect bad practices on Django projects
+#   "ERA",   # eradicate - check for commented-out code
+#   "EXE",   # flake8-executable - ensure the executable permissions and shebangs of Python files are correctly set
+#   "FBT",   # flake8-boolean-trap - check for boolean traps
+#   "I",     # isort - organize imports
+#   "PYI",   # flake8-pyi - provide specializations for type hinting stub files
+#   "T10",   # flake8-debugger - check for 'pdb;idbp' imports and set traces
+#   "T20",   # flake8-print - check for 'print' and 'pprint' statements in python files
+]
+ignore = [
+    "ANN002",   # missing type annotation for *kargs
+    "ANN101",   # missing type annotation for 'self' in method
+    "ANN401",   # dynamically typed expressions (typing.Any) are disallowed
+    "COM812",   # checks for the absence of trailing commas
+    "COM819",   # prohibited trailing commas
+    "D101",     # Missing docstring in public class    <------------- temporary
+    "D103",     # Missing docstring in public function <------------- temporary
+    "D200",     # one-line docstring should fit on one line
+    "D204",     # 1 blank line required after class docstring
+    "D210",     # whitespaces surrounding docstring text
+    "D212",     # multi-line docstring summary to start at the second line
+    "DTZ005",   # the use of datetime.datetime.now() without tz argument is not allowed
+    "DTZ006",   # usage of 'datetime.datetime.fromtimestamp()' that do not specify a timezone
+    "G004",     # logging statement uses 'f-string'
+    "N815",     # Variable in class scope should not be mixedCase
+    "PGH004",   # use specific rule codes when using 'noqa'
+    "PLR2004",  # magic value used in comparison, consider replacing it with a constant variable
+    "PLW0603",  # using the global statement to update a variable is discouraged
+    "PTH118",   # os.{module}.join() should be replaced by Path with / operator
+    "RUF013",   # implicit Optional in type annotations when the default parameter value is None
+    "S104",     # possible binding to all interfaces
+    "S113",     # probable use of requests call without timeout
+    "S301",     # 'pickle' and modules that wrap it can be unsafe when used to deserialize untrusted data
+    "S608",     # possible SQL injection vector through string-based query construction
+    "SIM108",   # use ternary operator instead of if-else-block
+    "TCH001",   # move application import into a type-checking block
+    "TCH002",   # Move third-party import into a type-checking block
+    "TCH003",   # move standard library import into a type-checking block
+    "TRY003",   # avoid specifying long messages outside the exception class
+    "TRY400",   # use 'logging.exception' instead of 'logging.error'
+]
+
+# rules
+line-length = 120
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[flake8-bandit]
+hardcoded-tmp-directory = ["/tmp"]
+
+[flake8-errmsg]
+max-string-length = 60      # maximum string length for string literals in exception messages
+
+[flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "double"
+multiline-quotes = "double"
+
+[mccabe]
+max-complexity = 20         # upper limit for McCabe code complexity
+
+[pycodestyle]
+max-doc-length = 120
+
+[pylint]
+max-args = 16
+max-branches = 32
+max-returns = 1
+max-statements = 100

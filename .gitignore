@@ -1,0 +1,14 @@
+.cache
+.env
+.venv
+.idea
+.vscode
+env
+venv
+temp
+tmp
+**/__pycache__
+*.py[cod]
+*.sh
+*.ps1
+envs.bat
