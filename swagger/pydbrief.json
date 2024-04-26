@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "PyDBrave API",
+    "title": "PyDBrief API",
     "description": "A Workbench for bidirectional data migration between different RDBMSs",
     "contact": {
       "email": "gtnunes@gmail.com"
@@ -9,8 +9,8 @@
     "version": "1.0.0_RC02"
   },
   "externalDocs": {
-    "description": "Known more about PyDbrave",
-    "url": "https://github.com/TheWiseCoder/PyDBrave"
+    "description": "Known more about PyDBrief",
+    "url": "https://github.com/TheWiseCoder/PyDBrief"
   },
   "servers": [
     {
@@ -41,7 +41,7 @@
     },
     {
       "name": "registry",
-      "description": "Operational data on the PyDBrave server"
+      "description": "Operational data on the PyDBrief server"
     }
   ],
   "paths": {
@@ -82,9 +82,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -133,9 +133,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -184,9 +184,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -214,9 +214,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -268,9 +268,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -325,9 +325,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -383,9 +383,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -444,9 +444,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -458,7 +458,7 @@
           "registry"
         ],
         "summary": "Retrieve the server's operation log",
-        "description": "Retrieve a file containing the operation log of the PyDBrave server.",
+        "description": "Retrieve a file containing the operation log of the PyDBrief server.",
         "operationId": "get-app-log",
         "parameters": [
           {
@@ -561,20 +561,20 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
       }
     },
-    "/swagger/pydbrave.json": {
+    "/swagger/pydbrief.json": {
       "get": {
         "tags": [
           "registry"
         ],
-        "summary": "Retrieve PyDBrave's API specifications in Swagger JSON format",
+        "summary": "Retrieve PyDBrief's API specifications in Swagger JSON format",
         "description": "Retrieve the file containing the API specifications in Swagger JSON format.",
         "operationId": "get-swagger-json",
         "parameters": [
@@ -603,9 +603,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -616,8 +616,8 @@
         "tags": [
           "registry"
         ],
-        "summary": "Retrieve the current PyDBrave's version",
-        "description": "Retrieve the version of the PyDBrave currently running.",
+        "summary": "Retrieve the current PyDBrief's version",
+        "description": "Retrieve the version of the PyDBrief currently running.",
         "operationId": "get-version",
         "responses": {
           "200": {
@@ -639,9 +639,9 @@
         },
         "security": [
           {
-            "pydbrave_auth": [
-              "write:pydbrave",
-              "read:pydbrave"
+            "pydbrief_auth": [
+              "write:pydbrief",
+              "read:pydbrief"
             ]
           }
         ]
@@ -974,14 +974,14 @@
       }
     },
     "securitySchemes": {
-      "pydbrave_auth": {
+      "pydbrief_auth": {
         "type": "oauth2",
         "flows": {
           "implicit": {
             "authorizationUrl": "127.0.1/authorize",
             "scopes": {
-              "write:pydbrave": "modify the data in the databases",
-              "read:pydbrave": "access the data in the databases"
+              "write:pydbrief": "modify the data in the databases",
+              "read:pydbrief": "access the data in the databases"
             }
           }
         }

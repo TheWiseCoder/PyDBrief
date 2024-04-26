@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
-  title: PyDBrave API
+  title: PyDBrief API
   description: |-
     A Workbench for bidirectional data migration between different RDBMSs
   contact:
     email: gtnunes@gmail.com
   version: 1.0.0_RC02
 externalDocs:
-  description: Known more about PyDbrave
-  url: https://github.com/TheWiseCoder/PyDBrave
+  description: Known more about PyDBrief
+  url: https://github.com/TheWiseCoder/PyDBrief
 servers:
   - url: 127.0.0.1:5000
     description: Local server
@@ -26,7 +26,7 @@ tags:
       description: Learn about data migration between RDBMSs
       url: https://en.wikipedia.org/wiki/Schema_migration
   - name: registry
-    description: Operational data on the PyDBrave server
+    description: Operational data on the PyDBrief server
 paths:
   /rdbms:
     get:
@@ -51,9 +51,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
     post:
       tags:
         - rdbms
@@ -77,9 +77,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
     patch:
       tags:
         - rdbms
@@ -103,9 +103,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /migration:configure:
     get:
       tags:
@@ -121,9 +121,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/MigrationConfiguration'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
     post:
       tags:
         - data migration
@@ -156,9 +156,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProcessesError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /migration/table/{table}:
     post:
       tags:
@@ -190,9 +190,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/TableError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /migration/schema/{schema}:
     post:
       tags:
@@ -225,9 +225,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/SchemaError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /migration/tables:
     post:
       tags:
@@ -262,15 +262,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/TablesError'
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /get-log:
     get:
       tags:
         - registry
       summary: Retrieve the server's operation log
-      description: Retrieve a file containing the operation log of the PyDBrave server.
+      description: Retrieve a file containing the operation log of the PyDBrief server.
       operationId: get-app-log
       parameters:
         - name: attach
@@ -335,14 +335,14 @@ paths:
                       type: string
                       example: Value '<from>' of 'from' attribute invalid
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
-  /swagger/pydbrave.json:
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
+  /swagger/pydbrief.json:
     get:
       tags:
         - registry
-      summary: Retrieve PyDBrave's API specifications in Swagger JSON format
+      summary: Retrieve PyDBrief's API specifications in Swagger JSON format
       description: Retrieve the file containing the API specifications in Swagger JSON format.
       operationId: get-swagger-json
       parameters:
@@ -361,15 +361,15 @@ paths:
               schema:
                 type: object
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
   /version:
     get:
       tags:
         - registry
-      summary: Retrieve the current PyDBrave's version
-      description: Retrieve the version of the PyDBrave currently running.
+      summary: Retrieve the current PyDBrief's version
+      description: Retrieve the version of the PyDBrief currently running.
       operationId: get-version
       responses:
         '200':
@@ -383,9 +383,9 @@ paths:
                     type: string
                     example: 1.0.0_RC10
       security:
-        - pydbrave_auth:
-            - write:pydbrave
-            - read:pydbrave
+        - pydbrief_auth:
+            - write:pydbrief
+            - read:pydbrief
 components:
   parameters:
     RdbmsParam:
@@ -613,14 +613,14 @@ components:
                 type: string
                 example: Invalid value '0'
   securitySchemes:
-    pydbrave_auth:
+    pydbrief_auth:
       type: oauth2
       flows:
         implicit:
           authorizationUrl: 127.0.1/authorize
           scopes:
-            write:pydbrave: modify the data in the databases
-            read:pydbrave: access the data in the databases
+            write:pydbrief: modify the data in the databases
+            read:pydbrief: access the data in the databases
     api_key:
       type: apiKey
       name: api_key
