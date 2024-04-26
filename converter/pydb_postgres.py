@@ -12,15 +12,80 @@ import getpass
 import cx_Oracle
 
 from logging import Logger
-from pypomes_core import env_get_int, env_get_str, str_sanitize
+from pypomes_core import env_get_int, env_get_str, str_sanitize, validate_format_error
 from typing import Final
 
-PG_NAME: Final[str] = env_get_str("PYDB_PG_NAME")
-PG_USER: Final[str] = env_get_str("PYDB_PG_USER")
-PG_PWD: Final[str] = env_get_str("PYDB_PG_PWD")
-PG_HOST: Final[str] = env_get_str("PYDB_PG_HOST")
-PG_PORT: Final[int] = env_get_int("PYDB_PG_PORT")
+PG_NAME: str | None = None
+PG_USER: str | None = None
+PG_PWD: str | None = None
+PG_HOST: str | None = None
+PG_PORT: int | None = None
 
+
+def set_connection_params(errors: list[str],
+                          scheme: dict,
+                          mandatory: bool) -> None:
+    """
+    Establish the parameters for connection to the PostgreSQL engine.
+
+    These are the parameters:
+        - db_name: name of the database
+        - db_user: name of logon user
+        - db_pwd: password for login
+        - db_host: host URL
+        - db_port: host port
+
+    :param errors: incidental error messages
+    :param scheme: the provided parameters
+    :param mandatory: the parameters must be provided
+    """
+    if hasattr(scheme, "db_name"):
+        global PG_NAME
+        PG_NAME = scheme.get("db_name")
+    if hasattr(scheme, "db_user"):
+        global PG_USER
+        PG_USER = scheme.get("db_user")
+    if hasattr(scheme, "db_pwd"):
+        global PG_PWD
+        PG_PWD = scheme.get("db_pwd")
+    if hasattr(scheme, "db_host"):
+        global PG_HOST
+        PG_HOST = scheme.get("db_host")
+    if hasattr(scheme, "db_port"):
+        if scheme.get("db_port").isnumeric():
+            global PG_PORT
+            PG_PORT = int(scheme.get("db_port"))
+        else:
+            # 128: Invalid value {}: must be type {}
+            errors.append(validate_format_error(128, "int", "@PG_PORT"))
+
+    if mandatory:
+        assert_connection_params(errors)
+
+
+def assert_connection_params(errors: list[str]) -> None:
+    """
+    Assert that the parameters for connecting with the PostgreSQL engine have been provided.
+
+    The *errors* argument will contain the appropriate messages regarding missing parameters.
+
+    :param errors: incidental error messages
+    """
+    if not PG_NAME:
+        errors.append(validate_format_error(112, "@PG_NAME"))
+    if not PG_USER:
+        errors.append(validate_format_error(112, "@PG_USER"))
+    if not PG_PWD:
+        errors.append(validate_format_error(112, "@PG_PWD"))
+    if not PG_HOST:
+        errors.append(validate_format_error(112, "@PG_HOST"))
+    if not PG_PORT:
+        errors.append(validate_format_error(112, "@PG_PORT"))
+
+
+def attempt_migration(errors: list[str]) -> dict:
+
+    pass
 
 def create_logfile(fn='migration.log'):
     """

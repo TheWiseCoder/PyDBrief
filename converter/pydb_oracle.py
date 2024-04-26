@@ -13,19 +13,83 @@ import cx_Oracle
 
 from logging import Logger
 from oracledb import Connection, connect
-from pypomes_core import env_get_int, env_get_str, str_sanitize
+from pypomes_core import env_get_int, env_get_str, str_sanitize, validate_format_error
 from typing import Final
+from .pydb_common import db_except_msg, db_log
 
-from .pydb_common import _db_except_msg, _db_log
-
-ORCL_NAME: Final[str] = env_get_str("PYDB_ORCL_NAME")
-ORCL_USER: Final[str] = env_get_str("PYDB_ORCL_USER")
-ORCL_PWD: Final[str] = env_get_str("PYDB_ORCL_PWD")
-ORCL_HOST: Final[str] = env_get_str("PYDB_ORCL_HOST")
-ORCL_PORT: Final[int] = env_get_int("PYDB_ORCL_PORT")
+ORCL_NAME: str | None = None
+ORCL_USER: str | None = None
+ORCL_PWD: str | None = None
+ORCL_HOST: str | None = None
+ORCL_PORT: int | None = None
 
 
-def db_connect(errors: list[str], logger: Logger = None) -> Connection:
+def set_connection_params(errors: list[str],
+                          scheme: dict,
+                          mandatory: bool) -> None:
+    """
+    Establish the parameters for connection to the Oracle engine.
+
+    These are the parameters:
+        - db_name: name of the database
+        - db_user: name of logon user
+        - db_pwd: password for login
+        - db_host: host URL
+        - db_port: host port
+
+    :param errors: incidental error messages
+    :param scheme: the provided parameters
+    :param mandatory: the parameters must be provided
+    """
+    if hasattr(scheme, "db_name"):
+        global ORCL_NAME
+        ORCL_NAME = scheme.get("db_name")
+    if hasattr(scheme, "db_user"):
+        global ORCL_USER
+        ORCL_USER = scheme.get("db_user")
+    if hasattr(scheme, "db_pwd"):
+        global ORCL_PWD
+        ORCL_PWD = scheme.get("db_pwd")
+    if hasattr(scheme, "db_host"):
+        global ORCL_HOST
+        ORCL_HOST = scheme.get("db_host")
+    if hasattr(scheme, "db_port"):
+        if scheme.get("db_port").isnumeric():
+            global ORCL_PORT
+            ORCL_PORT = int(scheme.get("db_port"))
+        else:
+            # 128: Invalid value {}: must be type {}
+            errors.append(validate_format_error(128, "int", "@ORCL_PORT"))
+
+    if mandatory:
+        assert_connection_params(errors)
+
+
+def assert_connection_params(errors: list[str]) -> bool:
+    """
+    Assert that the parameters for connecting with the PostgreSQL engine have been provided.
+
+    The *errors* argument will contain the appropriate messages regarding missing parameters.
+
+    :param errors: incidental error messages
+    :return: 'True' if all parameters have been provided, 'False' otherwise
+    """
+    if not ORCL_NAME:
+        errors.append(validate_format_error(112, "@ORCL_NAME"))
+    if not ORCL_USER:
+        errors.append(validate_format_error(112, "@ORCL_USER"))
+    if not ORCL_PWD:
+        errors.append(validate_format_error(112, "@ORCL_PWD"))
+    if not ORCL_HOST:
+        errors.append(validate_format_error(112, "@ORCL_HOST"))
+    if not ORCL_PORT:
+        errors.append(validate_format_error(112, "@ORCL_PORT"))
+
+    return len(errors) == 0
+
+
+def db_connect(errors: list[str],
+               logger: Logger = None) -> Connection:
     """
     Obtain and return a connection to the database, or *None* if the connection could not be obtained.
 
@@ -46,10 +110,10 @@ def db_connect(errors: list[str], logger: Logger = None) -> Connection:
             password=ORCL_PWD
         )
     except Exception as e:
-        err_msg = _db_except_msg(e, ORCL_NAME, ORCL_HOST)
+        err_msg = db_except_msg(e, ORCL_NAME, ORCL_HOST)
 
     # log the results
-    _db_log(errors, err_msg, logger, f"Connected to '{ORCL_NAME}' at '{ORCL_HOST}'")
+    db_log(errors, err_msg, logger, f"Connected to '{ORCL_NAME}' at '{ORCL_HOST}'")
 
     return result
 
@@ -413,8 +477,8 @@ def drop_connections(dbname, engine):
     con = engine.connect()
     con.execute("COMMIT")  # need to close current transaction
     con.execute("""
-        SELECT pg_terminate_backend(pid) 
-        FROM pg_stat_activity 
+        SELECT ORCL_terminate_backend(pid) 
+        FROM ORCL_stat_activity 
         WHERE datname = '{}';""".format(dbname))
     con.execute("COMMIT")  # need to close current transaction
     con.close()
@@ -632,43 +696,43 @@ def _convert_type(colname, ora_type, schema_name='',
         schema_name (str): Name of the schema.
         table_name (str): Name of the table.
     """
-    pg_type = ora_type
+    ORCL_type = ora_type
 
     # "NullType is used as a default type for those cases
     # where a type cannot be determined"
     # NB: this needs to be first in the list
     # Otherwise str(ora_type) clauses will error
     if isinstance(ora_type, sqlalchemy.types.NullType):
-        pg_type = sqlalchemy.types.String()
+        ORCL_type = sqlalchemy.types.String()
         logging.info('\t{}.{}.{}: NULL DETECTED'.format(schema_name, table_name,
                                                         colname))
-        return pg_type
+        return ORCL_type
     elif isinstance(ora_type, sqlalchemy.types.Numeric):
-        pg_type = sqlalchemy.types.Numeric()
+        ORCL_type = sqlalchemy.types.Numeric()
     elif isinstance(ora_type, sqlalchemy.types.DateTime):
-        pg_type = TIMESTAMP()
+        ORCL_type = TIMESTAMP()
     elif isinstance(ora_type, sqlalchemy.types.Text):
-        pg_type = sqlalchemy.types.Text()
+        ORCL_type = sqlalchemy.types.Text()
     elif isinstance(ora_type, sqlalchemy.types.NVARCHAR):
-        pg_type = sqlalchemy.types.VARCHAR()
+        ORCL_type = sqlalchemy.types.VARCHAR()
     elif isinstance(ora_type, sqlalchemy.types.BLOB):
-        pg_type = BLOB()       # BYTEA
+        ORCL_type = BLOB()       # BYTEA
     elif str(ora_type) == 'RAW':
-        pg_type = BLOB()       # BYTEA
+        ORCL_type = BLOB()       # BYTEA
     # this isn't currently catching the binary_float
     elif str(ora_type) == 'BINARY_FLOAT':
-        pg_type = REAL()
+        ORCL_type = REAL()
     elif str(ora_type) == 'INTERVAL DAY TO SECOND':
-        pg_type = sqlalchemy.types.Interval(second_precision=True)
+        ORCL_type = sqlalchemy.types.Interval(second_precision=True)
     else:
         pass
 
-    if pg_type != ora_type:
+    if ORCL_type != ora_type:
         msg = "\t{}.{}.{}: {} converted to {}".format(schema_name, table_name,
-                                                      colname, ora_type, pg_type)
+                                                      colname, ora_type, ORCL_type)
         logging.info(msg)
 
-    return pg_type
+    return ORCL_type
 
 
 def migrate(source_config, target_config, migration_config):

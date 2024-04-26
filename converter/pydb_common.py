@@ -1,19 +1,25 @@
 from logging import Logger
-from pypomes_core import str_sanitize
+from pypomes_core import str_sanitize, validate_format_error
+from typing import Final
 
 
-def _db_except_msg(exception: Exception, db_name: str, db_host: str) -> str:
+def db_except_msg(exception: Exception,
+                  db_name: str,
+                  db_host: str) -> str:
     """
     Format and return the error message corresponding to the exception raised while accessing the database.
 
     :param exception: the exception raised
+    :param db_name: the name of the database
+    :param db_host: the database connection URL
     :return: the formatted error message
     """
-    return f"Error accessing '{db_name}' at '{db_host}': {str_sanitize(f'{exception}')}"
+    # 101: Error accessing the DB {} in {}: {}
+    return validate_format_error(101, db_name,db_host, str_sanitize(f"{exception}"))
 
 
-def _db_build_query_msg(query_stmt: str,
-                        bind_vals: tuple) -> str:
+def db_build_query_msg(query_stmt: str,
+                       bind_vals: tuple) -> str:
     """
     Format and return the message indicative of an empty search.
 
@@ -54,6 +60,6 @@ def _db_log(errors: list[str],
         if isinstance(errors, list):
             errors.append(err_msg)
     elif logger:
-        debug_msg: str = _db_build_query_msg(query_stmt, bind_vals)
+        debug_msg: str = db_build_query_msg(query_stmt, bind_vals)
         logger.debug(debug_msg)
 
