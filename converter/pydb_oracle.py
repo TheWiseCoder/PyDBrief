@@ -117,7 +117,7 @@ def build_engine(errors: list[str]) -> sqlalchemy.engine:
     dsn: str = oracledb.makedsn(host=ORCL_DB_HOST,
                                 port=ORCL_DB_PORT,
                                 service_name=ORCL_DB_NAME)
-    conn_string: str = f"oracle://{ORCL_DB_USER}:{ORCL_DB_PWD}@{dsn}"
+    conn_string: str = f"oracle+oracledb://{ORCL_DB_USER}:{ORCL_DB_PWD}@{dsn}"
 
     # create the engine
     try:

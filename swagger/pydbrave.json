@@ -1,0 +1,996 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PyDBrave API",
+    "description": "A Workbench for bidirectional data migration between different RDBMSs",
+    "contact": {
+      "email": "gtnunes@gmail.com"
+    },
+    "version": "1.0.0_RC02"
+  },
+  "externalDocs": {
+    "description": "Known more about PyDbrave",
+    "url": "https://github.com/TheWiseCoder/PyDBrave"
+  },
+  "servers": [
+    {
+      "url": "127.0.0.1:5000",
+      "description": "Local server"
+    },
+    {
+      "url": "http://localhost:5000",
+      "description": "Local server for RDBMS migration work"
+    }
+  ],
+  "tags": [
+    {
+      "name": "rdbms",
+      "description": "Domain related to the RDBMS engines.",
+      "externalDocs": {
+        "description": "About RDBMS",
+        "url": "https://en.wikipedia.org/wiki/Relational_database"
+      }
+    },
+    {
+      "name": "data migration",
+      "description": "Data migration at various levels",
+      "externalDocs": {
+        "description": "Learn about data migration between RDBMSs",
+        "url": "https://en.wikipedia.org/wiki/Schema_migration"
+      }
+    },
+    {
+      "name": "registry",
+      "description": "Operational data on the PyDBrave server"
+    }
+  ],
+  "paths": {
+    "/rdbms": {
+      "get": {
+        "tags": [
+          "rdbms"
+        ],
+        "summary": "Retrieve the RDBMS configuration data",
+        "description": "Retrieve the connection parameters for the given RDBMS.",
+        "operationId": "get-rdbms-configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RdbmsParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdbmsConfiguration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No data found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdbmsError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "rdbms"
+        ],
+        "summary": "Establish the configuration for the RDBMS",
+        "description": "Establish the configuration data for the RDBMS.",
+        "operationId": "establish-rdbms-configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RdbmsParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbNameParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbUserParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbPwdParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbHostParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbPortParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration established"
+          },
+          "400": {
+            "description": "Unable to establish the RDBMS configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdbmsError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "rdbms"
+        ],
+        "summary": "Update the configuration for the RDBMS",
+        "description": "Incrementally update the configuration data for the RDBMS.",
+        "operationId": "update-rdbms-configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RdbmsParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbNameOptParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbUserOptParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbPwdOptParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbHostOptParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbPortOptParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration updated"
+          },
+          "400": {
+            "description": "Unable to update the RDBMS configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdbmsError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/migration:configure": {
+      "get": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Retrieve the configuration for data migration",
+        "description": "Retrieve the RDBMS-independent parameters driving the data migration.",
+        "operationId": "get-migration-configuration",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationConfiguration"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Configure the migration process",
+        "description": "Set up the RDBMS-independent parameters driving the migration process.",
+        "operationId": "configure-migration",
+        "parameters": [
+          {
+            "name": "batch-size",
+            "in": "query",
+            "description": "Maximum number of rows to migrate per batch (defaults to 100000).",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "default": 100000
+            }
+          },
+          {
+            "name": "processes",
+            "in": "query",
+            "description": "The number of processes to speed-up the migration with (defaults to 1 - no multiprocessing).",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Migration configured"
+          },
+          "400": {
+            "description": "Unable to configure the migration process",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcessesError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/migration/table/{table}": {
+      "post": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Migrate the data",
+        "description": "Migrate the data in the given table.",
+        "operationId": "migrate-table",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "path",
+            "description": "Table to migrate",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/MigrationFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrationToParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/migration/schema/{schema}": {
+      "post": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Migrate the data",
+        "description": "Migrate the data in all tables of the given schema.",
+        "operationId": "migrate-schema",
+        "parameters": [
+          {
+            "name": "schema",
+            "in": "path",
+            "description": "Schema to migrate",
+            "required": true,
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/MigrationFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrationToParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/migration/tables": {
+      "post": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Migrate the data",
+        "description": "Migrate the data in the given tables.",
+        "operationId": "migrate-tables",
+        "parameters": [
+          {
+            "name": "tables",
+            "in": "query",
+            "description": "Tables to migrate",
+            "required": true,
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "$ref": "#/components/parameters/MigrationFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrationToParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationSuccess"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TablesError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/get-log": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "summary": "Retrieve the server's operation log",
+        "description": "Retrieve a file containing the operation log of the PyDBrave server.",
+        "operationId": "get-app-log",
+        "parameters": [
+          {
+            "name": "attach",
+            "in": "query",
+            "description": "Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": true
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "description": "The desired log level",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "debug",
+              "enum": [
+                "debug",
+                "info",
+                "warning",
+                "error",
+                "critical"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "Timestamp for the start of the interval",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "YYYYMMDDhhmmss"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "Timestamp for the end of the interval",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "YYYYMMDDhhmmss"
+            }
+          },
+          {
+            "name": "last-days",
+            "in": "query",
+            "description": "How many days to go back for the start of the interval - ignored if 'from' or 'to' are specified",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "last-hours",
+            "in": "query",
+            "description": "How many hours to go back for the start of the interval - ignored if 'from' or 'to' are specified",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsuccessful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "example": "Value '<from>' of 'from' attribute invalid"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/swagger/pydbrave.json": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "summary": "Retrieve PyDBrave's API specifications in Swagger JSON format",
+        "description": "Retrieve the file containing the API specifications in Swagger JSON format.",
+        "operationId": "get-swagger-json",
+        "parameters": [
+          {
+            "name": "attach",
+            "in": "query",
+            "description": "Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    },
+    "/version": {
+      "get": {
+        "tags": [
+          "registry"
+        ],
+        "summary": "Retrieve the current PyDBrave's version",
+        "description": "Retrieve the version of the PyDBrave currently running.",
+        "operationId": "get-version",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "example": "1.0.0_RC10"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "pydbrave_auth": [
+              "write:pydbrave",
+              "read:pydbrave"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "RdbmsParam": {
+        "name": "rdbms",
+        "in": "query",
+        "description": "The RDBMS to configure",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "oracle",
+            "postgres",
+            "sqlserver"
+          ]
+        }
+      },
+      "DbNameParam": {
+        "name": "db-name",
+        "in": "query",
+        "description": "The database identification",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbUserParam": {
+        "name": "db-user",
+        "in": "query",
+        "description": "Logon user",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbPwdParam": {
+        "name": "db-pwd",
+        "in": "query",
+        "description": "Logon password",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbHostParam": {
+        "name": "db-host",
+        "in": "query",
+        "description": "Host access URL",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbPortParam": {
+        "name": "db-port",
+        "in": "query",
+        "description": "Host access port",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "DbNameOptParam": {
+        "name": "db-name",
+        "in": "query",
+        "description": "The database identification",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbUserOptParam": {
+        "name": "db-user",
+        "in": "query",
+        "description": "Logon user",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbPwdOptParam": {
+        "name": "db-pwd",
+        "in": "query",
+        "description": "Logon password",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbHostOptParam": {
+        "name": "db-host",
+        "in": "query",
+        "description": "Host access URL",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "DbPortOptParam": {
+        "name": "db-port",
+        "in": "query",
+        "description": "Host access port",
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "MigrationFromParam": {
+        "name": "from",
+        "in": "query",
+        "description": "The RBMS to migrate from",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "oracle",
+            "postgres",
+            "sqlserver"
+          ],
+          "example": "oracle"
+        }
+      },
+      "MigrationToParam": {
+        "name": "to",
+        "in": "query",
+        "description": "The RBMS to migrate to",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "oracle",
+            "postgres",
+            "sqlserver"
+          ],
+          "example": "postgres"
+        }
+      }
+    },
+    "schemas": {
+      "RdbmsConfiguration": {
+        "type": "object",
+        "properties": {
+          "rdbms": {
+            "type": "string",
+            "example": "oracle"
+          },
+          "name": {
+            "type": "string",
+            "example": "MyDatabase"
+          },
+          "user": {
+            "type": "string",
+            "example": "admin"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin"
+          },
+          "host": {
+            "type": "string",
+            "example": "https://myhost.com"
+          },
+          "port": {
+            "type": "integer",
+            "example": 8080
+          }
+        }
+      },
+      "MigrationConfiguration": {
+        "type": "object",
+        "properties": {
+          "batch-size": {
+            "type": "integer",
+            "example": 200000
+          },
+          "processes": {
+            "type": "integer",
+            "example": 10
+          }
+        }
+      },
+      "MigrationSuccess": {
+        "type": "object",
+        "properties": {
+          "migrations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "table": {
+                  "type": "integer"
+                },
+                "records": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SchemaError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "schema"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PYDB121"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value 'my-schema'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TableError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "table"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PYDB121"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value 'my-table'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TablesError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "tables"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PYDB121"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value 'my-table'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "RdbmsError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "db-name"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PYDB121"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value 'my-database'"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ProcessesError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "processes"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "PYDB121"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value '0'"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "pydbrave_auth": {
+        "type": "oauth2",
+        "flows": {
+          "implicit": {
+            "authorizationUrl": "127.0.1/authorize",
+            "scopes": {
+              "write:pydbrave": "modify the data in the databases",
+              "read:pydbrave": "access the data in the databases"
+            }
+          }
+        }
+      },
+      "api_key": {
+        "type": "apiKey",
+        "name": "api_key",
+        "in": "header"
+      }
+    }
+  }
+}
