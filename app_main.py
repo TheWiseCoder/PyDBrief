@@ -11,27 +11,25 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from typing import Final
 from werkzeug.exceptions import NotFound
 
+from converter.pydb_common import validate_rdbms_dual
+
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
 
 # ruff: noqa: E402
 from pypomes_core import (
-    exc_format, validate_str, validate_format_error, validate_format_errors
+    exc_format, validate_format_errors
 )  # noqa: PyPep8
 from pypomes_http import (
-    http_get_parameter, http_get_parameters
+    http_get_parameter, http_get_parameters, http_get_parameter_as_list
 )  # noqa: PyPep8
 from pypomes_logging import (
     logging_send_entries, logging_log_info, logging_log_error
 )  # noqa: PyPep8
 
-from converter import pydb_oracle, pydb_postgres, pydb_sqlserver  # noqa: PyPep8
-from converter.pydb_converter import convert  # noqa: PyPep8
+from converter import pydb_converter  # noqa: PyPep8
 
 # establish the current version
 APP_VERSION: Final[str] = "1.0.0_RC02"
-
-# list supported DB engines
-PYDB_SUPPORTED_ENGINES: list[str] = ["oracle", "postgres", "sqlserver"]
 
 # create the Flask application
 app = Flask(__name__)
@@ -52,7 +50,6 @@ app.register_blueprint(swagger_blueprint)
 
 
 @app.route("/swagger/ijud.json")
-# ?attach=<1|t|true|0|f|false|> - optional, 'False' if not specifies
 def swagger() -> Response:
     """
     Entry point for the microservice providing OpenAPI specifications in the Swagger standard.
@@ -100,11 +97,11 @@ def get_log() -> Response:
     Entry pointy for obtaining the execution log of the system.
 
     The query parameters are optional, and are used to filter the records to be returned:
-        - level=<log-level>
-        - from=<YYYYMMDDhhmmss>
-        - to=<YYYYMMDDhhmmss>
-        - last-days=<n>
-        - last-hours=<n>
+        - *level*=<log-level>
+        - *from*=<YYYYMMDDhhmmss>
+        - *to*=<YYYYMMDDhhmmss>
+        - *last-days*=<n>
+        - *last-hours*=<n>
 
     By default, the browser is instructed to save the file, instead of displaying its contents.
 
@@ -126,20 +123,18 @@ def get_log() -> Response:
     return result
 
 
-# ? engine=<oracle|postgres|sqlserver>
-@app.route(rule="/configure_engine",
+@app.route(rule="/configure_rdbms",
            methods=["PATCH", "POST"])
-def configure_engine() -> Response:
+def configure_rdbms() -> Response:
     """
-    Entry point for configuring the database engines.
+    Entry point for configuring the *RDMS* to use.
 
     The parameters are as follows:
-        - direction: defines the migration direction for the engine (*source* or *target*)
-        - engine: specifies the type of engine (*oracle*, *postgres*, or *sqlserver*)
-        - db_name: name of database
-        - db_user: the logon user
-        - db_pwd: the logon password
-        - db_host: the host URL
+        - *rdbms*: specifies the type of RDBMS (*oracle*, *postgres*, or *sqlserver*)
+        - *db_name*: name of database
+        - *db_user*: the logon user
+        - *db_pwd*: the logon password
+        - *db_host*: the host URL
     """
     # declare the return variable
     result: Response
@@ -147,21 +142,11 @@ def configure_engine() -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the  input parameters
+    # retrieve the input parameters
     scheme: dict = http_get_parameters(request)
-    engine: str = validate_str(errors=errors,
-                               scheme=scheme,
-                               attr="engine",
-                               default=PYDB_SUPPORTED_ENGINES)
-    # configure the engine
-    if len(errors) == 0:
-        match engine:
-            case "oracle":
-                pydb_oracle.set_connection_params(errors, scheme, request.method == "POST")
-            case "postgres":
-                pydb_postgres.set_connection_params(errors, scheme, request.method == "POST")
-            case "sqlserver":
-                pydb_sqlserver.set_connection_params(errors, scheme, request.method == "POST")
+
+    # configure the RDBMS
+    pydb_converter.set_connection_params(errors, scheme, request.method == "POST")
 
     if len(errors) == 0:
         result = jsonify({"status": "Operação bem sucedida"})
@@ -169,37 +154,39 @@ def configure_engine() -> Response:
         result = jsonify({"errors": validate_format_errors(errors)})
         result.status_code = 200
 
+    # register the response
+    logging_log_info(f"Response {request.path}?{scheme}: {result}")
+
     return result
 
 
-@app.route(rule="/convert",
+@app.route(rule="/migrate-tables",
            methods=["POST"])
-def launch_migration() -> Response:
+def migrate_tables() -> Response:
+    """
+    Migrate the specified tables from the source to the target *RDBMS*.
+
+    These are the expected parameters:
+        - *source-rdbms* - the source RDBMS for the migration
+        - *target-rdbms* - the destination RDBMS for the migration
+        - *data-tables* - one or more tables to migrate
+        - #drop-table* - whether to drop the destination table before the migration
+    """
 
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the  input parameters
+    # obtain the source and target RDBMS
     scheme: dict = http_get_parameters(request)
-    source_engine: str = validate_str(errors=errors,
-                                      scheme=scheme,
-                                      attr="source-engine",
-                                      default=PYDB_SUPPORTED_ENGINES)
-    target_engine: str = validate_str(errors=errors,
-                                      scheme=scheme,
-                                      attr="source-engine",
-                                      default=PYDB_SUPPORTED_ENGINES)
-    if len(errors) == 0 and source_engine == target_engine:
-        # 116: Value {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_engine,
-                                            "source-engine, target-engine"))
-    if len(errors) == 0:
+    (source_rdbms, target_rdbms) = validate_rdbms_dual(errors, scheme)
 
+    # obtain the tables to migrate
+    tables: list[str] = http_get_parameter_as_list(request, "data-tables")
 
     if len(errors) == 0:
-        status: dict = convert(errors, source_engine, target_engine)
-    else:
-        status: dict = {"errors": errors}
+        pydb_converter.migrate_tables(errors, source_rdbms, target_rdbms, tables)
+
+    status: dict = {"errors": errors}
 
     result: Response = jsonify(status)
     if len(errors) > 0:

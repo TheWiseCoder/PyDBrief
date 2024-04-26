@@ -1,49 +1,61 @@
-import sys
-import logging
-from datetime import datetime
-import multiprocessing
-import pandas as pd
 import sqlalchemy
-from sqlalchemy.orm import sessionmaker
-import oracledb
-import psycopg2
-import readline # support use of cursors in user input
-import getpass
-import cx_Oracle
-import pydb_oracle as migration_source
-import pydb_postgres as migration_target
 
-def convert(errors: list[str], source_engine: str, target_engine: str) -> dict:
-    """
-    Connects to the source and target databases, then migrates a list of defined schema.
-    """
+import pydb_oracle
+import pydb_postgres
+import pydb_sqlserver
+from .pydb_common import validate_rdbms
 
-    # create the logfile
-    migration_target.create_logfile()
 
-    # get settings for migration
-    migration_config = migration_target.get_migration_config()
-    source_config = migration_source.get_source_config()
-    target_config = migration_target.get_target_config()
+def set_connection_params(errors: list[str],
+                          scheme: dict,
+                          mandatory: bool) -> None:
 
-    # check the schema exist on the source database
-    source_engine = migration_source.connect_to_source(source_config)
-    migration_source.check_schema_exist(source_engine,source_config['schema_list'])
+    rdbms: str = validate_rdbms(errors, scheme, "rdbms")
 
-    # check and remove null characters in strings
-    migration_source.check_for_nulls(source_engine,source_config['schema_list'],remove=True)
+    # configure the engine
+    if len(errors) == 0:
+        match rdbms:
+            case "oracle":
+                pydb_oracle.set_connection_params(errors, scheme, mandatory)
+            case "postgres":
+                pydb_postgres.set_connection_params(errors, scheme, mandatory)
+            case "sqlserver":
+                pydb_sqlserver.set_connection_params(errors, scheme, mandatory)
 
-    # create a new database on the target
-    target_engine = migration_target.connect_to_target(target_config)
-    migration_target.drop_connections(target_config['database'],target_engine)
-    migration_target.drop_database(target_config['database'],target_engine)
-    migration_target.create_database(target_config['database'],target_engine)
 
-    # create the schema on the target database
-    target_engine = migration_target.connect_to_target(target_config,target_config['database'])
-    migration_target.create_target_schema(source_config['schema_list'],source_engine,target_engine)
+def build_engine(errors: list[str],
+                 rdbms: str) -> sqlalchemy.engine:
+    # initialize return variable
+    result: sqlalchemy.engine = None
 
-    # run the migration
-    migration_target.migrate(source_config,target_config,migration_config)
-    
-    return {}
+    match rdbms:
+        case "oracle":
+            result = pydb_oracle.build_engine(errors)
+        case "postgres":
+            result = pydb_postgres.build_engine(errors)
+        case "sqlserver":
+            result = pydb_sqlserver.build_engine(errors)
+
+    return result
+
+
+def migrate_table(errors: list[str],
+                  source_engine: sqlalchemy.engine,
+                  target_engine: sqlalchemy.engine,
+                  table: str) -> None:
+    pass
+
+
+def migrate_tables(errors: list[str],
+                   source_rdbms: str,
+                   target_rdbms: str,
+                   tables: list[str]) -> None:
+
+    # obtem the engines
+    source_engine: sqlalchemy.engine = build_engine(errors, source_rdbms)
+    target_engine: sqlalchemy.engine = build_engine(errors, target_rdbms)
+
+    if source_engine and target_engine:
+        for table in tables:
+            migrate_table(errors, source_engine, target_engine, table)
+
