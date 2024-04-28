@@ -1,36 +1,75 @@
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, validate_format_error, validate_str
+    str_sanitize, validate_format_error, validate_str, validate_int
 )
 
 # list of supported DB engines
-PYDB_SUPPORTED_ENGINES: list[str] = ["oracle", "postgres", "sqlserver"]
+SUPPORTED_ENGINES: list[str] = ["oracle", "postgres", "sqlserver"]
+
+# migration parameters
+MIGRATION_BATCH_SIZE: int = 100000
+MIGRATION_PROCESSES: int = 1
+
+
+def get_migration_params() -> dict:
+
+    return {
+        "bach-size": MIGRATION_BATCH_SIZE,
+        "processes": MIGRATION_PROCESSES
+    }
+
+
+def set_migration_parameters(errors: list[str],
+                             scheme: dict) -> None:
+
+    # validate the optional 'batch-size' parameter
+    batch_size: int = validate_int(errors=errors,
+                                   scheme=scheme,
+                                   attr="batch-size",
+                                   min_val=1000,
+                                   max_val=200000,
+                                   default=False)
+    # was it obtained ?
+    if batch_size:
+        # yes, set the corresponding global parameter
+        global MIGRATION_BATCH_SIZE
+        MIGRATION_BATCH_SIZE = batch_size
+
+    # validate the optional 'processes' parameter
+    processes: int = validate_int(errors=errors,
+                                  scheme=scheme,
+                                  attr="processes",
+                                  min_val=1,
+                                  max_val=100,
+                                  default=False)
+    # was it obtained ?
+    if processes:
+        # yes, set the corresponding global parameter
+        global MIGRATION_PROCESSES
+        MIGRATION_PROCESSES = processes
 
 
 def validate_rdbms(errors: list[str],
                    scheme: dict,
                    attr: str) -> str:
 
-    # retrieve the input parameters
-    result: str = validate_str(errors=errors,
-                               scheme=scheme,
-                               attr=attr,
-                               default=PYDB_SUPPORTED_ENGINES)
-
-    return result
+    # validate the provided value
+    return validate_str(errors=errors,
+                        scheme=scheme,
+                        attr=attr,
+                        default=SUPPORTED_ENGINES)
 
 
 def validate_rdbms_dual(errors: list[str],
                         scheme: dict) -> tuple[str, str]:
 
-    # retrieve the input parameters
-    source_rdbms: str = validate_rdbms(errors, scheme, "source-rdbms")
-    target_rdbms: str = validate_rdbms(errors, scheme, "target-rdbms")
+    # retrieve the provided values
+    source_rdbms: str = validate_rdbms(errors, scheme, "from")
+    target_rdbms: str = validate_rdbms(errors, scheme, "to")
 
     if len(errors) == 0 and source_rdbms == target_rdbms:
         # 116: Value {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_rdbms,
-                                            "source-rdbms, target-rdbms"))
+        errors.append(validate_format_error(116, source_rdbms, "'from' and 'to'"))
 
     return source_rdbms, target_rdbms
 
@@ -94,4 +133,3 @@ def db_log(errors: list[str],
     elif logger:
         debug_msg: str = db_build_query_msg(query_stmt, bind_vals)
         logger.debug(debug_msg)
-

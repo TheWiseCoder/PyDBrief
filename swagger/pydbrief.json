@@ -2,21 +2,17 @@
   "openapi": "3.0.3",
   "info": {
     "title": "PyDBrief API",
-    "description": "A Workbench for bidirectional data migration between different RDBMSs",
+    "description": "A Workbench for bidirectional data migration between different RDBMS engines",
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.0_RC02"
+    "version": "1.0.0_RC03"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
     "url": "https://github.com/TheWiseCoder/PyDBrief"
   },
   "servers": [
-    {
-      "url": "127.0.0.1:5000",
-      "description": "Local server"
-    },
     {
       "url": "http://localhost:5000",
       "description": "Local server for RDBMS migration work"
@@ -25,9 +21,9 @@
   "tags": [
     {
       "name": "rdbms",
-      "description": "Domain related to the RDBMS engines.",
+      "description": "Domain related to the RDBMS engines",
       "externalDocs": {
-        "description": "About RDBMS",
+        "description": "About RDBMS engines",
         "url": "https://en.wikipedia.org/wiki/Relational_database"
       }
     },
@@ -35,7 +31,7 @@
       "name": "data migration",
       "description": "Data migration at various levels",
       "externalDocs": {
-        "description": "Learn about data migration between RDBMSs",
+        "description": "Learn about data migration between RDBMS engines",
         "url": "https://en.wikipedia.org/wiki/Schema_migration"
       }
     },
@@ -50,8 +46,8 @@
         "tags": [
           "rdbms"
         ],
-        "summary": "Retrieve the RDBMS configuration data",
-        "description": "Retrieve the connection parameters for the given RDBMS.",
+        "summary": "Retrieve the RDBMS engine configuration data",
+        "description": "Retrieve the connection parameters for the given RDBMS engine.",
         "operationId": "get-rdbms-configuration",
         "parameters": [
           {
@@ -64,7 +60,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RdbmsConfiguration"
+                  "$ref": "#/components/schemas/OracleConfiguration"
                 }
               }
             }
@@ -79,22 +75,14 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       },
       "post": {
         "tags": [
           "rdbms"
         ],
-        "summary": "Establish the configuration for the RDBMS",
-        "description": "Establish the configuration data for the RDBMS.",
+        "summary": "Establish the configuration for the RDBMS engine",
+        "description": "Establish the configuration data for the RDBMS engine.",
         "operationId": "establish-rdbms-configuration",
         "parameters": [
           {
@@ -114,6 +102,9 @@
           },
           {
             "$ref": "#/components/parameters/DbPortParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbDriverParam"
           }
         ],
         "responses": {
@@ -121,7 +112,7 @@
             "description": "Configuration established"
           },
           "400": {
-            "description": "Unable to establish the RDBMS configuration",
+            "description": "Unable to establish the RDBMS engine's configuration",
             "content": {
               "application/json": {
                 "schema": {
@@ -130,22 +121,14 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       },
       "patch": {
         "tags": [
           "rdbms"
         ],
-        "summary": "Update the configuration for the RDBMS",
-        "description": "Incrementally update the configuration data for the RDBMS.",
+        "summary": "Update the configuration for the RDBMS engine",
+        "description": "Incrementally update the configuration data for the RDBMS engine.",
         "operationId": "update-rdbms-configuration",
         "parameters": [
           {
@@ -165,6 +148,9 @@
           },
           {
             "$ref": "#/components/parameters/DbPortOptParam"
+          },
+          {
+            "$ref": "#/components/parameters/DbDriverParam"
           }
         ],
         "responses": {
@@ -172,7 +158,7 @@
             "description": "Configuration updated"
           },
           "400": {
-            "description": "Unable to update the RDBMS configuration",
+            "description": "Unable to update the RDBMS engine's configuration",
             "content": {
               "application/json": {
                 "schema": {
@@ -181,15 +167,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
     "/migration:configure": {
@@ -211,17 +189,9 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       },
-      "post": {
+      "patch": {
         "tags": [
           "data migration"
         ],
@@ -232,21 +202,24 @@
           {
             "name": "batch-size",
             "in": "query",
-            "description": "Maximum number of rows to migrate per batch (defaults to 100000).",
-            "required": true,
+            "description": "Maximum number of rows to migrate per batch (range is [1000-200000]).",
+            "required": false,
             "schema": {
               "type": "integer",
+              "minimum": 1000,
+              "maximum": 200000,
               "default": 100000
             }
           },
           {
             "name": "processes",
             "in": "query",
-            "description": "The number of processes to speed-up the migration with (defaults to 1 - no multiprocessing).",
-            "required": true,
+            "description": "The number of processes to speed-up the migration with (range is [1-100]).",
+            "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1,
+              "maximum": 100,
               "default": 1
             }
           }
@@ -265,35 +238,18 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
-    "/migration/table/{table}": {
+    "/migration:verify": {
       "post": {
         "tags": [
           "data migration"
         ],
-        "summary": "Migrate the data",
-        "description": "Migrate the data in the given table.",
-        "operationId": "migrate-table",
+        "summary": "Verify whether a migration can be launched",
+        "description": "Verify whether the current configuration allows for a migration to be launched.",
+        "operationId": "verify-migration",
         "parameters": [
-          {
-            "name": "table",
-            "in": "path",
-            "description": "Table to migrate",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "$ref": "#/components/parameters/MigrationFromParam"
           },
@@ -303,60 +259,48 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful operation",
+            "description": "Migration can be launched",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MigrationSuccess"
+                  "$ref": "#/components/schemas/VerificationSuccess"
                 }
               }
             }
           },
           "400": {
-            "description": "Unsuccessful operation",
+            "description": "Migration cannot be launched",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TableError"
+                  "$ref": "#/components/schemas/VerificationFailure"
                 }
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
-    "/migration/schema/{schema}": {
+    "/migrate/schema/{schema}": {
       "post": {
         "tags": [
           "data migration"
         ],
         "summary": "Migrate the data",
-        "description": "Migrate the data in all tables of the given schema.",
+        "description": "Migrate the data in all tables in the given schema.",
         "operationId": "migrate-schema",
         "parameters": [
           {
-            "name": "schema",
-            "in": "path",
-            "description": "Schema to migrate",
-            "required": true,
-            "explode": false,
-            "schema": {
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/SchemaParam"
           },
           {
             "$ref": "#/components/parameters/MigrationFromParam"
           },
           {
             "$ref": "#/components/parameters/MigrationToParam"
+          },
+          {
+            "$ref": "#/components/parameters/DropTablesParam"
           }
         ],
         "responses": {
@@ -380,24 +324,16 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
-    "/migration/tables": {
+    "/migrate/schema/{schema}/tables": {
       "post": {
         "tags": [
           "data migration"
         ],
         "summary": "Migrate the data",
-        "description": "Migrate the data in the given tables.",
+        "description": "Migrate the data in the listed tables in the given schema.",
         "operationId": "migrate-tables",
         "parameters": [
           {
@@ -414,10 +350,16 @@
             }
           },
           {
+            "$ref": "#/components/parameters/SchemaParam"
+          },
+          {
             "$ref": "#/components/parameters/MigrationFromParam"
           },
           {
             "$ref": "#/components/parameters/MigrationToParam"
+          },
+          {
+            "$ref": "#/components/parameters/DropTablesParam"
           }
         ],
         "responses": {
@@ -441,15 +383,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
     "/get-log": {
@@ -558,15 +492,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
     "/swagger/pydbrief.json": {
@@ -600,15 +526,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     },
     "/version": {
@@ -636,15 +554,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "pydbrief_auth": [
-              "write:pydbrief",
-              "read:pydbrief"
-            ]
-          }
-        ]
+        }
       }
     }
   },
@@ -653,7 +563,7 @@
       "RdbmsParam": {
         "name": "rdbms",
         "in": "query",
-        "description": "The RDBMS to configure",
+        "description": "The RDBMS engine to configure",
         "required": true,
         "schema": {
           "type": "string",
@@ -709,6 +619,15 @@
           "type": "integer"
         }
       },
+      "DbDriverParam": {
+        "name": "db-driver",
+        "in": "query",
+        "description": "Database access driver (SQLServer, only)",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
       "DbNameOptParam": {
         "name": "db-name",
         "in": "query",
@@ -754,6 +673,16 @@
           "type": "integer"
         }
       },
+      "DropTablesParam": {
+        "name": "drop-tables",
+        "in": "query",
+        "description": "Determines whether to drop the destination tables before data migration",
+        "required": true,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
       "MigrationFromParam": {
         "name": "from",
         "in": "query",
@@ -783,10 +712,32 @@
           ],
           "example": "postgres"
         }
+      },
+      "SchemaParam": {
+        "name": "schema",
+        "in": "path",
+        "description": "The database schema",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
       }
     },
     "schemas": {
-      "RdbmsConfiguration": {
+      "MigrationConfiguration": {
+        "type": "object",
+        "properties": {
+          "batch-size": {
+            "type": "integer",
+            "example": 200000
+          },
+          "processes": {
+            "type": "integer",
+            "example": 10
+          }
+        }
+      },
+      "OracleConfiguration": {
         "type": "object",
         "properties": {
           "rdbms": {
@@ -795,7 +746,7 @@
           },
           "name": {
             "type": "string",
-            "example": "MyDatabase"
+            "example": "MyOracle"
           },
           "user": {
             "type": "string",
@@ -807,17 +758,50 @@
           },
           "host": {
             "type": "string",
-            "example": "https://myhost.com"
+            "example": "https://my-oracle.com"
           },
           "port": {
             "type": "integer",
-            "example": 8080
+            "example": 1521
           }
         }
       },
-      "MigrationConfiguration": {
+      "PostgresConfiguration": {
         "type": "object",
         "properties": {
+          "rdbms": {
+            "type": "string",
+            "example": "postgres"
+          },
+          "name": {
+            "type": "string",
+            "example": "MyPostgres"
+          },
+          "user": {
+            "type": "string",
+            "example": "admin"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin"
+          },
+          "host": {
+            "type": "string",
+            "example": "https://my-postgres.com"
+          },
+          "port": {
+            "type": "integer",
+            "example": 5432
+          }
+        }
+      },
+      "VerificationSuccess": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "Migration can be launched"
+          },
           "batch-size": {
             "type": "integer",
             "example": 200000
@@ -825,6 +809,37 @@
           "processes": {
             "type": "integer",
             "example": 10
+          },
+          "from": {
+            "$ref": "#/components/schemas/OracleConfiguration"
+          },
+          "to": {
+            "$ref": "#/components/schemas/PostgresConfiguration"
+          }
+        }
+      },
+      "VerificationFailure": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "Migration cannot be launched"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "example": "PYDB116"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Value 'oracle' cannot be assigned for attributes 'from.rdbms' and 'to.rdbms' at the same time"
+                }
+              }
+            }
           }
         }
       },
@@ -866,31 +881,6 @@
                 "description": {
                   "type": "string",
                   "example": "Invalid value 'my-schema'"
-                }
-              }
-            }
-          }
-        }
-      },
-      "TableError": {
-        "type": "object",
-        "properties": {
-          "errors": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "attribute": {
-                  "type": "string",
-                  "example": "table"
-                },
-                "code": {
-                  "type": "string",
-                  "example": "PYDB121"
-                },
-                "description": {
-                  "type": "string",
-                  "example": "Invalid value 'my-table'"
                 }
               }
             }
@@ -971,25 +961,6 @@
             }
           }
         }
-      }
-    },
-    "securitySchemes": {
-      "pydbrief_auth": {
-        "type": "oauth2",
-        "flows": {
-          "implicit": {
-            "authorizationUrl": "127.0.1/authorize",
-            "scopes": {
-              "write:pydbrief": "modify the data in the databases",
-              "read:pydbrief": "access the data in the databases"
-            }
-          }
-        }
-      },
-      "api_key": {
-        "type": "apiKey",
-        "name": "api_key",
-        "in": "header"
       }
     }
   }
