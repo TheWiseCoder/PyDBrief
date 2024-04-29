@@ -41,19 +41,19 @@ def set_connection_params(errors: list[str],
     :param mandatory: the parameters must be provided
     """
     # noinspection DuplicatedCode
-    if hasattr(scheme, "db-name"):
+    if scheme.get("db-name"):
         global MSQL_DB_NAME
         MSQL_DB_NAME = scheme.get("db-name")
-    if hasattr(scheme, "db-user"):
+    if scheme.get("db-user"):
         global MSQL_DB_USER
         MSQL_DB_USER = scheme.get("db-user")
-    if hasattr(scheme, "db-pwd"):
+    if scheme.get("db-pwd"):
         global MSQL_DB_PWD
         MSQL_DB_PWD = scheme.get("db-pwd")
-    if hasattr(scheme, "db-host"):
+    if scheme.get("db-host"):
         global MSQL_DB_HOST
         MSQL_DB_HOST = scheme.get("db-host")
-    if hasattr(scheme, "db-port"):
+    if scheme.get("db-port"):
         if scheme.get("db-port").isnumeric():
             global MSQL_DB_PORT
             MSQL_DB_PORT = int(scheme.get("db-port"))
@@ -67,7 +67,7 @@ def set_connection_params(errors: list[str],
 
 def assert_connection_params(errors: list[str]) -> bool:
     """
-    Assert that the parameters for connecting with the PostgreSQL engine have been provided.
+    Assert that the parameters for connecting with the MySql engine have been provided.
 
     The *errors* argument will contain the appropriate messages regarding missing parameters.
 

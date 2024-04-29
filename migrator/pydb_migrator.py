@@ -31,9 +31,16 @@ def migrate_data(errors: list[str],
     # iinitialize the return variable
     result: dict = {}
 
+    # initialize the Oracle Client, if applicable
+    if source_rdbms == "oracle" or target_rdbms == "oracle":
+        pydb_oracle.initialize(errors)
+
     # create engines
-    source_engine: Engine = build_engine(errors, source_rdbms, logger)
-    target_engine: Engine = build_engine(errors, target_rdbms, logger)
+    source_engine: Engine | None = None
+    target_engine: Engine | None = None
+    if len(errors) == 0:
+        source_engine = build_engine(errors, source_rdbms, logger)
+        target_engine = build_engine(errors, target_rdbms, logger)
 
     # were both engines created ?
     if source_engine is not None and target_engine is not None:
@@ -80,12 +87,14 @@ def migrate_data(errors: list[str],
                 for source_table in reversed(source_tables):
                     # build DROP TABLE statement
                     drop_stmt: str = f"DROP TABLE IF EXISTS {schema}.{source_table.name};"
-                    session_exc_stmt(errors, target_session, drop_stmt, logger)
+                    session_exc_stmt(errors, target_rdbms,
+                                     target_session, drop_stmt, logger)
 
             # setup target tables
             for source_table in source_tables:
                 # create table in target RDBMS
-                setup_target_table(errors, source_rdbms, target_rdbms, source_table, logger)
+                setup_target_table(errors, source_rdbms,
+                                   target_rdbms, source_table, logger)
             source_metadata.create_all(bind=target_engine,
                                        checkfirst=False)
 
@@ -101,8 +110,8 @@ def migrate_data(errors: list[str],
                                                     source_session, sel_stmt, logger)
                 while data:
                     # insert the current chunk of data
-                    session_bulk_insert(errors, target_rdbms, target_session,
-                                        source_table, data, logger)
+                    session_bulk_insert(errors, target_rdbms,
+                                        target_session, source_table, data, logger)
                     # fetch the next chunk of data
                     offset += pydb_common.MIGRATION_BATCH_SIZE
                     sel_stmt = build_select_query(source_rdbms, schema,
@@ -236,10 +245,11 @@ def session_unlog_table(errors: list[str],
     # does the RDMS support table unlogging ?
     if stmt:
         # yes, unlog the table
-        session_exc_stmt(errors, session, stmt, logger)
+        session_exc_stmt(errors, rdbms, session, stmt, logger)
 
 
 def session_exc_stmt(errors: list[str],
+                     rdbms: str,
                      session: Session,
                      stmt: str,
                      logger: Logger) -> Result:
@@ -248,6 +258,8 @@ def session_exc_stmt(errors: list[str],
     exc_stmt: TextClause = text(stmt)
     try:
         result = session.execute(statement=exc_stmt)
+        pydb_common.log(logger, DEBUG,
+                        f"RDBMS {rdbms}, sucessfully executed {stmt}")
     except Exception as e:
         err_msg = exc_format(exc=e,
                              exc_info=sys.exc_info())

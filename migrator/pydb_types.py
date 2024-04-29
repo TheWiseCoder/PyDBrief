@@ -359,14 +359,12 @@ def convert(source_rdbms: str,
     # log the result
     msg: str = f"RDBMS {source_rdbms}, type {type(col_type).__name__} for column {col_name}"
     if result is None:
-        pydb_common.log(logger,
-                        f"{msg} - unable to convert to RDBMS {target_rdbms}",
-                        WARNING)
+        pydb_common.log(logger, WARNING,
+                        f"{msg} - unable to convert to RDBMS {target_rdbms}")
         result = col_type
     else:
-        pydb_common.log(logger,
-                        f"{msg} converted to type {type(result).__name__} to RDBMS {target_rdbms}",
-                        DEBUG)
+        pydb_common.log(logger, DEBUG,
+                        f"{msg} converted to type {type(result).__name__} to RDBMS {target_rdbms}")
 
     return result
 

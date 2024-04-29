@@ -73,19 +73,19 @@ def set_connection_params(errors: list[str],
     :param mandatory: the parameters must be provided
     """
     # noinspection DuplicatedCode
-    if hasattr(scheme, "db-name"):
+    if scheme.get("db-name"):
         global PG_DB_NAME
         PG_DB_NAME = scheme.get("db-name")
-    if hasattr(scheme, "db-user"):
+    if scheme.get("db-user"):
         global PG_DB_USER
         PG_DB_USER = scheme.get("db-user")
-    if hasattr(scheme, "db-pwd"):
+    if scheme.get("db-pwd"):
         global PG_DB_PWD
         PG_DB_PWD = scheme.get("db-pwd")
-    if hasattr(scheme, "db-host"):
+    if scheme.get("db-host"):
         global PG_DB_HOST
         PG_DB_HOST = scheme.get("db-host")
-    if hasattr(scheme, "db-port"):
+    if scheme.get("db-port"):
         if scheme.get("db-port").isnumeric():
             global PG_DB_PORT
             PG_DB_PORT = int(scheme.get("db-port"))

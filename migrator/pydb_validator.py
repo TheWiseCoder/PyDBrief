@@ -142,7 +142,7 @@ def get_connection_params(errors: list[str],
                 result = pydb_sqlserver.get_connection_params()
             case _:
                 # 119: Invalid value {}: {}
-                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
+                errors.append(validate_format_error(119, rdbms, "unknown engine"))
 
     return result
 

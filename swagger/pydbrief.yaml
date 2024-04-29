@@ -26,7 +26,7 @@ tags:
   - name: registry
     description: Operational data on the PyDBrief server
 paths:
-  /rdbms:
+  /rdbms/{rdbms}:
     get:
       tags:
         - rdbms
@@ -61,10 +61,15 @@ paths:
         - $ref: '#/components/parameters/DbPwdParam'
         - $ref: '#/components/parameters/DbHostParam'
         - $ref: '#/components/parameters/DbPortParam'
+        - $ref: '#/components/parameters/DbClientParam'
         - $ref: '#/components/parameters/DbDriverParam'
       responses:
         '200':
           description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationSuccess'
         '400':
           description: Unable to update the RDBMS engine's configuration
           content:
@@ -316,7 +321,7 @@ components:
   parameters:
     RdbmsParam:
       name: rdbms
-      in: query
+      in: path
       description: The RDBMS engine to configure
       required: true
       schema:
@@ -357,6 +362,13 @@ components:
       required: false
       schema:
         type: integer
+    DbClientParam:
+      name: db-client
+      in: query
+      description: Client software installed in local desktop (Oracle, only)
+      required: false
+      schema:
+        type: string
     DbDriverParam:
       name: db-driver
       in: query
@@ -428,6 +440,9 @@ components:
         port:
           type: integer
           example: 1521
+        client:
+          type: string
+          example: C:\oracle\instantclient_21_6
     PostgresConfiguration:
       type: object
       properties:
@@ -449,6 +464,12 @@ components:
         port:
           type: integer
           example: 5432
+    OperationSuccess:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Operation successful
     VerificationSuccess:
       type: object
       properties:

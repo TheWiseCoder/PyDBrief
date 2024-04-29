@@ -76,28 +76,28 @@ def set_connection_params(errors: list[str],
     :param mandatory: the parameters must be provided
     """
     # noinspection DuplicatedCode
-    if hasattr(scheme, "db-name"):
+    if scheme.get("db-name"):
         global SQLS_DB_NAME
         SQLS_DB_NAME = scheme.get("db-name")
-    if hasattr(scheme, "db-user"):
+    if scheme.get("db-user"):
         global SQLS_DB_USER
         SQLS_DB_USER = scheme.get("db-user")
-    if hasattr(scheme, "db-pwd"):
+    if scheme.get("db-pwd"):
         global SQLS_DB_PWD
         SQLS_DB_PWD = scheme.get("db-pwd")
-    if hasattr(scheme, "db-driver"):
+    if scheme.get("db-driver"):
         global SQLS_DB_DRIVER
-        SQLS_DB_NAME = scheme.get("db-driver")
-    if hasattr(scheme, "db-host"):
+        SQLS_DB_DRIVER = scheme.get("db-driver")
+    if scheme.get("db-host"):
         global SQLS_DB_HOST
         SQLS_DB_HOST = scheme.get("db-host")
-    if hasattr(scheme, "db-port"):
+    if scheme.get("db-port"):
         if scheme.get("db-port").isnumeric():
             global SQLS_DB_PORT
             SQLS_DB_PORT = int(scheme.get("db-port"))
         else:
             # 128: Invalid value {}: must be type {}
-            errors.append(validate_format_error(128, "int", "@MS_DB_PORT"))
+            errors.append(validate_format_error(128, "int", "@SQLS_DB_PORT"))
 
     if mandatory:
         assert_connection_params(errors)

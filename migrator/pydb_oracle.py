@@ -1,15 +1,29 @@
 from logging import Logger
-from oracledb import Connection, connect, makedsn
+from oracledb import Connection, connect, makedsn, init_oracle_client
 from pypomes_core import validate_format_error
 
 from .pydb_common import db_except_msg, db_log
 
 # noinspection DuplicatedCode
+ORCL_DB_CLIENT: str | None = None
 ORCL_DB_NAME: str | None = None
 ORCL_DB_USER: str | None = None
 ORCL_DB_PWD: str | None = None
 ORCL_DB_HOST: str | None = None
 ORCL_DB_PORT: int | None = None
+
+client_initialized: bool = False
+
+
+def initialize(errors: list[str]) -> None:
+
+    global client_initialized
+    if isinstance(ORCL_DB_CLIENT, str) and not client_initialized:
+        try:
+            init_oracle_client(ORCL_DB_CLIENT)
+            client_initialized = True
+        except Exception as e:
+            errors.append(db_except_msg(e, ORCL_DB_NAME, ORCL_DB_HOST))
 
 
 def db_connect(errors: list[str],
@@ -37,7 +51,7 @@ def db_connect(errors: list[str],
         err_msg = db_except_msg(e, ORCL_DB_NAME, ORCL_DB_HOST)
 
     # log the results
-    db_log(errors, err_msg, logger, f"Connected to '{ORCL_DB_NAME}' at '{ORCL_DB_HOST}'")
+    db_log(errors, err_msg, logger, f"Connecting to '{ORCL_DB_NAME}' at '{ORCL_DB_HOST}'")
 
     return result
 
@@ -50,7 +64,8 @@ def get_connection_params() -> dict:
         "user": ORCL_DB_USER,
         "password": ORCL_DB_PWD,
         "host": ORCL_DB_HOST,
-        "port": ORCL_DB_PORT
+        "port": ORCL_DB_PORT,
+        "client": ORCL_DB_CLIENT
     }
 
 
@@ -66,25 +81,29 @@ def set_connection_params(errors: list[str],
         - *db-pwd*: password for login
         - *db-host*: host URL
         - *db-port*: host port
+        - *db-client*: Oracle client
 
     :param errors: incidental error messages
     :param scheme: the provided parameters
     :param mandatory: the parameters must be provided
     """
     # noinspection DuplicatedCode
-    if hasattr(scheme, "db-name"):
+    if scheme.get("db-name"):
         global ORCL_DB_NAME
         ORCL_DB_NAME = scheme.get("db-name")
-    if hasattr(scheme, "db-user"):
+    if scheme.get("db-user"):
         global ORCL_DB_USER
         ORCL_DB_USER = scheme.get("db-user")
-    if hasattr(scheme, "db-pwd"):
+    if scheme.get("db-pwd"):
         global ORCL_DB_PWD
         ORCL_DB_PWD = scheme.get("db-pwd")
-    if hasattr(scheme, "db-host"):
+    if scheme.get("db-client"):
+        global ORCL_DB_CLIENT
+        ORCL_DB_CLIENT = scheme.get("db-client")
+    if scheme.get("db-host"):
         global ORCL_DB_HOST
         ORCL_DB_HOST = scheme.get("db-host")
-    if hasattr(scheme, "db-port"):
+    if scheme.get("db-port"):
         if scheme.get("db-port").isnumeric():
             global ORCL_DB_PORT
             ORCL_DB_PORT = int(scheme.get("db-port"))

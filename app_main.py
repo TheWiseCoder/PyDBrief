@@ -144,13 +144,14 @@ def handle_rdbms() -> Response:
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request)
 
-    reply: dict | None = None
+    reply: dict
     if request.method == "GET":
         # get RDBMS connection params
         reply = pydb_validator.get_connection_params(errors, scheme)
     else:
         # configure the RDBMS
         pydb_validator.set_connection_params(errors, scheme)
+        reply = {"status": "Operation successful"}
 
     # build the response
     result: Response = _build_response(errors, reply)
