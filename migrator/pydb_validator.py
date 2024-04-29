@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import validate_format_error
 
 from . import (
-    pydb_common, pydb_oracle, pydb_postgres, pydb_sqlserver
+    pydb_common, pydb_mysql, pydb_oracle, pydb_postgres, pydb_sqlserver
 )
 
 
@@ -12,6 +12,8 @@ def assert_connection(errors: list[str],
     # attempt to connect
     conn: Any
     match rdbms:
+        case "mysql":
+            pass
         case "oracle":
             from oracledb import Connection
             conn: Connection = pydb_oracle.db_connect(errors)
@@ -28,6 +30,9 @@ def assert_connection(errors: list[str],
             conn: Connection = pydb_sqlserver.db_connect(errors)
             if isinstance(conn, Connection):
                 conn.close()
+        case _:
+            # 119: Invalid value {}: {}
+            errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
 
 
 def assert_connection_params(errors: list[str],
@@ -41,12 +46,17 @@ def assert_connection_params(errors: list[str],
     if isinstance(rdbms, str):
         # yes, retrieve the corresponding engine's configuration
         match rdbms:
+            case "mysql":
+                pydb_mysql.assert_connection_params(errors)
             case "oracle":
                 pydb_oracle.assert_connection_params(errors)
             case "postgres":
                 pydb_postgres.assert_connection_params(errors)
             case "sqlserver":
                 pydb_sqlserver.assert_connection_params(errors)
+            case _:
+                # 119: Invalid value {}: {}
+                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
 
 
 def assert_migration(errors: list[str],
@@ -98,6 +108,8 @@ def get_connection_string(rdbms: str) -> str:
 
     # obtain the connection string
     match rdbms:
+        case "mysql":
+            pass
         case "oracle":
             result = pydb_oracle.build_connection_string()
         case "postgres":
@@ -120,12 +132,17 @@ def get_connection_params(errors: list[str],
     # retrieve the engine's configuration
     if len(errors) == 0:
         match rdbms:
+            case "mysql":
+                result = pydb_mysql.get_connection_params()
             case "oracle":
                 result = pydb_oracle.get_connection_params()
             case "postgres":
                 result = pydb_postgres.get_connection_params()
             case "sqlserver":
                 result = pydb_sqlserver.get_connection_params()
+            case _:
+                # 119: Invalid value {}: {}
+                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
 
     return result
 
@@ -139,9 +156,14 @@ def set_connection_params(errors: list[str],
     # configure the engine
     if len(errors) == 0:
         match rdbms:
+            case "mysql":
+                pydb_mysql.set_connection_params(errors, scheme, mandatory)
             case "oracle":
                 pydb_oracle.set_connection_params(errors, scheme, mandatory)
             case "postgres":
                 pydb_postgres.set_connection_params(errors, scheme, mandatory)
             case "sqlserver":
                 pydb_sqlserver.set_connection_params(errors, scheme, mandatory)
+            case _:
+                # 119: Invalid value {}: {}
+                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))

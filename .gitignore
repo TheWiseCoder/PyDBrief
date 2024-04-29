@@ -12,3 +12,4 @@ tmp
 *.sh
 *.ps1
 envs.bat
+dockertips.txt

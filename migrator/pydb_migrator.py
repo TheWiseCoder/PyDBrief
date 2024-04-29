@@ -1,4 +1,5 @@
 import sys
+from logging import DEBUG, Logger
 from pypomes_core import validate_format_error, exc_format
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine
@@ -10,170 +11,30 @@ from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.schema import MetaData, Table, Column
+from sqlalchemy.sql.schema import MetaData, Table
 from typing import Any
 
 from . import (
-    pydb_common, pydb_validator,
+    pydb_common, pydb_types, pydb_validator,
     pydb_oracle, pydb_postgres, pydb_sqlserver
 )
 
 
-def build_engine(errors: list[str],
-                 rdbms: str) -> Engine:
-
-    # initialize the return variable
-    result: Engine | None = None
-
-    # obtain the connection string
-    conn_str: str = pydb_validator.get_connection_string(rdbms)
-
-    # build the engine
-    try:
-        result = create_engine(url=conn_str)
-    except Exception as e:
-        params: dict = pydb_validator.get_connection_params(errors, rdbms)
-        errors.append(pydb_common.db_except_msg(e, params.get("name"), params.get("host")))
-
-    return result
-
-
-def create_schema(errors: list[str],
-                  schema: str,
-                  session: Session) -> None:
-    try:
-        session.execute(statement=CreateSchema(schema))
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-
-def create_table(errors: list[str],
-                 table: Table,
-                 source_metadata: MetaData,
-                 target_engine: Engine) -> None:
-
-    # clear the indices and constraints
-    table.indexes.clear()
-    table.constraints.clear()
-
-    # set the data type
-    for column in table.columns:
-
-def build_select_query(rdbms: str,
-                       schema: str,
-                       table: Table,
-                       offset: int) -> str:
-
-    # initialize the return variable
-    result: str | None = None
-
-    # obtain names of columns (column names are quoted to avoid conflicts with keywords
-    columns_list: list[str] = [f'"{column}"' for column in table.columns.keys()]
-    columns_str: str = ", ".join(columns_list)
-
-    # build the SELECT query
-    match rdbms:
-        case "oracle":
-            result = pydb_oracle.build_select_query(schema, table.name, columns_str,
-                                                    offset, pydb_common.MIGRATION_BATCH_SIZE)
-        case "postgres":
-            result = pydb_postgres.build_select_query(schema, table.name, columns_str,
-                                                      offset, pydb_common.MIGRATION_BATCH_SIZE)
-        case "sqlserver":
-            result = pydb_sqlserver.build_select_query(schema, table.name, columns_str,
-                                                       offset, pydb_common.MIGRATION_BATCH_SIZE)
-
-    return result
-
-def get_column_type(rdbms: str, column:)
-
-
-def session_unlog_table(errors: list[str],
-                        rdbms: str,
-                        session: Session,
-                        table: Table) -> None:
-
-    # obtain the statement
-    stmt: str | None = None
-    match rdbms:
-        case "oracle":
-            stmt = pydb_oracle.get_table_unlog_stmt(table.name)
-        case "postgres":
-            stmt = pydb_postgres.get_table_unlog_stmt(table.name)
-        case "sqlserver":
-            stmt = pydb_sqlserver.get_table_unlog_stmt(table.name)
-
-    # does the RDMS support table unlogging ?
-    if stmt:
-        # yes, unlog the table
-        session_exc_stmt(errors, session, stmt)
-
-
-def session_exc_stmt(errors: list[str],
-                     session: Session,
-                     stmt: str) -> Result:
-
-    result: Result | None = None
-    exc_stmt: TextClause = text(stmt)
-    try:
-        result = session.execute(statement=exc_stmt)
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-    return result
-
-
-def session_bulk_fetch(errors: list[str],
-                       session: Session,
-                       sel_stmt: str) -> Any:
-
-    result: Any = None
-    exc_stmt: TextClause = text(sel_stmt)
-    try:
-        reply: Result = session.execute(exc_stmt)
-        result = reply.fetchall()
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-    return result
-
-
-def session_bulk_insert(errors: list[str],
-                        session: Session,
-                        table: Table,
-                        data: any) -> None:
-
-    try:
-        session.execute(table.insert(), data)
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-
+# this is the entry point for the migration process
 def migrate_data(errors: list[str],
                  source_rdbms: str,
                  target_rdbms: str,
                  schema: str,
                  data_tables: list[str],
-                 drop_tables: bool) -> dict:
+                 drop_tables: bool,
+                 logger: Logger = None) -> dict:
 
     # iinitialize the return variable
-    result: dict | None = None
+    result: dict = {}
 
     # create engines
-    source_engine: Engine = build_engine(errors, source_rdbms)
-    target_engine: Engine = build_engine(errors, target_rdbms)
+    source_engine: Engine = build_engine(errors, source_rdbms, logger)
+    target_engine: Engine = build_engine(errors, target_rdbms, logger)
 
     # were both engines created ?
     if source_engine is not None and target_engine is not None:
@@ -194,7 +55,7 @@ def migrate_data(errors: list[str],
             inspector = inspect(target_engine)
             schemas = inspector.get_schema_names()
             if schema not in schemas:
-                create_schema(errors, schema, target_session)
+                create_schema(errors, target_rdbms, schema, target_session, logger)
 
         # errors ?
         if len(errors) == 0:
@@ -220,36 +81,204 @@ def migrate_data(errors: list[str],
                 for source_table in reversed(source_tables):
                     # build DROP TABLE statement
                     drop_stmt: str = f"DROP TABLE IF EXISTS {schema}.{source_table.name};"
-                    session_exc_stmt(errors, target_session, drop_stmt)
+                    session_exc_stmt(errors, target_session, drop_stmt, logger)
 
-            # process tables
+            # setup target tables
             for source_table in source_tables:
                 # create table in target RDBMS
-                create_table(errors, source_table, source_metadata, target_engine)
+                setup_target_table(errors, source_rdbms, target_rdbms, source_table, logger)
+            source_metadata.create_all(bind=target_engine,
+                                       checkfirst=False)
 
-                session_unlog_table(errors, target_rdbms, target_session, source_table)
-                # obtain SELECT statement and fetch the data
-
-                # copy data
+            # copy the data
+            for source_table in source_tables:
+                session_unlog_table(errors, target_rdbms,
+                                    target_session, source_table, logger)
+                # obtain SELECT statement and copy the table data
                 offset: int = 0
-                sel_stmt: str = build_select_query(source_rdbms, schema, source_table, offset)
-                data: Any = session_bulk_fetch(errors, source_session, sel_stmt)
+                sel_stmt: str = build_select_query(source_rdbms, schema,
+                                                   source_table, offset, logger)
+                data: Any = session_bulk_fetch(errors, source_session, sel_stmt, logger)
                 while data:
-                    # insert the chunk of data chunk
-                    session_bulk_insert(errors, target_session, source_table, data)
+                    # insert the current chunk of data
+                    session_bulk_insert(errors, target_session,
+                                        source_table, data, logger)
                     # fetch the next chunk of data
                     offset += pydb_common.MIGRATION_BATCH_SIZE
         else:
-            # 121: Invalid value {} {}
-            errors.append(validate_format_error(121, schema,
-                                                f"(inexiste no RDBMS {source_rdbms}", "@schema"))
-
-
-
-
-
-
-
-
+            # 119: Invalid value {}: {}
+            errors.append(validate_format_error(119, schema,
+                                                f"schema inexistente no RDBMS {source_rdbms}",
+                                                "@schema"))
 
     return result
+
+
+def build_engine(errors: list[str],
+                 rdbms: str,
+                 logger: Logger) -> Engine:
+
+    # initialize the return variable
+    result: Engine | None = None
+
+    # obtain the connection string
+    conn_str: str = pydb_validator.get_connection_string(rdbms)
+
+    # build the engine
+    try:
+        result = create_engine(url=conn_str)
+        pydb_common.log(logger, "Created engine for RDBMS {rdbms}", DEBUG)
+    except Exception as e:
+        params: dict = pydb_validator.get_connection_params(errors, rdbms)
+        errors.append(pydb_common.db_except_msg(e, params.get("name"), params.get("host")))
+
+    return result
+
+
+def create_schema(errors: list[str],
+                  rdbms: str,
+                  schema: str,
+                  session: Session,
+                  logger: Logger) -> None:
+    try:
+        session.execute(statement=CreateSchema(schema))
+        pydb_common.log(logger, f"Created schema {schema} for RDBMS {rdbms}", DEBUG)
+    except Exception as e:
+        err_msg = exc_format(exc=e,
+                             exc_info=sys.exc_info())
+        # 104: Unexpected error: {}
+        errors.append(validate_format_error(104, err_msg))
+
+
+def setup_target_table(errors: list[str],
+                       source_rdbms: str,
+                       target_rdbms: str,
+                       source_table: Table,
+                       logger: Logger) -> None:
+
+    # clear the indices and constraints
+    source_table.indexes.clear()
+    source_table.constraints.clear()
+
+    # set the target columns
+    for column in source_table.columns():
+        # convert the type
+        target_type = pydb_types.convert(source_rdbms, target_rdbms, column, logger)
+        # convert the default value - TODO: write a decent default conversion function
+        curr_default: str = source_table.c[column.name].default
+        new_default: str | None = None
+        if curr_default.lower() not in ["sysdate", "systime"]:
+            new_default = curr_default
+        #
+        try:
+            source_table.c[column.name].type = target_type
+            source_table.c[column.name].default = new_default
+        except Exception as e:
+            err_msg = exc_format(exc=e,
+                                 exc_info=sys.exc_info())
+            # 104: Unexpected error: {}
+            errors.append(validate_format_error(104, err_msg))
+
+
+def build_select_query(rdbms: str,
+                       schema: str,
+                       table: Table,
+                       offset: int,
+                       logger: Logger) -> str:
+
+    # initialize the return variable
+    result: str | None = None
+
+    # obtain names of columns (column names are quoted to avoid conflicts with keywords
+    columns_list: list[str] = [f'"{column}"' for column in table.columns.keys()]
+    columns_str: str = ", ".join(columns_list)
+
+    # build the SELECT query
+    match rdbms:
+        case "oracle":
+            result = pydb_oracle.build_select_query(schema, table.name, columns_str,
+                                                    offset, pydb_common.MIGRATION_BATCH_SIZE)
+        case "postgres":
+            result = pydb_postgres.build_select_query(schema, table.name, columns_str,
+                                                      offset, pydb_common.MIGRATION_BATCH_SIZE)
+        case "sqlserver":
+            result = pydb_sqlserver.build_select_query(schema, table.name, columns_str,
+                                                       offset, pydb_common.MIGRATION_BATCH_SIZE)
+
+    pydb_common.log(logger, f"RDBMS {rdbms}, built query {result}", DEBUG)
+
+    return result
+
+
+def session_unlog_table(errors: list[str],
+                        rdbms: str,
+                        session: Session,
+                        table: Table,
+                        logger: Logger) -> None:
+
+    # obtain the statement
+    stmt: str | None = None
+    match rdbms:
+        case "oracle":
+            stmt = pydb_oracle.get_table_unlog_stmt(table.name)
+        case "postgres":
+            stmt = pydb_postgres.get_table_unlog_stmt(table.name)
+        case "sqlserver":
+            stmt = pydb_sqlserver.get_table_unlog_stmt(table.name)
+
+    # does the RDMS support table unlogging ?
+    if stmt:
+        # yes, unlog the table
+        session_exc_stmt(errors, session, stmt, logger)
+
+
+def session_exc_stmt(errors: list[str],
+                     session: Session,
+                     stmt: str,
+                     logger: Logger) -> Result:
+
+    result: Result | None = None
+    exc_stmt: TextClause = text(stmt)
+    try:
+        result = session.execute(statement=exc_stmt)
+    except Exception as e:
+        err_msg = exc_format(exc=e,
+                             exc_info=sys.exc_info())
+        # 104: Unexpected error: {}
+        errors.append(validate_format_error(104, err_msg))
+
+    return result
+
+
+def session_bulk_fetch(errors: list[str],
+                       session: Session,
+                       sel_stmt: str,
+                       logger: Logger) -> Any:
+
+    result: Any = None
+    exc_stmt: TextClause = text(sel_stmt)
+    try:
+        reply: Result = session.execute(exc_stmt)
+        result = reply.fetchall()
+    except Exception as e:
+        err_msg = exc_format(exc=e,
+                             exc_info=sys.exc_info())
+        # 104: Unexpected error: {}
+        errors.append(validate_format_error(104, err_msg))
+
+    return result
+
+
+def session_bulk_insert(errors: list[str],
+                        session: Session,
+                        table: Table,
+                        data: any,
+                        logger: Logger) -> None:
+
+    try:
+        session.execute(table.insert(), data)
+    except Exception as e:
+        err_msg = exc_format(exc=e,
+                             exc_info=sys.exc_info())
+        # 104: Unexpected error: {}
+        errors.append(validate_format_error(104, err_msg))

@@ -2,42 +2,6 @@ from logging import Logger
 from oracledb import Connection, connect, makedsn
 from pypomes_core import validate_format_error
 
-# noinspection PyUnresolvedReferences
-from sqlalchemy.dialects.oracle import (
-    BFILE,
-    BLOB,
-    CHAR,
-    CLOB,
-    DATE,
-    DOUBLE_PRECISION,
-    FLOAT,
-    INTERVAL,
-    LONG,
-    NCLOB,
-    NCHAR,
-    NUMBER,
-    NVARCHAR,
-    NVARCHAR2,
-    RAW,
-    TIMESTAMP,
-    VARCHAR,
-    VARCHAR2,
-    # types which are specific to Oracle, or have Oracle-specific construction arguments:
-    BFILE,
-    BINARY_DOUBLE,
-    BINARY_FLOAT,
-    DATE,
-    FLOAT,
-    INTERVAL,
-    LONG,
-    NCLOB,
-    NUMBER,
-    NVARCHAR2,
-    RAW,
-    ROWID,
-    TIMESTAMP,
-)
-
 from .pydb_common import db_except_msg, db_log
 
 # noinspection DuplicatedCode

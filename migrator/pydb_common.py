@@ -2,9 +2,10 @@ from logging import Logger
 from pypomes_core import (
     str_sanitize, validate_format_error, validate_str, validate_int
 )
+from typing import Final, Literal
 
 # list of supported DB engines
-SUPPORTED_ENGINES: list[str] = ["oracle", "postgres", "sqlserver"]
+SUPPORTED_ENGINES: Final[list[str]] = ["mysql", "oracle", "postgres", "sqlserver"]
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 100000
@@ -72,6 +73,24 @@ def validate_rdbms_dual(errors: list[str],
         errors.append(validate_format_error(116, source_rdbms, "'from' and 'to'"))
 
     return source_rdbms, target_rdbms
+
+
+def log(logger: Logger,
+        msg: str,
+        level: int) -> None:
+
+    if logger:
+        match level:
+            case 10:    # DEBUG
+                logger.debug(msg)
+            case 20:    # INFO
+                logger.info(msg)
+            case 30:    # WARNING
+                logger.warning(msg)
+            case 40:    # ERROR
+                logger.error(msg)
+            case 50:    # CRITICAL
+                logger.critical(msg)
 
 
 def db_except_msg(exception: Exception,

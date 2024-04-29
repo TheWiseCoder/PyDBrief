@@ -344,7 +344,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [oracle, postgres, sqlserver]
+        enum: [mysql, oracle, postgres, sqlserver]
     DbNameParam:
       name: db-name
       in: query
@@ -437,7 +437,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [oracle, postgres, sqlserver]
+        enum: [mysql, oracle, postgres, sqlserver]
         example: oracle
     MigrationToParam:
       name: to
@@ -446,7 +446,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [oracle, postgres, sqlserver]
+        enum: [mysql, oracle, postgres, sqlserver]
         example: postgres
     SchemaParam:
       name: schema

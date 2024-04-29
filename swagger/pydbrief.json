@@ -568,6 +568,7 @@
         "schema": {
           "type": "string",
           "enum": [
+            "mysql",
             "oracle",
             "postgres",
             "sqlserver"
@@ -691,6 +692,7 @@
         "schema": {
           "type": "string",
           "enum": [
+            "mysql",
             "oracle",
             "postgres",
             "sqlserver"
@@ -706,6 +708,7 @@
         "schema": {
           "type": "string",
           "enum": [
+            "mysql",
             "oracle",
             "postgres",
             "sqlserver"

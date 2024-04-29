@@ -41,7 +41,7 @@ app.config["JSON_AS_ASCII"] = False
 
 # make PyDBrief's API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
-    base_url="/api-docs",
+    base_url="/swagger",
     api_url="/swagger/pydbrief.json",
     config={"defaultModelsExpandDepth": -1}
 )
