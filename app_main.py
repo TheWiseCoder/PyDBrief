@@ -28,7 +28,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.0_RC02"
+APP_VERSION: Final[str] = "1.0.0_RC03"
 
 # create the Flask application
 app = Flask(__name__)
@@ -123,7 +123,7 @@ def get_log() -> Response:
 
 
 @app.route(rule="/rdbms",
-           methods=["GET", "PATCH", "POST"])
+           methods=["GET", "PATCH"])
 def handle_rdbms() -> Response:
     """
     Entry point for configuring the *RDMS* to use.
@@ -150,7 +150,7 @@ def handle_rdbms() -> Response:
         reply = pydb_validator.get_connection_params(errors, scheme)
     else:
         # configure the RDBMS
-        pydb_validator.set_connection_params(errors, scheme, request.method == "POST")
+        pydb_validator.set_connection_params(errors, scheme)
 
     # build the response
     result: Response = _build_response(errors, reply)

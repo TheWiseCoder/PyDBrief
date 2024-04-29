@@ -2,7 +2,7 @@ from logging import Logger
 from pypomes_core import (
     str_sanitize, validate_format_error, validate_str, validate_int
 )
-from typing import Final, Literal
+from typing import Final
 
 # list of supported DB engines
 SUPPORTED_ENGINES: Final[list[str]] = ["mysql", "oracle", "postgres", "sqlserver"]
@@ -76,8 +76,8 @@ def validate_rdbms_dual(errors: list[str],
 
 
 def log(logger: Logger,
-        msg: str,
-        level: int) -> None:
+        level: int,
+        msg: str) -> None:
 
     if logger:
         match level:

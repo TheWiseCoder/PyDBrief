@@ -1,10 +1,10 @@
 import sys
-from logging import DEBUG, Logger
+from logging import DEBUG, INFO, Logger
 from pypomes_core import validate_format_error, exc_format
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine
 from sqlalchemy.engine.create import create_engine
-from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.engine.reflection import Inspector, Sequence
 from sqlalchemy.engine.result import Result
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.ddl import CreateSchema
@@ -12,7 +12,6 @@ from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.schema import MetaData, Table
-from typing import Any
 
 from . import (
     pydb_common, pydb_types, pydb_validator,
@@ -98,13 +97,18 @@ def migrate_data(errors: list[str],
                 offset: int = 0
                 sel_stmt: str = build_select_query(source_rdbms, schema,
                                                    source_table, offset, logger)
-                data: Any = session_bulk_fetch(errors, source_session, sel_stmt, logger)
+                data: Sequence = session_bulk_fetch(errors, source_rdbms,
+                                                    source_session, sel_stmt, logger)
                 while data:
                     # insert the current chunk of data
-                    session_bulk_insert(errors, target_session,
+                    session_bulk_insert(errors, target_rdbms, target_session,
                                         source_table, data, logger)
                     # fetch the next chunk of data
                     offset += pydb_common.MIGRATION_BATCH_SIZE
+                    sel_stmt = build_select_query(source_rdbms, schema,
+                                                  source_table, offset, logger)
+                    data = session_bulk_fetch(errors, source_rdbms,
+                                              source_session, sel_stmt, logger)
         else:
             # 119: Invalid value {}: {}
             errors.append(validate_format_error(119, schema,
@@ -127,7 +131,8 @@ def build_engine(errors: list[str],
     # build the engine
     try:
         result = create_engine(url=conn_str)
-        pydb_common.log(logger, "Created engine for RDBMS {rdbms}", DEBUG)
+        pydb_common.log(logger, DEBUG,
+                        f"RDBMS {rdbms}, created engine")
     except Exception as e:
         params: dict = pydb_validator.get_connection_params(errors, rdbms)
         errors.append(pydb_common.db_except_msg(e, params.get("name"), params.get("host")))
@@ -142,7 +147,8 @@ def create_schema(errors: list[str],
                   logger: Logger) -> None:
     try:
         session.execute(statement=CreateSchema(schema))
-        pydb_common.log(logger, f"Created schema {schema} for RDBMS {rdbms}", DEBUG)
+        pydb_common.log(logger, DEBUG,
+                        f"RDBMS {rdbms}, created schema {schema}")
     except Exception as e:
         err_msg = exc_format(exc=e,
                              exc_info=sys.exc_info())
@@ -205,7 +211,8 @@ def build_select_query(rdbms: str,
             result = pydb_sqlserver.build_select_query(schema, table.name, columns_str,
                                                        offset, pydb_common.MIGRATION_BATCH_SIZE)
 
-    pydb_common.log(logger, f"RDBMS {rdbms}, built query {result}", DEBUG)
+    pydb_common.log(logger, DEBUG,
+                    f"RDBMS {rdbms}, built query {result}")
 
     return result
 
@@ -251,15 +258,18 @@ def session_exc_stmt(errors: list[str],
 
 
 def session_bulk_fetch(errors: list[str],
+                       rdbms: str,
                        session: Session,
                        sel_stmt: str,
-                       logger: Logger) -> Any:
+                       logger: Logger) -> Sequence:
 
-    result: Any = None
+    result: Sequence | None = None
     exc_stmt: TextClause = text(sel_stmt)
     try:
         reply: Result = session.execute(exc_stmt)
-        result = reply.fetchall()
+        result: Sequence = reply.fetchall()
+        pydb_common.log(logger, INFO,
+                        f"RDBMS {rdbms}, retrieved {len(result)} tuples with {sel_stmt}")
     except Exception as e:
         err_msg = exc_format(exc=e,
                              exc_info=sys.exc_info())
@@ -270,9 +280,10 @@ def session_bulk_fetch(errors: list[str],
 
 
 def session_bulk_insert(errors: list[str],
+                        rdbms: str,
                         session: Session,
                         table: Table,
-                        data: any,
+                        data: Sequence,
                         logger: Logger) -> None:
 
     try:
@@ -280,5 +291,7 @@ def session_bulk_insert(errors: list[str],
     except Exception as e:
         err_msg = exc_format(exc=e,
                              exc_info=sys.exc_info())
+        pydb_common.log(logger, INFO,
+                        f"RDBMS {rdbms}, inserted {len(data)} tuples in table {table.name}")
         # 104: Unexpected error: {}
         errors.append(validate_format_error(104, err_msg))

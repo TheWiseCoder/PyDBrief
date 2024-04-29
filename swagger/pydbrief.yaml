@@ -48,29 +48,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
-    post:
-      tags:
-        - rdbms
-      summary: Establish the configuration for the RDBMS engine
-      description: Establish the configuration data for the RDBMS engine.
-      operationId: establish-rdbms-configuration
-      parameters:
-        - $ref: '#/components/parameters/RdbmsParam'
-        - $ref: '#/components/parameters/DbNameParam'
-        - $ref: '#/components/parameters/DbUserParam'
-        - $ref: '#/components/parameters/DbPwdParam'
-        - $ref: '#/components/parameters/DbHostParam'
-        - $ref: '#/components/parameters/DbPortParam'
-        - $ref: '#/components/parameters/DbDriverParam'
-      responses:
-        '200':
-          description: Configuration established
-        '400':
-          description: Unable to establish the RDBMS engine's configuration
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RdbmsError'
     patch:
       tags:
         - rdbms
@@ -79,11 +56,11 @@ paths:
       operationId: update-rdbms-configuration
       parameters:
         - $ref: '#/components/parameters/RdbmsParam'
-        - $ref: '#/components/parameters/DbNameOptParam'
-        - $ref: '#/components/parameters/DbUserOptParam'
-        - $ref: '#/components/parameters/DbPwdOptParam'
-        - $ref: '#/components/parameters/DbHostOptParam'
-        - $ref: '#/components/parameters/DbPortOptParam'
+        - $ref: '#/components/parameters/DbNameParam'
+        - $ref: '#/components/parameters/DbUserParam'
+        - $ref: '#/components/parameters/DbPwdParam'
+        - $ref: '#/components/parameters/DbHostParam'
+        - $ref: '#/components/parameters/DbPortParam'
         - $ref: '#/components/parameters/DbDriverParam'
       responses:
         '200':
@@ -349,35 +326,35 @@ components:
       name: db-name
       in: query
       description: The database identification
-      required: true
+      required: false
       schema:
         type: string
     DbUserParam:
       name: db-user
       in: query
       description: Logon user
-      required: true
+      required: false
       schema:
         type: string
     DbPwdParam:
       name: db-pwd
       in: query
       description: Logon password
-      required: true
+      required: false
       schema:
         type: string
     DbHostParam:
       name: db-host
       in: query
       description: Host access URL
-      required: true
+      required: false
       schema:
         type: string
     DbPortParam:
       name: db-port
       in: query
       description: Host access port
-      required: true
+      required: false
       schema:
         type: integer
     DbDriverParam:
@@ -387,41 +364,6 @@ components:
       required: false
       schema:
         type: string
-    DbNameOptParam:
-      name: db-name
-      in: query
-      description: The database identification
-      required: false
-      schema:
-        type: string
-    DbUserOptParam:
-      name: db-user
-      in: query
-      description: Logon user
-      required: false
-      schema:
-        type: string
-    DbPwdOptParam:
-      name: db-pwd
-      in: query
-      description: Logon password
-      required: false
-      schema:
-        type: string
-    DbHostOptParam:
-      name: db-host
-      in: query
-      description: Host access URL
-      required: false
-      schema:
-        type: string
-    DbPortOptParam:
-      name: db-port
-      in: query
-      description: Host access port
-      required: false
-      schema:
-        type: integer
     DropTablesParam:
       name: drop-tables
       in: query

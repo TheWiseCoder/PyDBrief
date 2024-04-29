@@ -148,8 +148,7 @@ def get_connection_params(errors: list[str],
 
 
 def set_connection_params(errors: list[str],
-                          scheme: dict,
-                          mandatory: bool) -> None:
+                          scheme: dict) -> None:
 
     rdbms: str = pydb_common.validate_rdbms(errors, scheme, "rdbms")
 
@@ -157,13 +156,13 @@ def set_connection_params(errors: list[str],
     if len(errors) == 0:
         match rdbms:
             case "mysql":
-                pydb_mysql.set_connection_params(errors, scheme, mandatory)
+                pydb_mysql.set_connection_params(errors, scheme, False)
             case "oracle":
-                pydb_oracle.set_connection_params(errors, scheme, mandatory)
+                pydb_oracle.set_connection_params(errors, scheme, False)
             case "postgres":
-                pydb_postgres.set_connection_params(errors, scheme, mandatory)
+                pydb_postgres.set_connection_params(errors, scheme, False)
             case "sqlserver":
-                pydb_sqlserver.set_connection_params(errors, scheme, mandatory)
+                pydb_sqlserver.set_connection_params(errors, scheme, False)
             case _:
                 # 119: Invalid value {}: {}
-                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
+                errors.append(validate_format_error(119, rdbms, "unknown engine"))

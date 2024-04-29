@@ -3,7 +3,7 @@ FROM python:3.12-alpine
 WORKDIR .
 COPY requirements.txt requirements.txt
 
-# install acess to SQLServer
+# install access to SQLServer
 RUN apk update
 RUN apk add curl
 RUN apk add make
@@ -19,7 +19,7 @@ ENV PATH="$PATH:/opt/mssql-tools/bin"
 RUN pip install --upgrade pip
 
 RUN pip install -r requirements.txt
-COPY ../ .
+COPY . .
 
 ENV FLASK_APP=app_main.py
 ENV TZ=America/Sao_Paulo
