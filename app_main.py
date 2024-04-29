@@ -28,7 +28,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.0_RC03"
+APP_VERSION: Final[str] = "1.0.0_RC04"
 
 # create the Flask application
 app = Flask(__name__)
@@ -122,9 +122,9 @@ def get_log() -> Response:
     return result
 
 
-@app.route(rule="/rdbms",
+@app.route(rule="/rdbms/<rdbms>",
            methods=["GET", "PATCH"])
-def handle_rdbms() -> Response:
+def handle_rdbms(rdbms: str) -> Response:
     """
     Entry point for configuring the *RDMS* to use.
 
@@ -134,6 +134,7 @@ def handle_rdbms() -> Response:
         - *db-user*: the logon user
         - *db-pwd*: the logon password
         - *db-host*: the host URL
+        - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
     :return: the operation outcome
@@ -143,6 +144,7 @@ def handle_rdbms() -> Response:
 
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request)
+    scheme["rdbms"] = rdbms
 
     reply: dict
     if request.method == "GET":
@@ -151,7 +153,8 @@ def handle_rdbms() -> Response:
     else:
         # configure the RDBMS
         pydb_validator.set_connection_params(errors, scheme)
-        reply = {"status": "Operation successful"}
+        if len(errors) == 0:
+            reply = {"status": "Configuration updated"}
 
     # build the response
     result: Response = _build_response(errors, reply)

@@ -70,8 +70,7 @@ def get_connection_params() -> dict:
 
 
 def set_connection_params(errors: list[str],
-                          scheme: dict,
-                          mandatory: bool) -> None:
+                          scheme: dict) -> None:
     """
     Establish the parameters for connection to the Oracle engine.
 
@@ -85,24 +84,12 @@ def set_connection_params(errors: list[str],
 
     :param errors: incidental error messages
     :param scheme: the provided parameters
-    :param mandatory: the parameters must be provided
     """
-    # noinspection DuplicatedCode
-    if scheme.get("db-name"):
-        global ORCL_DB_NAME
-        ORCL_DB_NAME = scheme.get("db-name")
-    if scheme.get("db-user"):
-        global ORCL_DB_USER
-        ORCL_DB_USER = scheme.get("db-user")
-    if scheme.get("db-pwd"):
-        global ORCL_DB_PWD
-        ORCL_DB_PWD = scheme.get("db-pwd")
-    if scheme.get("db-client"):
-        global ORCL_DB_CLIENT
-        ORCL_DB_CLIENT = scheme.get("db-client")
-    if scheme.get("db-host"):
-        global ORCL_DB_HOST
-        ORCL_DB_HOST = scheme.get("db-host")
+    # SQLServer-only parameter
+    if scheme.get("db-driver"):
+        # 113: Attribute not applicable for {}
+        errors.append(validate_format_error(113, "Oracle", "@db-driver"))
+
     if scheme.get("db-port"):
         if scheme.get("db-port").isnumeric():
             global ORCL_DB_PORT
@@ -111,8 +98,23 @@ def set_connection_params(errors: list[str],
             # 128: Invalid value {}: must be type {}
             errors.append(validate_format_error(128, "int", "@ORCL_DB_PORT"))
 
-    if mandatory:
-        assert_connection_params(errors)
+    # noinspection DuplicatedCode
+    if len(errors) == 0:
+        if scheme.get("db-name"):
+            global ORCL_DB_NAME
+            ORCL_DB_NAME = scheme.get("db-name")
+        if scheme.get("db-user"):
+            global ORCL_DB_USER
+            ORCL_DB_USER = scheme.get("db-user")
+        if scheme.get("db-pwd"):
+            global ORCL_DB_PWD
+            ORCL_DB_PWD = scheme.get("db-pwd")
+        if scheme.get("db-client"):
+            global ORCL_DB_CLIENT
+            ORCL_DB_CLIENT = scheme.get("db-client")
+        if scheme.get("db-host"):
+            global ORCL_DB_HOST
+            ORCL_DB_HOST = scheme.get("db-host")
 
 
 def assert_connection_params(errors: list[str]) -> bool:

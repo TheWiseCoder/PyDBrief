@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.0_RC03
+  version: 1.0.0_RC04
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -69,7 +69,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationSuccess'
+                $ref: '#/components/schemas/ConfigurationUpdated'
         '400':
           description: Unable to update the RDBMS engine's configuration
           content:
@@ -464,12 +464,12 @@ components:
         port:
           type: integer
           example: 5432
-    OperationSuccess:
+    ConfigurationUpdated:
       type: object
       properties:
         status:
           type: string
-          example: Operation successful
+          example: Configuration updated
     VerificationSuccess:
       type: object
       properties:

@@ -24,8 +24,7 @@ def get_connection_params() -> dict:
 
 
 def set_connection_params(errors: list[str],
-                          scheme: dict,
-                          mandatory: bool) -> None:
+                          scheme: dict) -> None:
     """
     Establish the parameters for connection to the SQLServer engine.
 
@@ -38,31 +37,39 @@ def set_connection_params(errors: list[str],
 
     :param errors: incidental error messages
     :param scheme: the provided parameters
-    :param mandatory: the parameters must be provided
     """
-    # noinspection DuplicatedCode
-    if scheme.get("db-name"):
-        global MSQL_DB_NAME
-        MSQL_DB_NAME = scheme.get("db-name")
-    if scheme.get("db-user"):
-        global MSQL_DB_USER
-        MSQL_DB_USER = scheme.get("db-user")
-    if scheme.get("db-pwd"):
-        global MSQL_DB_PWD
-        MSQL_DB_PWD = scheme.get("db-pwd")
-    if scheme.get("db-host"):
-        global MSQL_DB_HOST
-        MSQL_DB_HOST = scheme.get("db-host")
+    # Oracle-only parameter
+    if scheme.get("db-client"):
+        # 113: Attribute not applicable for {}
+        errors.append(validate_format_error(113, "MySQL ", "@db-client"))
+
+    # SQLServer-only parameter
+    if scheme.get("db-driver"):
+        # 113: Attribute not applicable for {}
+        errors.append(validate_format_error(113, "MySQL ", "@db-driver"))
+
     if scheme.get("db-port"):
-        if scheme.get("db-port").isnumeric():
-            global MSQL_DB_PORT
-            MSQL_DB_PORT = int(scheme.get("db-port"))
-        else:
+        if not scheme.get("db-port").isnumeric():
             # 128: Invalid value {}: must be type {}
             errors.append(validate_format_error(128, "int", "@MSQL_DB_PORT"))
+        elif len(errors) == 0:
+            global MSQL_DB_PORT
+            MSQL_DB_PORT = int(scheme.get("db-port"))
 
-    if mandatory:
-        assert_connection_params(errors)
+    # noinspection DuplicatedCode
+    if len(errors) == 0:
+        if scheme.get("db-name"):
+            global MSQL_DB_NAME
+            MSQL_DB_NAME = scheme.get("db-name")
+        if scheme.get("db-user"):
+            global MSQL_DB_USER
+            MSQL_DB_USER = scheme.get("db-user")
+        if scheme.get("db-pwd"):
+            global MSQL_DB_PWD
+            MSQL_DB_PWD = scheme.get("db-pwd")
+        if scheme.get("db-host"):
+            global MSQL_DB_HOST
+            MSQL_DB_HOST = scheme.get("db-host")
 
 
 def assert_connection_params(errors: list[str]) -> bool:

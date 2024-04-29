@@ -58,8 +58,7 @@ def get_connection_params() -> dict:
 
 
 def set_connection_params(errors: list[str],
-                          scheme: dict,
-                          mandatory: bool) -> None:
+                          scheme: dict) -> None:
     """
     Establish the parameters for connection to the SQLServer engine.
 
@@ -73,8 +72,20 @@ def set_connection_params(errors: list[str],
 
     :param errors: incidental error messages
     :param scheme: the provided parameters
-    :param mandatory: the parameters must be provided
     """
+    # Oracle-only parameter
+    if scheme.get("db-client"):
+        # 113: Attribute not applicable for {}
+        errors.append(validate_format_error(113, "SQLServer ", "@db-client"))
+
+    if scheme.get("db-port"):
+        if not scheme.get("db-port").isnumeric():
+            # 128: Invalid value {}: must be type {}
+            errors.append(validate_format_error(128, "int", "@SQLS_DB_PORT"))
+        elif len(errors) == 0:
+            global SQLS_DB_PORT
+            SQLS_DB_PORT = int(scheme.get("db-port"))
+
     # noinspection DuplicatedCode
     if scheme.get("db-name"):
         global SQLS_DB_NAME
@@ -91,16 +102,6 @@ def set_connection_params(errors: list[str],
     if scheme.get("db-host"):
         global SQLS_DB_HOST
         SQLS_DB_HOST = scheme.get("db-host")
-    if scheme.get("db-port"):
-        if scheme.get("db-port").isnumeric():
-            global SQLS_DB_PORT
-            SQLS_DB_PORT = int(scheme.get("db-port"))
-        else:
-            # 128: Invalid value {}: must be type {}
-            errors.append(validate_format_error(128, "int", "@SQLS_DB_PORT"))
-
-    if mandatory:
-        assert_connection_params(errors)
 
 
 def assert_connection_params(errors: list[str]) -> bool:
