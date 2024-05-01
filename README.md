@@ -4,5 +4,5 @@ This is a workbench to bidirectionally migrate data between Oracle, PostgreSQL a
 *** WARNING *** WARNING *** WARNING ***
 
 Please, wait while this code is being fully refactored.
-The date of effective release is April 28, 2024.
+The date of effective release is May 6, 2024.
 See you then!!!

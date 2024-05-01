@@ -96,11 +96,11 @@ def get_log() -> Response:
     Entry pointy for obtaining the execution log of the system.
 
     The query parameters are optional, and are used to filter the records to be returned:
-        - *level*=<log-level>
-        - *from*=<YYYYMMDDhhmmss>
-        - *to*=<YYYYMMDDhhmmss>
-        - *last-days*=<n>
-        - *last-hours*=<n>
+        - *level*: <log-level>
+        - *from*: <YYYYMMDDhhmmss>
+        - *to*: <YYYYMMDDhhmmss>
+        - *last-days*: <n>
+        - *last-hours*: <n>
 
     By default, the browser is instructed to save the file, instead of displaying its contents.
 
@@ -126,10 +126,9 @@ def get_log() -> Response:
            methods=["GET", "PATCH"])
 def handle_rdbms(rdbms: str) -> Response:
     """
-    Entry point for configuring the *RDMS* to use.
+    Entry point for configuring the RDBMS to use.
 
     The parameters are as follows:
-        - *rdbms*: specifies the type of RDBMS (*oracle*, *postgres*, or *sqlserver*)
         - *db-name*: name of database
         - *db-user*: the logon user
         - *db-pwd*: the logon password
@@ -137,6 +136,7 @@ def handle_rdbms(rdbms: str) -> Response:
         - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
+    :param rdbms: the type of RDBMS (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -146,7 +146,7 @@ def handle_rdbms(rdbms: str) -> Response:
     scheme: dict = http_get_parameters(request)
     scheme["rdbms"] = rdbms
 
-    reply: dict
+    reply: dict | None = None
     if request.method == "GET":
         # get RDBMS connection params
         reply = pydb_validator.get_connection_params(errors, scheme)
@@ -227,13 +227,13 @@ def handle_migration() -> Response:
            methods=["POST"])
 def migrate_data(schema: str) -> Response:
     """
-    Migrate the specified table from the source to the target *RDBMS*.
+    Migrate the specified table from the source to the target RDBMS.
 
     These are the expected parameters:
         - *tables*: optional list tables to migrate (defaults to all tables in *schema*)
         - *from*: the source RDBMS for the migration
         - *to*: the destination RDBMS for the migration
-        - #drop-tables*: whether to drop the destination tables before the migration
+        - *drop-tables*: whether to drop the destination tables before the migration
 
     :param schema: the database schema to work with
     :return: the operation outcome

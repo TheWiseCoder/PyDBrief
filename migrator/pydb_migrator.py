@@ -15,7 +15,7 @@ from sqlalchemy.sql.schema import MetaData, Table
 
 from . import (
     pydb_common, pydb_types, pydb_validator,
-    pydb_oracle, pydb_postgres, pydb_sqlserver
+    pydb_oracle, pydb_postgres, pydb_sqlserver  # , pydb_mysql
 )
 
 
@@ -178,8 +178,8 @@ def setup_target_table(errors: list[str],
     # set the target columns
     for column in source_table.columns():
         # convert the type
-        target_type = pydb_types.convert(source_rdbms, target_rdbms, column, logger)
-        # convert the default value - TODO: write a decent default conversion function
+        target_type = pydb_types.convert_type(source_rdbms, target_rdbms, column, logger)
+        # convert the default value - TODO: write a decent default value conversion function
         curr_default: str = source_table.c[column.name].default
         new_default: str | None = None
         if curr_default.lower() not in ["sysdate", "systime"]:
@@ -210,6 +210,8 @@ def build_select_query(rdbms: str,
 
     # build the SELECT query
     match rdbms:
+        case "mysql":
+            pass
         case "oracle":
             result = pydb_oracle.build_select_query(schema, table.name, columns_str,
                                                     offset, pydb_common.MIGRATION_BATCH_SIZE)
@@ -235,6 +237,8 @@ def session_unlog_table(errors: list[str],
     # obtain the statement
     stmt: str | None = None
     match rdbms:
+        case "mysql":
+            pass
         case "oracle":
             stmt = pydb_oracle.get_table_unlog_stmt(table.name)
         case "postgres":

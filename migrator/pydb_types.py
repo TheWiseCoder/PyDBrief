@@ -1,7 +1,7 @@
 from logging import DEBUG, WARNING, Logger
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.types import TypeEngine
-from typing import Final
+from typing import Any, Final
 
 from . import pydb_common
 
@@ -86,6 +86,7 @@ from sqlalchemy.dialects.mysql import (
     ENUM as MSQL_ENUM,
     FLOAT as MSQL_FLOAT,
     INTEGER as MSQL_INTEGER,
+    JSON as MSQL_JSON,
     LONGBLOB as MSQL_LONGBLOB,
     LONGTEXT as MSQL_LONGTEXT,
     MEDIUMBLOB as MSQL_MEDIUMBLOB,
@@ -105,40 +106,14 @@ from sqlalchemy.dialects.mysql import (
     TINYTEXT as MSQL_TINYTEXT,
     VARBINARY as MSQL_VARBINARY,
     VARCHAR as MSQL_VARCHAR,
-    YEAR as MSQL_YEAR,
-    # types which are specific to MySQL, or have MySQL-specific construction arguments:
-    BIGINT as MSQL_BIGINT,
-    BIT as MSQL_BIT,
-    CHAR as MSQL_CHAR,
-    DATETIME as MSQL_DATETIME,
-    DECIMAL as MSQL_DECIMAL,
-    ENUM as MSQL_ENUM,
-    FLOAT as MSQL_FLOAT,
-    INTEGER as MSQL_INTEGER,
-    JSON as MSQL_JSON,
-    LONGBLOB as MSQL_LONGBLOB,
-    LONGTEXT as MSQL_LONGTEXT,
-    MEDIUMBLOB as MSQL_MEDIUMBLOB,
-    MEDIUMINT as MSQL_MEDIUMINT,
-    MEDIUMTEXT as MSQL_MEDIUMTEXT,
-    NCHAR as MSQL_NCHAR,
-    NUMERIC as MSQL_NUMERIC,
-    NVARCHAR as MSQL_NVARCHAR,
-    REAL as MSQL_REAL,
-    SET as MSQL_SET,
-    SMALLINT as MSQL_SMALLINT,
-    TIME as MSQL_TIME,
-    TIMESTAMP as MSQL_TIMESTAMP,
-    TINYBLOB as MSQL_TINYBLOB,
-    TINYINT as MSQL_TINYINT,
-    TINYTEXT as MSQL_TINYTEXT,
-    VARCHAR as MSQL_VARCHAR,
     YEAR as MSQL_YEAR
 )
 
 # noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.oracle import (
     BFILE as ORCL_BFILE,
+    BINARY_DOUBLE as ORCL_BINARY_DOUBLE,
+    BINARY_FLOAT as ORCL_BINARY_DOUBLE,
     BLOB as ORCL_BLOB,
     CHAR as ORCL_CHAR,
     CLOB as ORCL_CLOB,
@@ -146,30 +121,17 @@ from sqlalchemy.dialects.oracle import (
     DOUBLE_PRECISION as ORCL_DOUBLE_PRECISION,
     FLOAT as ORCL_FLOAT,
     INTERVAL as ORCL_INTERVAL,
-    LONG as ORCL_LONGNCLOB,
+    LONG as ORCL_LONG,
     NCLOB as ORCL_NCLOB,
     NCHAR as ORCL_NCHAR,
     NUMBER as ORCL_NUMBER,
     NVARCHAR as ORCL_NVARCHAR,
     NVARCHAR2 as ORCL_NVARCHAR2,
     RAW as ORCL_RAW,
+    ROWID as ORCL_ROWID,
     TIMESTAMP as ORCL_TIMESTAMP,
     VARCHAR as ORCL_VARCHAR,
-    VARCHAR2 as ORCL_VARCHAR2,
-    # types which are specific to Oracle, or have Oracle-specific construction arguments:
-    BFILE as ORCL_BFILE,
-    BINARY_DOUBLE as ORCL_,
-    BINARY_FLOAT as ORCL_BINARY_DOUBLE,
-    DATE as ORCL_DATE,
-    FLOAT as ORCL_FLOAT,
-    INTERVAL as ORCL_INTERVAL,
-    LONG as ORCL_LONG,
-    NCLOB as ORCL_NCLOB,
-    NUMBER as ORCL_NUMBER,
-    NVARCHAR2 as ORCL_NVARCHAR2,
-    RAW as ORCL_RAW,
-    ROWID as ORCL_ROWID,
-    TIMESTAMP as ORCL_TIMESTAMP
+    VARCHAR2 as ORCL_VARCHAR2
 )
 
 # noinspection PyUnresolvedReferences
@@ -221,43 +183,7 @@ from sqlalchemy.dialects.postgresql import (
     TSTZRANGE as PG_TSTZRANGE,
     TSVECTOR as PG_TSVECTOR,
     UUID as PG_UUID,
-    VARCHAR as PG_VARCHAR,
-    # Types which are specific to PostgreSQL as PG_, or have PostgreSQL-specific construction arguments:
-    ARRAY as PG_ARRAY,
-    BIT as PG_BIT,
-    BYTEA as PG_BYTEA,
-    CIDR as PG_CIDR,
-    CITEXT as PG_CITEXT,
-    DATEMULTIRANGE as PG_DATEMULTIRANGE,
-    DATERANGE as PG_DATERANGE,
-    DOMAIN as PG_DOMAIN,
-    ENUM as PG_ENUM,
-    HSTORE as PG_HSTORE,
-    INET as PG_INET,
-    INT4MULTIRANGE as PG_INT4MULTIRANGE,
-    INT4RANGE as PG_INT4RANGE,
-    INT8MULTIRANGE as PG_INT8MULTIRANGE,
-    INT8RANGE as PG_INT8RANGE,
-    INTERVAL as PG_INTERVAL,
-    JSON as PG_JSON,
-    JSONB as PG_JSONB,
-    JSONPATH as PG_JSONPATH,
-    MACADDR as PG_MACADDR,
-    MACADDR8 as PG_MACADDR8,
-    MONEY as PG_MONEY,
-    NUMMULTIRANGE as PG_NUMMULTIRANGE,
-    NUMRANGE as PG_NUMRANGE,
-    OID as PG_NUMRANGE,
-    REGCLASS as PG_REGCLASS,
-    REGCONFIG as PG_REGCONFIG,
-    TIME as PG_TIME,
-    TIMESTAMP as TIMESTAMP,
-    TSMULTIRANGE as PG_TSMULTIRANGE,
-    TSQUERY as PG_TSQUERY,
-    TSRANGE as PG_TSRANGE,
-    TSTZMULTIRANGE as PG_TSTZMULTIRANGE,
-    TSTZRANGE as PG_TSTZRANGE,
-    TSVECTOR as PG_TSVECTOR
+    VARCHAR as PG_VARCHAR
 )
 
 # noinspection PyUnresolvedReferences
@@ -282,6 +208,7 @@ from sqlalchemy.dialects.mssql import (
     NUMERIC as SQLS_NUMERIC,
     NVARCHAR as SQLS_NVARCHAR,
     REAL as SQLS_REAL,
+    ROWVERSION as SQLS_ROWVERSION,
     SMALLDATETIME as SQLS_SMALLDATETIME,
     SMALLINT as SQLS_SMALLINT,
     SMALLMONEY as SQLS_SMALLMONEY,
@@ -293,93 +220,170 @@ from sqlalchemy.dialects.mssql import (
     UNIQUEIDENTIFIER as SQLS_UNIQUEIDENTIFIER,
     VARBINARY as SQLS_VARBINARY,
     VARCHAR as SQLS_VARCHAR,
-    # types which are specific to SQL Server, or have SQL Server-specific construction arguments:
-    BIT as SQLS_BIT,
-    DATETIME2 as SQLS_DATETIME2,
-    DATETIMEOFFSET as SQLS_DATETIMEOFFSET,
-    DOUBLE_PRECISION as SQLS_DOUBLE_PRECISION,
-    IMAGE as SQLS_IMAGE,
-    JSON as SQLS_JSON,
-    MONEY as SQLS_MONEY,
-    NTEXT as SQLS_NTEXT,
-    REAL as SQLS_REAL,
-    ROWVERSION as SQLS_ROWVERSION,
-    SMALLDATETIME as SQLS_SMALLDATETIME,
-    SMALLMONEY as SQLS_SMALLMONEY,
-    SQL_VARIANT as SQLS_SQL_VARIANT,
-    TIME as SQLS_TIME,
-    TIMESTAMP as SQLS_TIMESTAMP,
-    TINYINT as SQLS_TINYINT,
-    UNIQUEIDENTIFIER as SQLS_UNIQUEIDENTIFIER,
     XML as SQLS_XML
 )
 
+# Reference - MySQL - Oracle - PostgreSQL - SQLServer
 REF_EQUIVALENCES: Final[list[tuple]] = [
-    # (reference, mysql, oracle, postgres, sqlserver)
-    (Ref_NullType, MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR, SQLS_VARCHAR),
-    (Ref_Numeric, MSQL_NUMERIC, ORCL_NUMBER, PG_NUMERIC, SQLS_NUMERIC),
+    (Ref_Date, MSQL_DATE, ORCL_DATE, PG_DATE, SQLS_DATE),
     (Ref_DateTime, MSQL_DATETIME, ORCL_DATE, PG_TIMESTAMP, SQLS_DATETIME),
+    (Ref_LargeBinary, MSQL_LONGBLOB, ORCL_BLOB, PG_BYTEA, SQLS_VARBINARY),
+    (Ref_Numeric, MSQL_NUMERIC, ORCL_NUMBER, PG_NUMERIC, SQLS_NUMERIC),
+    (Ref_NullType, MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR, SQLS_VARCHAR),
     (Ref_String, MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR, SQLS_VARCHAR),
     (Ref_Text, MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR, SQLS_VARCHAR),
-    (REF_BLOB, MSQL_BLOB, ORCL_BLOB, PG_BYTEA, SQLS_VARBINARY),
-    (REF_NVARCHAR, MSQL_NVARCHAR, ORCL_NVARCHAR2, PG_VARCHAR, SQLS_NVARCHAR),  # PG_VARCHAR ?
+    (REF_BLOB, MSQL_LONGBLOB, ORCL_CLOB, PG_BYTEA, SQLS_VARBINARY),
+    (REF_CLOB, MSQL_TEXT, ORCL_CLOB, PG_TEXT, None),
+    (REF_CHAR, MSQL_CHAR, ORCL_CHAR, PG_CHAR, SQLS_CHAR),
+    (REF_FLOAT, MSQL_FLOAT, ORCL_FLOAT, PG_FLOAT, SQLS_FLOAT),
+    (REF_NVARCHAR, MSQL_NVARCHAR, ORCL_NVARCHAR2, PG_VARCHAR, SQLS_NVARCHAR),
 ]
 
-NAMED_EQUIVALENCES: Final[list[tuple]] = [
+# MySQL - Oracle - PostgreSQL - SLServer
+MSQL_EQUIVALENCES: Final[list[tuple]] = [
+    (MSQL_BLOB, ORCL_BLOB, PG_BYTEA, SQLS_VARBINARY),
+    (MSQL_CHAR, ORCL_CHAR, PG_CHAR, SQLS_CHAR),
+    (MSQL_DATETIME, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_DATETIME),
+    (MSQL_NUMERIC, ORCL_NUMBER, PG_NUMERIC, SQLS_NUMERIC),
+    (MSQL_NVARCHAR, ORCL_NVARCHAR2, PG_VARCHAR, SQLS_NVARCHAR),
+    (MSQL_FLOAT, ORCL_FLOAT, PG_FLOAT, SQLS_FLOAT),
+    (MSQL_LONGTEXT, ORCL_LONG, PG_TEXT, SQLS_TEXT),
+    (MSQL_LONGBLOB, ORCL_BLOB, PG_BYTEA, SQLS_VARBINARY),
+    (MSQL_MEDIUMBLOB, ORCL_BLOB, PG_BYTEA, SQLS_VARBINARY),
+    (MSQL_TEXT, ORCL_CLOB, PG_TEXT, None),
+    (MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_TIMESTAMP),
+    (MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR, SQLS_VARCHAR),
+]
+
+# Oracle - MySQL - PostgreSQL - SQLServer
+ORCL_EQUIVALENCES: Final[list[tuple]] = [
+    (ORCL_BLOB, MSQL_LONGBLOB, PG_BYTEA, SQLS_VARBINARY),
+    (ORCL_CHAR, MSQL_CHAR, PG_CHAR, SQLS_CHAR),
+    (ORCL_CLOB, MSQL_TEXT, PG_TEXT, None),
+    (ORCL_DATE, MSQL_DATETIME, PG_TIMESTAMP, SQLS_DATETIME),
+    (ORCL_FLOAT, MSQL_FLOAT, PG_FLOAT, SQLS_FLOAT),
+    (ORCL_LONG, MSQL_LONGTEXT, PG_TEXT, SQLS_TEXT),
+    (ORCL_NUMBER, MSQL_NUMERIC, PG_NUMERIC, SQLS_NUMERIC),
+    (ORCL_NVARCHAR2, MSQL_NVARCHAR, PG_VARCHAR, SQLS_NVARCHAR),
+    (ORCL_RAW, MSQL_LONGBLOB, PG_BYTEA, SQLS_VARBINARY),
+    (ORCL_VARCHAR2, MSQL_VARCHAR, PG_VARCHAR, SQLS_VARCHAR),
+    (ORCL_TIMESTAMP, MSQL_DATETIME, PG_TIMESTAMP, SQLS_DATETIME),
+]
+
+# PostgreSQL - MySQL - Oracle - SQLServer
+PG_EQUIVALENCES: Final[list[tuple]] = [
+    (PG_BYTEA, MSQL_LONGBLOB, ORCL_BLOB, SQLS_VARBINARY),
+    (PG_CHAR, MSQL_CHAR, ORCL_CHAR, SQLS_CHAR),
+    (PG_NUMERIC, MSQL_NUMERIC, ORCL_NUMBER, SQLS_NUMERIC),
+    (PG_FLOAT, MSQL_FLOAT, ORCL_FLOAT, SQLS_FLOAT),
+    (PG_TEXT, MSQL_LONGTEXT, ORCL_LONG, SQLS_TEXT),
+    (PG_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, SQLS_TIMESTAMP),
+    (PG_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, SQLS_VARCHAR),
+]
+
+# SQLServer - MySQL - Oracle - PostgreSQL
+SQLS_EQUIVALENCES: Final[list[tuple]] = [
+    (SQLS_CHAR, MSQL_CHAR, ORCL_CHAR, PG_CHAR),
+    (SQLS_DATETIME, MSQL_DATETIME, ORCL_DATE, PG_TIMESTAMP),
+    (SQLS_FLOAT, MSQL_FLOAT, ORCL_FLOAT, PG_FLOAT),
+    (SQLS_NUMERIC, MSQL_NUMERIC, ORCL_NUMBER, PG_NUMERIC),
+    (SQLS_NVARCHAR, MSQL_NVARCHAR, ORCL_NVARCHAR2, PG_VARCHAR),
+    (SQLS_TEXT, MSQL_LONGTEXT, ORCL_LONG, PG_TEXT),
+    (SQLS_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP),
+    (SQLS_VARBINARY, MSQL_LONGBLOB, ORCL_BLOB, PG_BYTEA),
+    (SQLS_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, PG_VARCHAR),
 ]
 
 
-def convert(source_rdbms: str,
-            target_rdbms: str,
-            source_column: Column,
-            logger: Logger) -> TypeEngine:
+def convert_type(source_rdbms: str,
+                 target_rdbms: str,
+                 source_column: Column,
+                 logger: Logger) -> Any:
 
-    # declare the return variable
-    result: TypeEngine | None = None
+    target_type: TypeEngine | None = None
 
     col_type: TypeEngine = source_column.type
     col_name: str = f"{source_column.table.name}.{source_column.name}"
-    ord_source: int = _get_ordinal(source_rdbms)
-    ord_target: int = _get_ordinal(target_rdbms)
+    (nat_equivalences, nat_ordinal, ref_ordinal) = _get_equivalences(source_rdbms, target_rdbms)
 
-    # check the reference equivalences first
+    # check the reference equivalences
     for ref_equivalence in REF_EQUIVALENCES:
-        ref_type: TypeEngine = ref_equivalence[0]
-        if col_type == ref_type:
-            result = ref_equivalence[ord_target+1]
+        if col_type == ref_equivalence[0]:
+            target_type = ref_equivalence[ref_ordinal]
             break
 
-    # has the equivalent type been found ?
-    if result is None:
-        # no, check the named equivalences
-        for named_equivalence in NAMED_EQUIVALENCES:
-            if col_type == named_equivalence[ord_source]:
-                result = named_equivalence[ord_target]
+    # check the native equivalences, if necessary
+    if target_type is None:
+        for nat_equivalence in nat_equivalences:
+            if col_type == nat_equivalence[0]:
+                target_type = nat_equivalence[nat_ordinal]
+                break
 
     # log the result
-    msg: str = f"RDBMS {source_rdbms}, type {type(col_type).__name__} for column {col_name}"
-    if result is None:
+    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(col_type)} for column {col_name}"
+    if target_type is None:
+        target_type = col_type
         pydb_common.log(logger, WARNING,
-                        f"{msg} - unable to convert to RDBMS {target_rdbms}")
-        result = col_type
+                        f"{msg}  - unable to convert")
     else:
         pydb_common.log(logger, DEBUG,
-                        f"{msg} converted to type {type(result).__name__} to RDBMS {target_rdbms}")
+                        f"{msg} converted to type {str(target_type)}")
 
-    return result
+    # noinspection PyCallingNonCallable
+    return target_type()
 
 
-def _get_ordinal(rdbms: str) -> int:
+def _get_equivalences(source_rdbms: str, target_rdbms: str) -> tuple[list[tuple], int, int]:
 
-    result: int
-    match rdbms:
+    nat_equivalences: list[tuple] | None = None
+    match source_rdbms:
         case "mysql":
-            result = 0
+            nat_equivalences = MSQL_EQUIVALENCES
         case "oracle":
-            result = 1
+            nat_equivalences = ORCL_EQUIVALENCES
         case "postgres":
-            result = 2
-        case _:  # "sqlserver":
-            result = 3
+            nat_equivalences = PG_EQUIVALENCES
+        case "sqlserver":
+            nat_equivalences = SQLS_EQUIVALENCES
 
-    return result
+    nat_ordinal: int | None = None
+    ref_ordinal: int | None = None
+    match target_rdbms:
+        case "mysql":
+            ref_ordinal = 1
+            match source_rdbms:
+                case "oracle":
+                    nat_ordinal = 1
+                case "postgres":
+                    nat_ordinal = 2
+                case "sqlserver":
+                    nat_ordinal = 3
+        case "oracle":
+            ref_ordinal = 2
+            match source_rdbms:
+                case "mysql":
+                    nat_ordinal = 1
+                case "postgres":
+                    nat_ordinal = 2
+                case "sqlserver":
+                    nat_ordinal = 3
+        case "postgres":
+            ref_ordinal = 3
+            match source_rdbms:
+                case "mysql":
+                    nat_ordinal = 1
+                case "oracle":
+                    nat_ordinal = 2
+                case "sqlserver":
+                    nat_ordinal = 3
+        case "sqlserver":
+            ref_ordinal = 4
+            match source_rdbms:
+                case "mysql":
+                    nat_ordinal = 1
+                case "oracle":
+                    nat_ordinal = 2
+                case "postgres":
+                    nat_ordinal = 3
+
+    return nat_equivalences, nat_ordinal, ref_ordinal
