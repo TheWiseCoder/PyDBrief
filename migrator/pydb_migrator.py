@@ -7,7 +7,6 @@ from sqlalchemy.engine.create import create_engine
 from sqlalchemy.engine.reflection import Inspector, Sequence
 from sqlalchemy.engine.result import Result
 from sqlalchemy.inspection import inspect
-from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.session import Session
@@ -26,7 +25,7 @@ def migrate_data(errors: list[str],
                  schema: str,
                  data_tables: list[str],
                  drop_tables: bool,
-                 logger: Logger = None) -> dict:
+                 logger: Logger | None) -> dict:
 
     # iinitialize the return variable
     result: dict = {}
@@ -50,18 +49,25 @@ def migrate_data(errors: list[str],
         source_session: Session = SourceSession()
 
         # noinspection PyPep8Naming
-        TargetSession = sessionmaker(source_engine)
+        TargetSession = sessionmaker(target_engine)
         target_session: Session = TargetSession()
 
         # verify if schema exists in source RDBMS
         inspector: Inspector = inspect(source_engine)
-        schemas: list[str] = inspector.get_schema_names()
-        if schema in schemas:
+        schemas: list[str] = [s.lower() for s in inspector.get_schema_names()]
+        if schema.lower() in schemas:
             # create schema in target RDBMS, if appropriate
             inspector = inspect(target_engine)
-            schemas = inspector.get_schema_names()
-            if schema not in schemas:
-                create_schema(errors, target_rdbms, schema, target_session, logger)
+            schemas = [s.lower() for s in inspector.get_schema_names()]
+            if schema.lower() not in schemas:
+                conn_params: dict = pydb_validator.get_connection_params(errors, target_rdbms)
+                stmt: str = f"CREATE SCHEMA {schema} AUTHORIZATION {conn_params.get('user')}"
+                session_exc_stmt(errors, target_rdbms, target_session, stmt, logger)
+        else:
+            # 119: Invalid value {}: {}
+            errors.append(validate_format_error(119, schema,
+                                                f"schema não encontrado no RDBMS {source_rdbms}",
+                                                "@schema"))
 
         # errors ?
         if len(errors) == 0:
@@ -90,18 +96,22 @@ def migrate_data(errors: list[str],
                     session_exc_stmt(errors, target_rdbms,
                                      target_session, drop_stmt, logger)
 
+            # establish the migration equivalences
+            (native_ordinal, reference_ordinal) = \
+                pydb_types.establish_equivalences(source_rdbms, target_rdbms)
+
             # setup target tables
             for source_table in source_tables:
                 # create table in target RDBMS
-                setup_target_table(errors, source_rdbms,
-                                   target_rdbms, source_table, logger)
+                setup_target_table(errors, source_rdbms, target_rdbms,
+                                   native_ordinal, reference_ordinal, source_table, logger)
             source_metadata.create_all(bind=target_engine,
                                        checkfirst=False)
 
             # copy the data
             for source_table in source_tables:
-                session_unlog_table(errors, target_rdbms,
-                                    target_session, source_table, logger)
+                # session_unlog_table(errors, target_rdbms,
+                #                     target_session, source_table, logger)
                 # obtain SELECT statement and copy the table data
                 offset: int = 0
                 sel_stmt: str = build_select_query(source_rdbms, schema,
@@ -118,11 +128,6 @@ def migrate_data(errors: list[str],
                                                   source_table, offset, logger)
                     data = session_bulk_fetch(errors, source_rdbms,
                                               source_session, sel_stmt, logger)
-        else:
-            # 119: Invalid value {}: {}
-            errors.append(validate_format_error(119, schema,
-                                                f"schema inexistente no RDBMS {source_rdbms}",
-                                                "@schema"))
 
     return result
 
@@ -149,25 +154,11 @@ def build_engine(errors: list[str],
     return result
 
 
-def create_schema(errors: list[str],
-                  rdbms: str,
-                  schema: str,
-                  session: Session,
-                  logger: Logger) -> None:
-    try:
-        session.execute(statement=CreateSchema(schema))
-        pydb_common.log(logger, DEBUG,
-                        f"RDBMS {rdbms}, created schema {schema}")
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-
 def setup_target_table(errors: list[str],
                        source_rdbms: str,
                        target_rdbms: str,
+                       native_ordinal: int,
+                       reference_ordinal: int,
                        source_table: Table,
                        logger: Logger) -> None:
 
@@ -176,18 +167,22 @@ def setup_target_table(errors: list[str],
     source_table.constraints.clear()
 
     # set the target columns
-    for column in source_table.columns():
+    # noinspection PyProtectedMember
+    for column in source_table.c._all_columns:
         # convert the type
-        target_type = pydb_types.convert_type(source_rdbms, target_rdbms, column, logger)
+        target_type = pydb_types.migrate_type(source_rdbms, target_rdbms,
+                                              native_ordinal, reference_ordinal, column, logger)
         # convert the default value - TODO: write a decent default value conversion function
         curr_default: str = source_table.c[column.name].default
         new_default: str | None = None
-        if curr_default.lower() not in ["sysdate", "systime"]:
+        if curr_default is not None and \
+           curr_default.lower() not in ["sysdate", "systime"]:
             new_default = curr_default
         #
         try:
             source_table.c[column.name].type = target_type
-            source_table.c[column.name].default = new_default
+            if new_default is not None:
+                source_table.c[column.name].default = new_default
         except Exception as e:
             err_msg = exc_format(exc=e,
                                  exc_info=sys.exc_info())
@@ -230,6 +225,7 @@ def build_select_query(rdbms: str,
 
 def session_unlog_table(errors: list[str],
                         rdbms: str,
+                        schema: str,
                         session: Session,
                         table: Table,
                         logger: Logger) -> None:
@@ -240,11 +236,12 @@ def session_unlog_table(errors: list[str],
         case "mysql":
             pass
         case "oracle":
-            stmt = pydb_oracle.get_table_unlog_stmt(table.name)
+            stmt = pydb_oracle.get_table_unlog_stmt(schema, table.name)
         case "postgres":
-            stmt = pydb_postgres.get_table_unlog_stmt(table.name)
+            stmt = pydb_postgres.get_table_unlog_stmt(schema, table.name)
         case "sqlserver":
-            stmt = pydb_sqlserver.get_table_unlog_stmt(table.name)
+            # table logging cannot be disable in SQLServer
+            pass
 
     # does the RDMS support table unlogging ?
     if stmt:

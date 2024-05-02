@@ -166,10 +166,3 @@ def build_select_query(schema: str,
         f"ORDER BY rowid "
         f"OFFSET {offset} ROWS FETCH NEXT {batch_size} ROWS ONLY"
     )
-
-
-def get_table_unlog_stmt(_table: str) -> str:
-
-    # table logging cannot be disable in SQLServer
-    # noinspection PyTypeChecker
-    return None

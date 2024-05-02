@@ -84,7 +84,7 @@ def set_connection_params(errors: list[str],
         if not scheme.get("db-port").isnumeric():
             # 128: Invalid value {}: must be type {}
             errors.append(validate_format_error(128, "int", "@PG_DB_PORT"))
-        elif scheme.get("db-driver"):
+        else:
             global PG_DB_PORT
             PG_DB_PORT = int(scheme.get("db-port"))
 
@@ -146,6 +146,7 @@ def build_select_query(schema: str,
     )
 
 
-def get_table_unlog_stmt(table: str) -> str:
+def get_table_unlog_stmt(schema: str,
+                         table: str) -> str:
 
-    return f"ALTER TABLE {table} SET UNLOGGED;"
+    return f"ALTER TABLE {schema}.{table} SET UNLOGGED;"

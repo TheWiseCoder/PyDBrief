@@ -20,7 +20,7 @@ from pypomes_http import (
     http_get_parameter, http_get_parameters
 )  # noqa: PyPep8
 from pypomes_logging import (
-    logging_send_entries, logging_log_info, logging_log_error
+    PYPOMES_LOGGER, logging_send_entries, logging_log_info, logging_log_error
 )  # noqa: PyPep8
 
 from migrator import (
@@ -271,7 +271,7 @@ def migrate_data(schema: str) -> Response:
             # yes, retrieve the list of tables and migrate the data
             tables: list[str] = str_as_list(scheme.get("tables"))
             reply = pydb_migrator.migrate_data(errors, source_rdbms, target_rdbms,
-                                               schema, tables, drop_tables)
+                                               schema, tables, drop_tables, PYPOMES_LOGGER)
 
     # build the response
     result: Response = _build_response(errors, reply)

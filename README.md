@@ -1,4 +1,4 @@
-This is a workbench to bidirectionally migrate data between MySQL, Oracle, PostgreSQL and SQLServer databases.
+This is a workbench to bidirectionally migrate data between MySQL, Oracle, PostgreSQL, and SQLServer databases.
 
 
 *** WARNING *** WARNING *** WARNING ***
