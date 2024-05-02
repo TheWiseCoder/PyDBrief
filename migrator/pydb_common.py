@@ -65,12 +65,12 @@ def validate_rdbms_dual(errors: list[str],
                         scheme: dict) -> tuple[str, str]:
 
     # retrieve the provided values
-    source_rdbms: str = validate_rdbms(errors, scheme, "from")
-    target_rdbms: str = validate_rdbms(errors, scheme, "to")
+    source_rdbms: str = validate_rdbms(errors, scheme, "from-rdbms")
+    target_rdbms: str = validate_rdbms(errors, scheme, "to-rdbms")
 
     if len(errors) == 0 and source_rdbms == target_rdbms:
         # 116: Value {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_rdbms, "'from' and 'to'"))
+        errors.append(validate_format_error(116, source_rdbms, "'from-rdbms' and 'to-rdbms'"))
 
     return source_rdbms, target_rdbms
 

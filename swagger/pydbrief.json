@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.0_RC04"
+    "version": "1.0.0_RC05"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -215,10 +215,10 @@
         "operationId": "verify-migration",
         "parameters": [
           {
-            "$ref": "#/components/parameters/MigrationFromParam"
+            "$ref": "#/components/parameters/FromRdbmsParam"
           },
           {
-            "$ref": "#/components/parameters/MigrationToParam"
+            "$ref": "#/components/parameters/ToRdbmsParam"
           }
         ],
         "responses": {
@@ -245,26 +245,29 @@
         }
       }
     },
-    "/migrate/schema/{schema}": {
+    "/migrate": {
       "post": {
         "tags": [
           "data migration"
         ],
         "summary": "Migrate the data",
-        "description": "Migrate the data in all tables in the given schema.",
+        "description": "Migrate the data in the given RDBMS and schema.",
         "operationId": "migrate-schema",
         "parameters": [
           {
-            "$ref": "#/components/parameters/SchemaParam"
+            "$ref": "#/components/parameters/FromRdbmsParam"
           },
           {
-            "$ref": "#/components/parameters/MigrationFromParam"
+            "$ref": "#/components/parameters/FromSchemaParam"
           },
           {
-            "$ref": "#/components/parameters/MigrationToParam"
+            "$ref": "#/components/parameters/ToRdbmsParam"
           },
           {
-            "$ref": "#/components/parameters/DropTablesParam"
+            "$ref": "#/components/parameters/ToSchemaParam"
+          },
+          {
+            "$ref": "#/components/parameters/TablesParam"
           }
         ],
         "responses": {
@@ -284,65 +287,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SchemaError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/migrate/schema/{schema}/tables": {
-      "post": {
-        "tags": [
-          "data migration"
-        ],
-        "summary": "Migrate the data",
-        "description": "Migrate the data in the listed tables in the given schema.",
-        "operationId": "migrate-tables",
-        "parameters": [
-          {
-            "name": "tables",
-            "in": "query",
-            "description": "Tables to migrate",
-            "required": true,
-            "explode": false,
-            "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          {
-            "$ref": "#/components/parameters/SchemaParam"
-          },
-          {
-            "$ref": "#/components/parameters/MigrationFromParam"
-          },
-          {
-            "$ref": "#/components/parameters/MigrationToParam"
-          },
-          {
-            "$ref": "#/components/parameters/DropTablesParam"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MigrationSuccess"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Unsuccessful operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TablesError"
                 }
               }
             }
@@ -602,18 +546,8 @@
           "type": "string"
         }
       },
-      "DropTablesParam": {
-        "name": "drop-tables",
-        "in": "query",
-        "description": "Determines whether to drop the destination tables before data migration",
-        "required": true,
-        "schema": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "MigrationFromParam": {
-        "name": "from",
+      "FromRdbmsParam": {
+        "name": "from-rdbms",
         "in": "query",
         "description": "The RBMS to migrate from",
         "required": true,
@@ -628,8 +562,8 @@
           "example": "oracle"
         }
       },
-      "MigrationToParam": {
-        "name": "to",
+      "ToRdbmsParam": {
+        "name": "to-rdbms",
         "in": "query",
         "description": "The RBMS to migrate to",
         "required": true,
@@ -644,13 +578,35 @@
           "example": "postgres"
         }
       },
-      "SchemaParam": {
-        "name": "schema",
-        "in": "path",
-        "description": "The database schema",
+      "FromSchemaParam": {
+        "name": "from-schema",
+        "in": "query",
+        "description": "The schema to migrate from",
         "required": true,
         "schema": {
           "type": "string"
+        }
+      },
+      "ToSchemaParam": {
+        "name": "to-schema",
+        "in": "query",
+        "description": "The schema to migrate to",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "TablesParam": {
+        "name": "tables",
+        "in": "query",
+        "description": "Tables to migrate",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
