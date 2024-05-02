@@ -69,7 +69,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigurationUpdated'
+                $ref: '#/components/schemas/RdbmsUpdated'
         '400':
           description: Unable to update the RDBMS engine's configuration
           content:
@@ -89,7 +89,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MigrationConfiguration'
+                $ref: '#/components/schemas/ConfigurationUpdated'
     patch:
       tags:
         - data migration
@@ -445,6 +445,12 @@ components:
         status:
           type: string
           example: Configuration updated
+    RdbmsUpdated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Rdbms configuration updated
     VerificationSuccess:
       type: object
       properties:

@@ -116,7 +116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfigurationUpdated"
+                  "$ref": "#/components/schemas/RdbmsUpdated"
                 }
               }
             }
@@ -148,7 +148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MigrationConfiguration"
+                  "$ref": "#/components/schemas/ConfigurationUpdated"
                 }
               }
             }
@@ -692,6 +692,15 @@
           "status": {
             "type": "string",
             "example": "Configuration updated"
+          }
+        }
+      },
+      "RdbmsUpdated": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "Rdbms configuration updated"
           }
         }
       },

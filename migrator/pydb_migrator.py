@@ -85,7 +85,7 @@ def migrate_data(errors: list[str],
             if len(errors) == 0:
                 # no, proceed
                 inspector = inspect(target_engine)
-                # does the target schema already exist in the target RDBMS ?
+                # does the target schema already exist ?
                 if target_schema in inspector.get_schema_names():
                     # yes, drop existing tables (must be done in reverse order)
                     for source_table in reversed(source_tables):

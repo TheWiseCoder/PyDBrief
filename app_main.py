@@ -154,7 +154,7 @@ def handle_rdbms(rdbms: str) -> Response:
         # configure the RDBMS
         pydb_validator.set_connection_params(errors, scheme)
         if len(errors) == 0:
-            reply = {"status": "Configuration updated"}
+            reply = {"status": "RDBMS Configuration updated"}
 
     # build the response
     result: Response = _build_response(errors, reply)
@@ -196,6 +196,8 @@ def handle_migration() -> Response:
         case "PATCH":
             # establish the migration parameters
             pydb_common.set_migration_parameters(errors, scheme)
+            if len(errors) == 0:
+                reply = {"status": "Configuration updated"}
         case "POST":
             # validate the source and target RDBMS engines
             pydb_common.validate_rdbms_dual(errors, scheme)
