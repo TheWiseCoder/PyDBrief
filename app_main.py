@@ -14,7 +14,7 @@ os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
 
 # ruff: noqa: E402
 from pypomes_core import (
-    exc_format, str_as_list, validate_bool, validate_format_errors, validate_str
+    exc_format, str_as_list, validate_format_errors, validate_str
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -221,21 +221,19 @@ def handle_migration() -> Response:
     return result
 
 
-@app.route(rule="/migrate/schema/<schema>",
+@app.route(rule="/migrate",
            methods=["POST"])
-@app.route(rule="/migrate/schema/<schema>/tables",
-           methods=["POST"])
-def migrate_data(schema: str) -> Response:
+def migrate_data() -> Response:
     """
     Migrate the specified table from the source to the target RDBMS.
 
     These are the expected parameters:
+        - *from-rdbms*: the source RDBMS for the migration
+        - *from-schema*: the source schema for the migration
+        - *to-rdbms*: the destination RDBMS for the migration
+        - *to-schema*: the destination schema for the migration
         - *tables*: optional list tables to migrate (defaults to all tables in *schema*)
-        - *from*: the source RDBMS for the migration
-        - *to*: the destination RDBMS for the migration
-        - *drop-tables*: whether to drop the destination tables before the migration
 
-    :param schema: the database schema to work with
     :return: the operation outcome
     """
     # initialize the errors list
@@ -243,16 +241,9 @@ def migrate_data(schema: str) -> Response:
 
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request)
-    scheme["schema"] = schema
 
     # validate the source and target RDBMS engines
     (source_rdbms, target_rdbms) = pydb_common.validate_rdbms_dual(errors, scheme)
-
-    # define whether to drop the destination table before migrating the data
-    drop_tables: bool = validate_bool(errors=errors,
-                                      scheme=scheme,
-                                      attr="drop-tables",
-                                      mandatory=True)
 
     # assert whether migration is warranted
     if len(errors) == 0:
@@ -261,17 +252,21 @@ def migrate_data(schema: str) -> Response:
     reply: dict | None = None
     # is migration possible ?
     if len(errors) == 0:
-        # yes, retrieve the schema
-        schema: str = validate_str(errors=errors,
-                                   scheme=scheme,
-                                   attr="schema",
-                                   default=True)
-        # was the schema obtained ?
-        if schema:
+        # yes, retrieve the schemas
+        source_schema: str = validate_str(errors=errors,
+                                          scheme=scheme,
+                                          attr="from-schema",
+                                          default=True)
+        target_schema: str = validate_str(errors=errors,
+                                          scheme=scheme,
+                                          attr="to-schema",
+                                          default=True)
+        # were the schemas obtained ?
+        if source_schema and target_schema:
             # yes, retrieve the list of tables and migrate the data
             tables: list[str] = str_as_list(scheme.get("tables"))
             reply = pydb_migrator.migrate_data(errors, source_rdbms, target_rdbms,
-                                               schema, tables, drop_tables, PYPOMES_LOGGER)
+                                               source_schema, target_schema, tables, PYPOMES_LOGGER)
 
     # build the response
     result: Response = _build_response(errors, reply)

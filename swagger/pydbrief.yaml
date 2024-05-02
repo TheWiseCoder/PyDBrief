@@ -132,8 +132,8 @@ paths:
       description: Verify whether the current configuration allows for a migration to be launched.
       operationId: verify-migration
       parameters:
-        - $ref: '#/components/parameters/MigrationFromParam'
-        - $ref: '#/components/parameters/MigrationToParam'
+        - $ref: '#/components/parameters/FromRdbmsParam'
+        - $ref: '#/components/parameters/ToRdbmsParam'
       responses:
         '200':
           description: Migration can be launched
@@ -148,18 +148,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerificationFailure'
-  /migrate/schema/{schema}:
+  /migrate:
     post:
       tags:
         - data migration
       summary: Migrate the data
-      description:  Migrate the data in all tables in the given schema.
+      description:  Migrate the data in the given RDBMS and schema.
       operationId: migrate-schema
       parameters:
-        - $ref: '#/components/parameters/SchemaParam'
-        - $ref: '#/components/parameters/MigrationFromParam'
-        - $ref: '#/components/parameters/MigrationToParam'
-        - $ref: '#/components/parameters/DropTablesParam'
+        - $ref: '#/components/parameters/FromRdbmsParam'
+        - $ref: '#/components/parameters/FromSchemaParam'
+        - $ref: '#/components/parameters/ToRdbmsParam'
+        - $ref: '#/components/parameters/ToSchemaParam'
+        - $ref: '#/components/parameters/TablesParam'
       responses:
         '200':
           description: Successful operation
@@ -173,41 +174,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SchemaError'
-  /migrate/schema/{schema}/tables:
-    post:
-      tags:
-        - data migration
-      summary: Migrate the data
-      description:  Migrate the data in the listed tables in the given schema.
-      operationId: migrate-tables
-      parameters:
-        - name: tables
-          in: query
-          description: Tables to migrate
-          required: true
-          explode: false
-          schema:
-            type: array
-            items:
-              type: string
-        - $ref: '#/components/parameters/SchemaParam'
-        - $ref: '#/components/parameters/MigrationFromParam'
-        - $ref: '#/components/parameters/MigrationToParam'
-        - $ref: '#/components/parameters/DropTablesParam'
-      responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MigrationSuccess'
-                    
-        '400':
-          description: Unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TablesError'
   /get-log:
     get:
       tags:
@@ -376,16 +342,8 @@ components:
       required: false
       schema:
         type: string
-    DropTablesParam:
-      name: drop-tables
-      in: query
-      description: Determines whether to drop the destination tables before data migration
-      required: true
-      schema:
-        type: boolean
-        default: false
-    MigrationFromParam:
-      name: from
+    FromRdbmsParam:
+      name: from-rdbms
       in: query
       description: The RBMS to migrate from
       required: true
@@ -393,8 +351,8 @@ components:
         type: string
         enum: [mysql, oracle, postgres, sqlserver]
         example: oracle
-    MigrationToParam:
-      name: to
+    ToRdbmsParam:
+      name: to-rdbms
       in: query
       description: The RBMS to migrate to
       required: true
@@ -402,13 +360,30 @@ components:
         type: string
         enum: [mysql, oracle, postgres, sqlserver]
         example: postgres
-    SchemaParam:
-      name: schema
-      in: path
-      description: The database schema
+    FromSchemaParam:
+      name: from-schema
+      in: query
+      description: The schema to migrate from
       required: true
       schema:
         type: string
+    ToSchemaParam:
+      name: to-schema
+      in: query
+      description: The schema to migrate to
+      required: true
+      schema:
+        type: string
+    TablesParam:
+      name: tables
+      in: query
+      description: Tables to migrate
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
   schemas:
     MigrationConfiguration:
       type: object
