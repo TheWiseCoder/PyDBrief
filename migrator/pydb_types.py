@@ -342,14 +342,14 @@ def migrate_type(source_rdbms: str,
         foreign_key: ForeignKey = list(source_column.foreign_keys)[0]
         type_equiv = foreign_key.column.type.__class__
 
-    # inspect the native equivalences, first
+    # if necessary, inspect the native equivalences first
     if type_equiv is None:
         for nat_equivalence in nat_equivalences:
             if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
-    # inspect the reference equivalences, if necessary
+    # if necessary, inspect the reference equivalences
     if type_equiv is None:
         for ref_equivalence in REF_EQUIVALENCES:
             if isinstance(col_type_obj, ref_equivalence[0]):
@@ -362,7 +362,7 @@ def migrate_type(source_rdbms: str,
         pydb_common.log(logger, WARNING,
                         f"{msg} - unable to convert")
         # use the source type
-        type_equiv = col_type_obj.__class__
+        type_equiv = col_type_class
 
     # fine-tune the type equivalence
     if is_number_int:
