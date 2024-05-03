@@ -357,8 +357,6 @@ def migrate_type(source_rdbms: str,
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
-            else:
-                type_equiv = REF_INTEGER
         # instantiate the type object
         result = type_equiv()
         pydb_common.log(logger, DEBUG,
