@@ -75,8 +75,8 @@ def assert_migration(errors: list[str],
                                             [1, 100], "@processes"))
 
     # assert the connection parameters for origin and destination RDBMS engines
-    from_rdbms: str = scheme.get("from")
-    to_rdbms: str = scheme.get("to")
+    from_rdbms: str = scheme.get("from-rdbms")
+    to_rdbms: str = scheme.get("to-rdbms")
     opt_scheme: dict = {}
     opt_scheme.update(scheme)
     opt_scheme["rdbms"] = from_rdbms
@@ -93,8 +93,8 @@ def assert_migration(errors: list[str],
 def get_migration_context(scheme: dict) -> dict:
 
     result: dict = {
-        "from": get_connection_params([], scheme.get("from")),
-        "to": get_connection_params([], scheme.get("to"))
+        "from": get_connection_params([], scheme.get("from-rdbms")),
+        "to": get_connection_params([], scheme.get("to-rdbms"))
     }
     result.update(pydb_common.get_migration_params())
 

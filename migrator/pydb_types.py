@@ -110,13 +110,13 @@ from sqlalchemy.dialects.oracle import (
     BINARY_FLOAT as ORCL_BINARY_FLOAT,
     # BLOB as ORCL_BLOB,  # same as REF_BLOB
     # CHAR as ORCL_CHAR,  # same as REF_CHAR
-    # CLOB as ORCL_CLOB,  # same as REF_BLOB
+    # CLOB as ORCL_CLOB,  # same as REF_CLOB
     DATE as ORCL_DATE,
     # DOUBLE_PRECISION as ORCL_DOUBLE_PRECISION,  # same as REF_DOUBLE_PRECISION
     FLOAT as ORCL_FLOAT,
     INTERVAL as ORCL_INTERVAL,
     LONG as ORCL_LONG,
-    # NCHAR as ORCL_NCHAR,
+    # NCHAR as ORCL_NCHAR,  # same as REF_NCHAR
     NCLOB as ORCL_NCLOB,
     NUMBER as ORCL_NUMBER,
     # NVARCHAR as ORCL_NVARCHAR,   # same as REF_NVARCHAR
@@ -340,7 +340,7 @@ def migrate_type(source_rdbms: str,
 
     # obtain the column type object for migration
     col_name: str = f"{source_column.table.name}.{source_column.name}"
-    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(type_obj)} in column {col_name}"
+    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(type_obj)} in {col_name}"
     if type_equiv is None:
         pydb_common.log(logger, WARNING,
                         f"{msg} - unable to convert")
@@ -362,7 +362,7 @@ def migrate_type(source_rdbms: str,
         # instantiate the type object
         result = type_equiv()
         pydb_common.log(logger, DEBUG,
-                        f"{msg} - converted to type {str(result)}")
+                        f"{msg} - converted to {str(result)}")
 
     # wrap-up the type migration
     if hasattr(type_obj, "length") and hasattr(result, "length"):
@@ -373,6 +373,8 @@ def migrate_type(source_rdbms: str,
         result.precision = type_obj.precision
     if hasattr(type_obj, "scale") and hasattr(result, "scale"):
         result.scale = type_obj.scale
+    if hasattr(type_obj, "nullable") and hasattr(result, "nullable"):
+        result.nullable = type_obj.nullable
     if hasattr(type_obj, "timezone") and hasattr(result, "timezone"):
         result.timezone = type_obj.timezone
 

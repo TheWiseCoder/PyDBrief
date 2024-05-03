@@ -487,15 +487,20 @@ components:
     MigrationSuccess:
       type: object
       properties:
-        migrations:
+        migrated-tables:
           type: array
           items:
             type: object
             properties:
               table:
                 type: integer
-              records:
+                example: customers
+              tuples:
                 type: integer
+                example: 1250000
+              status:
+                type: string
+                example: "full migration"
     SchemaError:
       type: object
       properties:
