@@ -1,7 +1,6 @@
-import copy
 from logging import DEBUG, WARNING, Logger
 from sqlalchemy.sql.elements import Type
-from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.schema import Column, ForeignKey
 from typing import Any, Final
 
 from . import pydb_common
@@ -325,11 +324,20 @@ def migrate_type(source_rdbms: str,
     type_equiv: Type | None = None
     type_obj: Any = source_column.type
 
+    # is the column a foreign key ?
+    if hasattr(source_column, "foreign_keys") and \
+       isinstance(source_column.foreign_keys, set) and \
+       len(source_column.foreign_keys) > 0:
+        # yes, its type must conform to it
+        foreign_key: ForeignKey = list(source_column.foreign_keys)[0]
+        type_equiv = foreign_key.column.type.__class__
+
     # inspect the native equivalences, first
-    for nat_equivalence in nat_equivalences:
-        if isinstance(type_obj, nat_equivalence[0]):
-            type_equiv = nat_equivalence[native_ordinal]
-            break
+    if type_equiv is None:
+        for nat_equivalence in nat_equivalences:
+            if isinstance(type_obj, nat_equivalence[0]):
+                type_equiv = nat_equivalence[native_ordinal]
+                break
 
     # inspect the reference equivalences, if necessary
     if type_equiv is None:
@@ -338,29 +346,30 @@ def migrate_type(source_rdbms: str,
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
-    # obtain the column type object for migration
     col_name: str = f"{source_column.table.name}.{source_column.name}"
     msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(type_obj)} in {col_name}"
     if type_equiv is None:
         pydb_common.log(logger, WARNING,
                         f"{msg} - unable to convert")
-        # clone the type object
-        result = copy.copy(type_obj)
-    else:
-        if type_equiv == REF_NUMERIC and \
-           hasattr(type_obj, "asdecimal") and not type_obj.asdecimal:
-            if hasattr(source_column, "identity") and \
-               hasattr(source_column.identity, "maxvalue"):
-                if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
-                    source_column.identity.maxvalue = 2147483647
-                if source_column.identity.maxvalue > 2147483647:  # max value for REF_INTEGER
-                    type_equiv = REF_BIGINT
-                else:
-                    type_equiv = REF_INTEGER
-        # instantiate the type object
-        result = type_equiv()
-        pydb_common.log(logger, DEBUG,
-                        f"{msg} - converted to {str(result)}")
+        # use the source type
+        type_equiv = type_obj.__class__
+
+    # fine-tune the type equivalence
+    if type_equiv == REF_NUMERIC and \
+       hasattr(type_obj, "asdecimal") and not type_obj.asdecimal:
+        if hasattr(source_column, "identity") and \
+           source_column.identity and hasattr(source_column.identity, "maxvalue"):
+            if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
+                source_column.identity.maxvalue = 2147483647
+            if source_column.identity.maxvalue > 2147483647:  # max value for REF_INTEGER
+                type_equiv = REF_BIGINT
+            else:
+                type_equiv = REF_INTEGER
+
+    # instantiate the type object
+    result = type_equiv()
+    pydb_common.log(logger, DEBUG,
+                    f"{msg} - converted to {str(result)}")
 
     # wrap-up the type migration
     if hasattr(type_obj, "length") and hasattr(result, "length"):

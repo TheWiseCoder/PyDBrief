@@ -56,22 +56,35 @@ def migrate_data(errors: list[str],
             source_metadata: MetaData = MetaData(schema=from_schema)
             source_metadata.reflect(bind=source_engine,
                                     schema=from_schema)
-            source_tables: list[Table] = source_metadata.sorted_tables
 
             # build list of migration candidates
             unlisted_tables: list[str] = []
             if data_tables:
-                for source_table in source_tables:
-                    if source_table.name not in data_tables:
-                        unlisted_tables.append(source_table.name)
+                table_names: list[str] = [table.name for table in source_metadata.sorted_tables]
+                for spare_table in data_tables:
+                    if spare_table not in table_names:
+                        unlisted_tables.append(spare_table)
 
-            # were all tables found ?
+            # proceed, if all tables were found
             if len(unlisted_tables) == 0:
-                # no, proceed
+                # purge the source metadata from spare tables, if applicable
+                if data_tables:
+                    # build the list of spare tables in source metadata
+                    spare_tables: list[Table] = []
+                    for spare_table in source_metadata.sorted_tables:
+                        if spare_table.name not in data_tables:
+                            spare_tables.append(spare_table)
+                    # remove the spare tables from the source metadata
+                    for spare_table in spare_tables:
+                        source_metadata.remove(table=spare_table)
+                    # make sure spare tables will not hang around
+                    del spare_tables
+
+                # proceed with the appropriate tables
+                source_tables: list[Table] = source_metadata.sorted_tables
                 to_schema: str | None = None
                 inspector = inspect(subject=target_engine,
                                     raiseerr=True)
-
                 # obtain the target schema's internal name
                 for schema_name in inspector.get_schema_names():
                     # is this the target schema ?
