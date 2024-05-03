@@ -31,10 +31,6 @@ def migrate_data(errors: list[str],
     # iinitialize the return variable
     result: dict | None = None
 
-    # initialize the Oracle Client, if applicable
-    if source_rdbms == "oracle" or target_rdbms == "oracle":
-        pydb_oracle.initialize(errors)
-
     # create engines
     source_engine: Engine | None = None
     target_engine: Engine | None = None

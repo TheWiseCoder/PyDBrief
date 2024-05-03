@@ -16,6 +16,7 @@ def assert_connection(errors: list[str],
             pass
         case "oracle":
             from oracledb import Connection
+            pydb_oracle.initialize(errors)
             conn: Connection = pydb_oracle.db_connect(errors)
             if isinstance(conn, Connection):
                 conn.close()
