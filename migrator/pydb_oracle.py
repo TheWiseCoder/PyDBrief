@@ -44,6 +44,7 @@ def db_connect(errors: list[str],
         result = connect(
             host=ORCL_DB_HOST,
             port=ORCL_DB_PORT,
+            service_name=ORCL_DB_NAME,
             user=ORCL_DB_USER,
             password=ORCL_DB_PWD
         )
