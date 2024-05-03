@@ -32,11 +32,8 @@ def migrate_data(errors: list[str],
     result: dict | None = None
 
     # create engines
-    source_engine: Engine | None = None
-    target_engine: Engine | None = None
-    if len(errors) == 0:
-        source_engine = build_engine(errors, source_rdbms, logger)
-        target_engine = build_engine(errors, target_rdbms, logger)
+    source_engine: Engine = build_engine(errors, source_rdbms, logger)
+    target_engine: Engine = build_engine(errors, target_rdbms, logger)
 
     # were both engines created ?
     if source_engine is not None and target_engine is not None:
