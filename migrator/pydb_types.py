@@ -357,14 +357,17 @@ def migrate_type(source_rdbms: str,
     # fine-tune the type equivalence
     if type_equiv == REF_NUMERIC and \
        hasattr(type_obj, "asdecimal") and not type_obj.asdecimal:
-        if hasattr(source_column, "identity") and \
-           source_column.identity and hasattr(source_column.identity, "maxvalue"):
-            if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
-                source_column.identity.maxvalue = 2147483647
-            if source_column.identity.maxvalue > 2147483647:  # max value for REF_INTEGER
-                type_equiv = REF_BIGINT
+        if hasattr(source_column, "identity") and source_column.identity:
+            if hasattr(source_column.identity, "maxvalue"):
+                if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
+                    source_column.identity.maxvalue = 2147483647
+                if source_column.identity.maxvalue > 2147483647:  # max value for REF_INTEGER
+                    type_equiv = REF_BIGINT
+                else:
+                    type_equiv = REF_INTEGER
             else:
                 type_equiv = REF_INTEGER
+
 
     # instantiate the type object
     result = type_equiv()
