@@ -190,7 +190,7 @@ from sqlalchemy.dialects.mssql import (
     # DATETIME as SQLS_DATETIME,  # same as REF_DATETIME
     DATETIME2 as SQLS_DATETIME2,
     DATETIMEOFFSET as REF_DATETIMEOFFSET,
-    DECIMAL as SQLS_DECIMAL,  # synonym of NUMERIC
+    # DECIMAL as SQLS_DECIMAL,  # same as REF_DECIMAL, synonym of NUMERIC
     DOUBLE_PRECISION as SQLS_DOUBLE_PRECISION,
     # FLOAT as SQLS_FLOAT,  # saem as REF_FLOAT, synonym of SQLS_REAL
     IMAGE as SQLS_IMAGE,
@@ -247,7 +247,7 @@ REF_EQUIVALENCES: Final[list[tuple]] = [
     (REF_CLOB, MSQL_TEXT, REF_CLOB, REF_TEXT, None),
     (REF_DATE, REF_DATE, ORCL_DATE, REF_DATE, REF_DATE),
     (REF_DATETIME, REF_DATETIME, ORCL_DATE, PG_TIMESTAMP, REF_DATETIME),
-    (REF_DECIMAL, MSQL_DECIMAL, ORCL_NUMBER, REF_NUMERIC, SQLS_DECIMAL),
+    (REF_DECIMAL, MSQL_DECIMAL, ORCL_NUMBER, REF_NUMERIC, REF_NUMERIC),
     (REF_DOUBLE, MSQL_DOUBLE, ORCL_BINARY_DOUBLE, REF_DOUBLE_PRECISION, REF_FLOAT),
     (REF_DOUBLE_PRECISION, MSQL_DOUBLE, ORCL_BINARY_DOUBLE, REF_DOUBLE_PRECISION, REF_FLOAT),
     (REF_FLOAT, MSQL_FLOAT, ORCL_FLOAT, REF_FLOAT, REF_FLOAT),
@@ -322,12 +322,22 @@ def migrate_type(source_rdbms: str,
     result: Any
 
     type_equiv: Type | None = None
-    type_obj: Any = source_column.type
+    col_type_class: Type = source_column.type.__class__
+    col_type_obj: Any = source_column.type
+
+    is_pk: bool = (hasattr(source_column, "primary_key") and
+                   source_column.primary_key)
+    is_fk: bool = (hasattr(source_column, "foreign_keys") and
+                   isinstance(source_column.foreign_keys, set) and
+                   len(source_column.foreign_keys) > 0)
+    is_identity: bool = (hasattr(source_column, "identity") and
+                         source_column.identity)
+    is_number_int: bool = (col_type_class in [REF_NUMERIC, MSQL_DECIMAL, MSQL_NUMERIC, ORCL_NUMBER] and
+                           hasattr(col_type_obj, "asdecimal") and
+                           not col_type_obj.asdecimal)
 
     # is the column a foreign key ?
-    if hasattr(source_column, "foreign_keys") and \
-       isinstance(source_column.foreign_keys, set) and \
-       len(source_column.foreign_keys) > 0:
+    if is_fk:
         # yes, its type must conform to it
         foreign_key: ForeignKey = list(source_column.foreign_keys)[0]
         type_equiv = foreign_key.column.type.__class__
@@ -335,29 +345,28 @@ def migrate_type(source_rdbms: str,
     # inspect the native equivalences, first
     if type_equiv is None:
         for nat_equivalence in nat_equivalences:
-            if isinstance(type_obj, nat_equivalence[0]):
+            if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
     # inspect the reference equivalences, if necessary
     if type_equiv is None:
         for ref_equivalence in REF_EQUIVALENCES:
-            if isinstance(type_obj, ref_equivalence[0]):
+            if isinstance(col_type_obj, ref_equivalence[0]):
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
     col_name: str = f"{source_column.table.name}.{source_column.name}"
-    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(type_obj)} in {col_name}"
+    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(col_type_obj)} in {col_name}"
     if type_equiv is None:
         pydb_common.log(logger, WARNING,
                         f"{msg} - unable to convert")
         # use the source type
-        type_equiv = type_obj.__class__
+        type_equiv = col_type_obj.__class__
 
     # fine-tune the type equivalence
-    if type_equiv == REF_NUMERIC and \
-       hasattr(type_obj, "asdecimal") and not type_obj.asdecimal:
-        if hasattr(source_column, "identity") and source_column.identity:
+    if is_number_int:
+        if is_identity:
             if hasattr(source_column.identity, "maxvalue"):
                 if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
                     source_column.identity.maxvalue = 2147483647
@@ -367,7 +376,8 @@ def migrate_type(source_rdbms: str,
                     type_equiv = REF_INTEGER
             else:
                 type_equiv = REF_INTEGER
-
+        elif is_pk:
+            type_equiv = REF_INTEGER
 
     # instantiate the type object
     result = type_equiv()
@@ -375,18 +385,18 @@ def migrate_type(source_rdbms: str,
                     f"{msg} - converted to {str(result)}")
 
     # wrap-up the type migration
-    if hasattr(type_obj, "length") and hasattr(result, "length"):
-        result.length = type_obj.length
-    if hasattr(type_obj, "asdecimal") and hasattr(result, "asdecimal"):
-        result.asdecimal = type_obj.asdecimal
-    if hasattr(type_obj, "precision") and hasattr(result, "precision"):
-        result.precision = type_obj.precision
-    if hasattr(type_obj, "scale") and hasattr(result, "scale"):
-        result.scale = type_obj.scale
-    if hasattr(type_obj, "nullable") and hasattr(result, "nullable"):
-        result.nullable = type_obj.nullable
-    if hasattr(type_obj, "timezone") and hasattr(result, "timezone"):
-        result.timezone = type_obj.timezone
+    if hasattr(col_type_obj, "length") and hasattr(result, "length"):
+        result.length = col_type_obj.length
+    if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
+        result.asdecimal = col_type_obj.asdecimal
+    if hasattr(col_type_obj, "precision") and hasattr(result, "precision"):
+        result.precision = col_type_obj.precision
+    if hasattr(col_type_obj, "scale") and hasattr(result, "scale"):
+        result.scale = col_type_obj.scale
+    if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):
+        result.nullable = col_type_obj.nullable
+    if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
+        result.timezone = col_type_obj.timezone
 
     return result
 
