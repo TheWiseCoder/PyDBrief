@@ -147,10 +147,11 @@ def migrate_data(errors: list[str],
                     # errors ?
                     if len(errors) == 0:
                         # no, copy the data
+                        engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
                         migrated_tables: list[dict] = []
                         for source_table in source_tables:
-                            # engine_unlog_table(errors, target_rdbms, to_schema,
-                            #                    target_engine, source_table, logger)
+                            engine_unlog_table(errors, target_rdbms, to_schema,
+                                               target_engine, source_table, logger)
                             # obtain SELECT statement and copy the table data
                             offset: int = 0
                             count: int = 0
@@ -320,6 +321,27 @@ def structure_data(data: Sequence,
         result.append(row)
 
     return result
+
+
+def engine_disable_restrictions(errors: list[str],
+                                rdbms: str,
+                                engine: Engine,
+                                logger: Logger) -> None:
+
+    # obtain the statement
+    stmts: list[str] | None = None
+    match rdbms:
+        case "mysql":
+            pass
+        case "oracle":
+            pass
+        case "postgres":
+            stmts = pydb_postgres.get_disable_restriction_stmts()
+        case "sqlserver":
+            pass
+
+    for stmt in stmts or []:
+        engine_exc_stmt(errors, rdbms, engine, stmt, logger)
 
 
 def engine_unlog_table(errors: list[str],

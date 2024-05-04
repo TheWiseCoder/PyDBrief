@@ -321,6 +321,7 @@ def migrate_type(source_rdbms: str,
     # declare the return variable
     result: Any
 
+    # obtain needed characteristics
     type_equiv: Type | None = None
     col_type_class: Type = source_column.type.__class__
     col_type_obj: Any = source_column.type
@@ -332,9 +333,11 @@ def migrate_type(source_rdbms: str,
                    len(source_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(source_column, "identity") and
                          source_column.identity)
-    is_number_int: bool = (col_type_class in [REF_NUMERIC, MSQL_DECIMAL, MSQL_NUMERIC, ORCL_NUMBER] and
+    is_number_int: bool = (col_type_class in [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC] and
                            hasattr(col_type_obj, "asdecimal") and
                            not col_type_obj.asdecimal)
+    col_precision: int = col_type_obj.precision \
+        if is_number_int and hasattr(col_type_obj, "precision") else None
 
     # is the column a foreign key ?
     if is_fk:
@@ -374,10 +377,15 @@ def migrate_type(source_rdbms: str,
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
+            elif col_precision and col_precision > 9:
+                type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
         elif is_pk:
-            type_equiv = REF_INTEGER
+            if col_precision and col_precision > 9:
+                type_equiv = REF_BIGINT
+            else:
+                type_equiv = REF_INTEGER
 
     # instantiate the type object
     result = type_equiv()

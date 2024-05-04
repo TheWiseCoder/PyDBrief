@@ -166,4 +166,9 @@ def build_select_query(schema: str,
 def get_table_unlog_stmt(schema: str,
                          table: str) -> str:
 
-    return f"ALTER TABLE {schema}.{table} NOLOGGING;"
+    return f"ALTER TABLE {schema}.{table} NOLOGGING"
+
+
+def disable_restrictions(_errors: list[str], _logger: Logger) -> None:
+
+    pass

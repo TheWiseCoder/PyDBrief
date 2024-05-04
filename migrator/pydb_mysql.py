@@ -94,3 +94,8 @@ def assert_connection_params(errors: list[str]) -> bool:
         errors.append(validate_format_error(112, "@MSQL_DB_PORT"))
 
     return len(errors) == 0
+
+
+def disable_restrictions(_errors: list[str], _logger: Logger) -> None:
+
+    pass

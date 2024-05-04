@@ -166,3 +166,8 @@ def build_select_query(schema: str,
         f"ORDER BY rowid "
         f"OFFSET {offset} ROWS FETCH NEXT {batch_size} ROWS ONLY"
     )
+
+
+def disable_restrictions(_errors: list[str], _logger: Logger) -> None:
+
+    pass

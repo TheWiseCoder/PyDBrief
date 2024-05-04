@@ -149,4 +149,39 @@ def build_select_query(schema: str,
 def get_table_unlog_stmt(schema: str,
                          table: str) -> str:
 
-    return f"ALTER TABLE {schema}.{table} SET UNLOGGED;"
+    return f"ALTER TABLE {schema}.{table} SET UNLOGGED"
+
+
+def get_disable_restriction_stmts() -> list[str]:
+
+    return [
+        "SET SESSION_REPLICATION_ROLE TO REPLICA",
+        "UPDATE pg_index SET indisready = false"
+    ]
+
+
+def enable_restrictions(errors: list[str], logger: Logger) -> None:
+
+    err_msg: str | None = None
+    try:
+        # obtain a connection
+        with connect(host=PG_DB_HOST,
+                     port=PG_DB_PORT,
+                     database=PG_DB_NAME,
+                     user=PG_DB_USER,
+                     password=PG_DB_PWD) as conn:
+            # make sure the connection is not in autocommit mode
+            conn.autocommit = False
+
+            # obtain a cursor and perform the operationS
+            with conn.cursor() as cursor:
+                cursor.execute(query="SET SESSION_REPLICATION_ROLE TO DEFAULT;")
+                cursor.execute(query="UPDATE pg_index SET indisready = true;")
+
+            # commit the transaction
+            conn.commit()
+    except Exception as e:
+        err_msg = db_except_msg(e, PG_DB_NAME, PG_DB_HOST)
+
+    # log the results
+    db_log(errors, err_msg, logger, f"Connected to '{PG_DB_NAME}' at '{PG_DB_HOST}'")
