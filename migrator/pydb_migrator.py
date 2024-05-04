@@ -147,11 +147,11 @@ def migrate_data(errors: list[str],
                     # errors ?
                     if len(errors) == 0:
                         # no, copy the data
-                        engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
+                        # engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
                         migrated_tables: list[dict] = []
                         for source_table in source_tables:
-                            engine_unlog_table(errors, target_rdbms, to_schema,
-                                               target_engine, source_table, logger)
+                            # engine_unlog_table(errors, target_rdbms, to_schema,
+                            #                    target_engine, source_table, logger)
                             # obtain SELECT statement and copy the table data
                             offset: int = 0
                             count: int = 0
