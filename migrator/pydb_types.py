@@ -470,5 +470,7 @@ def establish_equivalences(source_rdbms: str,
 
 def is_large_binary(column: Column) -> bool:
 
-    return column.type.__class__ in [PG_BYTEA, REF_BLOB, REF_CLOB, REF_TEXT,
-                                     REF_VARBINARY, MSQL_LONGBLOB, MSQL_TEXT, SQLS_VARBINARY]
+    return column.type.__class__ in [MSQL_LONGBLOB, MSQL_LONGTEXT, MSQL_TEXT,
+                                     ORCL_LONG, ORCL_NCLOB, ORCL_RAW,
+                                     PG_BYTEA, REF_BLOB, REF_CLOB, REF_TEXT,
+                                     REF_VARBINARY, SQLS_VARBINARY]

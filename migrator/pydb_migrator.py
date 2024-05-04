@@ -176,7 +176,7 @@ def migrate_data(errors: list[str],
 
                                 # fetch the next chunk of data
                                 op_errors = []
-                                offset += pydb_common.MIGRATION_BATCH_SIZE
+                                offset += len(rows)
                                 sel_stmt = build_select_query(source_rdbms, from_schema,
                                                               source_table, source_columns, offset,
                                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
@@ -250,6 +250,7 @@ def setup_target_table(errors: list[str],
         if not pydb_types.is_large_binary(column):
             # no, register it
             result.append(column.name)
+
         # wrap-up the column migration
         try:
             # set column's new type
