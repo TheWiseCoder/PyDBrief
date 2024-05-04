@@ -154,37 +154,37 @@ def migrate_data(errors: list[str],
                             #                    target_engine, source_table, logger)
                             # obtain SELECT statement and copy the table data
                             offset: int = 0
-                            count: int = 0
+                            migrated_count: int = 0
                             source_columns: list[str] = all_columns.get(source_table.name)
                             op_errors: len(str) = []
                             sel_stmt: str = build_select_query(source_rdbms, from_schema,
                                                                source_table, source_columns, offset,
                                                                pydb_common.MIGRATION_BATCH_SIZE, logger)
-                            data: Sequence = engine_bulk_fetch(errors, source_rdbms,
-                                                               source_engine, sel_stmt, logger)
-                            while data:
+                            bulk_data: Sequence = engine_bulk_fetch(errors, source_rdbms,
+                                                                    source_engine, sel_stmt, logger)
+                            while bulk_data:
                                 # insert the current chunk of data
-                                rows: list[dict] = structure_data(data, source_columns)
+                                bulk_rows: list[dict] = structure_data(bulk_data, source_columns)
                                 engine_bulk_insert(op_errors, target_rdbms,
-                                                   target_engine, source_table, rows, logger)
+                                                   target_engine, source_table, bulk_rows, logger)
                                 # errors ?
                                 if len(op_errors) > 0:
                                     # yes, register it and skip to next table
                                     errors.extend(op_errors)
                                     break
-                                count += len(rows)
+                                migrated_count += len(bulk_rows)
 
                                 # fetch the next chunk of data
                                 op_errors = []
-                                offset += len(rows)
+                                offset += len(bulk_rows)
                                 sel_stmt = build_select_query(source_rdbms, from_schema,
                                                               source_table, source_columns, offset,
                                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
-                                data = engine_bulk_fetch(errors, source_rdbms,
+                                bulk_data = engine_bulk_fetch(errors, source_rdbms,
                                                          source_engine, sel_stmt, logger)
                             migrated_tables.append({
                                 "table": source_table.name,
-                                "tuples": count,
+                                "tuples": migrated_count,
                                 "status": "full migration" if len(op_errors) == 0 else "partial migration"
                             })
                         result = {"migrated-tables": migrated_tables}
