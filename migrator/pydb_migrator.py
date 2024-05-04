@@ -181,7 +181,7 @@ def migrate_data(errors: list[str],
                                                               source_table, source_columns, offset,
                                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
                                 bulk_data = engine_bulk_fetch(errors, source_rdbms,
-                                                         source_engine, sel_stmt, logger)
+                                                              source_engine, sel_stmt, logger)
                             migrated_tables.append({
                                 "table": source_table.name,
                                 "tuples": migrated_count,

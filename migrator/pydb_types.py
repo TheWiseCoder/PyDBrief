@@ -333,11 +333,12 @@ def migrate_type(source_rdbms: str,
                    len(source_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(source_column, "identity") and
                          source_column.identity)
-    is_number_int: bool = (col_type_class in [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC] and
+    is_number: bool = col_type_class in [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC]
+    is_number_int: bool = (is_number and
                            hasattr(col_type_obj, "asdecimal") and
                            not col_type_obj.asdecimal)
     col_precision: int = col_type_obj.precision \
-        if is_number_int and hasattr(col_type_obj, "precision") else None
+        if is_number and hasattr(col_type_obj, "precision") else None
 
     # is the column a foreign key ?
     if is_fk:
