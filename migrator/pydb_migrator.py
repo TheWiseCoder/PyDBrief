@@ -126,12 +126,12 @@ def migrate_data(errors: list[str],
                         pydb_types.establish_equivalences(source_rdbms, target_rdbms)
 
                     # setup target tables
-                    table_columns: dict = {}
+                    all_columns: dict = {}
                     for source_table in source_tables:
                         columns: list[str] = setup_target_table(errors, source_rdbms,
                                                                 target_rdbms, native_ordinal,
                                                                 reference_ordinal, source_table, logger)
-                        table_columns[source_table.name] = columns
+                        all_columns[source_table.name] = columns
                         source_table.schema = to_schema
 
                     # create tables in target schema
@@ -155,16 +155,16 @@ def migrate_data(errors: list[str],
                             # obtain SELECT statement and copy the table data
                             offset: int = 0
                             count: int = 0
+                            source_columns: list[str] = all_columns.get(source_table.name)
                             op_errors: len(str) = []
                             sel_stmt: str = build_select_query(source_rdbms, from_schema,
-                                                               source_table, offset,
+                                                               source_table, source_columns, offset,
                                                                pydb_common.MIGRATION_BATCH_SIZE, logger)
                             data: Sequence = engine_bulk_fetch(errors, source_rdbms,
                                                                source_engine, sel_stmt, logger)
                             while data:
                                 # insert the current chunk of data
-                                rows: list[dict] = structure_data(data,
-                                                                  table_columns.get(source_table.name))
+                                rows: list[dict] = structure_data(data, source_columns)
                                 engine_bulk_insert(op_errors, target_rdbms,
                                                    target_engine, source_table, rows, logger)
                                 # errors ?
@@ -178,7 +178,7 @@ def migrate_data(errors: list[str],
                                 op_errors = []
                                 offset += pydb_common.MIGRATION_BATCH_SIZE
                                 sel_stmt = build_select_query(source_rdbms, from_schema,
-                                                              source_table, offset,
+                                                              source_table, source_columns, offset,
                                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
                                 data = engine_bulk_fetch(errors, source_rdbms,
                                                          source_engine, sel_stmt, logger)
@@ -243,11 +243,13 @@ def setup_target_table(errors: list[str],
     # set the target columns
     # noinspection PyProtectedMember
     for column in source_table.c._all_columns:
-        # register the column
-        result.append(column.name)
         # convert the type
         target_type: Any = pydb_types.migrate_type(source_rdbms, target_rdbms,
                                                    native_ordinal, reference_ordinal, column, logger)
+        # is the column a large binary ?
+        if not pydb_types.is_large_binary(column):
+            # no, register it
+            result.append(column.name)
         # wrap-up the column migration
         try:
             # set column's new type
@@ -274,6 +276,7 @@ def setup_target_table(errors: list[str],
 def build_select_query(rdbms: str,
                        schema: str,
                        table: Table,
+                       columns: list[str],
                        offset: int,
                        batch_size: int,
                        logger: Logger) -> str:
@@ -281,9 +284,8 @@ def build_select_query(rdbms: str,
     # initialize the return variable
     result: str | None = None
 
-    # obtain names of columns (column names are quoted to avoid conflicts with keywords
-    columns_list: list[str] = [column for column in table.columns.keys()]
-    columns_str: str = ", ".join(columns_list)
+    # obtain names of columns
+    columns_str: str = ", ".join(columns)
 
     # build the SELECT query
     match rdbms:
@@ -306,7 +308,7 @@ def build_select_query(rdbms: str,
 
 
 def structure_data(data: Sequence,
-                   table_colums: list[str]) -> list[dict]:
+                   table_columns: list[str]) -> list[dict]:
 
     # initialize the return variable
     result: list[dict] = []
@@ -315,7 +317,7 @@ def structure_data(data: Sequence,
     for values in data:
         row: dict = {}
         # build the record
-        for inx, table_column in enumerate(table_colums):
+        for inx, table_column in enumerate(table_columns):
             row[table_column] = values[inx]
         # register the record
         result.append(row)

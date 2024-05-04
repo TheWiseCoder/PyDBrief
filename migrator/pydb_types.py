@@ -466,3 +466,9 @@ def establish_equivalences(source_rdbms: str,
                     nat_ordinal = 3
 
     return nat_ordinal, ref_ordinal
+
+
+def is_large_binary(column: Column) -> bool:
+
+    return column.type.__class__ in [PG_BYTEA, REF_BLOB, REF_CLOB, REF_TEXT,
+                                     REF_VARBINARY, MSQL_LONGBLOB, MSQL_TEXT, SQLS_VARBINARY]
