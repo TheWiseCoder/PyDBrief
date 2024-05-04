@@ -163,16 +163,17 @@ def migrate_data(errors: list[str],
                                                                source_engine, sel_stmt, logger)
                             while data:
                                 # insert the current chunk of data
-                                rows: list[dict] = structure_data(data,
-                                                                  table_columns.get(source_table.name))
-                                engine_bulk_insert(op_errors, target_rdbms,
-                                                   target_engine, source_table, rows, logger)
+                                rows: list[dict] | None = None
+                                if len(data) > 0:
+                                    rows = structure_data(data, table_columns.get(source_table.name))
+                                    engine_bulk_insert(op_errors, target_rdbms,
+                                                       target_engine, source_table, rows, logger)
                                 # errors ?
                                 if len(op_errors) > 0:
                                     # yes, register it and skip to next table
                                     errors.extend(op_errors)
                                     break
-                                count += len(rows)
+                                count += len(rows or [])
 
                                 # fetch the next chunk of data
                                 op_errors = []
