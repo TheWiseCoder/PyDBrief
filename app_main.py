@@ -123,7 +123,7 @@ def get_log() -> Response:
 
 
 @app.route(rule="/rdbms/<rdbms>",
-           methods=["GET", "PATCH"])
+           methods=["GET", "POST"])
 def handle_rdbms(rdbms: str) -> Response:
     """
     Entry point for configuring the RDBMS to use.
@@ -200,7 +200,7 @@ def handle_migration() -> Response:
                 reply = {"status": "Configuration updated"}
         case "POST":
             # validate the source and target RDBMS engines
-            pydb_common.validate_rdbms_dual(errors, scheme)
+            pydb_validator.validate_rdbms_dual(errors, scheme)
             # errors ?
             if len(errors) == 0:
                 # no, assert the migration parameters
@@ -245,7 +245,7 @@ def migrate_data() -> Response:
     scheme: dict = http_get_parameters(request)
 
     # validate the source and target RDBMS engines
-    (source_rdbms, target_rdbms) = pydb_common.validate_rdbms_dual(errors, scheme)
+    (source_rdbms, target_rdbms) = pydb_validator.validate_rdbms_dual(errors, scheme)
 
     # assert whether migration is warranted
     if len(errors) == 0:
@@ -267,8 +267,8 @@ def migrate_data() -> Response:
         if source_schema and target_schema:
             # yes, retrieve the list of tables and migrate the data
             tables: list[str] = str_as_list(scheme.get("tables"))
-            reply = pydb_migrator.migrate_data(errors, source_rdbms, target_rdbms,
-                                               source_schema, target_schema, tables, PYPOMES_LOGGER)
+            reply = pydb_migrator.migrate(errors, source_rdbms, target_rdbms,
+                                          source_schema, target_schema, tables, PYPOMES_LOGGER)
 
     # build the response
     result: Response = _build_response(errors, reply)

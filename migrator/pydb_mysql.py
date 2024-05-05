@@ -1,7 +1,5 @@
 from logging import Logger
-from pyodbc import connect, Connection
 from pypomes_core import validate_format_error
-from sqlalchemy import Engine, create_engine
 
 # noinspection DuplicatedCode
 MSQL_DB_NAME: str | None = None

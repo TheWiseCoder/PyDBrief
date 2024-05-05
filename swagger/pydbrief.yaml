@@ -48,11 +48,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
-    patch:
+    post:
       tags:
         - rdbms
       summary: Update the configuration for the RDBMS engine
-      description: Incrementally update the configuration data for the RDBMS engine.
+      description: Update the configuration data for the RDBMS engine.
       operationId: update-rdbms-configuration
       parameters:
         - $ref: '#/components/parameters/RdbmsParam'
@@ -297,35 +297,35 @@ components:
       name: db-name
       in: query
       description: The database identification
-      required: false
+      required: true
       schema:
         type: string
     DbUserParam:
       name: db-user
       in: query
       description: Logon user
-      required: false
+      required: true
       schema:
         type: string
     DbPwdParam:
       name: db-pwd
       in: query
       description: Logon password
-      required: false
+      required: true
       schema:
         type: string
     DbHostParam:
       name: db-host
       in: query
       description: Host access URL
-      required: false
+      required: true
       schema:
         type: string
     DbPortParam:
       name: db-port
       in: query
       description: Host access port
-      required: false
+      required: true
       schema:
         type: integer
     DbClientParam:

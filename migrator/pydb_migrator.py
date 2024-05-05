@@ -1,16 +1,15 @@
 import sys
 from logging import DEBUG, INFO, Logger
 from pypomes_core import validate_format_error, exc_format
+from pypomes_db import db_select_all, db_bulk_insert
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
-from sqlalchemy.engine.reflection import Inspector, Sequence
+from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.engine.result import Result
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.elements import TextClause
-# from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.schema import MetaData, Table
+from sqlalchemy.sql.schema import Column, MetaData, Table
 from typing import Any
 
 from . import (
@@ -20,16 +19,58 @@ from . import (
 
 
 # this is the entry point for the migration process
-def migrate_data(errors: list[str],
-                 source_rdbms: str,
-                 target_rdbms: str,
-                 source_schema: str,
-                 target_schema: str,
-                 data_tables: list[str],
-                 logger: Logger | None) -> dict:
+def migrate(errors: list[str],
+            source_rdbms: str,
+            target_rdbms: str,
+            source_schema: str,
+            target_schema: str,
+            data_tables: list[str],
+            logger: Logger | None) -> dict:
+
+    pydb_common.log(logger, INFO,
+                    "Started migrating the metadata")
+    migrated_data: list[dict] = migrate_metadata(errors, source_rdbms, target_rdbms,
+                                                 source_schema, target_schema, data_tables, logger)
+    pydb_common.log(logger, INFO,
+                    "Finished migrating the metadata")
+
+    pydb_common.log(logger, INFO,
+                    "Started migrating the plain data")
+    migrate_plain_data(errors, source_rdbms, target_rdbms,
+                       source_schema, target_schema, migrated_data, logger)
+    pydb_common.log(logger, INFO,
+                    "Finished migrating the plain data")
+
+    return {
+        "migrations": migrated_data
+    }
+
+
+# structure of migration data returned:
+# [
+#   {
+#      "table": <table-name>,
+#      "columns": [
+#        {
+#          "name": <column_name>,
+#          "type": <column-type>
+#        },
+#        ...
+#      ],
+#      "count": <number-of-tuples-migrated>,
+#      "status": "none" | "full" | "partial"
+#   }
+# ]
+def migrate_metadata(errors: list[str],
+                     source_rdbms: str,
+                     target_rdbms: str,
+                     source_schema: str,
+                     target_schema: str,
+                     data_tables: list[str],
+                     logger: Logger | None) -> list[dict]:
 
     # iinitialize the return variable
-    result: dict | None = None
+    migrated_tables: list[dict] = []
 
     # create engines
     source_engine: Engine = build_engine(errors, source_rdbms, logger)
@@ -126,13 +167,27 @@ def migrate_data(errors: list[str],
                         pydb_types.establish_equivalences(source_rdbms, target_rdbms)
 
                     # setup target tables
-                    all_columns: dict = {}
                     for source_table in source_tables:
-                        columns: list[str] = setup_target_table(errors, source_rdbms,
-                                                                target_rdbms, native_ordinal,
-                                                                reference_ordinal, source_table, logger)
-                        all_columns[source_table.name] = columns
+                        columns: list[Column] = setup_target_table(errors, source_rdbms,
+                                                                   target_rdbms, native_ordinal,
+                                                                   reference_ordinal, source_table, logger)
                         source_table.schema = to_schema
+
+                        table_columns = []
+                        for column in columns:
+                            column_data: dict = {
+                                "name": column.name,
+                                "type": column.type.__class__
+                            }
+                            table_columns.append(column_data)
+
+                        table_data = {
+                            "table": source_table.name,
+                            "columns": table_columns,
+                            "count": 0,
+                            "status": "none"
+                        }
+                        migrated_tables.append(table_data)
 
                     # create tables in target schema
                     try:
@@ -143,51 +198,6 @@ def migrate_data(errors: list[str],
                                              exc_info=sys.exc_info())
                         # 104: Unexpected error: {}
                         errors.append(validate_format_error(104, err_msg))
-
-                    # errors ?
-                    if len(errors) == 0:
-                        # no, copy the data
-                        # engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
-                        migrated_tables: list[dict] = []
-                        for source_table in source_tables:
-                            # engine_unlog_table(errors, target_rdbms, to_schema,
-                            #                    target_engine, source_table, logger)
-                            # obtain SELECT statement and copy the table data
-                            offset: int = 0
-                            migrated_count: int = 0
-                            source_columns: list[str] = all_columns.get(source_table.name)
-                            op_errors: len(str) = []
-                            sel_stmt: str = build_select_query(source_rdbms, from_schema,
-                                                               source_table, source_columns, offset,
-                                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
-                            bulk_data: Sequence = engine_bulk_fetch(errors, source_rdbms,
-                                                                    source_engine, sel_stmt, logger)
-                            while bulk_data:
-                                # insert the current chunk of data
-                                bulk_rows: list[dict] = structure_data(bulk_data, source_columns)
-                                engine_bulk_insert(op_errors, target_rdbms,
-                                                   target_engine, source_table, bulk_rows, logger)
-                                # errors ?
-                                if len(op_errors) > 0:
-                                    # yes, register it and skip to next table
-                                    errors.extend(op_errors)
-                                    break
-                                migrated_count += len(bulk_rows)
-
-                                # fetch the next chunk of data
-                                op_errors = []
-                                offset += len(bulk_rows)
-                                sel_stmt = build_select_query(source_rdbms, from_schema,
-                                                              source_table, source_columns, offset,
-                                                              pydb_common.MIGRATION_BATCH_SIZE, logger)
-                                bulk_data = engine_bulk_fetch(errors, source_rdbms,
-                                                              source_engine, sel_stmt, logger)
-                            migrated_tables.append({
-                                "table": source_table.name,
-                                "tuples": migrated_count,
-                                "status": "full migration" if len(op_errors) == 0 else "partial migration"
-                            })
-                        result = {"migrated-tables": migrated_tables}
                 else:
                     # 104: Unexpected error: {}
                     errors.append(validate_format_error(104,
@@ -204,7 +214,70 @@ def migrate_data(errors: list[str],
             errors.append(validate_format_error(119, source_schema,
                                                 f"schema not found in RDBMS {source_rdbms}",
                                                 "@from-schema"))
-    return result
+    return migrated_tables
+
+
+def migrate_plain_data(errors: list[str],
+                       source_rdbms: str,
+                       target_rdbms: str,
+                       source_schema: str,
+                       target_scheme: str,
+                       migrated_data: list[dict],
+                       logger: Logger | None) -> None:
+
+    # engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
+    for table_data in migrated_data:
+        offset: int = 0
+        migrated_count: int = 0
+        table: str = table_data.get("table")
+        # engine_unlog_table(errors, target_rdbms, to_schema,
+        #                    target_engine, source_table, logger)
+
+        # build the INSERT and SELECT statements
+        table_columns: list[dict] = table_data.get("columns")
+        column_names: list[str] = [column.get("name") for column in table_columns]
+        insert_stmt = build_bulk_insert_stmt(target_rdbms, target_scheme,
+                                             table, column_names, logger)
+        sel_stmt: str = build_bulk_select_stmt(source_rdbms, source_schema,
+                                               table, column_names, offset,
+                                               pydb_common.MIGRATION_BATCH_SIZE, logger)
+        # copy the table data
+        op_errors: list[str] = []
+        bulk_data: list[tuple] = db_select_all(errors=errors,
+                                               sel_stmt=sel_stmt,
+                                               engine=source_rdbms,
+                                               logger=logger)
+        while not op_errors and bulk_data:
+            # insert the current chunk of data
+            db_bulk_insert(errors=op_errors,
+                           insert_stmt=insert_stmt,
+                           insert_vals=bulk_data,
+                           engine=target_rdbms,
+                           logger=logger)
+            # errors ?
+            if len(op_errors) > 0:
+                # yes, skip to next table
+                break
+            migrated_count += len(bulk_data)
+
+            # fetch the next chunk of data
+            offset += len(bulk_data)
+            sel_stmt: str = build_bulk_select_stmt(source_rdbms, source_schema,
+                                                   table, column_names, offset,
+                                                   pydb_common.MIGRATION_BATCH_SIZE, logger)
+            bulk_data: list[tuple] = db_select_all(errors=op_errors,
+                                                   sel_stmt=sel_stmt,
+                                                   engine=source_rdbms,
+                                                   logger=logger)
+
+        status: str
+        if op_errors:
+            errors.extend(op_errors)
+            status = "partial migration" if migrated_count else "none"
+        else:
+            status = "full migration"
+        table_data["status"] = status
+        table_data["count"] = migrated_count
 
 
 def build_engine(errors: list[str],
@@ -235,10 +308,10 @@ def setup_target_table(errors: list[str],
                        native_ordinal: int,
                        reference_ordinal: int,
                        source_table: Table,
-                       logger: Logger) -> list[str]:
+                       logger: Logger) -> list[Column]:
 
     # initialize the return variable
-    result: list[str] = []
+    result: list[Column] = []
 
     # set the target columns
     # noinspection PyProtectedMember
@@ -246,10 +319,7 @@ def setup_target_table(errors: list[str],
         # convert the type
         target_type: Any = pydb_types.migrate_type(source_rdbms, target_rdbms,
                                                    native_ordinal, reference_ordinal, column, logger)
-        # is the column a large binary ?
-        if not pydb_types.is_large_binary(column):
-            # no, register it
-            result.append(column.name)
+        result.append(column)
 
         # wrap-up the column migration
         try:
@@ -274,13 +344,13 @@ def setup_target_table(errors: list[str],
     return result
 
 
-def build_select_query(rdbms: str,
-                       schema: str,
-                       table: Table,
-                       columns: list[str],
-                       offset: int,
-                       batch_size: int,
-                       logger: Logger) -> str:
+def build_bulk_select_stmt(rdbms: str,
+                           schema: str,
+                           table: str,
+                           columns: list[str],
+                           offset: int,
+                           batch_size: int,
+                           logger: Logger) -> str:
 
     # initialize the return variable
     result: str | None = None
@@ -293,35 +363,44 @@ def build_select_query(rdbms: str,
         case "mysql":
             pass
         case "oracle":
-            result = pydb_oracle.build_select_query(schema, table.name,
-                                                    columns_str, offset, batch_size)
+            result = pydb_oracle.build_bulk_select_stmt(schema, table,
+                                                        columns_str, offset, batch_size)
         case "postgres":
-            result = pydb_postgres.build_select_query(schema, table.name,
-                                                      columns_str, offset, batch_size)
+            result = pydb_postgres.build_bulk_select_stmt(schema, table,
+                                                          columns_str, offset, batch_size)
         case "sqlserver":
-            result = pydb_sqlserver.build_select_query(schema, table.name,
-                                                       columns_str, offset, batch_size)
-
+            result = pydb_sqlserver.build_bulk_select_stmt(schema, table,
+                                                           columns_str, offset, batch_size)
     pydb_common.log(logger, DEBUG,
                     f"RDBMS {rdbms}, built query {result}")
 
     return result
 
 
-def structure_data(data: Sequence,
-                   table_columns: list[str]) -> list[dict]:
+def build_bulk_insert_stmt(rdbms: str,
+                           schema: str,
+                           table: str,
+                           columns: list[str],
+                           logger: Logger) -> str:
 
     # initialize the return variable
-    result: list[dict] = []
+    result: str | None = None
 
-    # traverse the data
-    for values in data:
-        row: dict = {}
-        # build the record
-        for inx, table_column in enumerate(table_columns):
-            row[table_column] = values[inx]
-        # register the record
-        result.append(row)
+    # obtain names of columns
+    columns_str: str = ", ".join(columns)
+
+    # build the SELECT query
+    match rdbms:
+        case "mysql":
+            pass
+        case "oracle":
+            result = pydb_oracle.build_bulk_insert_stmt(schema, table, columns_str)
+        case "postgres":
+            result = pydb_postgres.build_bulk_insert_stmt(schema, table, columns_str)
+        case "sqlserver":
+            result = pydb_sqlserver.build_bulk_insert_stmt(schema, table, columns_str)
+    pydb_common.log(logger, DEBUG,
+                    f"RDBMS {rdbms}, built query {result}")
 
     return result
 
@@ -388,73 +467,6 @@ def engine_exc_stmt(errors: list[str],
             trans.commit()
             pydb_common.log(logger, DEBUG,
                             f"RDBMS {rdbms}, sucessfully executed {stmt}")
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-    return result
-
-
-def engine_bulk_fetch(errors: list[str],
-                      rdbms: str,
-                      engine: Engine,
-                      sel_stmt: str,
-                      logger: Logger) -> Sequence:
-
-    result: Sequence | None = None
-    exc_stmt: TextClause = text(sel_stmt)
-    try:
-        with engine.connect() as conn:
-            trans: RootTransaction = conn.begin()
-            reply: Result = conn.execute(exc_stmt)
-            result: Sequence = reply.fetchall()
-            trans.commit()
-            pydb_common.log(logger, INFO,
-                            f"RDBMS {rdbms}, retrieved {len(result)} tuples with {sel_stmt}")
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-    return result
-
-
-def engine_bulk_insert(errors: list[str],
-                       rdbms: str,
-                       engine: Engine,
-                       table: Table,
-                       data: list[dict],
-                       logger: Logger) -> None:
-
-    try:
-        with engine.connect() as conn:
-            trans: RootTransaction = conn.begin()
-            conn.execute(table.insert(), data)
-            trans.commit()
-            pydb_common.log(logger, INFO,
-                            f"RDBMS {rdbms}, inserted {len(data)} tuples in table {table.name}")
-    except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
-        # 104: Unexpected error: {}
-        errors.append(validate_format_error(104, err_msg))
-
-
-def session_exc_stmt(errors: list[str],
-                     rdbms: str,
-                     session: Session,
-                     stmt: str,
-                     logger: Logger) -> Result:
-
-    result: Result | None = None
-    exc_stmt: TextClause = text(stmt)
-    try:
-        result = session.execute(statement=exc_stmt)
-        pydb_common.log(logger, DEBUG,
-                        f"RDBMS {rdbms}, sucessfully executed {stmt}")
     except Exception as e:
         err_msg = exc_format(exc=e,
                              exc_info=sys.exc_info())

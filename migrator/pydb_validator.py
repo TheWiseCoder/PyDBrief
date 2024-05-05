@@ -1,63 +1,43 @@
-from typing import Any
 from pypomes_core import validate_format_error
+from pypomes_db import (
+    db_setup, db_get_engines, db_get_params, db_assert_connection
+)
 
 from . import (
-    pydb_common, pydb_mysql, pydb_oracle, pydb_postgres, pydb_sqlserver
+    pydb_common, pydb_oracle, pydb_postgres, pydb_sqlserver  # py_mysql,
 )
 
 
-def assert_connection(errors: list[str],
-                      rdbms: str) -> None:
+def validate_rdbms_dual(errors: list[str],
+                        scheme: dict) -> tuple[str, str]:
 
-    # attempt to connect
-    conn: Any
-    match rdbms:
-        case "mysql":
-            pass
-        case "oracle":
-            from oracledb import Connection
-            pydb_oracle.initialize(errors)
-            conn: Connection = pydb_oracle.db_connect(errors)
-            if isinstance(conn, Connection):
-                conn.close()
-        case "postgres":
-            # noinspection PyProtectedMember
-            from psycopg2._psycopg import connection
-            conn: connection = pydb_postgres.db_connect(errors)
-            if isinstance(conn, connection):
-                conn.close()
-        case "sqlserver":
-            from pyodbc import Connection
-            conn: Connection = pydb_sqlserver.db_connect(errors)
-            if isinstance(conn, Connection):
-                conn.close()
-        case _:
-            # 119: Invalid value {}: {}
-            errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
+    engines: list[str] = db_get_engines()
+    source_rdbms: str = scheme.get("from-rdbms")
+    if source_rdbms not in engines:
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, source_rdbms,
+                                            "unknown or unconfigured RDMS engine", "@from-rdbms"))
+    target_rdbms: str = scheme.get("to-rdbms")
+    if target_rdbms not in engines:
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, target_rdbms,
+                                            "unknown or unconfigured RDMS engine", "@to-rdbms"))
+
+    if source_rdbms and source_rdbms == target_rdbms:
+        # 116: Value {} cannot be assigned for attributes {} at the same time
+        errors.append(validate_format_error(116, source_rdbms, "'from-rdbms' and 'to-rdbms'"))
+
+    return source_rdbms, target_rdbms
 
 
 def assert_connection_params(errors: list[str],
                              scheme: str | dict):
 
     # obtain the RDBMS name
-    rdbms: str = scheme if isinstance(scheme, str) \
-        else pydb_common.validate_rdbms(errors, scheme, "rdbms")
-
-    # has it been obtained ?
-    if isinstance(rdbms, str):
-        # yes, retrieve the corresponding engine's configuration
-        match rdbms:
-            case "mysql":
-                pydb_mysql.assert_connection_params(errors)
-            case "oracle":
-                pydb_oracle.assert_connection_params(errors)
-            case "postgres":
-                pydb_postgres.assert_connection_params(errors)
-            case "sqlserver":
-                pydb_sqlserver.assert_connection_params(errors)
-            case _:
-                # 119: Invalid value {}: {}
-                errors.append(validate_format_error(119, rdbms, "unknown RDMS engine"))
+    rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
+    if not db_get_params(rdbms):
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, rdbms, "unknown or unconfigured RDMS engine"))
 
 
 def assert_migration(errors: list[str],
@@ -87,15 +67,17 @@ def assert_migration(errors: list[str],
 
     # verify if actual connection is possible
     if len(errors) == 0:
-        assert_connection(errors, from_rdbms)
-        assert_connection(errors, to_rdbms)
+        db_assert_connection(errors=errors,
+                             engine=from_rdbms)
+        db_assert_connection(errors=errors,
+                             engine=to_rdbms)
 
 
 def get_migration_context(scheme: dict) -> dict:
 
     result: dict = {
-        "from": get_connection_params([], scheme.get("from-rdbms")),
-        "to": get_connection_params([], scheme.get("to-rdbms"))
+        "from": db_get_params(scheme.get("from-rdbms")),
+        "to": db_get_params(scheme.get("to-rdbms"))
     }
     result.update(pydb_common.get_migration_params())
 
@@ -124,26 +106,13 @@ def get_connection_string(rdbms: str) -> str:
 def get_connection_params(errors: list[str],
                           scheme: str | dict) -> dict:
 
-    # initialize the return variable
-    result: dict | None = None
-
-    rdbms: str = scheme if isinstance(scheme, str) \
-        else pydb_common.validate_rdbms(errors, scheme, "rdbms")
-
-    # retrieve the engine's configuration
-    if len(errors) == 0:
-        match rdbms:
-            case "mysql":
-                result = pydb_mysql.get_connection_params()
-            case "oracle":
-                result = pydb_oracle.get_connection_params()
-            case "postgres":
-                result = pydb_postgres.get_connection_params()
-            case "sqlserver":
-                result = pydb_sqlserver.get_connection_params()
-            case _:
-                # 119: Invalid value {}: {}
-                errors.append(validate_format_error(119, rdbms, "unknown engine"))
+    rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdms")
+    result: dict = db_get_params(rdbms)
+    result["rdms"] = rdbms
+    if not result:
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, rdbms,
+                                            "unknown or unconfigured RDMS engine", "@rdbms"))
 
     return result
 
@@ -151,19 +120,13 @@ def get_connection_params(errors: list[str],
 def set_connection_params(errors: list[str],
                           scheme: dict) -> None:
 
-    rdbms: str = pydb_common.validate_rdbms(errors, scheme, "rdbms")
-
-    # configure the engine
-    if len(errors) == 0:
-        match rdbms:
-            case "mysql":
-                pydb_mysql.set_connection_params(errors, scheme)
-            case "oracle":
-                pydb_oracle.set_connection_params(errors, scheme)
-            case "postgres":
-                pydb_postgres.set_connection_params(errors, scheme)
-            case "sqlserver":
-                pydb_sqlserver.set_connection_params(errors, scheme)
-            case _:
-                # 119: Invalid value {}: {}
-                errors.append(validate_format_error(119, rdbms, "unknown engine"))
+    if not db_setup(engine=scheme.get("engine"),
+                    db_name=scheme.get("db-name"),
+                    db_host=scheme.get("db-host"),
+                    db_port=scheme.get("db-port"),
+                    db_user=scheme.get("db-user"),
+                    db_pwd=scheme.get("db-pwd"),
+                    db_client=scheme.get("db-client"),
+                    db_driver=scheme.get("db-driver")):
+        # 120: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
+        errors.append(validate_format_error(120))

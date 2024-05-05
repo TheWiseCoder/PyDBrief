@@ -1,11 +1,7 @@
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, validate_format_error, validate_str, validate_int
+    str_sanitize, validate_format_error, validate_int
 )
-from typing import Final
-
-# list of supported DB engines
-SUPPORTED_ENGINES: Final[list[str]] = ["mysql", "oracle", "postgres", "sqlserver"]
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 100000
@@ -48,31 +44,6 @@ def set_migration_parameters(errors: list[str],
         # yes, set the corresponding global parameter
         global MIGRATION_PROCESSES
         MIGRATION_PROCESSES = processes
-
-
-def validate_rdbms(errors: list[str],
-                   scheme: dict,
-                   attr: str) -> str:
-
-    # validate the provided value
-    return validate_str(errors=errors,
-                        scheme=scheme,
-                        attr=attr,
-                        default=SUPPORTED_ENGINES)
-
-
-def validate_rdbms_dual(errors: list[str],
-                        scheme: dict) -> tuple[str, str]:
-
-    # retrieve the provided values
-    source_rdbms: str = validate_rdbms(errors, scheme, "from-rdbms")
-    target_rdbms: str = validate_rdbms(errors, scheme, "to-rdbms")
-
-    if len(errors) == 0 and source_rdbms == target_rdbms:
-        # 116: Value {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_rdbms, "'from-rdbms' and 'to-rdbms'"))
-
-    return source_rdbms, target_rdbms
 
 
 def log(logger: Logger,
