@@ -36,19 +36,26 @@ def migrate(errors: list[str],
 
     pydb_common.log(logger, INFO,
                     "Started migrating the plain data")
+    # obtain source and target connections
     op_errors: list[str] = []
-    # disable target RDBMS restrictions to speed-up bulk copying
+    source_conn: Any = db_connect(errors=op_errors,
+                                  engine=source_rdbms,
+                                  logger=logger)
     target_conn: Any = db_connect(errors=op_errors,
                                   engine=target_rdbms,
                                   logger=logger)
-    if target_conn:
+
+    if source_conn and target_conn:
+        # disable target RDBMS restrictions to speed-up bulk copying
         disable_session_restrictions(op_errors, target_rdbms, target_conn, logger)
         if not op_errors:
-            migrate_plain_data(op_errors, source_rdbms, target_rdbms,
-                               source_schema, target_schema, target_conn, migrated_tables, logger)
+            migrate_plain_data(op_errors, source_rdbms, target_rdbms, source_schema,
+                               target_schema, source_conn, target_conn, migrated_tables, logger)
         # restore target RDBMS restrictions delaying bulk copying
         restore_session_restrictions(op_errors, target_rdbms, target_conn, logger)
+        source_conn.close()
         target_conn.close()
+
     errors.extend(op_errors)
     pydb_common.log(logger, INFO,
                     "Finished migrating the plain data")
@@ -255,6 +262,7 @@ def migrate_plain_data(errors: list[str],
                        target_rdbms: str,
                        source_schema: str,
                        target_schema: str,
+                       source_conn: Any,
                        target_conn: Any,
                        migrated_tables: list[dict],
                        logger: Logger | None) -> None:
@@ -284,6 +292,7 @@ def migrate_plain_data(errors: list[str],
         bulk_data: list[tuple] = db_select_all(errors=errors,
                                                sel_stmt=sel_stmt,
                                                engine=source_rdbms,
+                                               conn=source_conn,
                                                logger=logger)
         while not op_errors and bulk_data:
             # insert the current chunk of data
@@ -307,6 +316,7 @@ def migrate_plain_data(errors: list[str],
             bulk_data: list[tuple] = db_select_all(errors=op_errors,
                                                    sel_stmt=sel_stmt,
                                                    engine=source_rdbms,
+                                                   conn=source_conn,
                                                    logger=logger)
 
         if op_errors:
@@ -335,7 +345,7 @@ def build_engine(errors: list[str],
     try:
         result = create_engine(url=conn_str)
         pydb_common.log(logger, DEBUG,
-                        f"RDBMS {rdbms}, created engine")
+                        f"RDBMS {rdbms}, created migration engine")
     except Exception as e:
         params: dict = pydb_validator.get_connection_params(errors, rdbms)
         errors.append(pydb_common.db_except_msg(e, params.get("name"), params.get("host")))
