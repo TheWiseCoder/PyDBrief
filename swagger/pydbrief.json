@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.0_RC05"
+    "version": "1.0.0_RC07"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -77,12 +77,12 @@
           }
         }
       },
-      "patch": {
+      "post": {
         "tags": [
           "rdbms"
         ],
         "summary": "Update the configuration for the RDBMS engine",
-        "description": "Incrementally update the configuration data for the RDBMS engine.",
+        "description": "Update the configuration data for the RDBMS engine.",
         "operationId": "update-rdbms-configuration",
         "parameters": [
           {
@@ -251,7 +251,7 @@
           "data migration"
         ],
         "summary": "Migrate the data",
-        "description": "Migrate the data in the given RDBMS and schema.",
+        "description": "Migrate the data from the source to the target RDBMS and schema.",
         "operationId": "migrate-schema",
         "parameters": [
           {
@@ -487,7 +487,7 @@
         "name": "db-name",
         "in": "query",
         "description": "The database identification",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "string"
         }
@@ -496,7 +496,7 @@
         "name": "db-user",
         "in": "query",
         "description": "Logon user",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "string"
         }
@@ -505,7 +505,7 @@
         "name": "db-pwd",
         "in": "query",
         "description": "Logon password",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "string"
         }
@@ -514,7 +514,7 @@
         "name": "db-host",
         "in": "query",
         "description": "Host access URL",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "string"
         }
@@ -523,7 +523,7 @@
         "name": "db-port",
         "in": "query",
         "description": "Host access port",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "integer"
         }
@@ -639,7 +639,7 @@
             "type": "string",
             "example": "admin"
           },
-          "password": {
+          "pwd": {
             "type": "string",
             "example": "admin"
           },
@@ -745,7 +745,7 @@
                 },
                 "description": {
                   "type": "string",
-                  "example": "Value 'oracle' cannot be assigned for attributes 'from.rdbms' and 'to.rdbms' at the same time"
+                  "example": "Value 'oracle' cannot be assigned for attributes 'from-rdbms' and 'to-rdbms' at the same time"
                 }
               }
             }
@@ -755,16 +755,68 @@
       "MigrationSuccess": {
         "type": "object",
         "properties": {
-          "migrations": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "rdbms": {
+                "type": "string",
+                "example": "oracle"
+              },
+              "schema": {
+                "type": "string",
+                "example": "ora-schema"
+              }
+            }
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "rdbms": {
+                "type": "string",
+                "example": "postgres"
+              },
+              "schema": {
+                "type": "string",
+                "example": "pg-schema"
+              }
+            }
+          },
+          "migrated-tables": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "table": {
-                  "type": "integer"
+                  "type": "string",
+                  "example": "customers"
                 },
-                "records": {
-                  "type": "integer"
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "example": "customer-name"
+                      },
+                      "source-type": {
+                        "type": "string",
+                        "example": "NUMBER"
+                      },
+                      "target-type": {
+                        "type": "string",
+                        "example": "INTEGER"
+                      }
+                    }
+                  }
+                },
+                "count": {
+                  "type": "integer",
+                  "example": 1250000
+                },
+                "status": {
+                  "type": "string",
+                  "example": "full"
                 }
               }
             }

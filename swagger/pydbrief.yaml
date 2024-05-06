@@ -504,7 +504,7 @@ components:
               example: postgres
             schema:
               type: string
-              example:pg-schema
+              example: pg-schema
         migrated-tables:
           type: array
           items:
