@@ -218,7 +218,7 @@ from sqlalchemy.dialects.mssql import (
 )
 
 # to be filled at migration time
-nat_equivalences: list[tuple] = []
+NAT_EQUIVALENCES: list[tuple] = []
 
 # Reference - MySQL - Oracle - PostgreSQL - SQLServer
 REF_EQUIVALENCES: Final[list[tuple]] = [
@@ -310,6 +310,20 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
 ]
 
+LARGE_BINARIES: Final[list[str]] = [
+    str(MSQL_LONGBLOB()),
+    str(MSQL_LONGTEXT()),
+    str(MSQL_TEXT()),
+    str(ORCL_LONG()),
+    str(ORCL_NCLOB()),
+    str(ORCL_RAW()),
+    str(PG_BYTEA()),
+    str(REF_BLOB()),
+    str(REF_CLOB()),
+    str(REF_TEXT()),
+    str(REF_VARBINARY()),
+    str(SQLS_VARBINARY())]
+
 
 def migrate_type(source_rdbms: str,
                  target_rdbms: str,
@@ -348,7 +362,7 @@ def migrate_type(source_rdbms: str,
 
     # if necessary, inspect the native equivalences first
     if type_equiv is None:
-        for nat_equivalence in nat_equivalences:
+        for nat_equivalence in NAT_EQUIVALENCES:
             if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
@@ -414,16 +428,16 @@ def establish_equivalences(source_rdbms: str,
                            target_rdbms: str) -> tuple[int, int]:
 
     # make 'nat_equivalences' point to the appropriate list
-    global nat_equivalences
+    global NAT_EQUIVALENCES
     match source_rdbms:
         case "mysql":
-            nat_equivalences = MSQL_EQUIVALENCES
+            NAT_EQUIVALENCES = MSQL_EQUIVALENCES
         case "oracle":
-            nat_equivalences = ORCL_EQUIVALENCES
+            NAT_EQUIVALENCES = ORCL_EQUIVALENCES
         case "postgres":
-            nat_equivalences = PG_EQUIVALENCES
+            NAT_EQUIVALENCES = PG_EQUIVALENCES
         case "sqlserver":
-            nat_equivalences = SQLS_EQUIVALENCES
+            NAT_EQUIVALENCES = SQLS_EQUIVALENCES
 
     # establish the ordinals
     nat_ordinal: int | None = None
@@ -469,9 +483,6 @@ def establish_equivalences(source_rdbms: str,
     return nat_ordinal, ref_ordinal
 
 
-def is_large_binary(column: Column) -> bool:
+def is_large_binary(col_type: str) -> bool:
 
-    return column.type.__class__ in [MSQL_LONGBLOB, MSQL_LONGTEXT, MSQL_TEXT,
-                                     ORCL_LONG, ORCL_NCLOB, ORCL_RAW,
-                                     PG_BYTEA, REF_BLOB, REF_CLOB, REF_TEXT,
-                                     REF_VARBINARY, SQLS_VARBINARY]
+    return col_type in LARGE_BINARIES

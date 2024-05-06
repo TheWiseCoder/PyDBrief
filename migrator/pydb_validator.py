@@ -16,12 +16,12 @@ def validate_rdbms_dual(errors: list[str],
     if source_rdbms not in engines:
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, source_rdbms,
-                                            "unknown or unconfigured RDMS engine", "@from-rdbms"))
+                                            "unknown or unconfigured RDBMS engine", "@from-rdbms"))
     target_rdbms: str = scheme.get("to-rdbms")
     if target_rdbms not in engines:
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, target_rdbms,
-                                            "unknown or unconfigured RDMS engine", "@to-rdbms"))
+                                            "unknown or unconfigured RDBMS engine", "@to-rdbms"))
 
     if source_rdbms and source_rdbms == target_rdbms:
         # 116: Value {} cannot be assigned for attributes {} at the same time
@@ -35,7 +35,7 @@ def assert_connection_params(errors: list[str],
 
     # obtain the RDBMS name
     rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
-    if not db_get_params(rdbms):
+    if rdbms not in db_get_engines():
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, rdbms, "unknown or unconfigured RDMS engine"))
 
@@ -55,15 +55,13 @@ def assert_migration(errors: list[str],
         errors.append(validate_format_error(127, pydb_common.MIGRATION_PROCESSES,
                                             [1, 100], "@processes"))
 
-    # assert the connection parameters for origin and destination RDBMS engines
+    # retrieve the source and target RDBMS engines
     from_rdbms: str = scheme.get("from-rdbms")
     to_rdbms: str = scheme.get("to-rdbms")
-    opt_scheme: dict = {}
-    opt_scheme.update(scheme)
-    opt_scheme["rdbms"] = from_rdbms
-    assert_connection_params(errors, opt_scheme)
-    opt_scheme["rdbms"] = to_rdbms
-    assert_connection_params(errors, opt_scheme)
+
+    # assert the connection parameters for origin and destination RDBMS engines
+    assert_connection_params(errors, from_rdbms)
+    assert_connection_params(errors, to_rdbms)
 
     # verify if actual connection is possible
     if len(errors) == 0:
@@ -75,9 +73,22 @@ def assert_migration(errors: list[str],
 
 def get_migration_context(scheme: dict) -> dict:
 
+    # obtain the source RDBMS parameters
+    from_rdbms: str = scheme.get("from-rdbms")
+    from_params = db_get_params(from_rdbms)
+    if isinstance(from_params, dict):
+        from_params["rdbms"] = from_rdbms
+
+    # obtain the target RDBMS parameters
+    to_rdbms: str = scheme.get("to-rdbms")
+    to_params = db_get_params(to_rdbms)
+    if isinstance(to_params, dict):
+        to_params["rdbms"] = to_rdbms
+
+    # build the return data
     result: dict = {
-        "from": db_get_params(scheme.get("from-rdbms")),
-        "to": db_get_params(scheme.get("to-rdbms"))
+        "from": from_params,
+        "to": to_params
     }
     result.update(pydb_common.get_migration_params())
 
@@ -106,13 +117,14 @@ def get_connection_string(rdbms: str) -> str:
 def get_connection_params(errors: list[str],
                           scheme: str | dict) -> dict:
 
-    rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdms")
+    rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
     result: dict = db_get_params(rdbms)
-    result["rdms"] = rdbms
-    if not result:
+    if isinstance(result, dict):
+        result["rdbms"] = rdbms
+    else:
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, rdbms,
-                                            "unknown or unconfigured RDMS engine", "@rdbms"))
+                                            "unknown or unconfigured RDBMS engine", "@rdbms"))
 
     return result
 
@@ -120,13 +132,20 @@ def get_connection_params(errors: list[str],
 def set_connection_params(errors: list[str],
                           scheme: dict) -> None:
 
-    if not db_setup(engine=scheme.get("engine"),
-                    db_name=scheme.get("db-name"),
-                    db_host=scheme.get("db-host"),
-                    db_port=scheme.get("db-port"),
-                    db_user=scheme.get("db-user"),
-                    db_pwd=scheme.get("db-pwd"),
-                    db_client=scheme.get("db-client"),
-                    db_driver=scheme.get("db-driver")):
+    param: str = scheme.get("db-port")
+    db_port: int = int(param) if isinstance(param, str) and param.isnumeric() else None
+
+    if db_port is None or db_port < 1:
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, db_port,
+                                            "must be positive integer", "@db-port"))
+    elif not db_setup(engine=scheme.get("rdbms"),
+                      db_name=scheme.get("db-name"),
+                      db_host=scheme.get("db-host"),
+                      db_port=db_port,
+                      db_user=scheme.get("db-user"),
+                      db_pwd=scheme.get("db-pwd"),
+                      db_client=scheme.get("db-client"),
+                      db_driver=scheme.get("db-driver")):
         # 120: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
         errors.append(validate_format_error(120))

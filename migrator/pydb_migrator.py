@@ -1,7 +1,7 @@
 import sys
 from logging import DEBUG, INFO, Logger
 from pypomes_core import validate_format_error, exc_format
-from pypomes_db import db_select_all, db_bulk_insert
+from pypomes_db import db_connect, db_select_all, db_bulk_insert
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
@@ -29,20 +29,40 @@ def migrate(errors: list[str],
 
     pydb_common.log(logger, INFO,
                     "Started migrating the metadata")
-    migrated_data: list[dict] = migrate_metadata(errors, source_rdbms, target_rdbms,
-                                                 source_schema, target_schema, data_tables, logger)
+    migrated_tables: list[dict] = migrate_metadata(errors, source_rdbms, target_rdbms,
+                                                   source_schema, target_schema, data_tables, logger)
     pydb_common.log(logger, INFO,
                     "Finished migrating the metadata")
 
     pydb_common.log(logger, INFO,
                     "Started migrating the plain data")
-    migrate_plain_data(errors, source_rdbms, target_rdbms,
-                       source_schema, target_schema, migrated_data, logger)
+    op_errors: list[str] = []
+    # disable target RDBMS restrictions to speed-up bulk copying
+    target_conn: Any = db_connect(errors=op_errors,
+                                  engine=target_rdbms,
+                                  logger=logger)
+    if target_conn:
+        disable_session_restrictions(op_errors, target_rdbms, target_conn, logger)
+        if not op_errors:
+            migrate_plain_data(op_errors, source_rdbms, target_rdbms,
+                               source_schema, target_schema, target_conn, migrated_tables, logger)
+        # restore target RDBMS restrictions delaying bulk copying
+        restore_session_restrictions(op_errors, target_rdbms, target_conn, logger)
+        target_conn.close()
+    errors.extend(op_errors)
     pydb_common.log(logger, INFO,
                     "Finished migrating the plain data")
 
     return {
-        "migrations": migrated_data
+        "source": {
+            "rdbms": source_rdbms,
+            "schema": source_schema
+        },
+        "target": {
+            "rdbms": target_rdbms,
+            "schema": target_schema
+        },
+        "migrated-tables": migrated_tables
     }
 
 
@@ -53,7 +73,8 @@ def migrate(errors: list[str],
 #      "columns": [
 #        {
 #          "name": <column_name>,
-#          "type": <column-type>
+#          "source-type": <column-type>,
+#          "target-type": <column-type>
 #        },
 #        ...
 #      ],
@@ -70,14 +91,14 @@ def migrate_metadata(errors: list[str],
                      logger: Logger | None) -> list[dict]:
 
     # iinitialize the return variable
-    migrated_tables: list[dict] = []
+    result: list[dict] = []
 
     # create engines
     source_engine: Engine = build_engine(errors, source_rdbms, logger)
     target_engine: Engine = build_engine(errors, target_rdbms, logger)
 
     # were both engines created ?
-    if source_engine is not None and target_engine is not None:
+    if source_engine and target_engine:
         # yes, proceed
         from_schema: str | None = None
 
@@ -168,26 +189,38 @@ def migrate_metadata(errors: list[str],
 
                     # setup target tables
                     for source_table in source_tables:
+
+                        # build the list of migrated columns for this table
+                        table_columns: list[dict] = []
+                        # noinspection PyProtectedMember
+                        for column in source_table.c._all_columns:
+                            column_data: dict = {
+                                "name": column.name,
+                                "source-type": str(column.type)
+                            }
+                            table_columns.append(column_data)
+
+                        # migrate the columns
                         columns: list[Column] = setup_target_table(errors, source_rdbms,
                                                                    target_rdbms, native_ordinal,
                                                                    reference_ordinal, source_table, logger)
                         source_table.schema = to_schema
 
-                        table_columns = []
+                        # register the mew column types
                         for column in columns:
-                            column_data: dict = {
-                                "name": column.name,
-                                "type": column.type.__class__
-                            }
-                            table_columns.append(column_data)
+                            for table_column in table_columns:
+                                if table_column["name"] == column.name:
+                                    table_column["target-type"] = str(column.type)
+                                    break
 
-                        table_data = {
+                        # register the migrated table
+                        migrated_table: dict = {
                             "table": source_table.name,
                             "columns": table_columns,
                             "count": 0,
                             "status": "none"
                         }
-                        migrated_tables.append(table_data)
+                        result.append(migrated_table)
 
                     # create tables in target schema
                     try:
@@ -214,29 +247,34 @@ def migrate_metadata(errors: list[str],
             errors.append(validate_format_error(119, source_schema,
                                                 f"schema not found in RDBMS {source_rdbms}",
                                                 "@from-schema"))
-    return migrated_tables
+    return result
 
 
 def migrate_plain_data(errors: list[str],
                        source_rdbms: str,
                        target_rdbms: str,
                        source_schema: str,
-                       target_scheme: str,
-                       migrated_data: list[dict],
+                       target_schema: str,
+                       target_conn: Any,
+                       migrated_tables: list[dict],
                        logger: Logger | None) -> None:
 
-    # engine_disable_restrictions(errors, target_rdbms, target_engine, logger)
-    for table_data in migrated_data:
+    # traverse list of migrated tables to copy the plain data
+    for migrated_table in migrated_tables:
         offset: int = 0
         migrated_count: int = 0
-        table: str = table_data.get("table")
-        # engine_unlog_table(errors, target_rdbms, to_schema,
-        #                    target_engine, source_table, logger)
+        table: str = migrated_table.get("table")
+
+        # disable table restrictions to speed-up bulk copying
+        # disable_table_restrictions(errors, target_rdbms, target_schema, table, target_conn, logger)
+
+        # exclude BLOB, CLOB, RAW, and other large binary types from the column names list
+        table_columns: list[dict] = migrated_table.get("columns")
+        column_names: list[str] = [column.get("name") for column in table_columns
+                                   if not pydb_types.is_large_binary(column.get("source_type"))]
 
         # build the INSERT and SELECT statements
-        table_columns: list[dict] = table_data.get("columns")
-        column_names: list[str] = [column.get("name") for column in table_columns]
-        insert_stmt = build_bulk_insert_stmt(target_rdbms, target_scheme,
+        insert_stmt = build_bulk_insert_stmt(target_rdbms, target_schema,
                                              table, column_names, logger)
         sel_stmt: str = build_bulk_select_stmt(source_rdbms, source_schema,
                                                table, column_names, offset,
@@ -253,6 +291,7 @@ def migrate_plain_data(errors: list[str],
                            insert_stmt=insert_stmt,
                            insert_vals=bulk_data,
                            engine=target_rdbms,
+                           conn=target_conn,
                            logger=logger)
             # errors ?
             if len(op_errors) > 0:
@@ -270,14 +309,16 @@ def migrate_plain_data(errors: list[str],
                                                    engine=source_rdbms,
                                                    logger=logger)
 
-        status: str
         if op_errors:
             errors.extend(op_errors)
-            status = "partial migration" if migrated_count else "none"
+            status: str = "partial" if migrated_count else "none"
         else:
-            status = "full migration"
-        table_data["status"] = status
-        table_data["count"] = migrated_count
+            status: str = "full"
+        migrated_table["status"] = status
+        migrated_table["count"] = migrated_count
+
+        # restore table restrictions delaying bulk copying
+        # restore_table_restrictions(errors, target_rdbms, target_schema, table, target_conn, logger)
 
 
 def build_engine(errors: list[str],
@@ -405,51 +446,88 @@ def build_bulk_insert_stmt(rdbms: str,
     return result
 
 
-def engine_disable_restrictions(errors: list[str],
-                                rdbms: str,
-                                engine: Engine,
-                                logger: Logger) -> None:
+def disable_session_restrictions(errors: list[str],
+                                 rdbms: str,
+                                 conn: Any,
+                                 logger: Logger) -> None:
 
-    # obtain the statement
-    stmts: list[str] | None = None
+    # disable session restrictions to speed-up bulk copy
     match rdbms:
         case "mysql":
             pass
         case "oracle":
-            pass
+            pydb_oracle.disable_session_restrictions(errors, conn, logger)
         case "postgres":
-            stmts = pydb_postgres.get_disable_restriction_stmts()
+            pydb_postgres.disable_session_restrictions(errors, conn, logger)
         case "sqlserver":
-            pass
+            pydb_sqlserver.disable_session_restrictions(errors, conn, logger)
 
-    for stmt in stmts or []:
-        engine_exc_stmt(errors, rdbms, engine, stmt, logger)
+    pydb_common.log(logger, DEBUG,
+                    f"RDBMS {rdbms}, disabled session restrictions to speed-up bulk copying")
 
 
-def engine_unlog_table(errors: list[str],
-                       rdbms: str,
-                       schema: str,
-                       engine: Engine,
-                       table: Table,
-                       logger: Logger) -> None:
+def restore_session_restrictions(errors: list[str],
+                                 rdbms: str,
+                                 conn: Any,
+                                 logger: Logger) -> None:
 
-    # obtain the statement
-    stmt: str | None = None
+    # restore session restrictions delaying bulk copy
     match rdbms:
         case "mysql":
             pass
         case "oracle":
-            stmt = pydb_oracle.get_table_unlog_stmt(schema, table.name)
+            pydb_oracle.restore_session_restrictions(errors, conn, logger)
         case "postgres":
-            stmt = pydb_postgres.get_table_unlog_stmt(schema, table.name)
+            pydb_postgres.restore_session_restrictions(errors, conn, logger)
         case "sqlserver":
-            # table logging cannot be disable in SQLServer
-            pass
+            pydb_sqlserver.restore_session_restrictions(errors, conn, logger)
 
-    # does the RDMS support table unlogging ?
-    if stmt:
-        # yes, unlog the table
-        engine_exc_stmt(errors, rdbms, engine, stmt, logger)
+    pydb_common.log(logger, DEBUG,
+                    f"RDBMS {rdbms}, restored session restrictions delaying bulk copying")
+
+
+def disable_table_restrictions(errors: list[str],
+                               rdbms: str,
+                               schema: str,
+                               table: str,
+                               conn: Any,
+                               logger: Logger) -> None:
+
+    # disable table restrictions delaying bulk copy
+    match rdbms:
+        case "mysql":
+            pass
+        case "oracle":
+            pydb_oracle.disable_table_restrictions(errors, schema, table, conn, logger)
+        case "postgres":
+            pydb_postgres.disable_table_restrictions(errors, schema, table, conn, logger)
+        case "sqlserver":
+            pydb_sqlserver.disable_table_restrictions(errors, schema, table, conn, logger)
+
+    pydb_common.log(logger, DEBUG,
+                    f"Table {rdbms}.{schema}.{table}, disabled restrictions to speed-up bulk copying")
+
+
+def restore_table_restrictions(errors: list[str],
+                               rdbms: str,
+                               schema: str,
+                               table: str,
+                               conn: Any,
+                               logger: Logger) -> None:
+
+    # restore table restrictions delaying bulk copy
+    match rdbms:
+        case "mysql":
+            pass
+        case "oracle":
+            pydb_oracle.restore_table_restrictions(errors, schema, table, conn, logger)
+        case "postgres":
+            pydb_postgres.restore_table_restrictions(errors, schema, table, conn, logger)
+        case "sqlserver":
+            pydb_sqlserver.restore_table_restrictions(errors, schema, table, conn, logger)
+
+    pydb_common.log(logger, DEBUG,
+                    f"Table {rdbms}.{schema}.{table}, restored restrictions delaying bulk copying")
 
 
 def engine_exc_stmt(errors: list[str],

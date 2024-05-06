@@ -1,5 +1,7 @@
 from logging import Logger
-from pypomes_db import db_get_params, db_execute
+# noinspection PyProtectedMember
+from psycopg2._psycopg import connection
+from pypomes_db import db_get_params, db_execute  # , db_update
 
 
 def build_connection_string() -> str:
@@ -31,32 +33,71 @@ def build_bulk_insert_stmt(schema: str,
     return (
         f"INSERT INTO {schema}.{table} "
         f"({columns}) "
-        f"VALUES(%s)"
+        f"VALUES %s"
     )
 
 
-def get_table_unlog_stmt(schema: str,
-                         table: str) -> str:
-
-    return f"ALTER TABLE {schema}.{table} SET UNLOGGED"
-
-
-def get_disable_restriction_stmts() -> list[str]:
-
-    return [
-        "SET SESSION_REPLICATION_ROLE TO REPLICA",
-        "UPDATE pg_index SET indisready = false"
-    ]
-
-
-def enable_restrictions(errors: list[str], logger: Logger) -> None:
+def disable_session_restrictions(errors: list[str],
+                                 conn: connection,
+                                 logger: Logger) -> None:
 
     db_execute(errors=errors,
-               exc_stmt="SET SESSION_REPLICATION_ROLE TO DEFAULT;",
-               engine="posgres",
+               exc_stmt="SET SESSION_REPLICATION_ROLE TO REPLICA",
+               engine="postgres",
+               conn=conn,
                logger=logger)
-    if not errors:
-        db_execute(errors=errors,
-                   exc_stmt="UPDATE pg_index SET indisready = true;",
-                   engine="posgres",
-                   logger=logger)
+
+
+def restore_session_restrictions(errors: list[str],
+                                 conn: connection,
+                                 logger: Logger) -> None:
+
+    db_execute(errors=errors,
+               exc_stmt="SET SESSION_REPLICATION_ROLE TO DEFAULT",
+               engine="postgres",
+               conn=conn,
+               logger=logger)
+
+
+def disable_table_restrictions(errors: list[str],
+                               schema: str,
+                               table: str,
+                               conn: connection,
+                               logger: Logger) -> None:
+
+    db_execute(errors=errors,
+               exc_stmt=f"ALTER TABLE {schema}.{table} SET UNLOGGED",
+               engine="postgres",
+               conn=conn,
+               logger=logger)
+
+    # db_update(errors=errors,
+    #           update_stmt=("UPDATE pg_index "
+    #                        "SET indisready = false "
+    #                        "WHERE = %s"),
+    #           engine="postgres",
+    #           conn=conn,
+    #           logger=logger)
+    pass
+
+
+def restore_table_restrictions(errors: list[str],
+                               schema: str,
+                               table: str,
+                               conn: connection,
+                               logger: Logger) -> None:
+
+    db_execute(errors=errors,
+               exc_stmt=f"ALTER TABLE {schema}.{table} SET LOGGED",
+               engine="postgres",
+               conn=conn,
+               logger=logger)
+
+    # db_update(errors=op_errors,
+    #           update_stmt=("UPDATE pg_index "
+    #                        "SET indisready = true "
+    #                        "WHERE "),
+    #           engine="postgres",
+    #           conn=conn,
+    #           logger=logger)
+    pass

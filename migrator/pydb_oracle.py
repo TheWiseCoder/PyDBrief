@@ -1,6 +1,6 @@
 from logging import Logger
-from oracledb import makedsn
-from pypomes_db import db_get_params
+from oracledb import Connection, makedsn
+from pypomes_db import db_get_params, db_execute
 
 
 def build_connection_string() -> str:
@@ -43,6 +43,41 @@ def get_table_unlog_stmt(schema: str,
     return f"ALTER TABLE {schema}.{table} NOLOGGING"
 
 
-def disable_restrictions(_errors: list[str], _logger: Logger) -> None:
+def disable_session_restrictions(_errors: list[str],
+                                 _conn: Connection,
+                                 _logger: Logger) -> None:
 
     pass
+
+
+def restore_session_restrictions(_errors: list[str],
+                                 _conn: Connection,
+                                 _logger: Logger) -> None:
+
+    pass
+
+
+def disable_table_restrictions(errors: list[str],
+                               schema: str,
+                               table: str,
+                               conn: Connection,
+                               logger: Logger) -> None:
+
+    db_execute(errors=errors,
+               exc_stmt=f"ALTER TABLE {schema}.{table} SET UNLOGGED",
+               engine="postgres",
+               conn=conn,
+               logger=logger)
+
+
+def restore_table_restrictions(errors: list[str],
+                               schema: str,
+                               table: str,
+                               conn: Connection,
+                               logger: Logger) -> None:
+
+    db_execute(errors=errors,
+               exc_stmt=f"ALTER TABLE {schema}.{table} SET LOGGED",
+               engine="postgres",
+               conn=conn,
+               logger=logger)

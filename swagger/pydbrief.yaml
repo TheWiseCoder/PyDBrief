@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.0_RC05
+  version: 1.0.0_RC07
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -153,7 +153,7 @@ paths:
       tags:
         - data migration
       summary: Migrate the data
-      description:  Migrate the data in the given RDBMS and schema.
+      description:  Migrate the data from the source to the target RDBMS and schema.
       operationId: migrate-schema
       parameters:
         - $ref: '#/components/parameters/FromRdbmsParam'
@@ -406,7 +406,7 @@ components:
         user:
           type: string
           example: admin
-        password:
+        pwd:
           type: string
           example: admin
         host:
@@ -483,24 +483,56 @@ components:
                 example: PYDB116
               description:
                 type: string
-                example: Value 'oracle' cannot be assigned for attributes 'from.rdbms' and 'to.rdbms' at the same time
+                example: Value 'oracle' cannot be assigned for attributes 'from-rdbms' and 'to-rdbms' at the same time
     MigrationSuccess:
       type: object
       properties:
+        source:
+          type: object
+          properties:
+            rdbms:
+              type: string
+              example: oracle
+            schema:
+              type: string
+              example: ora-schema
+        target:
+          type: object
+          properties:
+            rdbms:
+              type: string
+              example: postgres
+            schema:
+              type: string
+              example:pg-schema
         migrated-tables:
           type: array
           items:
             type: object
             properties:
               table:
-                type: integer
+                type: string
                 example: customers
-              tuples:
+              columns:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      example: customer-name
+                    source-type:
+                      type: string
+                      example: NUMBER
+                    target-type:
+                      type: string
+                      example: INTEGER
+              count:
                 type: integer
                 example: 1250000
               status:
                 type: string
-                example: "full migration"
+                example: "full"
     SchemaError:
       type: object
       properties:
