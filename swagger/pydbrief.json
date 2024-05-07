@@ -81,9 +81,9 @@
         "tags": [
           "rdbms"
         ],
-        "summary": "Update the configuration for the RDBMS engine",
-        "description": "Update the configuration data for the RDBMS engine.",
-        "operationId": "update-rdbms-configuration",
+        "summary": "Configure the the RDBMS engine",
+        "description": "Configure the RDBMS engine with the data needed for conection.",
+        "operationId": "configure-rdbms-engine",
         "parameters": [
           {
             "$ref": "#/components/parameters/RdbmsParam"

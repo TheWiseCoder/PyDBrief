@@ -284,7 +284,7 @@ def migrate_plain_data(errors: list[str],
         # exclude BLOB, CLOB, RAW, and other large binary types from the column names list
         table_columns: list[dict] = migrated_table.get("columns")
         column_names: list[str] = [column.get("name") for column in table_columns
-                                   if not pydb_types.is_large_binary(column.get("source_type"))]
+                                   if not pydb_types.is_large_binary(column.get("source-type"))]
         columns_str: str = ", ".join(column_names)
 
         # build the SELECT and INSERT statements for bulk copying

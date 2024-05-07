@@ -313,7 +313,10 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
 LARGE_BINARIES: Final[list[str]] = [
     str(MSQL_LONGBLOB()),
     str(MSQL_LONGTEXT()),
+    str(MSQL_MEDIUMBLOB()),
     str(MSQL_TEXT()),
+    str(MSQL_TINYBLOB()),
+    str(ORCL_BFILE()),
     str(ORCL_LONG()),
     str(ORCL_NCLOB()),
     str(ORCL_RAW()),
@@ -322,6 +325,7 @@ LARGE_BINARIES: Final[list[str]] = [
     str(REF_CLOB()),
     str(REF_TEXT()),
     str(REF_VARBINARY()),
+    str(SQLS_IMAGE()),
     str(SQLS_VARBINARY())]
 
 
