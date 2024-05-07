@@ -13,19 +13,6 @@ def build_connection_string() -> str:
     )
 
 
-def build_bulk_select_stmt(schema: str,
-                           table: str,
-                           columns: str,
-                           offset: int,
-                           batch_size: int) -> str:
-    return (
-        f"SELECT {columns} "
-        f"FROM {schema}.{table} "
-        f"ORDER BY rowid "
-        f"OFFSET {offset} ROWS FETCH NEXT {batch_size} ROWS ONLY"
-    )
-
-
 def build_bulk_insert_stmt(schema: str,
                            table: str,
                            columns: str) -> str:
