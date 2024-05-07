@@ -310,7 +310,7 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
 ]
 
-LARGE_BINARIES: Final[list[str]] = [
+LOBS: Final[list[str]] = [
     str(MSQL_LONGBLOB()),
     str(MSQL_LONGTEXT()),
     str(MSQL_MEDIUMBLOB()),
@@ -487,6 +487,6 @@ def establish_equivalences(source_rdbms: str,
     return nat_ordinal, ref_ordinal
 
 
-def is_large_binary(col_type: str) -> bool:
+def is_lob(col_type: str) -> bool:
 
-    return col_type in LARGE_BINARIES
+    return col_type in LOBS
