@@ -301,7 +301,7 @@ def migrate_plain_data(errors: list[str],
                                   target_conn=target_conn,
                                   engine=source_rdbms,
                                   conn=source_conn,
-                                  logger=logger)
+                                  logger=logger) or 0
 
         if errors:
             status: str = "partial" if count else "none"
@@ -309,6 +309,7 @@ def migrate_plain_data(errors: list[str],
             status: str = "full"
         migrated_table["status"] = status
         migrated_table["count"] = count
+        logger.debug(msg=f"Table {table}, migrated {count} tuples, status '{status}'")
 
 
 def build_engine(errors: list[str],

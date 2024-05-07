@@ -99,21 +99,21 @@ paths:
       parameters:
         - name: batch-size
           in: query
-          description: Maximum number of rows to migrate per batch (range is [1000-200000]).
+          description: Maximum number of rows to migrate per batch (range is [1000-1000000]).
           required: false
           schema:
             type: integer
             minimum: 1000
-            maximum: 200000
-            default: 100000
+            maximum: 1000000
+            default: 200000
         - name: processes
           in: query
-          description: The number of processes to speed-up the migration with (range is [1-100]).
+          description: The number of processes to speed-up the migration with (range is [1-20]).
           required: false
           schema:
             type: integer
             minimum: 1
-            maximum: 100
+            maximum: 20
             default: 1
       responses:
         '200':
