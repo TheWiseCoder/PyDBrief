@@ -1,7 +1,9 @@
 import sys
 from datetime import datetime
 from logging import DEBUG, INFO, Logger
-from pypomes_core import validate_format_error, exc_format
+from pypomes_core import (
+    DATETIME_FORMAT_INV, validate_format_error, exc_format
+)
 from pypomes_db import db_connect, db_bulk_copy
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
@@ -68,8 +70,8 @@ def migrate(errors: list[str],
     finished: datetime = datetime.now()
 
     return {
-        "started": started.isoformat(),
-        "finished": finished.isoformat(),
+        "started": started.strftime(DATETIME_FORMAT_INV),
+        "finished": finished.strftime(DATETIME_FORMAT_INV),
         "source": {
             "rdbms": source_rdbms,
             "schema": source_schema
