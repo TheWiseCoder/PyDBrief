@@ -1,13 +1,16 @@
 from logging import Logger
+from mysql.connector.connection import MySQLConnection
 
 
-def disable_restrictions(_errors: list[str],
-                         _logger: Logger) -> None:
+def disable_session_restrictions(_errors: list[str],
+                                 _conn: MySQLConnection,
+                                 _logger: Logger) -> None:
 
     pass
 
 
-def restore_restrictions(_errors: list[str],
-                         _logger: Logger) -> None:
+def restore_session_restrictions(_errors: list[str],
+                                 _conn: MySQLConnection,
+                                 _logger: Logger) -> None:
 
     pass

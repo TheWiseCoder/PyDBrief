@@ -31,7 +31,6 @@ def migrate(errors: list[str],
             logger: Logger | None) -> dict:
 
     started: datetime = datetime.now()
-
     pydb_common.log(logger, INFO,
                     "Started migrating the metadata")
     migrated_tables: list[dict] = migrate_metadata(errors, source_rdbms, target_rdbms,

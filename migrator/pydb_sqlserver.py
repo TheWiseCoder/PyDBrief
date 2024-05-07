@@ -1,6 +1,6 @@
 from logging import Logger
 from pyodbc import Connection
-from pypomes_db import db_get_params, db_execute
+from pypomes_db import db_get_params
 
 
 def build_connection_string() -> str:
@@ -37,29 +37,3 @@ def restore_session_restrictions(_errors: list[str],
                                  _logger: Logger) -> None:
 
     pass
-
-
-def disable_table_restrictions(errors: list[str],
-                               schema: str,
-                               table: str,
-                               conn: Connection,
-                               logger: Logger) -> None:
-
-    db_execute(errors=errors,
-               exc_stmt=f"ALTER TABLE {schema}.{table} SET UNLOGGED",
-               engine="postgres",
-               conn=conn,
-               logger=logger)
-
-
-def restore_table_restrictions(errors: list[str],
-                               schema: str,
-                               table: str,
-                               conn: Connection,
-                               logger: Logger) -> None:
-
-    db_execute(errors=errors,
-               exc_stmt=f"ALTER TABLE {schema}.{table} SET LOGGED",
-               engine="postgres",
-               conn=conn,
-               logger=logger)
