@@ -6,7 +6,7 @@ from pypomes_core import (
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
-MIGRATION_PROCESSES: int = 1
+MAX_MIGRATION_PROCESSES: int = 1
 
 
 def get_migration_params() -> dict:
@@ -14,7 +14,7 @@ def get_migration_params() -> dict:
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
         "chunk-size": MIGRATION_CHUNK_SIZE,
-        "processes": MIGRATION_PROCESSES
+        "max-processes": MAX_MIGRATION_PROCESSES
     }
 
 
@@ -50,15 +50,15 @@ def set_migration_parameters(errors: list[str],
     # validate the optional 'processes' parameter
     processes: int = validate_int(errors=errors,
                                   scheme=scheme,
-                                  attr="processes",
+                                  attr="max-processes",
                                   min_val=1,
                                   max_val=20,
                                   default=False)
     # was it obtained ?
     if processes:
         # yes, set the corresponding global parameter
-        global MIGRATION_PROCESSES
-        MIGRATION_PROCESSES = processes
+        global MAX_MIGRATION_PROCESSES
+        MAX_MIGRATION_PROCESSES = processes
 
 
 def log(logger: Logger,

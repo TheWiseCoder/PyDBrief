@@ -177,8 +177,9 @@ def handle_migration() -> Response:
     are valid and consistent, thus allowing for a migration to be attempted.
 
     For configuring, these are the expected parameters:
-        - *batch-size*: maximum number of rows to migrate per batch (defaults to 100000)
-        - *processes*: the number of processes to speed-up the migration with (defaults to 1)
+        - *batch-size*: maximum number of rows to migrate per batch (defaults to 1000000)
+        - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying (defaults to 1048576)
+        - *max-processes*: the number of processes to speed-up the migration with (defaults to 1)
 
     :return: the operation outcome
     """

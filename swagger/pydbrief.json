@@ -188,7 +188,7 @@
             }
           },
           {
-            "name": "processes",
+            "name": "max-processes",
             "in": "query",
             "description": "The number of processes to speed-up the migration with (range is [1-20]).",
             "required": false,
@@ -634,7 +634,7 @@
             "type": "integer",
             "example": 1024000
           },
-          "processes": {
+          "max-processes": {
             "type": "integer",
             "example": 10
           }
@@ -934,7 +934,7 @@
               "properties": {
                 "attribute": {
                   "type": "string",
-                  "example": "processes"
+                  "example": "max-processes"
                 },
                 "code": {
                   "type": "string",
