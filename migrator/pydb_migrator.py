@@ -53,7 +53,7 @@ def migrate(errors: list[str],
         # disable target RDBMS restrictions to speed-up bulk copying
         disable_session_restrictions(op_errors, target_rdbms, target_conn, logger)
         if not op_errors:
-            # migrate the data
+            # migrate the plain data
             migrate_plain(op_errors, source_rdbms, target_rdbms, source_schema,
                           target_schema, source_conn, target_conn, migrated_tables, logger)
             errors.extend(op_errors)
@@ -263,7 +263,7 @@ def migrate_metadata(errors: list[str],
                         }
                         result.append(migrated_table)
 
-                        # issue warning if no primary key wqas found for table
+                        # issue warning if no primary key was found for table
                         no_pk: bool = True
                         for column in table_columns:
                             if "primary key" in (column.get("features") or []):

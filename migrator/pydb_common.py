@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 
 # migration parameters
-MIGRATION_BATCH_SIZE: int = 300000
+MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_PROCESSES: int = 1
 
@@ -26,7 +26,7 @@ def set_migration_parameters(errors: list[str],
                                    scheme=scheme,
                                    attr="batch-size",
                                    min_val=1000,
-                                   max_val=1000000,
+                                   max_val=10000000,
                                    default=False)
     # was it obtained ?
     if batch_size:
