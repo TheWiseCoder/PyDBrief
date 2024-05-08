@@ -4,7 +4,7 @@ from logging import DEBUG, INFO, Logger
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
-from pypomes_db import db_connect, db_bulk_copy, db_copy_lobs
+from pypomes_db import db_connect, db_bulk_migrate, db_migrate_lobs
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
@@ -328,15 +328,15 @@ def migrate_plain(errors: list[str],
                                              table, columns_str, logger)
 
         # bulk copy the data from source to target databases
-        count: int = db_bulk_copy(errors=errors,
-                                  sel_stmt=sel_stmt,
-                                  insert_stmt=insert_stmt,
-                                  target_engine=target_rdbms,
-                                  batch_size=pydb_common.MIGRATION_BATCH_SIZE,
-                                  target_conn=target_conn,
-                                  engine=source_rdbms,
-                                  conn=source_conn,
-                                  logger=logger) or 0
+        count: int = db_bulk_migrate(errors=errors,
+                                     sel_stmt=sel_stmt,
+                                     insert_stmt=insert_stmt,
+                                     target_engine=target_rdbms,
+                                     batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                     target_conn=target_conn,
+                                     engine=source_rdbms,
+                                     conn=source_conn,
+                                     logger=logger) or 0
 
         if errors:
             status: str = "partial" if count else "none"
@@ -344,7 +344,8 @@ def migrate_plain(errors: list[str],
             status: str = "full"
         migrated_table["status"] = status
         migrated_table["count"] = count
-        logger.debug(msg=f"Table {table}, migrated {count} tuples, status '{status}'")
+        logger.debug(msg=f"RDBMS {source_rdbms} to {target_rdbms}, "
+                         f"Table {table}, migrated {count} tuples, status '{status}'")
 
 
 def migrate_lobs(errors: list[str],
@@ -375,17 +376,17 @@ def migrate_lobs(errors: list[str],
 
         # process the existing LOB columns
         for table_lob in table_lobs:
-            count: int = db_copy_lobs(errors=errors,
-                                      lob_table=source_table,
-                                      lob_column=table_lob,
-                                      pk_columns=table_pks,
-                                      target_engine=target_rdbms,
-                                      chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
-                                      target_table=target_table,
-                                      target_conn=target_conn,
-                                      engine=source_rdbms,
-                                      conn=source_conn,
-                                      logger=logger)
+            count: int = db_migrate_lobs(errors=errors,
+                                         lob_table=source_table,
+                                         lob_column=table_lob,
+                                         pk_columns=table_pks,
+                                         target_engine=target_rdbms,
+                                         chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                         target_table=target_table,
+                                         target_conn=target_conn,
+                                         engine=source_rdbms,
+                                         conn=source_conn,
+                                         logger=logger)
             logger.debug((f"RDBMS {source_rdbms}, {count} LOBs migrated "
                           f"from {source_table}.{table_lob} "
                           f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
