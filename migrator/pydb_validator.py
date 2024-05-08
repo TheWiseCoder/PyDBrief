@@ -44,10 +44,16 @@ def assert_migration(errors: list[str],
                      scheme: dict) -> None:
 
     if pydb_common.MIGRATION_BATCH_SIZE < 1000 or \
-       pydb_common.MIGRATION_BATCH_SIZE > 1000000:
+       pydb_common.MIGRATION_BATCH_SIZE > 10000000:
         # 127: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(127, pydb_common.MIGRATION_BATCH_SIZE,
-                                            [1000, 200000], "@batch-size"))
+                                            [1000, 10000000], "@batch-size"))
+
+    if pydb_common.MIGRATION_CHUNK_SIZE < 1024 or \
+       pydb_common.MIGRATION_CHUNK_SIZE > 16777216:
+        # 127: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(127, pydb_common.MIGRATION_CHUNK_SIZE,
+                                            [1024, 16777216], "@batch-size"))
 
     if pydb_common.MIGRATION_PROCESSES < 1 or \
        pydb_common.MIGRATION_PROCESSES > 1000:
