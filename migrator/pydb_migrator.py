@@ -223,11 +223,22 @@ def migrate_metadata(errors: list[str],
                                                                    reference_ordinal, source_table, logger)
                         source_table.schema = to_schema
 
-                        # register the mew column types
+                        # register the mew column properties
                         for column in columns:
+                            features: list[str] = []
+                            if hasattr(column, "identity") and column.identity:
+                                features.append("identity")
+                            if hasattr(column, "primary_key") and column.primary_key:
+                                features.append("primary key")
+                            if hasattr(column, "unique") and column.unique:
+                                features.append("unique")
+                            if hasattr(column, "nullable") and column.nullable:
+                                features.append("nullable")
                             for table_column in table_columns:
                                 if table_column["name"] == column.name:
                                     table_column["target-type"] = str(column.type)
+                                    if features:
+                                        table_column["features"] = features
                                     break
 
                         # register the migrated table

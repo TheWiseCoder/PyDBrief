@@ -809,11 +809,18 @@
                       },
                       "source-type": {
                         "type": "string",
-                        "example": "NUMBER"
+                        "example": "NUMBER(7,0)"
                       },
                       "target-type": {
                         "type": "string",
                         "example": "INTEGER"
+                      },
+                      "features": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "example": "primary key"
+                        }
                       }
                     }
                   }

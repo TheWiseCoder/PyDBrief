@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 
 # migration parameters
-MIGRATION_BATCH_SIZE: int = 100000
+MIGRATION_BATCH_SIZE: int = 300000
 MIGRATION_PROCESSES: int = 1
 
 
