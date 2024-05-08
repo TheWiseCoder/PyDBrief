@@ -4,7 +4,7 @@ from logging import DEBUG, INFO, Logger
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
-from pypomes_db import db_connect, db_bulk_copy
+from pypomes_db import db_connect, db_bulk_copy, db_copy_lobs
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
@@ -54,16 +54,25 @@ def migrate(errors: list[str],
         disable_session_restrictions(op_errors, target_rdbms, target_conn, logger)
         if not op_errors:
             # migrate the data
-            migrate_plain_data(op_errors, source_rdbms, target_rdbms, source_schema,
-                               target_schema, source_conn, target_conn, migrated_tables, logger)
+            migrate_plain(op_errors, source_rdbms, target_rdbms, source_schema,
+                          target_schema, source_conn, target_conn, migrated_tables, logger)
+            errors.extend(op_errors)
+
+            # migrate the LOBs
+            # op_errors = []
+            # migrate_lobs(op_errors, source_rdbms, target_rdbms, source_schema,
+            #              target_schema, source_conn, target_conn, migrated_tables, logger)
+            # errors.extend(op_errors)
+
             # restore target RDBMS restrictions delaying bulk copying
+            op_errors = []
             restore_session_restrictions(op_errors, target_rdbms, target_conn, logger)
+            errors.extend(op_errors)
 
         # close source and target connections
         source_conn.close()
         target_conn.close()
 
-    errors.extend(op_errors)
     pydb_common.log(logger, INFO,
                     "Finished migrating the plain data")
     finished: datetime = datetime.now()
@@ -91,7 +100,11 @@ def migrate(errors: list[str],
 #        {
 #          "name": <column-name>,
 #          "source-type": <column-type>,
-#          "target-type": <column-type>
+#          "target-type": <column-type>,
+#          "features": [
+#            "identity",
+#            "primary_key"
+#          ]
 #        },
 #        ...
 #      ],
@@ -250,6 +263,17 @@ def migrate_metadata(errors: list[str],
                         }
                         result.append(migrated_table)
 
+                        # issue warning if no primary key wqas found for table
+                        no_pk: bool = True
+                        for column in table_columns:
+                            if "primary key" in (column.get("features") or []):
+                                no_pk = False
+                                break
+                        if no_pk:
+                            logger.warning((f"RDBMS {source_rdbms}, "
+                                            f"table {source_schema}.{source_table}, "
+                                            f"no primary key column found"))
+
                     # create tables in target schema
                     try:
                         source_metadata.create_all(bind=target_engine,
@@ -278,15 +302,15 @@ def migrate_metadata(errors: list[str],
     return result
 
 
-def migrate_plain_data(errors: list[str],
-                       source_rdbms: str,
-                       target_rdbms: str,
-                       source_schema: str,
-                       target_schema: str,
-                       source_conn: Any,
-                       target_conn: Any,
-                       migrated_tables: list[dict],
-                       logger: Logger | None) -> None:
+def migrate_plain(errors: list[str],
+                  source_rdbms: str,
+                  target_rdbms: str,
+                  source_schema: str,
+                  target_schema: str,
+                  source_conn: Any,
+                  target_conn: Any,
+                  migrated_tables: list[dict],
+                  logger: Logger | None) -> None:
 
     # traverse list of migrated tables to copy the plain data
     for migrated_table in migrated_tables:
@@ -321,6 +345,50 @@ def migrate_plain_data(errors: list[str],
         migrated_table["status"] = status
         migrated_table["count"] = count
         logger.debug(msg=f"Table {table}, migrated {count} tuples, status '{status}'")
+
+
+def migrate_lobs(errors: list[str],
+                 source_rdbms: str,
+                 target_rdbms: str,
+                 source_schema: str,
+                 target_schema: str,
+                 source_conn: Any,
+                 target_conn: Any,
+                 migrated_tables: list[dict],
+                 logger: Logger | None) -> None:
+
+    # traverse list of migrated tables to copy the LOBs
+    for migrated_table in migrated_tables:
+
+        # organize the information
+        source_table: str = f"{source_schema}.{migrated_table.get('table')}"
+        target_table: str = f"{target_schema}.{migrated_table.get('table')}"
+        table_pks: list[str] = []
+        table_lobs: list[str] = []
+        for column in migrated_table.get("columns"):
+            if pydb_types.is_lob(column.get("source-type")):
+                features: list[str] = column.get("features") or []
+                if "primary key" in features:
+                    # can only migrate LOBs if table has primary keys
+                    table_lobs.append(column.get("name"))
+                    table_pks.append(column.get("name"))
+
+        # process the existing LOB columns
+        for table_lob in table_lobs:
+            count: int = db_copy_lobs(errors=errors,
+                                      lob_table=source_table,
+                                      lob_column=table_lob,
+                                      pk_columns=table_pks,
+                                      target_engine=target_rdbms,
+                                      chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                      target_table=target_table,
+                                      target_conn=target_conn,
+                                      engine=source_rdbms,
+                                      conn=source_conn,
+                                      logger=logger)
+            logger.debug((f"RDBMS {source_rdbms}, {count} LOBs migrated "
+                          f"from {source_table}.{table_lob} "
+                          f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
 
 
 def build_engine(errors: list[str],

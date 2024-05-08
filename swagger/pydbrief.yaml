@@ -106,6 +106,15 @@ paths:
             minimum: 1000
             maximum: 1000000
             default: 200000
+        - name: chunk-size
+          in: query
+          description: Maximum size, in bytes, of data chunks in LOB data copying (range is [1024-16777216]).
+          required: false
+          schema:
+            type: integer
+            minimum: 1024
+            maximum: 16777216
+            default: 1048576
         - name: processes
           in: query
           description: The number of processes to speed-up the migration with (range is [1-20]).
@@ -391,6 +400,9 @@ components:
         batch-size:
           type: integer
           example: 200000
+        chunk-size:
+          type: integer
+          example: 1024000
         processes:
           type: integer
           example: 10
@@ -457,12 +469,8 @@ components:
         status:
           type: string
           example: Migration can be launched
-        batch-size:
-          type: integer
-          example: 200000
-        processes:
-          type: integer
-          example: 10
+        configuration:
+          $ref: '#/components/schemas/MigrationConfiguration'
         from:
           $ref: '#/components/schemas/OracleConfiguration'
         to:

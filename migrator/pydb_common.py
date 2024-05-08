@@ -5,13 +5,15 @@ from pypomes_core import (
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 300000
+MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_PROCESSES: int = 1
 
 
 def get_migration_params() -> dict:
 
     return {
-        "bach-size": MIGRATION_BATCH_SIZE,
+        "batch-size": MIGRATION_BATCH_SIZE,
+        "chunk-size": MIGRATION_CHUNK_SIZE,
         "processes": MIGRATION_PROCESSES
     }
 
@@ -31,6 +33,19 @@ def set_migration_parameters(errors: list[str],
         # yes, set the corresponding global parameter
         global MIGRATION_BATCH_SIZE
         MIGRATION_BATCH_SIZE = batch_size
+
+    # validate the optional 'chunk-size' parameter
+    chunk_size: int = validate_int(errors=errors,
+                                   scheme=scheme,
+                                   attr="chunk-size",
+                                   min_val=1024,
+                                   max_val=16777216,
+                                   default=False)
+    # was it obtained ?
+    if chunk_size:
+        # yes, set the corresponding global parameter
+        global MIGRATION_CHUNK_SIZE
+        MIGRATION_CHUNK_SIZE = chunk_size
 
     # validate the optional 'processes' parameter
     processes: int = validate_int(errors=errors,

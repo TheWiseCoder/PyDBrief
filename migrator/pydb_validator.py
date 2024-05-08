@@ -87,10 +87,10 @@ def get_migration_context(scheme: dict) -> dict:
 
     # build the return data
     result: dict = {
+        "configuration": pydb_common.get_migration_params(),
         "from": from_params,
         "to": to_params
     }
-    result.update(pydb_common.get_migration_params())
 
     return result
 
