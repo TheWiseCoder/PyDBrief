@@ -55,10 +55,10 @@ def assert_migration(errors: list[str],
         errors.append(validate_format_error(127, pydb_common.MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216], "@batch-size"))
 
-    if pydb_common.MAX_MIGRATION_PROCESSES < 1 or \
-       pydb_common.MAX_MIGRATION_PROCESSES > 1000:
+    if pydb_common.MIGRATION_MAX_PROCESSES < 1 or \
+       pydb_common.MIGRATION_MAX_PROCESSES > 1000:
         # 127: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(127, pydb_common.MAX_MIGRATION_PROCESSES,
+        errors.append(validate_format_error(127, pydb_common.MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
 
     # retrieve the source and target RDBMS engines
