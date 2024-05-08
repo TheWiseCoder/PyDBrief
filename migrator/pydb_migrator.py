@@ -38,8 +38,6 @@ def migrate(errors: list[str],
     pydb_common.log(logger, INFO,
                     "Finished migrating the metadata")
 
-    pydb_common.log(logger, INFO,
-                    "Started migrating the plain data")
     # obtain source and target connections
     op_errors: list[str] = []
     source_conn: Any = db_connect(errors=op_errors,
@@ -54,15 +52,23 @@ def migrate(errors: list[str],
         disable_session_restrictions(op_errors, target_rdbms, target_conn, logger)
         if not op_errors:
             # migrate the plain data
+            pydb_common.log(logger, INFO,
+                            "Started migrating the plain data")
             migrate_plain(op_errors, source_rdbms, target_rdbms, source_schema,
                           target_schema, source_conn, target_conn, migrated_tables, logger)
             errors.extend(op_errors)
+            pydb_common.log(logger, INFO,
+                            "Finished migrating the plain data")
 
             # migrate the LOBs
+            # pydb_common.log(logger, INFO,
+            #                 "Started migrating the LOBs")
             # op_errors = []
             # migrate_lobs(op_errors, source_rdbms, target_rdbms, source_schema,
             #              target_schema, source_conn, target_conn, migrated_tables, logger)
             # errors.extend(op_errors)
+            # pydb_common.log(logger, INFO,
+            #                 "Finished migrating the LOBs")
 
             # restore target RDBMS restrictions delaying bulk copying
             op_errors = []
@@ -73,8 +79,6 @@ def migrate(errors: list[str],
         source_conn.close()
         target_conn.close()
 
-    pydb_common.log(logger, INFO,
-                    "Finished migrating the plain data")
     finished: datetime = datetime.now()
 
     return {
