@@ -44,7 +44,7 @@ def assert_migration(errors: list[str],
                      scheme: dict) -> None:
 
     if pydb_common.MIGRATION_BATCH_SIZE < 1000 or \
-       pydb_common.MIGRATION_BATCH_SIZE > 200000:
+       pydb_common.MIGRATION_BATCH_SIZE > 1000000:
         # 127: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(127, pydb_common.MIGRATION_BATCH_SIZE,
                                             [1000, 200000], "@batch-size"))
