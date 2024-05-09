@@ -61,14 +61,14 @@ def migrate(errors: list[str],
                             "Finished migrating the plain data")
 
             # migrate the LOBs
-            # pydb_common.log(logger, INFO,
-            #                 "Started migrating the LOBs")
-            # op_errors = []
-            # migrate_lobs(op_errors, source_rdbms, target_rdbms, source_schema,
-            #              target_schema, source_conn, target_conn, migrated_tables, logger)
-            # errors.extend(op_errors)
-            # pydb_common.log(logger, INFO,
-            #                 "Finished migrating the LOBs")
+            pydb_common.log(logger, INFO,
+                            "Started migrating the LOBs")
+            op_errors = []
+            migrate_lobs(op_errors, source_rdbms, target_rdbms, source_schema,
+                         target_schema, source_conn, target_conn, migrated_tables, logger)
+            errors.extend(op_errors)
+            pydb_common.log(logger, INFO,
+                            "Finished migrating the LOBs")
 
             # restore target RDBMS restrictions delaying bulk copying
             op_errors = []
@@ -372,28 +372,29 @@ def migrate_lobs(errors: list[str],
         table_lobs: list[str] = []
         for column in migrated_table.get("columns"):
             if pydb_types.is_lob(column.get("source-type")):
-                features: list[str] = column.get("features") or []
-                if "primary key" in features:
-                    # can only migrate LOBs if table has primary keys
-                    table_lobs.append(column.get("name"))
-                    table_pks.append(column.get("name"))
+                table_lobs.append(column.get("name"))
+            features: list[str] = column.get("features") or []
+            if "primary key" in features:
+                table_pks.append(column.get("name"))
 
-        # process the existing LOB columns
-        for table_lob in table_lobs:
-            count: int = db_migrate_lobs(errors=errors,
-                                         lob_table=source_table,
-                                         lob_column=table_lob,
-                                         pk_columns=table_pks,
-                                         target_engine=target_rdbms,
-                                         chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
-                                         target_table=target_table,
-                                         target_conn=target_conn,
-                                         engine=source_rdbms,
-                                         conn=source_conn,
-                                         logger=logger)
-            logger.debug((f"RDBMS {source_rdbms}, {count} LOBs migrated "
-                          f"from {source_table}.{table_lob} "
-                          f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
+        # can only migrate LOBs if table has primary keys
+        if table_pks:
+            # process the existing LOB columns
+            for table_lob in table_lobs:
+                count: int = db_migrate_lobs(errors=errors,
+                                             lob_table=source_table,
+                                             lob_column=table_lob,
+                                             pk_columns=table_pks,
+                                             target_engine=target_rdbms,
+                                             chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                             target_table=target_table,
+                                             target_conn=target_conn,
+                                             engine=source_rdbms,
+                                             conn=source_conn,
+                                             logger=logger)
+                logger.debug((f"RDBMS {source_rdbms}, {count} LOBs migrated "
+                              f"from {source_table}.{table_lob} "
+                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
 
 
 def build_engine(errors: list[str],
