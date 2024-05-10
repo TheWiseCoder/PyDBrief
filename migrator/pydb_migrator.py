@@ -388,18 +388,24 @@ def migrate_lobs(errors: list[str],
         if table_pks:
             # process the existing LOB columns
             for table_lob in table_lobs:
-                db_migrate_lobs(errors=errors,
-                                lob_table=source_table,
-                                lob_column=table_lob,
-                                pk_columns=table_pks,
-                                target_engine=target_rdbms,
-                                temp_file=temp_file,
-                                chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
-                                target_table=target_table,
-                                target_conn=target_conn,
-                                engine=source_rdbms,
-                                conn=source_conn,
-                                logger=logger)
+                logger.debug((f"Starting migrating LOBs, "
+                              f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
+                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
+                count: int = db_migrate_lobs(errors=errors,
+                                             lob_table=source_table,
+                                             lob_column=table_lob,
+                                             pk_columns=table_pks,
+                                             target_engine=target_rdbms,
+                                             temp_file=temp_file,
+                                             chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                             target_table=target_table,
+                                             target_conn=target_conn,
+                                             engine=source_rdbms,
+                                             conn=source_conn,
+                                             logger=logger)
+                logger.debug((f"Finished migrating {count} LOBs, "
+                              f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
+                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
 
 
 def build_engine(errors: list[str],
