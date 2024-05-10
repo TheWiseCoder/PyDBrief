@@ -320,7 +320,6 @@ def migrate_plain(errors: list[str],
 
     # traverse list of migrated tables to copy the plain data
     for migrated_table in migrated_tables:
-        table: str = migrated_table.get("table")
         source_table: str = f"{source_schema}.{migrated_table.get('table')}"
         target_table: str = f"{target_schema}.{migrated_table.get('table')}"
 
@@ -355,15 +354,15 @@ def migrate_plain(errors: list[str],
                                      target_conn=target_conn,
                                      batch_size=pydb_common.MIGRATION_BATCH_SIZE,
                                      logger=logger)
-
         if errors:
             status: str = "partial" if count else "none"
         else:
             status: str = "full"
         migrated_table["status"] = status
-        migrated_table["count"] = count or 0
-        logger.debug(msg=f"RDBMS {source_rdbms} to {target_rdbms}, "
-                         f"Table {table}, migrated {count} tuples, status '{status}'")
+        migrated_table["count"] = count
+        logger.debug(msg=f"Migrated {count} tuples, status '{status}', "
+                         f"from {source_rdbms}.{source_table} "
+                         f"to {target_rdbms}.{target_table}")
 
 
 def migrate_lobs(errors: list[str],
@@ -400,9 +399,6 @@ def migrate_lobs(errors: list[str],
         if table_pks:
             # process the existing LOB columns
             for table_lob in table_lobs:
-                logger.debug((f"Starting migrating LOBs, "
-                              f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
-                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
                 # count: int = db_migrate_lobs(errors=errors,
                 #                              lob_table=source_table,
                 #                              lob_column=table_lob,
@@ -427,10 +423,9 @@ def migrate_lobs(errors: list[str],
                                              target_column=target_conn,
                                              chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
                                              logger=logger)
-
-                logger.debug((f"Finished migrating {count or 0} LOBs, "
-                              f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
-                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
+                logger.debug(msg=f"Migrated {count} LOBs, "
+                                 f"from {source_rdbms}.{source_table}.{table_lob} "
+                                 f"to {target_rdbms}.{target_table}).{table_lob}")
 
 
 def build_engine(errors: list[str],
