@@ -420,7 +420,7 @@ def migrate_lobs(errors: list[str],
                                              target_engine=target_rdbms,
                                              target_table=target_table,
                                              source_conn=source_conn,
-                                             target_column=target_conn,
+                                             target_conn=target_conn,
                                              chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
                                              logger=logger)
                 logger.debug(msg=f"Migrated {count} LOBs, "
