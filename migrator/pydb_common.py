@@ -1,12 +1,13 @@
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, validate_format_error, validate_int
+    str_sanitize, validate_format_error, validate_int, validate_str
 )
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_MAX_PROCESSES: int = 1
+MIGRATION_TEMP_FOLDER: str | None = None
 
 
 def get_migration_params() -> dict:
@@ -14,12 +15,14 @@ def get_migration_params() -> dict:
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
         "chunk-size": MIGRATION_CHUNK_SIZE,
-        "max-processes": MIGRATION_MAX_PROCESSES
+        "max-processes": MIGRATION_MAX_PROCESSES,
+        "temp-folder": MIGRATION_TEMP_FOLDER
     }
 
 
 def set_migration_parameters(errors: list[str],
-                             scheme: dict) -> None:
+                             scheme: dict,
+                             logger: Logger) -> None:
 
     # validate the optional 'batch-size' parameter
     batch_size: int = validate_int(errors=errors,
@@ -27,7 +30,8 @@ def set_migration_parameters(errors: list[str],
                                    attr="batch-size",
                                    min_val=1000,
                                    max_val=10000000,
-                                   default=False)
+                                   default=False,
+                                   logger=logger)
     # was it obtained ?
     if batch_size:
         # yes, set the corresponding global parameter
@@ -40,7 +44,8 @@ def set_migration_parameters(errors: list[str],
                                    attr="chunk-size",
                                    min_val=1024,
                                    max_val=16777216,
-                                   default=False)
+                                   default=False,
+                                   logger=logger)
     # was it obtained ?
     if chunk_size:
         # yes, set the corresponding global parameter
@@ -53,12 +58,25 @@ def set_migration_parameters(errors: list[str],
                                   attr="max-processes",
                                   min_val=1,
                                   max_val=20,
-                                  default=False)
+                                  default=False,
+                                  logger=logger)
     # was it obtained ?
     if processes:
         # yes, set the corresponding global parameter
         global MIGRATION_MAX_PROCESSES
         MIGRATION_MAX_PROCESSES = processes
+
+    # validate the optional 'temp-folder' parameter
+    temp_folder: str = validate_str(errors=errors,
+                                    scheme=scheme,
+                                    attr="temp-folder",
+                                    default=False,
+                                    logger=logger)
+    # was it obtained ?
+    if temp_folder:
+        # yes, set the corresponding global parameter
+        global MIGRATION_TEMP_FOLDER
+        MIGRATION_TEMP_FOLDER = chunk_size
 
 
 def log(logger: Logger,

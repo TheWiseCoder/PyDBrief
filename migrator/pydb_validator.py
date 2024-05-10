@@ -1,3 +1,4 @@
+from pathlib import Path
 from pypomes_core import validate_format_error
 from pypomes_db import (
     db_setup, db_get_engines, db_get_params, db_assert_connection
@@ -60,6 +61,12 @@ def assert_migration(errors: list[str],
         # 127: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(127, pydb_common.MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
+
+    if (pydb_common.MIGRATION_TEMP_FOLDER and
+       not Path(pydb_common.MIGRATION_TEMP_FOLDER).is_dir()):
+        # 119: Invalid value {}: {}
+        errors.append(validate_format_error(119, pydb_common.MIGRATION_TEMP_FOLDER, "not a valid folder",
+                                            "@temp-folder"))
 
     # retrieve the source and target RDBMS engines
     from_rdbms: str = scheme.get("from-rdbms")

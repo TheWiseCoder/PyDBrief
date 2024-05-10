@@ -1,6 +1,8 @@
 import sys
+import uuid
 from datetime import datetime
 from logging import DEBUG, INFO, Logger
+from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
@@ -362,6 +364,11 @@ def migrate_lobs(errors: list[str],
                  migrated_tables: list[dict],
                  logger: Logger | None) -> None:
 
+    # establish the temporary file to use in LOB migration
+    temp_file: Path | None = None
+    if pydb_common.MIGRATION_TEMP_FOLDER:
+        temp_file = Path(pydb_common.MIGRATION_TEMP_FOLDER, str(uuid.uuid4()) + ".bin")
+
     # traverse list of migrated tables to copy the LOBs
     for migrated_table in migrated_tables:
 
@@ -381,20 +388,18 @@ def migrate_lobs(errors: list[str],
         if table_pks:
             # process the existing LOB columns
             for table_lob in table_lobs:
-                count: int = db_migrate_lobs(errors=errors,
-                                             lob_table=source_table,
-                                             lob_column=table_lob,
-                                             pk_columns=table_pks,
-                                             target_engine=target_rdbms,
-                                             chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
-                                             target_table=target_table,
-                                             target_conn=target_conn,
-                                             engine=source_rdbms,
-                                             conn=source_conn,
-                                             logger=logger)
-                logger.debug((f"RDBMS {source_rdbms}, {count} LOBs migrated "
-                              f"from {source_table}.{table_lob} "
-                              f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
+                db_migrate_lobs(errors=errors,
+                                lob_table=source_table,
+                                lob_column=table_lob,
+                                pk_columns=table_pks,
+                                target_engine=target_rdbms,
+                                temp_file=temp_file,
+                                chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                target_table=target_table,
+                                target_conn=target_conn,
+                                engine=source_rdbms,
+                                conn=source_conn,
+                                logger=logger)
 
 
 def build_engine(errors: list[str],
