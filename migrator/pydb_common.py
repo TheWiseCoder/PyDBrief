@@ -76,7 +76,7 @@ def set_migration_parameters(errors: list[str],
     if temp_folder:
         # yes, set the corresponding global parameter
         global MIGRATION_TEMP_FOLDER
-        MIGRATION_TEMP_FOLDER = chunk_size
+        MIGRATION_TEMP_FOLDER = temp_folder
 
 
 def log(logger: Logger,
