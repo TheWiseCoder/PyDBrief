@@ -196,7 +196,7 @@ def handle_migration() -> Response:
             reply = pydb_common.get_migration_params()
         case "PATCH":
             # establish the migration parameters
-            pydb_common.set_migration_parameters(errors, scheme)
+            pydb_common.set_migration_parameters(errors, scheme, PYPOMES_LOGGER)
             if len(errors) == 0:
                 reply = {"status": "Configuration updated"}
         case "POST":
