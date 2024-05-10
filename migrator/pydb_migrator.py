@@ -1,12 +1,12 @@
 import sys
-import uuid
+# import uuid
 from datetime import datetime
 from logging import DEBUG, INFO, Logger
-from pathlib import Path
+# from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
-from pypomes_db import db_connect, db_bulk_migrate, db_migrate_lobs
+from pypomes_db import db_connect, db_migrate_data, db_migrate_lobs  # , db_bulk_migrate
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
@@ -321,35 +321,47 @@ def migrate_plain(errors: list[str],
     # traverse list of migrated tables to copy the plain data
     for migrated_table in migrated_tables:
         table: str = migrated_table.get("table")
+        source_table: str = f"{source_schema}.{migrated_table.get('table')}"
+        target_table: str = f"{target_schema}.{migrated_table.get('table')}"
 
         # exclude LOB (large binary objects) types from the column names list
         table_columns: list[dict] = migrated_table.get("columns")
         column_names: list[str] = [column.get("name") for column in table_columns
                                    if not pydb_types.is_lob(column.get("source-type"))]
-        columns_str: str = ", ".join(column_names)
+        # columns_str: str = ", ".join(column_names)
 
         # build the SELECT and INSERT statements for bulk copying
-        sel_stmt: str = f"SELECT {columns_str} FROM {source_schema}.{table}"
-        insert_stmt = build_bulk_insert_stmt(target_rdbms, target_schema,
-                                             table, columns_str, logger)
+        # sel_stmt: str = f"SELECT {columns_str} FROM {source_table}"
+        # insert_stmt = build_bulk_insert_stmt(target_rdbms, target_schema,
+        #                                      table, columns_str, logger)
 
         # bulk copy the data from source to target databases
-        count: int = db_bulk_migrate(errors=errors,
-                                     sel_stmt=sel_stmt,
-                                     insert_stmt=insert_stmt,
+        # count: int = db_bulk_migrate(errors=errors,
+        #                              sel_stmt=sel_stmt,
+        #                              insert_stmt=insert_stmt,
+        #                              target_engine=target_rdbms,
+        #                              batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+        #                              target_conn=target_conn,
+        #                              engine=source_rdbms,
+        #                              conn=source_conn,
+        #                              logger=logger)
+        count: int = db_migrate_data(errors=errors,
+                                     source_engine=source_rdbms,
+                                     source_table=source_table,
+                                     source_columns=column_names,
                                      target_engine=target_rdbms,
-                                     batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                     target_table=target_table,
+                                     source_conn=source_conn,
                                      target_conn=target_conn,
-                                     engine=source_rdbms,
-                                     conn=source_conn,
-                                     logger=logger) or 0
+                                     batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                     logger=logger)
 
         if errors:
             status: str = "partial" if count else "none"
         else:
             status: str = "full"
         migrated_table["status"] = status
-        migrated_table["count"] = count
+        migrated_table["count"] = count or 0
         logger.debug(msg=f"RDBMS {source_rdbms} to {target_rdbms}, "
                          f"Table {table}, migrated {count} tuples, status '{status}'")
 
@@ -365,9 +377,9 @@ def migrate_lobs(errors: list[str],
                  logger: Logger | None) -> None:
 
     # establish the temporary file to use in LOB migration
-    temp_file: Path | None = None
-    if pydb_common.MIGRATION_TEMP_FOLDER:
-        temp_file = Path(pydb_common.MIGRATION_TEMP_FOLDER, str(uuid.uuid4()) + ".bin")
+    # temp_file: Path | None = None
+    # if pydb_common.MIGRATION_TEMP_FOLDER:
+    #     temp_file = Path(pydb_common.MIGRATION_TEMP_FOLDER, str(uuid.uuid4()) + ".bin")
 
     # traverse list of migrated tables to copy the LOBs
     for migrated_table in migrated_tables:
@@ -391,19 +403,32 @@ def migrate_lobs(errors: list[str],
                 logger.debug((f"Starting migrating LOBs, "
                               f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
                               f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
+                # count: int = db_migrate_lobs(errors=errors,
+                #                              lob_table=source_table,
+                #                              lob_column=table_lob,
+                #                              pk_columns=table_pks,
+                #                              target_engine=target_rdbms,
+                #                              temp_file=temp_file,
+                #                              chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                #                              target_table=target_table,
+                #                              target_conn=target_conn,
+                #                              engine=source_rdbms,
+                #                              conn=source_conn,
+                #                              logger=logger)
+
                 count: int = db_migrate_lobs(errors=errors,
-                                             lob_table=source_table,
-                                             lob_column=table_lob,
+                                             source_engine=source_rdbms,
+                                             source_table=source_table,
+                                             source_column=table_lob,
                                              pk_columns=table_pks,
                                              target_engine=target_rdbms,
-                                             temp_file=temp_file,
-                                             chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
                                              target_table=target_table,
-                                             target_conn=target_conn,
-                                             engine=source_rdbms,
-                                             conn=source_conn,
+                                             source_conn=source_conn,
+                                             target_column=target_conn,
+                                             chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
                                              logger=logger)
-                logger.debug((f"Finished migrating {count} LOBs, "
+
+                logger.debug((f"Finished migrating {count or 0} LOBs, "
                               f"from RDBMS {source_rdbms}, {source_table}.{table_lob} "
                               f"to RDBMS {target_rdbms}, {target_table}.{table_lob}"))
 
