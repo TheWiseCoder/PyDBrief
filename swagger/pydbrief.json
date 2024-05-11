@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -185,15 +185,6 @@
               "minimum": 1024,
               "maximum": 16777216,
               "default": 1048576
-            }
-          },
-          {
-            "name": "temp-folder",
-            "in": "query",
-            "description": "The folder to use for temporary files (defaults to system temporary folder)",
-            "required": false,
-            "schema": {
-              "type": "string"
             }
           },
           {

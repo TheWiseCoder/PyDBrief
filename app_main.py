@@ -28,7 +28,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.0"
+APP_VERSION: Final[str] = "1.0.1"
 
 # create the Flask application
 app = Flask(__name__)

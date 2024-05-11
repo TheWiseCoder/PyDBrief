@@ -13,17 +13,6 @@ def build_connection_string() -> str:
     )
 
 
-def build_bulk_insert_stmt(schema: str,
-                           table: str,
-                           columns: str) -> str:
-
-    return (
-        f"INSERT INTO {schema}.{table} "
-        f"({columns}) "
-        f"VALUES %s"
-    )
-
-
 def disable_session_restrictions(errors: list[str],
                                  conn: connection,
                                  logger: Logger) -> None:

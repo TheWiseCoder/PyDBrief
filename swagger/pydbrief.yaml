@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.0
+  version: 1.0.1
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -115,12 +115,12 @@ paths:
             minimum: 1024
             maximum: 16777216
             default: 1048576
-        - name: temp-folder
-          in: query
-          description: The folder to use for temporary files (defaults to system temporary folder)
-          required: false
-          schema:
-            type: string
+#        - name: temp-folder
+#          in: query
+#          description: The folder to use for temporary files (defaults to system temporary folder)
+#          required: false
+#          schema:
+#            type: string
         - name: max-processes
           in: query
           description: The number of processes to speed-up the migration with (range is [1-20]).
@@ -412,6 +412,9 @@ components:
         max-processes:
           type: integer
           example: 10
+#        temp-folder:
+#          type: string
+#          exampl: C:\temp
     OracleConfiguration:
       type: object
       properties:
