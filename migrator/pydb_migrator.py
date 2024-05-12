@@ -1,15 +1,17 @@
 import sys
+import warnings
 from datetime import datetime
 from logging import DEBUG, INFO, Logger
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
-from pypomes_db import db_connect, db_migrate_data, db_migrate_lobs
+from pypomes_db import db_connect, db_execute, db_migrate_data, db_migrate_lobs
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.engine.result import Result
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.schema import Column, MetaData, Table
@@ -19,6 +21,9 @@ from . import (
     pydb_common, pydb_types, pydb_validator,
     pydb_oracle, pydb_postgres, pydb_sqlserver  # , pydb_mysql
 )
+
+# treat warnings as errors
+warnings.filterwarnings("error")
 
 
 # this is the entry point for the migration process
@@ -150,8 +155,17 @@ def migrate_metadata(errors: list[str],
         if from_schema:
             # yes, proceed
             source_metadata: MetaData = MetaData(schema=from_schema)
-            source_metadata.reflect(bind=source_engine,
-                                    schema=from_schema)
+            try:
+                source_metadata.reflect(bind=source_engine,
+                                        schema=from_schema)
+            except SAWarning as e:
+                # - unable to fully reflect the schema
+                # - this error will cause the migration to be aborted,
+                #   as SQLAlchemy will not be able to find the schema tables
+                err_msg = exc_format(exc=e,
+                                     exc_info=sys.exc_info())
+                # 106: The operation {} returned the error {}
+                errors.append(validate_format_error(106, "schema-reflection", err_msg))
 
             # build list of migration candidates
             unlisted_tables: list[str] = []
@@ -177,7 +191,20 @@ def migrate_metadata(errors: list[str],
                     del spare_tables
 
                 # proceed with the appropriate tables
-                source_tables: list[Table] = source_metadata.sorted_tables
+                source_tables: list[Table]
+                try:
+                    source_tables = source_metadata.sorted_tables
+                except SAWarning as e:
+                    # - unable to organize the tables in the proper sequence:
+                    #   probably, cross-dependencies between tables, caused by mutually dependent FKs
+                    # - this error will cause the migration to be aborted,
+                    #   as SQLAlchemy will not be able to compile the migrated schema
+                    err_msg = exc_format(exc=e,
+                                         exc_info=sys.exc_info())
+                    # 106: The operation {} returned the error {}
+                    errors.append(validate_format_error(106, "schema-migration", err_msg))
+                    source_tables = list(source_metadata.tables.values())
+
                 to_schema: str | None = None
                 inspector = inspect(subject=target_engine,
                                     raiseerr=True)
@@ -193,15 +220,24 @@ def migrate_metadata(errors: list[str],
                 if to_schema:
                     # yes, drop existing tables (must be done in reverse order)
                     for source_table in reversed(source_tables):
-                        # build DROP TABLE statement
-                        drop_stmt: str = f"DROP TABLE IF EXISTS {to_schema}.{source_table.name}"
-                        # drop the table
-                        engine_exc_stmt(errors, target_rdbms,
-                                        target_engine, drop_stmt, logger)
+                        if target_rdbms == "oracle":
+                            drop_stmt = (f"IF OBJECT_ID({to_schema}.{source_table.name}, 'U') "
+                                         f"IS NOT NULL DROP TABLE {to_schema}.{source_table.name};")
+                            db_execute(errors=errors,
+                                       exc_stmt=drop_stmt,
+                                       engine="oracle",
+                                       logger=logger)
+                        else:
+                            drop_stmt: str = f"DROP TABLE IF EXISTS {to_schema}.{source_table.name}"
+                            engine_exc_stmt(errors, target_rdbms,
+                                            target_engine, drop_stmt, logger)
                 else:
                     # no, create the target schema
-                    conn_params: dict = pydb_validator.get_connection_params(errors, target_rdbms)
-                    stmt: str = f"CREATE SCHEMA {target_schema} AUTHORIZATION {conn_params.get('user')}"
+                    if target_rdbms == "oracle":
+                        stmt: str = f"CREATE USER {target_schema} IDENTIFIED BY {target_schema}"
+                    else:
+                        conn_params: dict = pydb_validator.get_connection_params(errors, target_rdbms)
+                        stmt = f"CREATE SCHEMA {target_schema} AUTHORIZATION {conn_params.get('user')}"
                     engine_exc_stmt(errors, target_rdbms, target_engine, stmt, logger)
 
                     # SANITY CHECK: it has happened that a schema creation failed, with no errors reported
@@ -227,7 +263,8 @@ def migrate_metadata(errors: list[str],
                         # build the list of migrated columns for this table
                         table_columns: list[dict] = []
                         # noinspection PyProtectedMember
-                        for column in source_table.c._all_columns:
+                        columns: list[Column] = source_table.c._all_columns
+                        for column in columns:
                             column_data: dict = {
                                 "name": column.name,
                                 "source-type": str(column.type)
@@ -235,9 +272,9 @@ def migrate_metadata(errors: list[str],
                             table_columns.append(column_data)
 
                         # migrate the columns
-                        columns: list[Column] = setup_target_table(errors, source_rdbms,
-                                                                   target_rdbms, native_ordinal,
-                                                                   reference_ordinal, source_table, logger)
+                        setup_target_table(errors, columns,
+                                           source_rdbms, target_rdbms,
+                                           native_ordinal, reference_ordinal, logger)
                         source_table.schema = to_schema
 
                         # register the mew column properties
@@ -283,10 +320,11 @@ def migrate_metadata(errors: list[str],
                         source_metadata.create_all(bind=target_engine,
                                                    checkfirst=False)
                     except Exception as e:
+                        # unable to fully compile the schema - the migration is now doomed
                         err_msg = exc_format(exc=e,
                                              exc_info=sys.exc_info())
-                        # 104: Unexpected error: {}
-                        errors.append(validate_format_error(104, err_msg))
+                        # 106: The operation {} returned the error {}
+                        errors.append(validate_format_error(106, "schema-construction", err_msg))
                 else:
                     # 104: Unexpected error: {}
                     errors.append(validate_format_error(104,
@@ -412,45 +450,39 @@ def build_engine(errors: list[str],
 
 
 def setup_target_table(errors: list[str],
+                       table_columns: list[Column],
                        source_rdbms: str,
                        target_rdbms: str,
                        native_ordinal: int,
                        reference_ordinal: int,
-                       source_table: Table,
-                       logger: Logger) -> list[Column]:
-
-    # initialize the return variable
-    result: list[Column] = []
+                       logger: Logger) -> None:
 
     # set the target columns
     # noinspection PyProtectedMember
-    for column in source_table.c._all_columns:
+    for table_column in table_columns:
         # convert the type
         target_type: Any = pydb_types.migrate_type(source_rdbms, target_rdbms,
-                                                   native_ordinal, reference_ordinal, column, logger)
-        result.append(column)
+                                                   native_ordinal, reference_ordinal, table_column, logger)
 
         # wrap-up the column migration
         try:
             # set column's new type
-            column.type = target_type
+            table_column.type = target_type
 
             # remove the server default value
-            if hasattr(column, "server_default"):
-                column.server_default = None
+            if hasattr(table_column, "server_default"):
+                table_column.server_default = None
 
             # convert the default value - TODO: write a decent default value conversion function
-            if hasattr(column, "default") and \
-               column.default is not None and \
-               column.lower() in ["sysdate", "systime"]:
-                column.default = None
+            if hasattr(table_column, "default") and \
+               table_column.default is not None and \
+               table_column.lower() in ["sysdate", "systime"]:
+                table_column.default = None
         except Exception as e:
             err_msg = exc_format(exc=e,
                                  exc_info=sys.exc_info())
             # 104: Unexpected error: {}
             errors.append(validate_format_error(104, err_msg))
-
-    return result
 
 
 def disable_session_restrictions(errors: list[str],
