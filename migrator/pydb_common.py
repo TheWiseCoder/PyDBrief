@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, validate_format_error, validate_int, validate_str
+    str_sanitize, validate_format_error, validate_int
 )
 
 # migration parameters

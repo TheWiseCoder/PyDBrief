@@ -1,4 +1,3 @@
-from pathlib import Path
 from pypomes_core import validate_format_error
 from pypomes_db import (
     db_setup, db_get_engines, db_get_params, db_assert_connection
@@ -29,12 +28,12 @@ def validate_rdbms_dual(errors: list[str],
         errors.append(validate_format_error(116, source_rdbms,
                                             "'from-rdbms' and 'to-rdbms'"))
 
-    if (not errors and
-        (source_rdbms != "oracle" or target_rdbms != "postgres")):
+    if not errors and \
+       (source_rdbms != "oracle" or target_rdbms != "postgres"):
         # 110: {}
         errors.append(validate_format_error(110,
                                             "This migration path has not been validated yet. "
-                                            "Please, email the developer, in case of urgency."))
+                                            "In case of urgency, please email the developer."))
 
     return source_rdbms, target_rdbms
 
