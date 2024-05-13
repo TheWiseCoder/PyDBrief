@@ -44,7 +44,5 @@ ENV PYDB_LOGGING_FILE_MODE=a
 ENV PYDB_LOGGING_FILE_PATH=/tmp/pydbref.log
 ENV PYDB_LOGGING_LEVEL=debug
 
-EXPOSE 1521
-EXPOSE 5432
 EXPOSE 5000
 CMD ["python", "-m" , "flask", "run", "--host=0.0.0.0", "--port=5000"]
