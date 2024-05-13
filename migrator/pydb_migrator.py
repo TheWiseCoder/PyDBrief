@@ -368,7 +368,8 @@ def migrate_plain(errors: list[str],
         column_names: list[str] = [column.get("name") for column in table_columns
                                    if not pydb_types.is_lob(column.get("source-type"))]
 
-        count: int = db_migrate_data(errors=errors,
+        op_errors: list[str] = []
+        count: int = db_migrate_data(errors=op_errors,
                                      source_engine=source_rdbms,
                                      source_table=source_table,
                                      source_columns=column_names,
@@ -378,7 +379,8 @@ def migrate_plain(errors: list[str],
                                      target_conn=target_conn,
                                      batch_size=pydb_common.MIGRATION_BATCH_SIZE,
                                      logger=logger)
-        if errors:
+        if op_errors:
+            errors.extend(op_errors)
             status: str = "partial" if count else "none"
         else:
             status: str = "full"
