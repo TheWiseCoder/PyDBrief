@@ -89,7 +89,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigurationUpdated'
+                $ref: '#/components/schemas/MigrationConfiguration'
     patch:
       tags:
         - data migration
@@ -115,12 +115,6 @@ paths:
             minimum: 1024
             maximum: 16777216
             default: 1048576
-#        - name: temp-folder
-#          in: query
-#          description: The folder to use for temporary files (defaults to system temporary folder)
-#          required: false
-#          schema:
-#            type: string
         - name: max-processes
           in: query
           description: The number of processes to speed-up the migration with (range is [1-20]).
@@ -133,6 +127,10 @@ paths:
       responses:
         '200':
           description: Migration configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigurationUpdated'
         '400':
           description: Unable to configure the migration process
           content:

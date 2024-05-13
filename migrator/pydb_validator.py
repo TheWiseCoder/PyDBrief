@@ -25,8 +25,16 @@ def validate_rdbms_dual(errors: list[str],
                                             "unknown or unconfigured RDBMS engine", "@to-rdbms"))
 
     if source_rdbms and source_rdbms == target_rdbms:
-        # 116: Value {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_rdbms, "'from-rdbms' and 'to-rdbms'"))
+        # 110: {} cannot be assigned for attributes {} at the same time
+        errors.append(validate_format_error(116, source_rdbms,
+                                            "'from-rdbms' and 'to-rdbms'"))
+
+    if (not errors and
+        (source_rdbms != "oracle" or target_rdbms != "postgres")):
+        # 110: {}
+        errors.append(validate_format_error(110,
+                                            "This migration path has not been validated yet. "
+                                            "Please, email the developer, in case of urgency."))
 
     return source_rdbms, target_rdbms
 
@@ -61,12 +69,6 @@ def assert_migration(errors: list[str],
         # 127: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(127, pydb_common.MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
-
-    if (pydb_common.MIGRATION_TEMP_FOLDER and
-       not Path(pydb_common.MIGRATION_TEMP_FOLDER).is_dir()):
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, pydb_common.MIGRATION_TEMP_FOLDER, "not a valid folder",
-                                            "@temp-folder"))
 
     # retrieve the source and target RDBMS engines
     from_rdbms: str = scheme.get("from-rdbms")

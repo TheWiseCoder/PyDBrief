@@ -11,7 +11,7 @@ from typing import Final
 from werkzeug.exceptions import NotFound
 
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
-os.environ["PYPOMES_VALIDATION_MSG_PREFIX"] = ""
+os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # ruff: noqa: E402
 from pypomes_core import (

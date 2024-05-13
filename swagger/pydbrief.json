@@ -148,7 +148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfigurationUpdated"
+                  "$ref": "#/components/schemas/MigrationConfiguration"
                 }
               }
             }
@@ -202,7 +202,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Migration configured"
+            "description": "Migration configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationUpdated"
+                }
+              }
+            }
           },
           "400": {
             "description": "Unable to configure the migration process",

@@ -7,7 +7,6 @@ from pypomes_core import (
 MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_MAX_PROCESSES: int = 1
-MIGRATION_TEMP_FOLDER: str | None = None
 
 
 def get_migration_params() -> dict:
@@ -15,8 +14,7 @@ def get_migration_params() -> dict:
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
         "chunk-size": MIGRATION_CHUNK_SIZE,
-        "max-processes": MIGRATION_MAX_PROCESSES,
-        "temp-folder": MIGRATION_TEMP_FOLDER
+        "max-processes": MIGRATION_MAX_PROCESSES
     }
 
 
@@ -65,18 +63,6 @@ def set_migration_parameters(errors: list[str],
         # yes, set the corresponding global parameter
         global MIGRATION_MAX_PROCESSES
         MIGRATION_MAX_PROCESSES = processes
-
-    # validate the optional 'temp-folder' parameter
-    temp_folder: str = validate_str(errors=errors,
-                                    scheme=scheme,
-                                    attr="temp-folder",
-                                    default=False,
-                                    logger=logger)
-    # was it obtained ?
-    if temp_folder:
-        # yes, set the corresponding global parameter
-        global MIGRATION_TEMP_FOLDER
-        MIGRATION_TEMP_FOLDER = temp_folder
 
 
 def log(logger: Logger,

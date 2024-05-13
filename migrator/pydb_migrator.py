@@ -5,7 +5,9 @@ from logging import DEBUG, INFO, Logger
 from pypomes_core import (
     DATETIME_FORMAT_INV, validate_format_error, exc_format
 )
-from pypomes_db import db_connect, db_execute, db_migrate_data, db_migrate_lobs
+from pypomes_db import (
+    db_connect, db_execute, db_migrate_data, db_migrate_lobs
+)
 from sqlalchemy import text  # from 'sqlalchemy._elements._constructors', but invisible
 from sqlalchemy.engine.base import Engine, RootTransaction
 from sqlalchemy.engine.create import create_engine
@@ -220,15 +222,17 @@ def migrate_metadata(errors: list[str],
                 if to_schema:
                     # yes, drop existing tables (must be done in reverse order)
                     for source_table in reversed(source_tables):
+                        table_name: str = f"{to_schema}.{source_table.name}"
                         if target_rdbms == "oracle":
-                            drop_stmt = (f"IF OBJECT_ID({to_schema}.{source_table.name}, 'U') "
-                                         f"IS NOT NULL DROP TABLE {to_schema}.{source_table.name};")
+                            # oracle has no 'IF EXISTS' clause
+                            drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
+                                              f"IS NOT NULL DROP TABLE {table_name};")
                             db_execute(errors=errors,
                                        exc_stmt=drop_stmt,
                                        engine="oracle",
                                        logger=logger)
                         else:
-                            drop_stmt: str = f"DROP TABLE IF EXISTS {to_schema}.{source_table.name}"
+                            drop_stmt: str = f"DROP TABLE IF EXISTS {table_name}"
                             engine_exc_stmt(errors, target_rdbms,
                                             target_engine, drop_stmt, logger)
                 else:
