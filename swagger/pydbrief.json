@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -350,7 +350,7 @@
             }
           },
           {
-            "name": "from",
+            "name": "from-datetime",
             "in": "query",
             "description": "Timestamp for the start of the interval",
             "required": false,
@@ -360,7 +360,7 @@
             }
           },
           {
-            "name": "to",
+            "name": "to-datetime",
             "in": "query",
             "description": "Timestamp for the end of the interval",
             "required": false,

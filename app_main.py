@@ -96,17 +96,22 @@ def get_log() -> Response:
     """
     Entry pointy for obtaining the execution log of the system.
 
+    These criteria are specified as imput parameters of the HTTP request, according to the pattern
+    *attach=<[t,true,f,false]>&log-path=<log-path>&level=<log-level>&
+     from-datetime=YYYYMMDDhhmmss&to-datetime=YYYYMMDDhhmmss&last-days=<n>&last-hours=<n>>*
+
     The query parameters are optional, and are used to filter the records to be returned:
+        - *attach*: whether browser should display or persist file (defaults to True - persist it)
         - *level*: <log-level>
-        - *from*: <YYYYMMDDhhmmss>
-        - *to*: <YYYYMMDDhhmmss>
+        - *from-datetime*: <YYYYMMDDhhmmss>
+        - *to-datetime*: <YYYYMMDDhhmmss>
         - *last-days*: <n>
         - *last-hours*: <n>
 
     By default, the browser is instructed to save the file, instead of displaying its contents.
 
     This parameter can optionally be provided to indicate otherwise:
-        - *attach*=<1|t|true|0|f|false> - 'true' if not specified
+        - *attach*=<1|t|true|0|f|false> - defaults to 'true'
 
     :return: the requested log data
     """
