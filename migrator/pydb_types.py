@@ -378,8 +378,8 @@ def migrate_type(source_rdbms: str,
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
-    col_name: str = f"{source_column.table.name}.{source_column.name}"
-    msg: str = f"From {source_rdbms} to {target_rdbms}, type {str(col_type_obj)} in {col_name}"
+    col_name: str = f"{source_rdbms}.{source_column.table.name}.{source_column.name}"
+    msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {col_name}"
     if type_equiv is None:
         pydb_common.log(logger, WARNING,
                         f"{msg} - unable to convert")
@@ -409,7 +409,7 @@ def migrate_type(source_rdbms: str,
     # instantiate the type object
     result = type_equiv()
     pydb_common.log(logger, DEBUG,
-                    f"{msg} - converted to {str(result)}")
+                    f"{msg} converted to {str(result)}")
 
     # wrap-up the type migration
     if hasattr(col_type_obj, "length") and hasattr(result, "length"):

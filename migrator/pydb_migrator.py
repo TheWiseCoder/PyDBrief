@@ -419,13 +419,13 @@ def migrate_schema(errors: list[str],
             if target_rdbms == "oracle":
                 # oracle has no 'IF EXISTS' clause
                 drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
-                                  f"IS NOT NULL DROP TABLE {table_name};")
+                                  f"IS NOT NULL DROP TABLE {table_name} CASCADE CONSTRAINTS;")
                 db_execute(errors=errors,
                            exc_stmt=drop_stmt,
                            engine="oracle",
                            logger=logger)
             else:
-                drop_stmt: str = f"DROP TABLE IF EXISTS {table_name}"
+                drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
                 engine_exc_stmt(errors, target_rdbms,
                                 target_engine, drop_stmt, logger)
     else:
