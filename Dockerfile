@@ -32,6 +32,10 @@ RUN apk --no-cache add libaio libnsl libc6-compat curl && \
     ln -s /lib64/ld-linux-x86-64.so.2 /usr/lib/ld-linux-x86-64.so.2
 ENV LD_LIBRARY_PATH /usr/lib/instantclient
 
+# install the Vim editor
+RUN apk update
+RUN apk add vim
+
 RUN pip install --upgrade pip
 
 RUN pip install -r requirements.txt
@@ -41,7 +45,7 @@ ENV FLASK_APP=app_main.py
 ENV TZ=America/Sao_Paulo
 
 ENV PYDB_LOGGING_FILE_MODE=a
-ENV PYDB_LOGGING_FILE_PATH=/tmp/pydbref.log
+ENV PYDB_LOGGING_FILE_PATH=/tmp/pydbrief.log
 ENV PYDB_LOGGING_LEVEL=debug
 
 EXPOSE 5000
