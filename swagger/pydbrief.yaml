@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.2
+  version: 1.0.3
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -173,6 +173,9 @@ paths:
         - $ref: '#/components/parameters/FromSchemaParam'
         - $ref: '#/components/parameters/ToRdbmsParam'
         - $ref: '#/components/parameters/ToSchemaParam'
+        - $ref: '#/components/parameters/MigrateMetadataParam'
+        - $ref: '#/components/parameters/MigratePlainParam'
+        - $ref: '#/components/parameters/MigrateLobsParam'
         - $ref: '#/components/parameters/TablesParam'
       responses:
         '200':
@@ -387,6 +390,30 @@ components:
       required: true
       schema:
         type: string
+    MigrateMetadataParam:
+      name: migrate-metadata
+      in: query
+      description: Whether metadata should be migrated. This will recreate the destination schema.
+      required: false
+      schema:
+        type: boolean
+        default: true
+    MigratePlainParam:
+      name: migrate-plaindata
+      in: query
+      description: Whether plain data should be migrated. This assumes all affected tables in destination schema are empty.
+      required: false
+      schema:
+        type: boolean
+        default: true
+    MigrateLobsParam:
+      name: migrate-lobdata
+      in: query
+      description: Whether LOB data should be migrated. This assumes that plain data has already been migrated.
+      required: false
+      schema:
+        type: boolean
+        default: true
     TablesParam:
       name: tables
       in: query
@@ -493,9 +520,6 @@ components:
           items:
             type: object
             properties:
-              code:
-                type: string
-                example: PYDB116
               description:
                 type: string
                 example: Value 'oracle' cannot be assigned for attributes 'from-rdbms' and 'to-rdbms' at the same time
@@ -508,6 +532,13 @@ components:
         finished:
           type: string
           example: 2024-05-06 23:51:46
+        steps:
+          type: array
+          items:
+            type: string
+          example:
+            - migrate-metadata
+            - migrate-plaindata
         source:
           type: object
           properties:
@@ -527,21 +558,26 @@ components:
               type: string
               example: pg-schema
         migrated-tables:
-          type: array
-          items:
-            type: object
-            properties:
-              table:
-                type: string
-                example: customers
-              columns:
-                type: array
-                items:
+          type: object
+          properties:
+            my_table:
+              type: object
+              properties:
+                plain-count:
+                  type: integer
+                  example: 1250000
+                plain-status:
+                  type: string
+                  example: "full"
+                lob-count:
+                  type: integer
+                  example: 2500000
+                lob-status:
+                  type: string
+                  example: "full"
+                my_column:
                   type: object
                   properties:
-                    name:
-                      type: string
-                      example: customer-name
                     source-type:
                       type: string
                       example: NUMBER(7,0)
@@ -552,13 +588,9 @@ components:
                       type: array
                       items:
                         type: string
-                        example: primary key
-              count:
-                type: integer
-                example: 1250000
-              status:
-                type: string
-                example: "full"
+                      example:
+                        - identity
+                        - primary key
     SchemaError:
       type: object
       properties:
@@ -569,10 +601,7 @@ components:
             properties:
               attribute:
                 type: string
-                example: schema
-              code:
-                type: string
-                example: PYDB121
+                example: from-schema
               description:
                 type: string
                 example: Invalid value 'my-schema'
@@ -587,9 +616,6 @@ components:
               attribute:
                 type: string
                 example: tables
-              code:
-                type: string
-                example: PYDB121
               description:
                 type: string
                 example: Invalid value 'my-table'
@@ -604,9 +630,6 @@ components:
               attribute:
                 type: string
                 example: db-name
-              code:
-                type: string
-                example: PYDB121
               description:
                 type: string
                 example: Invalid value 'my-database'
@@ -621,9 +644,6 @@ components:
               attribute:
                 type: string
                 example: max-processes
-              code:
-                type: string
-                example: PYDB121
               description:
                 type: string
                 example: Invalid value '0'

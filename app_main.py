@@ -29,7 +29,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.1"
+APP_VERSION: Final[str] = "1.0.3"
 
 # create the Flask application
 app = Flask(__name__)
@@ -270,12 +270,20 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           default=True)
-        # were the schemas obtained ?
+        # proceed, if the schemas were obtained
         if source_schema and target_schema:
-            # yes, retrieve the list of tables and migrate the data
-            tables: list[str] = str_as_list(scheme.get("tables"))
-            reply = pydb_migrator.migrate(errors, source_rdbms, target_rdbms,
-                                          source_schema, target_schema, tables, PYPOMES_LOGGER)
+            # assert the migration stemps
+            step_metadata, step_plaindata, step_lobdata = \
+                pydb_validator.assert_migration_steps(errors, scheme)
+
+            # errors ?
+            if not errors:
+                # no, retrieve the tables and migrate the data
+                tables: list[str] = str_as_list(scheme.get("tables"))
+                reply = pydb_migrator.migrate(errors, source_rdbms, target_rdbms,
+                                              source_schema, target_schema,
+                                              step_metadata, step_plaindata, step_lobdata,
+                                              tables, PYPOMES_LOGGER)
 
     # build the response
     result: Response = _build_response(errors, reply)

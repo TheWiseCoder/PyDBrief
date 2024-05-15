@@ -1,4 +1,4 @@
-from pypomes_core import validate_format_error
+from pypomes_core import validate_format_error, validate_bool
 from pypomes_db import (
     db_setup, db_get_engines, db_get_params, db_assert_connection
 )
@@ -12,16 +12,19 @@ def validate_rdbms_dual(errors: list[str],
                         scheme: dict) -> tuple[str, str]:
 
     engines: list[str] = db_get_engines()
-    source_rdbms: str = scheme.get("from-rdbms")
+    source_rdbms: str | None = scheme.get("from-rdbms")
     if source_rdbms not in engines:
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, source_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@from-rdbms"))
-    target_rdbms: str = scheme.get("to-rdbms")
+        source_rdbms = None
+
+    target_rdbms: str | None = scheme.get("to-rdbms")
     if target_rdbms not in engines:
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, target_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@to-rdbms"))
+        target_rdbms = None
 
     if source_rdbms and source_rdbms == target_rdbms:
         # 110: {} cannot be assigned for attributes {} at the same time
@@ -39,13 +42,19 @@ def validate_rdbms_dual(errors: list[str],
 
 
 def assert_connection_params(errors: list[str],
-                             scheme: str | dict):
+                             scheme: str | dict) -> bool:
+
+    # initialize return variable
+    result: bool = True
 
     # obtain the RDBMS name
     rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
     if rdbms not in db_get_engines():
         # 119: Invalid value {}: {}
         errors.append(validate_format_error(119, rdbms, "unknown or unconfigured RDMS engine"))
+        result = False
+
+    return result
 
 
 def assert_migration(errors: list[str],
@@ -69,20 +78,46 @@ def assert_migration(errors: list[str],
         errors.append(validate_format_error(127, pydb_common.MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
 
-    # retrieve the source and target RDBMS engines
-    from_rdbms: str = scheme.get("from-rdbms")
-    to_rdbms: str = scheme.get("to-rdbms")
+    # validate the source and target RDBMS engines
+    source_rdbms = scheme.get("from-rdbms")
+    target_rdbms = scheme.get("to-rdbms")
 
-    # assert the connection parameters for origin and destination RDBMS engines
-    assert_connection_params(errors, from_rdbms)
-    assert_connection_params(errors, to_rdbms)
+    # assert the connection parameters for both engines
+    if assert_connection_params(errors, source_rdbms):
+        db_assert_connection(errors=errors,
+                             engine=source_rdbms)
+    if assert_connection_params(errors, target_rdbms):
+        db_assert_connection(errors=errors,
+                             engine=target_rdbms)
 
-    # verify if actual connection is possible
-    if len(errors) == 0:
-        db_assert_connection(errors=errors,
-                             engine=from_rdbms)
-        db_assert_connection(errors=errors,
-                             engine=to_rdbms)
+
+def assert_migration_steps(errors: list[str],
+                           scheme: dict) -> tuple[bool, bool, bool]:
+
+    # retrieve the migration steps
+    step_metadata: bool = validate_bool(errors=errors,
+                                        scheme=scheme,
+                                        attr="migrate-metadata",
+                                        mandatory=True)
+    step_plaindata: bool = validate_bool(errors=errors,
+                                         scheme=scheme,
+                                         attr="migrate-plaindata",
+                                         mandatory=True)
+    step_lobdata: bool = validate_bool(errors=errors,
+                                       scheme=scheme,
+                                       attr="migrate-lobdata",
+                                       mandatory=True)
+    # validate them
+    err_msg: str | None = None
+    if not step_metadata and not step_lobdata and not step_plaindata:
+        err_msg = "At least one migration step must be indicated"
+    elif step_metadata and step_lobdata and not step_plaindata:
+        err_msg = "Migrating the metadata and the LOBs requires migrating the plain data as well"
+    if err_msg:
+        # 110: {}
+        errors.append(validate_format_error(110, err_msg))
+
+    return step_metadata, step_plaindata, step_lobdata
 
 
 def get_migration_context(scheme: dict) -> dict:

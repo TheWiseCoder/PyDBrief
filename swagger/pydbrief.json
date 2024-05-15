@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -284,6 +284,15 @@
           },
           {
             "$ref": "#/components/parameters/ToSchemaParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrateMetadataParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigratePlainParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrateLobsParam"
           },
           {
             "$ref": "#/components/parameters/TablesParam"
@@ -615,6 +624,36 @@
           "type": "string"
         }
       },
+      "MigrateMetadataParam": {
+        "name": "migrate-metadata",
+        "in": "query",
+        "description": "Whether metadata should be migrated. This will recreate the destination schema.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "MigratePlainParam": {
+        "name": "migrate-plaindata",
+        "in": "query",
+        "description": "Whether plain data should be migrated. This assumes all affected tables in destination schema are empty.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "MigrateLobsParam": {
+        "name": "migrate-lobdata",
+        "in": "query",
+        "description": "Whether LOB data should be migrated. This assumes that plain data has already been migrated.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": true
+        }
+      },
       "TablesParam": {
         "name": "tables",
         "in": "query",
@@ -757,10 +796,6 @@
             "items": {
               "type": "object",
               "properties": {
-                "code": {
-                  "type": "string",
-                  "example": "PYDB116"
-                },
                 "description": {
                   "type": "string",
                   "example": "Value 'oracle' cannot be assigned for attributes 'from-rdbms' and 'to-rdbms' at the same time"
@@ -780,6 +815,16 @@
           "finished": {
             "type": "string",
             "example": "2024-05-06T23:51:46.000Z"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "migrate-metadata",
+              "migrate-plaindata"
+            ]
           },
           "source": {
             "type": "object",
@@ -808,23 +853,30 @@
             }
           },
           "migrated-tables": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "table": {
-                  "type": "string",
-                  "example": "customers"
-                },
-                "columns": {
-                  "type": "array",
-                  "items": {
+            "type": "object",
+            "properties": {
+              "my_table": {
+                "type": "object",
+                "properties": {
+                  "plain-count": {
+                    "type": "integer",
+                    "example": 1250000
+                  },
+                  "plain-status": {
+                    "type": "string",
+                    "example": "full"
+                  },
+                  "lob-count": {
+                    "type": "integer",
+                    "example": 2500000
+                  },
+                  "lob-status": {
+                    "type": "string",
+                    "example": "full"
+                  },
+                  "my_column": {
                     "type": "object",
                     "properties": {
-                      "name": {
-                        "type": "string",
-                        "example": "customer-name"
-                      },
                       "source-type": {
                         "type": "string",
                         "example": "NUMBER(7,0)"
@@ -836,20 +888,15 @@
                       "features": {
                         "type": "array",
                         "items": {
-                          "type": "string",
-                          "example": "primary key"
-                        }
+                          "type": "string"
+                        },
+                        "example": [
+                          "identity",
+                          "primary key"
+                        ]
                       }
                     }
                   }
-                },
-                "count": {
-                  "type": "integer",
-                  "example": 1250000
-                },
-                "status": {
-                  "type": "string",
-                  "example": "full"
                 }
               }
             }
@@ -866,11 +913,7 @@
               "properties": {
                 "attribute": {
                   "type": "string",
-                  "example": "schema"
-                },
-                "code": {
-                  "type": "string",
-                  "example": "PYDB121"
+                  "example": "from-schema"
                 },
                 "description": {
                   "type": "string",
@@ -893,10 +936,6 @@
                   "type": "string",
                   "example": "tables"
                 },
-                "code": {
-                  "type": "string",
-                  "example": "PYDB121"
-                },
                 "description": {
                   "type": "string",
                   "example": "Invalid value 'my-table'"
@@ -918,10 +957,6 @@
                   "type": "string",
                   "example": "db-name"
                 },
-                "code": {
-                  "type": "string",
-                  "example": "PYDB121"
-                },
                 "description": {
                   "type": "string",
                   "example": "Invalid value 'my-database'"
@@ -942,10 +977,6 @@
                 "attribute": {
                   "type": "string",
                   "example": "max-processes"
-                },
-                "code": {
-                  "type": "string",
-                  "example": "PYDB121"
                 },
                 "description": {
                   "type": "string",
