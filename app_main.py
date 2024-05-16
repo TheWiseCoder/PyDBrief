@@ -289,7 +289,7 @@ def migrate_data() -> Response:
     result: Response = _build_response(errors, reply)
 
     # register the response
-    logging_log_info(f"Response: {result.get_json()}")
+    logging_log_info(f"Response: {result}")
 
     return result
 
