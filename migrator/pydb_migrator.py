@@ -139,8 +139,8 @@ def migrate(errors: list[str],
             "schema": target_schema
         },
         "migrated-tables": migrated_tables,
-        "total-plain-count": plain_count,
-        "total-lob-count": lob_count
+        "total-plains": plain_count,
+        "total-lobs": lob_count
     }
 
 

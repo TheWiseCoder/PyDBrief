@@ -74,7 +74,7 @@ def swagger() -> Response:
            methods=["GET"])
 def version() -> Response:
     """
-    Obtain the current version of *PYDBrief*.
+    Obtain the current version of *PyDBrief*.
 
     :return: the version in execution
     """
@@ -234,7 +234,7 @@ def handle_migration() -> Response:
            methods=["POST"])
 def migrate_data() -> Response:
     """
-    Migrate the specified table from the source to the target RDBMS.
+    Migrate the specified schema/tables from the source to the target RDBMS.
 
     These are the expected parameters:
         - *from-rdbms*: the source RDBMS for the migration
