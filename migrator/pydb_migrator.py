@@ -64,7 +64,8 @@ def migrate(errors: list[str],
                     "Finished discovering the metadata")
 
     # proceed, if migration of plain data and/or LOB data has been indicated
-    if step_plaindata or step_lobdata:
+    if migrated_tables and \
+       (step_plaindata or step_lobdata):
 
         # obtain source and target connections
         op_errors: list[str] = []
