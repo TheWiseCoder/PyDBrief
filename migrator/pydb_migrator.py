@@ -63,6 +63,10 @@ def migrate(errors: list[str],
     pydb_common.log(logger, INFO,
                     "Finished discovering the metadata")
 
+    # initialize the counters
+    plain_count: int = 0
+    lob_count: int = 0
+
     # proceed, if migration of plain data and/or LOB data has been indicated
     if migrated_tables and \
        (step_plaindata or step_lobdata):
@@ -85,8 +89,9 @@ def migrate(errors: list[str],
                 if step_plaindata:
                     pydb_common.log(logger, INFO,
                                     "Started migrating the plain data")
-                    migrate_plain(op_errors, source_rdbms, target_rdbms, source_schema,
-                                  target_schema, source_conn, target_conn, migrated_tables, logger)
+                    plain_count = migrate_plain(op_errors, source_rdbms, target_rdbms,
+                                                source_schema, target_schema,
+                                                source_conn, target_conn, migrated_tables, logger)
                     errors.extend(op_errors)
                     pydb_common.log(logger, INFO,
                                     "Finished migrating the plain data")
@@ -96,8 +101,9 @@ def migrate(errors: list[str],
                     pydb_common.log(logger, INFO,
                                     "Started migrating the LOBs")
                     op_errors = []
-                    migrate_lobs(op_errors, source_rdbms, target_rdbms, source_schema,
-                                 target_schema, source_conn, target_conn, migrated_tables, logger)
+                    lob_count = migrate_lobs(op_errors, source_rdbms, target_rdbms,
+                                             source_schema, target_schema,
+                                             source_conn, target_conn, migrated_tables, logger)
                     errors.extend(op_errors)
                     pydb_common.log(logger, INFO,
                                     "Finished migrating the LOBs")
@@ -132,7 +138,9 @@ def migrate(errors: list[str],
             "rdbms": target_rdbms,
             "schema": target_schema
         },
-        "migrated-tables": migrated_tables
+        "migrated-tables": migrated_tables,
+        "total-plain-count": plain_count,
+        "total-lob-count": lob_count
     }
 
 
@@ -299,7 +307,10 @@ def migrate_plain(errors: list[str],
                   source_conn: Any,
                   target_conn: Any,
                   migrated_tables: dict,
-                  logger: Logger | None) -> None:
+                  logger: Logger | None) -> int:
+
+    # initialize the return variavble
+    result: int = 0
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
@@ -333,6 +344,9 @@ def migrate_plain(errors: list[str],
         table_data["plain-count"] = count
         logger.debug(msg=f"Migrated tuples from {source_rdbms}.{source_table} "
                          f"to {target_rdbms}.{target_table}, status {status}")
+        result += count
+
+    return result
 
 
 def migrate_lobs(errors: list[str],
@@ -343,7 +357,10 @@ def migrate_lobs(errors: list[str],
                  source_conn: Any,
                  target_conn: Any,
                  migrated_tables: dict,
-                 logger: Logger | None) -> None:
+                 logger: Logger | None) -> int:
+
+    # initialize the return variavble
+    result: int = 0
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
@@ -388,6 +405,9 @@ def migrate_lobs(errors: list[str],
         table_data["lob-count"] = count
         logger.debug(msg=f"Migrated LOBs from {source_rdbms}.{source_table} "
                          f"to {target_rdbms}.{target_table}, status {status}")
+        result += count
+
+    return result
 
 
 def migrate_schema(errors: list[str],

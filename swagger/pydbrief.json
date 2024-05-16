@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.3"
+    "version": "1.0.5plain_count"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -851,6 +851,14 @@
                 "example": "pg-schema"
               }
             }
+          },
+          "total-plain-count": {
+            "type": "integer",
+            "example": 1570970
+          },
+          "total-lob-count": {
+            "type": "integer",
+            "example": 5890575
           },
           "migrated-tables": {
             "type": "object",

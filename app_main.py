@@ -29,10 +29,10 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.4"
+APP_VERSION: Final[str] = "1.0.5"
 
 # create the Flask application
-app = Flask(__name__)
+app: Flask = Flask(__name__)
 
 # support cross origin resource sharing
 CORS(app)
