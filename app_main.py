@@ -8,7 +8,6 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from typing import Final
-from werkzeug.exceptions import NotFound
 
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
 os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
@@ -29,7 +28,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.5"
+APP_VERSION: Final[str] = "1.0.6"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -84,7 +83,7 @@ def version() -> Response:
     # assign to the return variable
     result: Response = jsonify({"version": APP_VERSION})
 
-    # register the response
+    # log the response
     logging_log_info(f"Response {request.path}: {result}")
 
     return result
@@ -122,7 +121,7 @@ def get_log() -> Response:
     # run the request
     result: Response = logging_send_entries(request)
 
-    # register the response
+    # log the response
     logging_log_info(f"Response {request.path}?{req_query}: {result}")
 
     return result
@@ -159,13 +158,13 @@ def handle_rdbms(rdbms: str) -> Response:
     else:
         # configure the RDBMS
         pydb_validator.set_connection_params(errors, scheme)
-        if len(errors) == 0:
+        if not errors:
             reply = {"status": "RDBMS Configuration updated"}
 
     # build the response
     result: Response = _build_response(errors, reply)
 
-    # register the response
+    # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
 
     return result
@@ -209,22 +208,22 @@ def handle_migration() -> Response:
             # validate the source and target RDBMS engines
             pydb_validator.validate_rdbms_dual(errors, scheme)
             # errors ?
-            if len(errors) == 0:
+            if not errors:
                 # no, assert the migration parameters
                 pydb_validator.assert_migration(errors, scheme)
                 # errors ?
-                if len(errors) == 0:
-                    # no, display parameters
-                    reply = pydb_validator.get_migration_context(scheme)
-                    reply.update({"status": "Migration can be launched"})
-                else:
+                if errors:
                     # yes, report the problems
                     reply = {"status": "Migration cannot be launched"}
+                else:
+                    # no, display the migration context
+                    reply = pydb_validator.get_migration_context(scheme)
+                    reply.update({"status": "Migration can be launched"})
 
     # build the response
     result: Response = _build_response(errors, reply)
 
-    # register the response
+    # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
 
     return result
@@ -288,7 +287,7 @@ def migrate_data() -> Response:
     # build the response
     result: Response = _build_response(errors, reply)
 
-    # register the response
+    # log the response
     logging_log_info(f"Response: {result}")
 
     return result
@@ -301,6 +300,9 @@ def handle_exception(exc: Exception) -> Response:
 
     :return: status 500, with JSON containing the errors.
     """
+    # import the needed exception
+    from werkzeug.exceptions import NotFound
+
     # declare the return variable
     result: Response
 
