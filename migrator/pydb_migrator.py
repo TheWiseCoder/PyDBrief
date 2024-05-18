@@ -538,9 +538,9 @@ def migrate_tables(errors: list[str],
                     no_pk = False
                     break
             if no_pk:
-                logger.warning((f"RDBMS {source_rdbms}, "
-                                f"table {source_schema}.{target_table}, "
-                                f"no primary key column found"))
+                logger.warning(f"RDBMS {source_rdbms}, "
+                               f"table {source_schema}.{target_table}, "
+                               f"no primary key column found")
     return result
 
 

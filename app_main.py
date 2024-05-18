@@ -20,7 +20,8 @@ from pypomes_http import (
     http_get_parameter, http_get_parameters
 )  # noqa: PyPep8
 from pypomes_logging import (
-    PYPOMES_LOGGER, logging_send_entries, logging_log_info, logging_log_error
+    PYPOMES_LOGGER,
+    logging_send_entries, logging_log_info, logging_log_error
 )  # noqa: PyPep8
 
 from migrator import (
