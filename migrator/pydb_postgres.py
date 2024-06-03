@@ -20,7 +20,7 @@ def disable_session_restrictions(errors: list[str],
     db_execute(errors=errors,
                exc_stmt="SET SESSION_REPLICATION_ROLE TO REPLICA",
                engine="postgres",
-               conn=conn,
+               connection=conn,
                logger=logger)
 
 
@@ -31,5 +31,5 @@ def restore_session_restrictions(errors: list[str],
     db_execute(errors=errors,
                exc_stmt="SET SESSION_REPLICATION_ROLE TO DEFAULT",
                engine="postgres",
-               conn=conn,
+               connection=conn,
                logger=logger)

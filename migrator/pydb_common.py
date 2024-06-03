@@ -140,5 +140,6 @@ def db_log(errors: list[str],
         if isinstance(errors, list):
             errors.append(err_msg)
     elif logger:
-        debug_msg: str = db_build_query_msg(query_stmt, bind_vals)
-        logger.debug(debug_msg)
+        debug_msg: str = db_build_query_msg(query_stmt=query_stmt,
+                                            bind_vals=bind_vals)
+        logger.debug(msg=debug_msg)

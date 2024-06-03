@@ -98,15 +98,15 @@ def assert_migration_steps(errors: list[str],
     step_metadata: bool = validate_bool(errors=errors,
                                         scheme=scheme,
                                         attr="migrate-metadata",
-                                        mandatory=True)
+                                        required=True)
     step_plaindata: bool = validate_bool(errors=errors,
                                          scheme=scheme,
                                          attr="migrate-plaindata",
-                                         mandatory=True)
+                                         required=True)
     step_lobdata: bool = validate_bool(errors=errors,
                                        scheme=scheme,
                                        attr="migrate-lobdata",
-                                       mandatory=True)
+                                       required=True)
     # validate them
     err_msg: str | None = None
     if not step_metadata and not step_lobdata and not step_plaindata:
@@ -124,13 +124,13 @@ def get_migration_context(scheme: dict) -> dict:
 
     # obtain the source RDBMS parameters
     from_rdbms: str = scheme.get("from-rdbms")
-    from_params = db_get_params(from_rdbms)
+    from_params = db_get_params(engine=from_rdbms)
     if isinstance(from_params, dict):
         from_params["rdbms"] = from_rdbms
 
     # obtain the target RDBMS parameters
     to_rdbms: str = scheme.get("to-rdbms")
-    to_params = db_get_params(to_rdbms)
+    to_params = db_get_params(engine=to_rdbms)
     if isinstance(to_params, dict):
         to_params["rdbms"] = to_rdbms
 
@@ -167,7 +167,7 @@ def get_connection_params(errors: list[str],
                           scheme: str | dict) -> dict:
 
     rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
-    result: dict = db_get_params(rdbms)
+    result: dict = db_get_params(engine=rdbms)
     if isinstance(result, dict):
         result["rdbms"] = rdbms
     else:

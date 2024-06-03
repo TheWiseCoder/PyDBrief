@@ -29,7 +29,7 @@ from migrator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.6"
+APP_VERSION: Final[str] = "1.0.7"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -149,21 +149,24 @@ def handle_rdbms(rdbms: str) -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request)
+    scheme: dict = http_get_parameters(request=request)
     scheme["rdbms"] = rdbms
 
     reply: dict | None = None
     if request.method == "GET":
         # get RDBMS connection params
-        reply = pydb_validator.get_connection_params(errors, scheme)
+        reply = pydb_validator.get_connection_params(errors=errors,
+                                                     scheme=scheme)
     else:
         # configure the RDBMS
-        pydb_validator.set_connection_params(errors, scheme)
+        pydb_validator.set_connection_params(errors=errors,
+                                             scheme=scheme)
         if not errors:
             reply = {"status": "RDBMS Configuration updated"}
 
     # build the response
-    result: Response = _build_response(errors, reply)
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
 
     # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
@@ -193,7 +196,7 @@ def handle_migration() -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request)
+    scheme: dict = http_get_parameters(request=request)
 
     reply: dict | None = None
     match request.method:
@@ -202,27 +205,32 @@ def handle_migration() -> Response:
             reply = pydb_common.get_migration_params()
         case "PATCH":
             # establish the migration parameters
-            pydb_common.set_migration_parameters(errors, scheme, PYPOMES_LOGGER)
+            pydb_common.set_migration_parameters(errors=errors,
+                                                 scheme=scheme,
+                                                 logger=PYPOMES_LOGGER)
             if len(errors) == 0:
                 reply = {"status": "Configuration updated"}
         case "POST":
             # validate the source and target RDBMS engines
-            pydb_validator.validate_rdbms_dual(errors, scheme)
+            pydb_validator.validate_rdbms_dual(errors=errors,
+                                               scheme=scheme)
             # errors ?
             if not errors:
                 # no, assert the migration parameters
-                pydb_validator.assert_migration(errors, scheme)
+                pydb_validator.assert_migration(errors=errors,
+                                                scheme=scheme)
                 # errors ?
                 if errors:
                     # yes, report the problems
                     reply = {"status": "Migration cannot be launched"}
                 else:
                     # no, display the migration context
-                    reply = pydb_validator.get_migration_context(scheme)
+                    reply = pydb_validator.get_migration_context(scheme=scheme)
                     reply.update({"status": "Migration can be launched"})
 
     # build the response
-    result: Response = _build_response(errors, reply)
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
 
     # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
@@ -249,14 +257,16 @@ def migrate_data() -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request)
+    scheme: dict = http_get_parameters(request=request)
 
     # validate the source and target RDBMS engines
-    (source_rdbms, target_rdbms) = pydb_validator.validate_rdbms_dual(errors, scheme)
+    (source_rdbms, target_rdbms) = pydb_validator.validate_rdbms_dual(errors=errors,
+                                                                      scheme=scheme)
 
     # assert whether migration is warranted
     if len(errors) == 0:
-        pydb_validator.assert_migration(errors, scheme)
+        pydb_validator.assert_migration(errors=errors,
+                                        scheme=scheme)
 
     reply: dict | None = None
     # is migration possible ?
@@ -265,28 +275,36 @@ def migrate_data() -> Response:
         source_schema: str = validate_str(errors=errors,
                                           scheme=scheme,
                                           attr="from-schema",
-                                          default=True)
+                                          required=True)
         target_schema: str = validate_str(errors=errors,
                                           scheme=scheme,
                                           attr="to-schema",
-                                          default=True)
+                                          required=True)
         # proceed, if the schemas were obtained
         if source_schema and target_schema:
             # assert the migration stemps
             step_metadata, step_plaindata, step_lobdata = \
-                pydb_validator.assert_migration_steps(errors, scheme)
+                pydb_validator.assert_migration_steps(errors=errors,
+                                                      scheme=scheme)
 
             # errors ?
             if not errors:
                 # no, retrieve the tables and migrate the data
                 tables: list[str] = str_as_list(scheme.get("tables"))
-                reply = pydb_migrator.migrate(errors, source_rdbms, target_rdbms,
-                                              source_schema, target_schema,
-                                              step_metadata, step_plaindata, step_lobdata,
-                                              tables, PYPOMES_LOGGER)
+                reply = pydb_migrator.migrate(errors=errors,
+                                              source_rdbms=source_rdbms,
+                                              target_rdbms=target_rdbms,
+                                              source_schema=source_schema,
+                                              target_schema=target_schema,
+                                              step_metadata=step_metadata,
+                                              step_plaindata=step_plaindata,
+                                              step_lobdata=step_lobdata,
+                                              data_tables=tables,
+                                              logger=PYPOMES_LOGGER)
 
     # build the response
-    result: Response = _build_response(errors, reply)
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
 
     # log the response
     logging_log_info(f"Response: {result}")
@@ -314,12 +332,15 @@ def handle_exception(exc: Exception) -> Response:
         result.status_code = 204
     else:
         # no, report the problem
-        err_msg: str = exc_format(exc, sys.exc_info())
-        logging_log_error(f"{err_msg}")
+        err_msg: str = exc_format(exc=exc,
+                                  exc_info=sys.exc_info())
+        logging_log_error(msg=f"{err_msg}")
         reply: dict = {
             "errors": [err_msg]
         }
-        result = Response(response=json.dumps(reply),
+        json_str: str = json.dumps(obj=reply,
+                                   ensure_ascii=False)
+        result = Response(response=json_str,
                           status=500,
                           mimetype="application/json")
 
@@ -336,7 +357,7 @@ def _build_response(errors: list[str],
         # 'reply' might be None
         result = jsonify(reply)
     else:
-        reply_err: dict = {"errors": validate_format_errors(errors)}
+        reply_err: dict = {"errors": validate_format_errors(errors=errors)}
         if isinstance(reply, dict):
             reply_err.update(reply)
         result = jsonify(reply_err)

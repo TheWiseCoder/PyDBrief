@@ -36,8 +36,10 @@ ENV LD_LIBRARY_PATH /usr/lib/instantclient
 RUN apk update
 RUN apk add vim
 
+# upgrade pip
 RUN pip install --upgrade pip
 
+# intall Python requirements
 RUN pip install -r requirements.txt
 COPY . .
 
