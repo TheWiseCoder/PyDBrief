@@ -3,9 +3,7 @@ from pypomes_db import (
     db_setup, db_get_engines, db_get_params, db_assert_connection
 )
 
-from . import (
-    pydb_common, pydb_oracle, pydb_postgres, pydb_sqlserver  # py_mysql,
-)
+from . import pydb_common
 
 
 def validate_rdbms_dual(errors: list[str],
@@ -14,27 +12,27 @@ def validate_rdbms_dual(errors: list[str],
     engines: list[str] = db_get_engines()
     source_rdbms: str | None = scheme.get("from-rdbms")
     if source_rdbms not in engines:
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, source_rdbms,
+        # 141: Invalid value {}: {}
+        errors.append(validate_format_error(141, source_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@from-rdbms"))
         source_rdbms = None
 
     target_rdbms: str | None = scheme.get("to-rdbms")
     if target_rdbms not in engines:
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, target_rdbms,
+        # 141: Invalid value {}: {}
+        errors.append(validate_format_error(141, target_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@to-rdbms"))
         target_rdbms = None
 
     if source_rdbms and source_rdbms == target_rdbms:
-        # 110: {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(116, source_rdbms,
+        # 126: {} cannot be assigned for attributes {} at the same time
+        errors.append(validate_format_error(126, source_rdbms,
                                             "'from-rdbms' and 'to-rdbms'"))
 
     if not errors and \
        (source_rdbms != "oracle" or target_rdbms != "postgres"):
-        # 110: {}
-        errors.append(validate_format_error(110,
+        # 101: {}
+        errors.append(validate_format_error(101,
                                             "This migration path has not been validated yet. "
                                             "In case of urgency, please email the developer."))
 
@@ -50,8 +48,8 @@ def assert_connection_params(errors: list[str],
     # obtain the RDBMS name
     rdbms: str = scheme if isinstance(scheme, str) else scheme.get("rdbms")
     if rdbms not in db_get_engines():
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, rdbms, "unknown or unconfigured RDMS engine"))
+        # 141: Invalid value {}: {}
+        errors.append(validate_format_error(141, rdbms, "unknown or unconfigured RDMS engine"))
         result = False
 
     return result
@@ -62,21 +60,26 @@ def assert_migration(errors: list[str],
 
     if pydb_common.MIGRATION_BATCH_SIZE < 1000 or \
        pydb_common.MIGRATION_BATCH_SIZE > 10000000:
-        # 127: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(127, pydb_common.MIGRATION_BATCH_SIZE,
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151, pydb_common.MIGRATION_BATCH_SIZE,
                                             [1000, 10000000], "@batch-size"))
 
     if pydb_common.MIGRATION_CHUNK_SIZE < 1024 or \
        pydb_common.MIGRATION_CHUNK_SIZE > 16777216:
-        # 127: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(127, pydb_common.MIGRATION_CHUNK_SIZE,
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151, pydb_common.MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216], "@batch-size"))
 
     if pydb_common.MIGRATION_MAX_PROCESSES < 1 or \
        pydb_common.MIGRATION_MAX_PROCESSES > 1000:
-        # 127: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(127, pydb_common.MIGRATION_MAX_PROCESSES,
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151, pydb_common.MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
+
+    # validate the include and exclude tables lists
+    if scheme.get("include-tables") and scheme.get("exclude-tables"):
+        # 151: "Attributes {} cannot be assigned values at the same time
+        errors.append(validate_format_error(151, "'include-tables', 'exclude-tables'"))
 
     # validate the source and target RDBMS engines
     source_rdbms = scheme.get("from-rdbms")
@@ -114,8 +117,8 @@ def assert_migration_steps(errors: list[str],
     elif step_metadata and step_lobdata and not step_plaindata:
         err_msg = "Migrating the metadata and the LOBs requires migrating the plain data as well"
     if err_msg:
-        # 110: {}
-        errors.append(validate_format_error(110, err_msg))
+        # 101: {}
+        errors.append(validate_format_error(101, err_msg))
 
     return step_metadata, step_plaindata, step_lobdata
 
@@ -144,25 +147,6 @@ def get_migration_context(scheme: dict) -> dict:
     return result
 
 
-def get_connection_string(rdbms: str) -> str:
-
-    # initialize the return variable
-    result: str | None = None
-
-    # obtain the connection string
-    match rdbms:
-        case "mysql":
-            pass
-        case "oracle":
-            result = pydb_oracle.build_connection_string()
-        case "postgres":
-            result = pydb_postgres.build_connection_string()
-        case "sqlserver":
-            result = pydb_sqlserver.build_connection_string()
-
-    return result
-
-
 def get_connection_params(errors: list[str],
                           scheme: str | dict) -> dict:
 
@@ -171,8 +155,8 @@ def get_connection_params(errors: list[str],
     if isinstance(result, dict):
         result["rdbms"] = rdbms
     else:
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, rdbms,
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, rdbms,
                                             "unknown or unconfigured RDBMS engine", "@rdbms"))
 
     return result
@@ -185,8 +169,8 @@ def set_connection_params(errors: list[str],
     db_port: int = int(param) if isinstance(param, str) and param.isnumeric() else None
 
     if db_port is None or db_port < 1:
-        # 119: Invalid value {}: {}
-        errors.append(validate_format_error(119, db_port,
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, db_port,
                                             "must be positive integer", "@db-port"))
     elif not db_setup(engine=scheme.get("rdbms"),
                       db_name=scheme.get("db-name"),
@@ -196,5 +180,5 @@ def set_connection_params(errors: list[str],
                       db_pwd=scheme.get("db-pwd"),
                       db_client=scheme.get("db-client"),
                       db_driver=scheme.get("db-driver")):
-        # 120: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
+        # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
         errors.append(validate_format_error(120))

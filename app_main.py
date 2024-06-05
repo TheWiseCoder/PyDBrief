@@ -14,7 +14,7 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # ruff: noqa: E402
 from pypomes_core import (
-    exc_format, str_as_list, validate_format_errors, validate_str
+    get_versions, exc_format, str_as_list, validate_format_errors, validate_str
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -24,12 +24,12 @@ from pypomes_logging import (
     logging_send_entries, logging_log_info, logging_log_error
 )  # noqa: PyPep8
 
-from migrator import (
-    pydb_common, pydb_migrator, pydb_validator
+from migration import (
+    pydb_common, pydb_validator, pydb_migrator
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.7"
+APP_VERSION: Final[str] = "1.0.8"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -74,18 +74,21 @@ def swagger() -> Response:
            methods=["GET"])
 def version() -> Response:
     """
-    Obtain the current version of *PyDBrief*.
+    Obtain the current version of *PyDBrief*, along with the *PyPomes* modules in use.
 
-    :return: the version in execution
+    :return: the versions in execution
     """
     # register the request
     logging_log_info(f"Request {request.path}")
 
+    versions: dict = get_versions()
+    versions["PyDBrief"] = APP_VERSION
+
     # assign to the return variable
-    result: Response = jsonify({"version": APP_VERSION})
+    result: Response = jsonify(versions)
 
     # log the response
-    logging_log_info(f"Response {request.path}: {result}")
+    logging_log_info(msg=f"Response {request.path}: {result}")
 
     return result
 
@@ -120,7 +123,7 @@ def get_log() -> Response:
     logging_log_info(f"Request {request.path}?{req_query}")
 
     # run the request
-    result: Response = logging_send_entries(request)
+    result: Response = logging_send_entries(request=request)
 
     # log the response
     logging_log_info(f"Response {request.path}?{req_query}: {result}")
@@ -290,7 +293,8 @@ def migrate_data() -> Response:
             # errors ?
             if not errors:
                 # no, retrieve the tables and migrate the data
-                tables: list[str] = str_as_list(scheme.get("tables"))
+                include_tables: list[str] = str_as_list(scheme.get("include-tables"))
+                exclude_tables: list[str] = str_as_list(scheme.get("exclude-tables"))
                 reply = pydb_migrator.migrate(errors=errors,
                                               source_rdbms=source_rdbms,
                                               target_rdbms=target_rdbms,
@@ -299,7 +303,8 @@ def migrate_data() -> Response:
                                               step_metadata=step_metadata,
                                               step_plaindata=step_plaindata,
                                               step_lobdata=step_lobdata,
-                                              data_tables=tables,
+                                              include_tables=include_tables,
+                                              exclude_tables=exclude_tables,
                                               logger=PYPOMES_LOGGER)
 
     # build the response
@@ -327,9 +332,9 @@ def handle_exception(exc: Exception) -> Response:
 
     # is the exception an instance of werkzeug.exceptions.NotFound ?
     if isinstance(exc, NotFound):
-        # yes, disregard it
-        result = Response()
-        result.status_code = 204
+        # yes, disregard it (with status 'No content')
+        # (handles a bug causing the re-submission of a GET request from a browser)
+        result = Response(status=204)
     else:
         # no, report the problem
         err_msg: str = exc_format(exc=exc,

@@ -1,7 +1,5 @@
 from logging import Logger
-from pypomes_core import (
-    str_sanitize, validate_format_error, validate_int
-)
+from pypomes_core import str_sanitize, validate_int
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
@@ -81,21 +79,6 @@ def log(logger: Logger,
                 logger.error(msg)
             case 50:    # CRITICAL
                 logger.critical(msg)
-
-
-def db_except_msg(exception: Exception,
-                  db_name: str,
-                  db_host: str) -> str:
-    """
-    Format and return the error message corresponding to the exception raised while accessing the database.
-
-    :param exception: the exception raised
-    :param db_name: the name of the database
-    :param db_host: the database connection URL
-    :return: the formatted error message
-    """
-    # 101: Error accessing the DB {} in {}: {}
-    return validate_format_error(101, db_name, db_host, str_sanitize(f"{exception}"))
 
 
 def db_build_query_msg(query_stmt: str,

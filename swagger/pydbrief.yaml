@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.5
+  version: 1.0.8
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -176,7 +176,8 @@ paths:
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
-        - $ref: '#/components/parameters/TablesParam'
+        - $ref: '#/components/parameters/IncludeTablesParam'
+        - $ref: '#/components/parameters/ExcludeTablesParam'
       responses:
         '200':
           description: Successful operation
@@ -409,15 +410,25 @@ components:
     MigrateLobsParam:
       name: migrate-lobdata
       in: query
-      description: Whether LOB data should be migrated. This assumes that plain data has already been migrated.
+      description: Whether LOB data should be migrated. This assumes that plain data are being, or have already been, migrated.
       required: false
       schema:
         type: boolean
         default: true
-    TablesParam:
-      name: tables
+    IncludeTablesParam:
+      name: include-tables
       in: query
-      description: Tables to migrate
+      description: Tables to migrate (mutually exclusive with 'exclude-tables')
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    ExcludeTablesParam:
+      name: exclude-tables
+      in: query
+      description: Tables not to migrate (mutually exclusive with 'include-tables')
       required: false
       explode: false
       schema:
