@@ -94,7 +94,7 @@ def migrate_metadata(errors: list[str],
                     if table in include_tables:
                         target_tables.append(source_table)
                         include_tables.remove(table)
-                    elif source_table in exclude_tables:
+                    elif table in exclude_tables:
                         exclude_tables.remove(table)
                     elif include:
                         target_tables.append(source_table)
