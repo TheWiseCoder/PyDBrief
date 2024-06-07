@@ -1,8 +1,9 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from sqlalchemy import Engine, Inspector, inspect, MetaData, Table, Type
+from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
 from sqlalchemy.exc import SAWarning
+from sqlalchemy.sql.elements import Type
 
 from migration.steps.pydb_migration import migrate_schema, migrate_tables, build_engine
 

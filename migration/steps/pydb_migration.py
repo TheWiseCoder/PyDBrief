@@ -3,9 +3,10 @@ from logging import Logger, WARNING, DEBUG
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_get_connection_string, db_execute
 from sqlalchemy import (
-    Engine, Table, TextClause, Column, Type,
+    Engine, Table, TextClause, Column,
     create_engine, inspect, text, Result, RootTransaction
 )
+from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration import pydb_validator, pydb_types, pydb_common
