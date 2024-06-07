@@ -677,8 +677,8 @@ def establish_equivalences(source_rdbms: str,
     return nat_ordinal, ref_ordinal, nat_equivalences
 
 
-def name_to_type(rdbms: str,
-                 type_name: str) -> Type:
+def name_to_class(rdbms: str,
+                  type_name: str) -> Type:
     prefix: str = str_get_positional(source=rdbms,
                                      list_origin=["mysql", "oracle", "postgres", "sqlserver"],
                                      list_dest=["msql", "orcl", "pg", "sqls"])

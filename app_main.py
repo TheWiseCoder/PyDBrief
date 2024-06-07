@@ -166,7 +166,7 @@ def handle_rdbms(rdbms: str) -> Response:
         pydb_validator.set_connection_params(errors=errors,
                                              scheme=scheme)
         if not errors:
-            reply = {"status": f"RDBMS '{rdbms}' Configuration updated"}
+            reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -284,8 +284,8 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           required=True)
-        foreign_columns: dict[str, Type] = pydb_validator.get_column_types(errors=errors,
-                                                                           scheme=scheme)
+        external_columns: dict[str, Type] = pydb_validator.get_column_types(errors=errors,
+                                                                            scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
             pydb_validator.assert_migration_steps(errors=errors,
                                                   scheme=scheme)
@@ -305,7 +305,7 @@ def migrate_data() -> Response:
                                           step_lobdata=step_lobdata,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
-                                          external_columns=foreign_columns,
+                                          external_columns=external_columns,
                                           logger=PYPOMES_LOGGER)
 
     # build the response
