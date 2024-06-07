@@ -1,7 +1,7 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
+from sqlalchemy import Engine, Inspector, inspect, MetaData, Table, Type
 from sqlalchemy.exc import SAWarning
 
 from migration.steps.pydb_migration import migrate_schema, migrate_tables, build_engine
@@ -36,6 +36,7 @@ def migrate_metadata(errors: list[str],
                      step_metadata: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
+                     foreign_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
     # iinitialize the return variable
@@ -154,6 +155,7 @@ def migrate_metadata(errors: list[str],
                                                     source_schema=source_schema,
                                                     data_tables=include_tables,
                                                     target_tables=sorted_tables,
+                                                    foreign_columns=foreign_columns,
                                                     logger=logger)
 
                             # proceed, if migrating the metadata was indicated

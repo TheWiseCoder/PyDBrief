@@ -1,4 +1,5 @@
 from logging import DEBUG, WARNING, Logger
+from pypomes_core import str_get_positional
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -6,6 +7,7 @@ from typing import Any, Final
 from . import pydb_common
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
+# noinspection PyUnresolvedReferences
 from sqlalchemy.types import (
     BigInteger as Ref_BigInteger,      # a type for bigger int integers
     Boolean as Ref_Boolean,            # a bool datatype
@@ -35,8 +37,9 @@ from sqlalchemy.types import (
 # or are potentially found within a subset of database backends.
 # Unlike the “generic” types, the SQL standard/multi-vendor types have no guarantee of working
 # on all backends, and will only work on those backends that explicitly support them by name.
+# noinspection PyUnresolvedReferences
 from sqlalchemy.types import (
-    # ARRAY as REF_ARRAY,                      # represents a SQL Array type
+    ARRAY as REF_ARRAY,                        # represents a SQL Array type
     BIGINT as REF_BIGINT,                      # the SQL BIGINT type
     BINARY as REF_BINARY,                      # the SQL BINARY type
     BLOB as REF_BLOB,                          # the SQL BLOB type
@@ -48,7 +51,7 @@ from sqlalchemy.types import (
     DECIMAL as REF_DECIMAL,                    # the SQL DECIMAL type
     DOUBLE as REF_DOUBLE,                      # the SQL DOUBLE type
     DOUBLE_PRECISION as REF_DOUBLE_PRECISION,  # the SQL DOUBLE PRECISION type
-    FLOAT as REF_FLOAT,                        # he SQL FLOAT type
+    FLOAT as REF_FLOAT,                        # the SQL FLOAT type
     INT as REF_INT,                            # alias of INTEGER
     INTEGER as REF_INTEGER,                    # the SQL INT or INTEGER type
     JSON as REF_JSON,                          # represents a SQL JSON type
@@ -70,8 +73,8 @@ from sqlalchemy.dialects.mysql import (
     BIGINT as MSQL_BIGINT,
     # BINARY as MSQL_BINARY,  # same as REF_BINARY
     BIT as MSQL_BIT,
-    # BLOB as MSQL_BLOB  # same as REF_BLOB
-    # BOOLEAN as MSQL_BOOLEAN,  @ same as REF_BOOLEAN
+    # BLOB as MSQL_BLOB,  # same as REF_BLOB
+    # BOOLEAN as MSQL_BOOLEAN,  # same as REF_BOOLEAN
     CHAR as MSQL_CHAR,  # synonym of NCHAR
     # DATE as MSQL_DATE,  # same as REF_DATE
     DATETIME as MSQL_DATETIME,
@@ -103,6 +106,7 @@ from sqlalchemy.dialects.mysql import (
     YEAR as MSQL_YEAR
 )
 
+# noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.oracle import (
     BFILE as ORCL_BFILE,
     BINARY_DOUBLE as ORCL_BINARY_DOUBLE,
@@ -119,10 +123,10 @@ from sqlalchemy.dialects.oracle import (
     NCLOB as ORCL_NCLOB,
     NUMBER as ORCL_NUMBER,
     # NVARCHAR as ORCL_NVARCHAR,   # same as REF_NVARCHAR
-    # NVARCHAR2 as REF_NVARCHAR2,  # same as REF_NVARCHAR
+    # NVARCHAR2 as REF_NVARCHAR
     RAW as ORCL_RAW,
     # REAL as ORCL_REAL,  # same as REF_REAF
-    # ROWID as ORCL_ROWID,
+    ROWID as ORCL_ROWID,
     TIMESTAMP as ORCL_TIMESTAMP,
     # VARCHAR as ORCL_VARCHAR,  # same as REF_VARCHAR
     VARCHAR2 as ORCL_VARCHAR2
@@ -192,7 +196,7 @@ from sqlalchemy.dialects.mssql import (
     DATETIMEOFFSET as REF_DATETIMEOFFSET,
     # DECIMAL as SQLS_DECIMAL,  # same as REF_DECIMAL, synonym of NUMERIC
     DOUBLE_PRECISION as SQLS_DOUBLE_PRECISION,
-    # FLOAT as SQLS_FLOAT,  # saem as REF_FLOAT, synonym of SQLS_REAL
+    # FLOAT as SQLS_FLOAT,  # same as REF_FLOAT, synonym of SQLS_REAL
     IMAGE as SQLS_IMAGE,
     # INTEGER as SQLS_INTEGER,  # same as REF_INTEGER
     JSON as SQLS_JSON,
@@ -217,8 +221,181 @@ from sqlalchemy.dialects.mssql import (
     XML as SQLS_XML
 )
 
-# to be filled at migration time
-NAT_EQUIVALENCES: list[tuple] = []
+COLUMN_TYPES: dict[str, Type] = {
+    # SQL types
+    "ref_array": REF_ARRAY,
+    "ref_bigint": REF_BIGINT,
+    "ref_binary": REF_BINARY,
+    "ref_blob": REF_BLOB,
+    "ref_boolean": REF_BOOLEAN,
+    "ref_char": REF_CHAR,
+    "ref_clob": REF_CLOB,
+    "ref_date": REF_DATE,
+    "ref_datetime": REF_DATETIME,
+    "ref_decimal": REF_DECIMAL,
+    "ref_double": REF_DOUBLE,
+    "ref_double_precision": REF_DOUBLE_PRECISION,
+    "ref_float": REF_FLOAT,
+    "ref_int": REF_INT,
+    "ref_integer": REF_INTEGER,
+    "ref_json": REF_JSON,
+    "ref_nchar": REF_NCHAR,
+    "ref_numeric": REF_NUMERIC,
+    "ref_nvarchar": REF_NVARCHAR,
+    "ref_real": REF_REAL,
+    "ref_smallint": REF_SMALLINT,
+    "ref_text": REF_TEXT,
+    "ref_time": REF_TIME,
+    "ref_timestamp": REF_TIMESTAMP,
+    "ref_uuid": REF_UUID,
+    "ref_varbinary": REF_VARBINARY,
+    "ref_varchar": REF_VARCHAR,
+
+    # MySQL types
+    "msql_bigint": MSQL_BIGINT,
+    "msql_binary": REF_BINARY,
+    "msql_bit": MSQL_BIT,
+    "msql_blob": REF_BLOB,
+    "msql_boolean": REF_BOOLEAN,
+    "msql_char": MSQL_CHAR,
+    "msql_date": REF_DATE,
+    "msql_datetime": MSQL_DATETIME,
+    "msql_decimal": MSQL_DECIMAL,
+    "msql_double": MSQL_DOUBLE,
+    "msql_enum": MSQL_ENUM,
+    "msql_float": MSQL_FLOAT,
+    "msql_integer": MSQL_INTEGER,
+    "msql_json": MSQL_JSON,
+    "msql_longblob": MSQL_LONGBLOB,
+    "msql_longtext": MSQL_LONGTEXT,
+    "msql_mediumblob": MSQL_MEDIUMBLOB,
+    "msql_mediumint": MSQL_MEDIUMINT,
+    "msql_mediumtext": MSQL_MEDIUMTEXT,
+    "msql_nchar": MSQL_NCHAR,
+    "msql_numeric": MSQL_NUMERIC,
+    "msql_nvarchar": MSQL_NVARCHAR,
+    "msql_real": MSQL_REAL,
+    "msql_set": MSQL_SET,
+    "msql_smallint": MSQL_SMALLINT,
+    "msql_text": MSQL_TEXT,
+    "msql_time": MSQL_TIME,
+    "msql_timestamp": MSQL_TIMESTAMP,
+    "msql_tinyblob": MSQL_TINYBLOB,
+    "msql_tinyint": MSQL_TINYINT,
+    "msql_tinytext": MSQL_TINYTEXT,
+    "msql_varbinary": REF_VARBINARY,
+    "msql_varchar": MSQL_VARCHAR,
+    "msql_year": MSQL_YEAR,
+
+    # Oracle types
+    "orcl_bfile": ORCL_BFILE,
+    "orcl_binary_double": ORCL_BINARY_DOUBLE,
+    "orcl_binary_float": ORCL_BINARY_FLOAT,
+    "orcl_blob": REF_BLOB,
+    "orcl_char": REF_CHAR,
+    "orcl_clob": REF_CLOB,
+    "orcl_date": ORCL_DATE,
+    "orcl_double_precision": REF_DOUBLE_PRECISION,
+    "orcl_float": ORCL_FLOAT,
+    "orcl_interval": ORCL_INTERVAL,
+    "orcl_long": ORCL_LONG,
+    "orcl_nchar": REF_NCHAR,
+    "orcl_nclob": ORCL_NCLOB,
+    "orcl_number": ORCL_NUMBER,
+    "orcl_nvarchar": REF_NVARCHAR,
+    "orcl_nvarchar2": REF_NVARCHAR,
+    "orcl_raw": ORCL_RAW,
+    "orcl_real": REF_REAL,
+    "orcl_rowid": ORCL_ROWID,
+    "orcl_timestamp": ORCL_TIMESTAMP,
+    "orcl_varchar": REF_VARCHAR,
+    "orcl_varchar2": ORCL_VARCHAR2,
+
+    # Postgres types
+    # "pg_array": PG_ARRAY,
+    "pg_bigint": REF_BIGINT,
+    "pg_bit": PG_BIT,
+    "pg_boolean": REF_BOOLEAN,
+    "pg_bytea": PG_BYTEA,
+    "pg_char": REF_CHAR,
+    "pg_cidr": PG_CIDR,
+    "pg_citext": PG_CITEXT,
+    "pg_date": REF_DATE,
+    "pg_datemultirange": REF_DATEMULTIRANGE,
+    "pg_daterange": REF_DATERANGE,
+    "pg_domain": PG_DOMAIN,
+    "pg_double_precision": REF_DOUBLE_PRECISION,
+    "pg_enum": PG_ENUM,
+    "pg_float": REF_FLOAT,
+    "pg_hstore": PG_HSTORE,
+    "pg_inet": PG_INET,
+    "pg_int4multirange": PG_INT4MULTIRANGE,
+    "pg_int4range": PG_INT4RANGE,
+    "pg_int8multirange": PG_INT8MULTIRANGE,
+    "pg_int8range": PG_INT8RANGE,
+    "pg_integer": REF_INTEGER,
+    "pg_interval": PG_INTERVAL,
+    "pg_json": PG_JSON,
+    "pg_jsonb": PG_JSONB,
+    "pg_jsonpath": PG_JSONPATH,
+    "pg_macaddr": PG_MACADDR,
+    "pg_macaddr8": PG_MACADDR8,
+    "pg_money": PG_MONEY,
+    "pg_numeric": REF_NUMERIC,
+    "pg_nummultirange": PG_NUMMULTIRANGE,
+    "pg_numrange": PG_NUMRANGE,
+    "pg_oid": PG_OID,
+    "pg_real": REF_REAL,
+    "pg_": PG_REGCLASS,
+    "pg_regconfig": PG_REGCONFIG,
+    "pg_smallint": REF_SMALLINT,
+    "pg_text": REF_TEXT,
+    "pg_time": PG_TIME,
+    "pg_timestamp": PG_TIMESTAMP,
+    "pg_tsmultirange": PG_TSMULTIRANGE,
+    "pg_tsquery": PG_TSQUERY,
+    "pg_tsrange": PG_TSRANGE,
+    "pg_tstzmultirange": PG_TSTZMULTIRANGE,
+    "pg_tstzrange": PG_TSTZRANGE,
+    "pg_tsvector": PG_TSVECTOR,
+    "pg_uuid": REF_UUID,
+    "pg_varchar": REF_VARCHAR,
+
+    # SQLServer types
+    "sqls_bigint": REF_BIGINT,
+    "sqls_binary": REF_BINARY,
+    "sqls_bit": SQLS_BIT,
+    "sqls_char": REF_CHAR,
+    "sqls_date": REF_DATE,
+    "sqls_datetime": REF_DATETIME,
+    "sqls_datetime2": SQLS_DATETIME2,
+    "sqls_datetimeoffset": REF_DATETIMEOFFSET,
+    "sqls_decimal": REF_DECIMAL,
+    "sqls_double_precision": SQLS_DOUBLE_PRECISION,
+    "sqls_float": REF_FLOAT,
+    "sqls_image": SQLS_IMAGE,
+    "sqls_integer": REF_INTEGER,
+    "sqls_json": SQLS_JSON,
+    "sqls_money": SQLS_MONEY,
+    "sqls_nchar": REF_NCHAR,
+    "sqls_ntext": SQLS_NTEXT,
+    "sqls_numeric": REF_NUMERIC,
+    "sqls_nvarchar": REF_NVARCHAR,
+    "sqls_real": SQLS_REAL,
+    "sqls_rowversion": SQLS_ROWVERSION,
+    "sqls_smalldatetime": SQLS_SMALLDATETIME,
+    "sqls_smallint": REF_SMALLINT,
+    "sqls_smallmoney": SQLS_SMALLMONEY,
+    "sqls_sql_variant": SQLS_SQL_VARIANT,
+    "sqls_text": REF_TEXT,
+    "sqls_time": SQLS_TIME,
+    "sqls_timestamp": SQLS_TIMESTAMP,
+    "sqls_tinyint": SQLS_TINYINT,
+    "sqls_uniqueidentifier": SQLS_UNIQUEIDENTIFIER,
+    "sqls_varbinary": SQLS_VARBINARY,
+    "sqls_varchar": REF_VARCHAR,
+    "sqls_xml": SQLS_XML
+}
 
 # Reference - MySQL - Oracle - PostgreSQL - SQLServer
 REF_EQUIVALENCES: Final[list[tuple]] = [
@@ -267,7 +444,7 @@ REF_EQUIVALENCES: Final[list[tuple]] = [
     (REF_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR)
 ]
 
-# MySQL - Oracle - PostgreSQL - SLServer
+# MySQL - Oracle - PostgreSQL - SLServer (TO BE COMPLETED)
 MSQL_EQUIVALENCES: Final[list[tuple]] = [
     (MSQL_CHAR, REF_CHAR, REF_CHAR, REF_CHAR),
     (MSQL_NUMERIC, ORCL_NUMBER, REF_NUMERIC, REF_NUMERIC),
@@ -297,13 +474,13 @@ ORCL_EQUIVALENCES: Final[list[tuple]] = [
     (ORCL_VARCHAR2, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR)
 ]
 
-# PostgreSQL - MySQL - Oracle - SQLServer
+# PostgreSQL - MySQL - Oracle - SQLServer (TO BE COMPLETED)
 PG_EQUIVALENCES: Final[list[tuple]] = [
     (PG_BYTEA, MSQL_LONGBLOB, REF_BLOB, SQLS_VARBINARY),
     (PG_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, SQLS_TIMESTAMP),
 ]
 
-# SQLServer - MySQL - Oracle - PostgreSQL
+# SQLServer - MySQL - Oracle - PostgreSQL (TO BE COMPLETED)
 SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (REF_DATETIME, REF_DATETIME, ORCL_DATE, PG_TIMESTAMP),
     (SQLS_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP),
@@ -329,12 +506,14 @@ LOBS: Final[list[str]] = [
     str(SQLS_VARBINARY())]
 
 
-def migrate_type(source_rdbms: str,
-                 target_rdbms: str,
-                 native_ordinal: int,
-                 reference_ordinal: int,
-                 source_column: Column,
-                 logger: Logger) -> Any:
+def migrate_column(source_rdbms: str,
+                   target_rdbms: str,
+                   native_ordinal: int,
+                   reference_ordinal: int,
+                   source_column: Column,
+                   nat_equivalences: list[tuple],
+                   foreign_columns: dict[str, Type],
+                   logger: Logger) -> Any:
 
     # declare the return variable
     result: Any
@@ -366,10 +545,16 @@ def migrate_type(source_rdbms: str,
         if fk_column.table.schema.lower() == source_column.table.schema.lower():
             # yes, force type conformity
             type_equiv = fk_column.type.__class__
+        else:
+            # no, use the externally provided type, if available
+            foreign_name: str = (f"{fk_column.table.schema.lower()}."
+                                 f"{fk_column.table.name}."
+                                 f"{fk_column.name}")
+            type_equiv = foreign_columns.get(foreign_name)
 
     # if necessary, inspect the native equivalences first
     if type_equiv is None:
-        for nat_equivalence in NAT_EQUIVALENCES:
+        for nat_equivalence in nat_equivalences:
             if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
@@ -434,19 +619,19 @@ def migrate_type(source_rdbms: str,
 
 
 def establish_equivalences(source_rdbms: str,
-                           target_rdbms: str) -> tuple[int, int]:
+                           target_rdbms: str) -> tuple[int, int, list[tuple]]:
 
     # make 'nat_equivalences' point to the appropriate list
-    global NAT_EQUIVALENCES
+    nat_equivalences: list[tuple] | None = None
     match source_rdbms:
         case "mysql":
-            NAT_EQUIVALENCES = MSQL_EQUIVALENCES
+            nat_equivalences = MSQL_EQUIVALENCES
         case "oracle":
-            NAT_EQUIVALENCES = ORCL_EQUIVALENCES
+            nat_equivalences = ORCL_EQUIVALENCES
         case "postgres":
-            NAT_EQUIVALENCES = PG_EQUIVALENCES
+            nat_equivalences = PG_EQUIVALENCES
         case "sqlserver":
-            NAT_EQUIVALENCES = SQLS_EQUIVALENCES
+            nat_equivalences = SQLS_EQUIVALENCES
 
     # establish the ordinals
     nat_ordinal: int | None = None
@@ -489,7 +674,15 @@ def establish_equivalences(source_rdbms: str,
                 case "postgres":
                     nat_ordinal = 3
 
-    return nat_ordinal, ref_ordinal
+    return nat_ordinal, ref_ordinal, nat_equivalences
+
+
+def get_column_type(rdbms: str,
+                    type_name: str) -> Type:
+    prefix: str = str_get_positional(source=rdbms,
+                                     list_origin=["mysql", "oracle", "postgres", "sqlserver"],
+                                     list_dest=["msql", "orcl", "pg", "sqls"])
+    return COLUMN_TYPES.get(f"{prefix}_{type_name.lower()}")
 
 
 def is_lob(col_type: str) -> bool:

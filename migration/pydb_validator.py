@@ -2,25 +2,26 @@ from pypomes_core import validate_format_error, validate_bool
 from pypomes_db import (
     db_setup, db_get_engines, db_get_params, db_assert_connection
 )
+from sqlalchemy.sql.elements import Type
 
-from . import pydb_common
+from . import pydb_common, pydb_types
 
 
-def validate_rdbms_dual(errors: list[str],
-                        scheme: dict) -> tuple[str, str]:
+def assert_rdbms_dual(errors: list[str],
+                      scheme: dict) -> tuple[str, str]:
 
     engines: list[str] = db_get_engines()
     source_rdbms: str | None = scheme.get("from-rdbms")
     if source_rdbms not in engines:
-        # 141: Invalid value {}: {}
-        errors.append(validate_format_error(141, source_rdbms,
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, source_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@from-rdbms"))
         source_rdbms = None
 
     target_rdbms: str | None = scheme.get("to-rdbms")
     if target_rdbms not in engines:
-        # 141: Invalid value {}: {}
-        errors.append(validate_format_error(141, target_rdbms,
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, target_rdbms,
                                             "unknown or unconfigured RDBMS engine", "@to-rdbms"))
         target_rdbms = None
 
@@ -121,6 +122,30 @@ def assert_migration_steps(errors: list[str],
         errors.append(validate_format_error(101, err_msg))
 
     return step_metadata, step_plaindata, step_lobdata
+
+
+def get_column_types(errors: list[str],
+                     scheme: dict) -> dict[str, Type]:
+
+    # initialize the return variable
+    result: dict[str, Type] | None = None
+
+    # process the foreign columns list
+    foreign_columns: dict[str, str] = scheme.get("foreign_columns")
+    if foreign_columns:
+        rdbms: str = scheme.get("to-rdbms")
+        result = {}
+        for column_name, type_name in foreign_columns.items():
+            column_type: Type = pydb_types.get_column_type(rdbms=rdbms,
+                                                           type_name=type_name)
+            if column_type:
+                result["column_name"] = column_type
+            else:
+                # 142: Invalid value {}: {}
+                errors.append(validate_format_error(142, type_name,
+                                                    f"not a valid column type for RDBMS {rdbms}"))
+
+    return result
 
 
 def get_migration_context(scheme: dict) -> dict:

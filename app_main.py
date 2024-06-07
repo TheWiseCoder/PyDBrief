@@ -7,6 +7,7 @@ from flask import (
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
+from sqlalchemy.sql.elements import Type
 from typing import Final
 
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
@@ -29,7 +30,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.9"
+APP_VERSION: Final[str] = "1.1.0"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -215,8 +216,8 @@ def handle_migration() -> Response:
                 reply = {"status": "Configuration updated"}
         case "POST":
             # validate the source and target RDBMS engines
-            pydb_validator.validate_rdbms_dual(errors=errors,
-                                               scheme=scheme)
+            pydb_validator.assert_rdbms_dual(errors=errors,
+                                             scheme=scheme)
             # errors ?
             if not errors:
                 # no, assert the migration parameters
@@ -263,8 +264,8 @@ def migrate_data() -> Response:
     scheme: dict = http_get_parameters(request=request)
 
     # validate the source and target RDBMS engines
-    (source_rdbms, target_rdbms) = pydb_validator.validate_rdbms_dual(errors=errors,
-                                                                      scheme=scheme)
+    (source_rdbms, target_rdbms) = pydb_validator.assert_rdbms_dual(errors=errors,
+                                                                    scheme=scheme)
 
     # assert whether migration is warranted
     if len(errors) == 0:
@@ -283,29 +284,29 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           required=True)
-        # proceed, if the schemas were obtained
-        if source_schema and target_schema:
-            # assert the migration stemps
-            step_metadata, step_plaindata, step_lobdata = \
-                pydb_validator.assert_migration_steps(errors=errors,
-                                                      scheme=scheme)
+        foreign_columns: dict[str, Type] = pydb_validator.get_column_types(errors=errors,
+                                                                           scheme=scheme)
+        step_metadata, step_plaindata, step_lobdata = \
+            pydb_validator.assert_migration_steps(errors=errors,
+                                                  scheme=scheme)
 
-            # errors ?
-            if not errors:
-                # no, retrieve the tables and migrate the data
-                include_tables: list[str] = str_as_list(scheme.get("include-tables"))
-                exclude_tables: list[str] = str_as_list(scheme.get("exclude-tables"))
-                reply = pydb_migrator.migrate(errors=errors,
-                                              source_rdbms=source_rdbms,
-                                              target_rdbms=target_rdbms,
-                                              source_schema=source_schema,
-                                              target_schema=target_schema,
-                                              step_metadata=step_metadata,
-                                              step_plaindata=step_plaindata,
-                                              step_lobdata=step_lobdata,
-                                              include_tables=include_tables,
-                                              exclude_tables=exclude_tables,
-                                              logger=PYPOMES_LOGGER)
+        # errors ?
+        if not errors:
+            # no, retrieve the tables and migrate the data
+            include_tables: list[str] = str_as_list(scheme.get("include-tables"))
+            exclude_tables: list[str] = str_as_list(scheme.get("exclude-tables"))
+            reply = pydb_migrator.migrate(errors=errors,
+                                          source_rdbms=source_rdbms,
+                                          target_rdbms=target_rdbms,
+                                          source_schema=source_schema,
+                                          target_schema=target_schema,
+                                          step_metadata=step_metadata,
+                                          step_plaindata=step_plaindata,
+                                          step_lobdata=step_lobdata,
+                                          include_tables=include_tables,
+                                          exclude_tables=exclude_tables,
+                                          foreign_columns=foreign_columns,
+                                          logger=PYPOMES_LOGGER)
 
     # build the response
     result: Response = _build_response(errors=errors,

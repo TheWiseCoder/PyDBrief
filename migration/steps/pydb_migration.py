@@ -3,7 +3,7 @@ from logging import Logger, WARNING, DEBUG
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_get_connection_string, db_execute
 from sqlalchemy import (
-    Engine, Table, TextClause, Column,
+    Engine, Table, TextClause, Column, Type,
     create_engine, inspect, text, Result, RootTransaction
 )
 from typing import Any
@@ -84,13 +84,14 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    data_tables: list[str],
                    target_tables: list[Table],
+                   foreign_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
     # iinitialize the return variable
     result: dict = {}
 
     # establish the migration equivalences
-    (native_ordinal, reference_ordinal) = \
+    (native_ordinal, reference_ordinal, nat_equivalences) = \
         pydb_types.establish_equivalences(source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms)
 
@@ -116,6 +117,8 @@ def migrate_tables(errors: list[str],
                                target_rdbms=target_rdbms,
                                native_ordinal=native_ordinal,
                                reference_ordinal=reference_ordinal,
+                               nat_equivalences=nat_equivalences,
+                               foreign_columns=foreign_columns,
                                logger=logger)
 
             # register the new column properties
@@ -188,17 +191,21 @@ def setup_target_table(errors: list[str],
                        target_rdbms: str,
                        native_ordinal: int,
                        reference_ordinal: int,
+                       nat_equivalences: list[tuple],
+                       foreign_columns: dict[str, Type],
                        logger: Logger) -> None:
 
     # set the target columns
     for table_column in table_columns:
         # convert the type
-        target_type: Any = pydb_types.migrate_type(source_rdbms=source_rdbms,
-                                                   target_rdbms=target_rdbms,
-                                                   native_ordinal=native_ordinal,
-                                                   reference_ordinal=reference_ordinal,
-                                                   source_column=table_column,
-                                                   logger=logger)
+        target_type: Any = pydb_types.migrate_column(source_rdbms=source_rdbms,
+                                                     target_rdbms=target_rdbms,
+                                                     native_ordinal=native_ordinal,
+                                                     reference_ordinal=reference_ordinal,
+                                                     source_column=table_column,
+                                                     nat_equivalences=nat_equivalences,
+                                                     foreign_columns=foreign_columns,
+                                                     logger=logger)
 
         # wrap-up the column migration
         try:

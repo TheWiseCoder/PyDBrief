@@ -3,6 +3,7 @@ from datetime import datetime
 from logging import INFO, Logger
 from pypomes_core import DATETIME_FORMAT_INV
 from pypomes_db import db_connect
+from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration import pydb_common
@@ -28,6 +29,7 @@ def migrate(errors: list[str],
             step_lobdata: bool,
             include_tables: list[str],
             exclude_tables: list[str],
+            foreign_columns: dict[str, Type],
             logger: Logger | None) -> dict:
 
     # log the start of the migration
@@ -45,7 +47,7 @@ def migrate(errors: list[str],
     if include_tables:
         msg += f", include tables {','.join(include_tables)}"
     if exclude_tables:
-        msg += f", exclude tables {','.join(include_tables)}"
+        msg += f", exclude tables {','.join(exclude_tables)}"
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg=msg)
@@ -62,6 +64,7 @@ def migrate(errors: list[str],
                                              step_metadata=step_metadata,
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
+                                             foreign_columns=foreign_columns,
                                              logger=logger)
     pydb_common.log(logger=logger,
                     level=INFO,
@@ -172,5 +175,7 @@ def migrate(errors: list[str],
         result["include-tables"]: include_tables
     if exclude_tables:
         result["exclude-tables"]: exclude_tables
+    if foreign_columns:
+        result["foreign_columns"] = foreign_columns
 
     return result
