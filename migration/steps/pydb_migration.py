@@ -1,6 +1,6 @@
 import sys
 from logging import Logger, WARNING, DEBUG
-from pypomes_core import exc_format, validate_format_error
+from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_get_connection_string, db_execute
 from sqlalchemy import (
     Engine, Table, TextClause, Column,
@@ -174,10 +174,10 @@ def build_engine(errors: list[str],
                         level=DEBUG,
                         msg=f"RDBMS {rdbms}, created migration engine")
     except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
+        exc_err = str_sanitize(exc_format(exc=e,
+                               exc_info=sys.exc_info()))
         # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, err_msg))
+        errors.append(validate_format_error(102, exc_err))
 
     return result
 
@@ -215,10 +215,10 @@ def setup_target_table(errors: list[str],
                table_column.lower() in ["sysdate", "systime"]:
                 table_column.default = None
         except Exception as e:
-            err_msg = exc_format(exc=e,
-                                 exc_info=sys.exc_info())
+            exc_err = str_sanitize(exc_format(exc=e,
+                                              exc_info=sys.exc_info()))
             # 102: Unexpected error: {}
-            errors.append(validate_format_error(102, err_msg))
+            errors.append(validate_format_error(102, exc_err))
 
 
 def engine_exc_stmt(errors: list[str],
@@ -238,9 +238,9 @@ def engine_exc_stmt(errors: list[str],
                             level=DEBUG,
                             msg=f"RDBMS {rdbms}, sucessfully executed {stmt}")
     except Exception as e:
-        err_msg = exc_format(exc=e,
-                             exc_info=sys.exc_info())
+        exc_err = str_sanitize(exc_format(exc=e,
+                                          exc_info=sys.exc_info()))
         # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, err_msg))
+        errors.append(validate_format_error(102, exc_err))
 
     return result

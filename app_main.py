@@ -29,7 +29,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.0.8"
+APP_VERSION: Final[str] = "1.0.9"
 
 # create the Flask application
 app: Flask = Flask(__name__)

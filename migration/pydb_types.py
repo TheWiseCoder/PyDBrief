@@ -1,6 +1,6 @@
 from logging import DEBUG, WARNING, Logger
 from sqlalchemy.sql.elements import Type
-from sqlalchemy.sql.schema import Column, ForeignKey
+from sqlalchemy.sql.schema import Column
 from typing import Any, Final
 
 from . import pydb_common
@@ -360,9 +360,12 @@ def migrate_type(source_rdbms: str,
 
     # is the column a foreign key ?
     if is_fk:
-        # yes, its type must conform to it
-        foreign_key: ForeignKey = list(source_column.foreign_keys)[0]
-        type_equiv = foreign_key.column.type.__class__
+        # yes, check whether it is safe to force type conformity
+        fk_column: Column = list(source_column.foreign_keys)[0].column
+        # is the fk in the same schema as the column it points to ?
+        if fk_column.table.schema.lower() == source_column.table.schema.lower():
+            # yes, force type conformity
+            type_equiv = fk_column.type.__class__
 
     # if necessary, inspect the native equivalences first
     if type_equiv is None:
@@ -371,7 +374,7 @@ def migrate_type(source_rdbms: str,
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
-    # if necessary, inspect the reference equivalences
+    # if necessary, inspect the reference equivalences next
     if type_equiv is None:
         for ref_equivalence in REF_EQUIVALENCES:
             if isinstance(col_type_obj, ref_equivalence[0]):

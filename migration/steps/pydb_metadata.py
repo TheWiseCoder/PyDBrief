@@ -1,6 +1,6 @@
 import sys
 from logging import Logger
-from pypomes_core import exc_format, validate_format_error
+from pypomes_core import exc_format, str_sanitize, validate_format_error
 from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
 from sqlalchemy.exc import SAWarning
 
@@ -75,8 +75,8 @@ def migrate_metadata(errors: list[str],
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
-                exc_err = exc_format(exc=e,
-                                     exc_info=sys.exc_info())
+                exc_err = str_sanitize(exc_format(exc=e,
+                                                  exc_info=sys.exc_info()))
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104, "schema-reflection", exc_err))
 
@@ -126,8 +126,8 @@ def migrate_metadata(errors: list[str],
                         #   probably, cross-dependencies between tables, caused by mutually dependent FKs
                         # - this error will cause the migration to be aborted,
                         #   as SQLAlchemy will not be able to compile the migrated schema
-                        exc_err = exc_format(exc=e,
-                                             exc_info=sys.exc_info())
+                        exc_err = str_sanitize(exc_format(exc=e,
+                                                          exc_info=sys.exc_info()))
                         # 104: The operation {} returned the error {}
                         errors.append(validate_format_error(104, "schema-migration", exc_err))
 
@@ -168,8 +168,8 @@ def migrate_metadata(errors: list[str],
                                                                checkfirst=False)
                                 except Exception as e:
                                     # unable to fully compile the schema - the migration is now doomed
-                                    exc_err = exc_format(exc=e,
-                                                         exc_info=sys.exc_info())
+                                    exc_err = str_sanitize(exc_format(exc=e,
+                                                                      exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104, "schema-construction", exc_err))
                         else:

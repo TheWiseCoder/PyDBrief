@@ -16,7 +16,7 @@ def migrate_plain(errors: list[str],
                   migrated_tables: dict,
                   logger: Logger | None) -> int:
 
-    # initialize the return variavble
+    # initialize the return variable
     result: int = 0
 
     # traverse list of migrated tables to copy the plain data
@@ -49,8 +49,8 @@ def migrate_plain(errors: list[str],
             status: str = "full"
         table_data["plain-status"] = status
         table_data["plain-count"] = count
-        logger.debug(msg=f"Migrated tuples from {source_rdbms}.{source_table} "
-                         f"to {target_rdbms}.{target_table}, status {status}")
+        logger.debug(msg=(f"Migrated tuples from {source_rdbms}.{source_table} "
+                          f"to {target_rdbms}.{target_table}, status {status}"))
         result += count
 
     return result

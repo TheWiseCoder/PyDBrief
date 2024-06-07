@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.0.8
+  version: 1.0.9
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -286,8 +286,8 @@ paths:
     get:
       tags:
         - registry
-      summary: Retrieve the current PyDBrief's version
-      description: Retrieve the version of the PyDBrief currently running.
+      summary: Retrieve the current versions of PyDBrief and accompanying PyPomes modules
+      description: Retrieve the version of PyDBrief and accompanying PyPomes modules currently running.
       operationId: get-version
       responses:
         '200':
@@ -297,9 +297,24 @@ paths:
               schema:
                 type: object
                 properties:
-                  version:
+                  PyDBrief:
                     type: string
-                    example: 1.0.0_RC10
+                    example: 1.0.8
+                  PyPomes-Core:
+                    type: string
+                    example: 1.1.8
+                  PyPomes-DB:
+                    type: string
+                    example: 0.9.9
+                  PyPomes-HTTP:
+                    type: string
+                    example: 0.2.3
+                  PyPomes-Logging:
+                    type: string
+                    example: 0.2.0
+                  PyPomes-Security:
+                    type: string
+                    example: 0.1.4
 components:
   parameters:
     RdbmsParam:
