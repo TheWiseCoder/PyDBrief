@@ -176,6 +176,7 @@ def migrate(errors: list[str],
     if exclude_tables:
         result["exclude-tables"]: exclude_tables
     if foreign_columns:
-        result["foreign_columns"] = foreign_columns
+        result["foreign_columns"] = {col_name: str(col_type)
+                                     for (col_name, col_type) in foreign_columns.items()}
 
     return result
