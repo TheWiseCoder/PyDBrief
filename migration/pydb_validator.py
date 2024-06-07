@@ -131,7 +131,7 @@ def get_column_types(errors: list[str],
     result: dict[str, Type] | None = None
 
     # process the foreign columns list
-    foreign_columns: list[dict[str, str]] = scheme.get("foreign-columns")
+    foreign_columns: list[dict[str, str]] = scheme.get("external-columns")
     if foreign_columns:
         rdbms: str = scheme.get("to-rdbms")
         result = {}
