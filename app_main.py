@@ -166,7 +166,7 @@ def handle_rdbms(rdbms: str) -> Response:
         pydb_validator.set_connection_params(errors=errors,
                                              scheme=scheme)
         if not errors:
-            reply = {"status": "RDBMS Configuration updated"}
+            reply = {"status": f"RDBMS '{rdbms}' Configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,

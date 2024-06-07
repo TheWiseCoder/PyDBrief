@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.0.9"
+    "version": "1.1.0"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -272,6 +272,17 @@
         "summary": "Migrate the data",
         "description": "Migrate the data from the source to the target RDBMS and schema.",
         "operationId": "migrate-schema",
+        "requestBody": {
+          "description": "Optional list of foreign columns",
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForeignColumns"
+              }
+            }
+          }
+        },
         "parameters": [
           {
             "$ref": "#/components/parameters/FromRdbmsParam"
@@ -705,6 +716,27 @@
       }
     },
     "schemas": {
+      "ForeignColumns": {
+        "type": "object",
+        "properties": {
+          "foreign-columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "column-name": {
+                  "type": "string",
+                  "example": "other_schema.the_table.the_column"
+                },
+                "column-type": {
+                  "type": "string",
+                  "example": "varchar"
+                }
+              }
+            }
+          }
+        }
+      },
       "MigrationConfiguration": {
         "type": "object",
         "properties": {

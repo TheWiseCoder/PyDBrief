@@ -169,7 +169,7 @@ paths:
       description:  Migrate the data from the source to the target RDBMS and schema.
       operationId: migrate-schema
       requestBody:
-        description: List of foreign columns
+        description: Optional list of foreign columns
         required: false
         content:
           application/json:
@@ -461,15 +461,17 @@ components:
     ForeignColumns:
       type: object
       properties:
-        foreign-keys:
-          type: object
-          properties:
-            column-name:
-              type: string
-              example: other_schema.the_table.the_column
-            column-type:
-              type: string
-              example: varchar
+        foreign-columns:
+          type: array
+          items:
+            type: object
+            properties:
+              column-name:
+                type: string
+                example: other_schema.the_table.the_column
+              column-type:
+                type: string
+                example: varchar
     MigrationConfiguration:
       type: object
       properties:

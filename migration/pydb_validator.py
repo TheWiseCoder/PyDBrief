@@ -131,15 +131,16 @@ def get_column_types(errors: list[str],
     result: dict[str, Type] | None = None
 
     # process the foreign columns list
-    foreign_columns: dict[str, str] = scheme.get("foreign_columns")
+    foreign_columns: list[dict[str, str]] = scheme.get("foreign-columns")
     if foreign_columns:
         rdbms: str = scheme.get("to-rdbms")
         result = {}
-        for column_name, type_name in foreign_columns.items():
+        for foreign_column in foreign_columns:
+            type_name: str = foreign_column.get("column-type")
             column_type: Type = pydb_types.get_column_type(rdbms=rdbms,
                                                            type_name=type_name)
             if column_type:
-                result["column_name"] = column_type
+                result[foreign_column.get("column-name")] = column_type
             else:
                 # 142: Invalid value {}: {}
                 errors.append(validate_format_error(142, type_name,
