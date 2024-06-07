@@ -137,8 +137,8 @@ def get_column_types(errors: list[str],
         result = {}
         for foreign_column in foreign_columns:
             type_name: str = foreign_column.get("column-type")
-            column_type: Type = pydb_types.get_column_type(rdbms=rdbms,
-                                                           type_name=type_name)
+            column_type: Type = pydb_types.name_to_type(rdbms=rdbms,
+                                                        type_name=type_name)
             if column_type:
                 result[foreign_column.get("column-name")] = column_type
             else:

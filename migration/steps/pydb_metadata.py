@@ -37,7 +37,7 @@ def migrate_metadata(errors: list[str],
                      step_metadata: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
-                     foreign_columns: dict[str, Type],
+                     external_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
     # iinitialize the return variable
@@ -156,7 +156,7 @@ def migrate_metadata(errors: list[str],
                                                     source_schema=source_schema,
                                                     data_tables=include_tables,
                                                     target_tables=sorted_tables,
-                                                    foreign_columns=foreign_columns,
+                                                    external_columns=external_columns,
                                                     logger=logger)
 
                             # proceed, if migrating the metadata was indicated

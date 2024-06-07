@@ -30,7 +30,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.1.0"
+APP_VERSION: Final[str] = "1.1.1"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -305,7 +305,7 @@ def migrate_data() -> Response:
                                           step_lobdata=step_lobdata,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
-                                          foreign_columns=foreign_columns,
+                                          external_columns=foreign_columns,
                                           logger=PYPOMES_LOGGER)
 
     # build the response

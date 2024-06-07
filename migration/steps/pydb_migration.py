@@ -85,7 +85,7 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    data_tables: list[str],
                    target_tables: list[Table],
-                   foreign_columns: dict[str, Type],
+                   external_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
     # iinitialize the return variable
@@ -119,7 +119,7 @@ def migrate_tables(errors: list[str],
                                native_ordinal=native_ordinal,
                                reference_ordinal=reference_ordinal,
                                nat_equivalences=nat_equivalences,
-                               foreign_columns=foreign_columns,
+                               external_columns=external_columns,
                                logger=logger)
 
             # register the new column properties
@@ -193,7 +193,7 @@ def setup_target_table(errors: list[str],
                        native_ordinal: int,
                        reference_ordinal: int,
                        nat_equivalences: list[tuple],
-                       foreign_columns: dict[str, Type],
+                       external_columns: dict[str, Type],
                        logger: Logger) -> None:
 
     # set the target columns
@@ -205,7 +205,7 @@ def setup_target_table(errors: list[str],
                                                      reference_ordinal=reference_ordinal,
                                                      source_column=table_column,
                                                      nat_equivalences=nat_equivalences,
-                                                     foreign_columns=foreign_columns,
+                                                     external_columns=external_columns,
                                                      logger=logger)
 
         # wrap-up the column migration

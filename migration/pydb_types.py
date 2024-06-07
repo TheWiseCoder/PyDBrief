@@ -512,7 +512,7 @@ def migrate_column(source_rdbms: str,
                    reference_ordinal: int,
                    source_column: Column,
                    nat_equivalences: list[tuple],
-                   foreign_columns: dict[str, Type],
+                   external_columns: dict[str, Type],
                    logger: Logger) -> Any:
 
     # declare the return variable
@@ -545,12 +545,12 @@ def migrate_column(source_rdbms: str,
         if fk_column.table.schema.lower() == source_column.table.schema.lower():
             # yes, force type conformity
             type_equiv = fk_column.type.__class__
-        elif foreign_columns:
+        elif external_columns:
             # no, use the externally provided type, if available
-            foreign_name: str = (f"{fk_column.table.schema.lower()}."
-                                 f"{fk_column.table.name}."
-                                 f"{fk_column.name}")
-            type_equiv = foreign_columns.get(foreign_name)
+            external_name: str = (f"{fk_column.table.schema.lower()}."
+                                  f"{fk_column.table.name}."
+                                  f"{fk_column.name}")
+            type_equiv = external_columns.get(external_name)
 
     # if necessary, inspect the native equivalences first
     if type_equiv is None:
@@ -677,8 +677,8 @@ def establish_equivalences(source_rdbms: str,
     return nat_ordinal, ref_ordinal, nat_equivalences
 
 
-def get_column_type(rdbms: str,
-                    type_name: str) -> Type:
+def name_to_type(rdbms: str,
+                 type_name: str) -> Type:
     prefix: str = str_get_positional(source=rdbms,
                                      list_origin=["mysql", "oracle", "postgres", "sqlserver"],
                                      list_dest=["msql", "orcl", "pg", "sqls"])
