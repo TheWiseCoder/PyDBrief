@@ -545,7 +545,7 @@ def migrate_column(source_rdbms: str,
         if fk_column.table.schema.lower() == source_column.table.schema.lower():
             # yes, force type conformity
             type_equiv = fk_column.type.__class__
-        else:
+        elif foreign_columns:
             # no, use the externally provided type, if available
             foreign_name: str = (f"{fk_column.table.schema.lower()}."
                                  f"{fk_column.table.name}."
