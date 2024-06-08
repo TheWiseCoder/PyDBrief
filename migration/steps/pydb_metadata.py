@@ -5,7 +5,8 @@ from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
-from migration.steps.pydb_migration import migrate_schema, migrate_tables, build_engine
+from .pydb_migration import migrate_schema, migrate_tables
+from .pydb_engine import build_engine
 
 
 # structure of the migration data returned:

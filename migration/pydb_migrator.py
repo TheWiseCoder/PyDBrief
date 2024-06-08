@@ -176,7 +176,7 @@ def migrate(errors: list[str],
     if exclude_tables:
         result["exclude-tables"]: exclude_tables
     if external_columns:
-        result["external-columns"] = {col_name: str(col_type)[str(col_type).rfind(".")+1:-2]
+        result["external-columns"] = {col_name: str(col_type())
                                       for (col_name, col_type) in external_columns.items()}
 
     return result

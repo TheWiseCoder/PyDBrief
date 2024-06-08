@@ -1,15 +1,13 @@
 import sys
-from logging import Logger, WARNING, DEBUG
+from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_get_connection_string, db_execute
-from sqlalchemy import (
-    Engine, Table, TextClause, Column,
-    create_engine, inspect, text, Result, RootTransaction
-)
+from pypomes_db import db_execute
+from sqlalchemy import Engine, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration import pydb_validator, pydb_types, pydb_common
+from .pydb_engine import engine_exc_stmt
 
 
 def migrate_schema(errors: list[str],
@@ -106,23 +104,35 @@ def migrate_tables(errors: list[str],
             table_columns: dict = {}
             # noinspection PyProtectedMember
             columns: list[Column] = target_table.c._all_columns
+            # register the source column types
             for column in columns:
                 table_columns[column.name] = {
                     "source-type": str(column.type)
                 }
 
             # migrate the columns
-            setup_target_table(errors=errors,
-                               table_columns=columns,
-                               source_rdbms=source_rdbms,
-                               target_rdbms=target_rdbms,
-                               native_ordinal=native_ordinal,
-                               reference_ordinal=reference_ordinal,
-                               nat_equivalences=nat_equivalences,
-                               external_columns=external_columns,
-                               logger=logger)
+            setup_table_columns(errors=errors,
+                                table_columns=columns,
+                                source_rdbms=source_rdbms,
+                                target_rdbms=target_rdbms,
+                                native_ordinal=native_ordinal,
+                                reference_ordinal=reference_ordinal,
+                                nat_equivalences=nat_equivalences,
+                                external_columns=external_columns,
+                                logger=logger)
 
-            # register the new column properties
+            # make sure table does not have duplicate constraints
+            constraint_names: list[str] = []
+            excess_constraints: list[Constraint] = []
+            for constraint in target_table.constraints:
+                if constraint.name in constraint_names:
+                    excess_constraints.append(constraint)
+                else:
+                    constraint_names.append(constraint.name)
+            for excess_constraint in excess_constraints:
+                target_table.constraints.remove(excess_constraint)
+
+            # register the target column properties
             for column in columns:
                 features: list[str] = []
                 if hasattr(column, "identity") and column.identity:
@@ -161,55 +171,28 @@ def migrate_tables(errors: list[str],
     return result
 
 
-def build_engine(errors: list[str],
-                 rdbms: str,
-                 logger: Logger) -> Engine:
-
-    # initialize the return variable
-    result: Engine | None = None
-
-    # obtain the connection string
-    conn_str: str = db_get_connection_string(engine=rdbms)
-
-    # build the engine
-    try:
-        result = create_engine(url=conn_str)
-        pydb_common.log(logger=logger,
-                        level=DEBUG,
-                        msg=f"RDBMS {rdbms}, created migration engine")
-    except Exception as e:
-        exc_err = str_sanitize(exc_format(exc=e,
-                               exc_info=sys.exc_info()))
-        # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, exc_err))
-
-    return result
-
-
-def setup_target_table(errors: list[str],
-                       table_columns: list[Column],
-                       source_rdbms: str,
-                       target_rdbms: str,
-                       native_ordinal: int,
-                       reference_ordinal: int,
-                       nat_equivalences: list[tuple],
-                       external_columns: dict[str, Type],
-                       logger: Logger) -> None:
+def setup_table_columns(errors: list[str],
+                        table_columns: list[Column],
+                        source_rdbms: str,
+                        target_rdbms: str,
+                        native_ordinal: int,
+                        reference_ordinal: int,
+                        nat_equivalences: list[tuple],
+                        external_columns: dict[str, Type],
+                        logger: Logger) -> None:
 
     # set the target columns
     for table_column in table_columns:
-        # convert the type
-        target_type: Any = pydb_types.migrate_column(source_rdbms=source_rdbms,
-                                                     target_rdbms=target_rdbms,
-                                                     native_ordinal=native_ordinal,
-                                                     reference_ordinal=reference_ordinal,
-                                                     source_column=table_column,
-                                                     nat_equivalences=nat_equivalences,
-                                                     external_columns=external_columns,
-                                                     logger=logger)
-
-        # wrap-up the column migration
         try:
+            # convert the type
+            target_type: Any = pydb_types.migrate_column(source_rdbms=source_rdbms,
+                                                         target_rdbms=target_rdbms,
+                                                         native_ordinal=native_ordinal,
+                                                         reference_ordinal=reference_ordinal,
+                                                         source_column=table_column,
+                                                         nat_equivalences=nat_equivalences,
+                                                         external_columns=external_columns,
+                                                         logger=logger)
             # set column's new type
             table_column.type = target_type
 
@@ -229,26 +212,3 @@ def setup_target_table(errors: list[str],
             errors.append(validate_format_error(102, exc_err))
 
 
-def engine_exc_stmt(errors: list[str],
-                    rdbms: str,
-                    engine: Engine,
-                    stmt: str,
-                    logger: Logger) -> Result:
-
-    result: Result | None = None
-    exc_stmt: TextClause = text(stmt)
-    try:
-        with engine.connect() as conn:
-            trans: RootTransaction = conn.begin()
-            result = conn.execute(statement=exc_stmt)
-            trans.commit()
-            pydb_common.log(logger=logger,
-                            level=DEBUG,
-                            msg=f"RDBMS {rdbms}, sucessfully executed {stmt}")
-    except Exception as e:
-        exc_err = str_sanitize(exc_format(exc=e,
-                                          exc_info=sys.exc_info()))
-        # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, exc_err))
-
-    return result

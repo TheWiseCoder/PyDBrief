@@ -1,6 +1,5 @@
 from logging import Logger
 from typing import Any
-
 from pypomes_db import db_migrate_data
 
 from migration import pydb_types, pydb_common

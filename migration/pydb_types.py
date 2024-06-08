@@ -30,7 +30,7 @@ from sqlalchemy.types import (
     Time as Ref_Time,                  # a type for datetime.time() objects
     # Unicode as Ref_Unicode,          # a variable length Unicode string type
     # UnicodeText as Ref_UnicodeText,  # an unbounded-length Unicode string type
-    Uuid as Ref_Uuid                   # represents a database agnostic UUID datatype
+    Uuid as Ref_Uuid,                  # represents a database agnostic UUID datatype
 )
 
 # This category of types refers to types that are either part of the SQL standard,
@@ -65,7 +65,7 @@ from sqlalchemy.types import (
     TIMESTAMP as REF_TIMESTAMP,                # the SQL TIMESTAMP type
     UUID as REF_UUID,                          # represents the SQL UUID type
     VARBINARY as REF_VARBINARY,                # the SQL VARBINARY type
-    VARCHAR as REF_VARCHAR                     # the SQL VARCHAR type
+    VARCHAR as REF_VARCHAR,                    # the SQL VARCHAR type
 )
 
 # noinspection PyUnresolvedReferences
@@ -103,7 +103,7 @@ from sqlalchemy.dialects.mysql import (
     TINYTEXT as MSQL_TINYTEXT,
     # VARBINARY as MSQL_VARBINARY,  # same as REF_VARBINARY
     VARCHAR as MSQL_VARCHAR,  # synonym of NVARCHAR
-    YEAR as MSQL_YEAR
+    YEAR as MSQL_YEAR,
 )
 
 # noinspection PyUnresolvedReferences
@@ -123,18 +123,18 @@ from sqlalchemy.dialects.oracle import (
     NCLOB as ORCL_NCLOB,
     NUMBER as ORCL_NUMBER,
     # NVARCHAR as ORCL_NVARCHAR,   # same as REF_NVARCHAR
-    # NVARCHAR2 as REF_NVARCHAR
+    # NVARCHAR2 as REF_NVARCHAR,
     RAW as ORCL_RAW,
     # REAL as ORCL_REAL,  # same as REF_REAF
     ROWID as ORCL_ROWID,
     TIMESTAMP as ORCL_TIMESTAMP,
     # VARCHAR as ORCL_VARCHAR,  # same as REF_VARCHAR
-    VARCHAR2 as ORCL_VARCHAR2
+    VARCHAR2 as ORCL_VARCHAR2,
 )
 
 # noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.postgresql import (
-    # ARRAY as PG_ARRAY,
+    ARRAY as PG_ARRAY,
     # BIGINT as PG_BIGINT,  # same as REF_BIGINT
     BIT as PG_BIT,
     # BOOLEAN as PG_BOOLEAN,  # same as REF_BOOLEAN
@@ -181,7 +181,7 @@ from sqlalchemy.dialects.postgresql import (
     TSTZRANGE as PG_TSTZRANGE,
     TSVECTOR as PG_TSVECTOR,
     # UUID as PG_UUID,  # same as REF_UUID
-    # VARCHAR as PG_VARCHAR  # same as REF_VARCHAR
+    # VARCHAR as PG_VARCHAR,  # same as REF_VARCHAR
 )
 
 # noinspection PyUnresolvedReferences
@@ -218,7 +218,7 @@ from sqlalchemy.dialects.mssql import (
     UNIQUEIDENTIFIER as SQLS_UNIQUEIDENTIFIER,
     VARBINARY as SQLS_VARBINARY,
     # VARCHAR as SQLS_VARCHAR,  # same as REF_VARCHAR
-    XML as SQLS_XML
+    XML as SQLS_XML,
 )
 
 COLUMN_TYPES: dict[str, Type] = {
@@ -312,7 +312,7 @@ COLUMN_TYPES: dict[str, Type] = {
     "orcl_varchar2": ORCL_VARCHAR2,
 
     # Postgres types
-    # "pg_array": PG_ARRAY,
+    "pg_array": PG_ARRAY,
     "pg_bigint": REF_BIGINT,
     "pg_bit": PG_BIT,
     "pg_boolean": REF_BOOLEAN,
@@ -394,7 +394,7 @@ COLUMN_TYPES: dict[str, Type] = {
     "sqls_uniqueidentifier": SQLS_UNIQUEIDENTIFIER,
     "sqls_varbinary": SQLS_VARBINARY,
     "sqls_varchar": REF_VARCHAR,
-    "sqls_xml": SQLS_XML
+    "sqls_xml": SQLS_XML,
 }
 
 # Reference - MySQL - Oracle - PostgreSQL - SQLServer
@@ -441,7 +441,7 @@ REF_EQUIVALENCES: Final[list[tuple]] = [
     (REF_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, REF_DATETIME),
     (REF_UUID, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER),
     (REF_VARBINARY, REF_VARBINARY, REF_BLOB, PG_BYTEA, SQLS_VARBINARY),
-    (REF_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR)
+    (REF_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
 ]
 
 # MySQL - Oracle - PostgreSQL - SLServer (TO BE COMPLETED)
@@ -471,7 +471,7 @@ ORCL_EQUIVALENCES: Final[list[tuple]] = [
     (ORCL_NUMBER, MSQL_NUMERIC, REF_NUMERIC, REF_NUMERIC),
     (ORCL_RAW, REF_VARBINARY, PG_BYTEA, SQLS_VARBINARY),
     (ORCL_TIMESTAMP, REF_DATETIME, PG_TIMESTAMP, REF_DATETIME),
-    (ORCL_VARCHAR2, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR)
+    (ORCL_VARCHAR2, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR),
 ]
 
 # PostgreSQL - MySQL - Oracle - SQLServer (TO BE COMPLETED)
@@ -503,7 +503,8 @@ LOBS: Final[list[str]] = [
     str(REF_TEXT()),
     str(REF_VARBINARY()),
     str(SQLS_IMAGE()),
-    str(SQLS_VARBINARY())]
+    str(SQLS_VARBINARY()),
+]
 
 
 def migrate_column(source_rdbms: str,
@@ -524,13 +525,14 @@ def migrate_column(source_rdbms: str,
     col_type_obj: Any = source_column.type
 
     is_pk: bool = (hasattr(source_column, "primary_key") and
-                   source_column.primary_key)
+                   source_column.primary_key) or False
     is_fk: bool = (hasattr(source_column, "foreign_keys") and
                    isinstance(source_column.foreign_keys, set) and
                    len(source_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(source_column, "identity") and
-                         source_column.identity)
-    is_number: bool = col_type_class in [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC]
+                         source_column.identity) or False
+    is_number: bool = (col_type_class in
+                       [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC])
     is_number_int: bool = (is_number and
                            hasattr(col_type_obj, "asdecimal") and
                            not col_type_obj.asdecimal)
@@ -566,7 +568,9 @@ def migrate_column(source_rdbms: str,
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
-    col_name: str = f"{source_rdbms}.{source_column.table.name}.{source_column.name}"
+    col_name: str = (f"{source_rdbms}."
+                     f"{source_column.table.name}."
+                     f"{source_column.name}")
     msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {col_name}"
     if type_equiv is None:
         pydb_common.log(logger=logger,
