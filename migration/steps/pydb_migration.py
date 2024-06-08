@@ -81,7 +81,6 @@ def migrate_tables(errors: list[str],
                    source_rdbms: str,
                    target_rdbms: str,
                    source_schema: str,
-                   data_tables: list[str],
                    target_tables: list[Table],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
@@ -97,82 +96,77 @@ def migrate_tables(errors: list[str],
     # setup target tables
     for target_table in target_tables:
 
-        # proceed, if 'target_table' is a migration candidate
-        if not data_tables or target_table in data_tables:
-
-            # build the list of migrated columns for this table
-            table_columns: dict = {}
-            # noinspection PyProtectedMember
-            columns: list[Column] = target_table.c._all_columns
-            # register the source column types
-            for column in columns:
-                table_columns[column.name] = {
-                    "source-type": str(column.type)
-                }
-
-            # migrate the columns
-            setup_table_columns(errors=errors,
-                                table_columns=columns,
-                                source_rdbms=source_rdbms,
-                                target_rdbms=target_rdbms,
-                                native_ordinal=native_ordinal,
-                                reference_ordinal=reference_ordinal,
-                                nat_equivalences=nat_equivalences,
-                                external_columns=external_columns,
-                                logger=logger)
-
-            # make sure table does not have duplicate constraints
-            constraint_names: list[str] = []
-            excess_constraints: list[Constraint] = []
-            for constraint in target_table.constraints:
-                if constraint.name in constraint_names:
-                    excess_constraints.append(constraint)
-                else:
-                    constraint_names.append(constraint.name)
-            for excess_constraint in excess_constraints:
-                target_table.constraints.remove(excess_constraint)
-
-            # register the target column properties
-            for column in columns:
-                features: list[str] = []
-                if hasattr(column, "identity") and column.identity:
-                    features.append("identity")
-                if hasattr(column, "primary_key") and column.primary_key:
-                    features.append("primary key")
-                if (hasattr(column, "foreign_keys") and
-                   isinstance(column.foreign_keys, set) and
-                   len(column.foreign_keys) > 0):
-                    features.append("foreign key")
-                if hasattr(column, "unique") and column.unique:
-                    features.append("unique")
-                if hasattr(column, "nullable") and column.nullable:
-                    features.append("nullable")
-                if features:
-                    table_columns[column.name]["features"] = features
-                table_columns[column.name]["target-type"] = str(column.type)
-
-            # register the migrated table
-            migrated_table: dict = {
-                "columns": table_columns,
-                "plain-count": 0,
-                "plain-status": "none",
-                "lob-count": 0,
-                "lob-status": "none"
+        # build the list of migrated columns for this table
+        table_columns: dict = {}
+        # noinspection PyProtectedMember
+        columns: list[Column] = target_table.c._all_columns
+        # register the source column types
+        for column in columns:
+            table_columns[column.name] = {
+                "source-type": str(column.type)
             }
-            result[target_table.name] = migrated_table
+        # migrate the columns
+        setup_table_columns(errors=errors,
+                            table_columns=columns,
+                            source_rdbms=source_rdbms,
+                            target_rdbms=target_rdbms,
+                            native_ordinal=native_ordinal,
+                            reference_ordinal=reference_ordinal,
+                            nat_equivalences=nat_equivalences,
+                            external_columns=external_columns,
+                            logger=logger)
+        # make sure table does not have duplicate constraints
+        constraint_names: list[str] = []
+        excess_constraints: list[Constraint] = []
+        for constraint in target_table.constraints:
+            if constraint.name in constraint_names:
+                excess_constraints.append(constraint)
+            else:
+                constraint_names.append(constraint.name)
+        for excess_constraint in excess_constraints:
+            target_table.constraints.remove(excess_constraint)
 
-            # issue warning if no primary key was found for table
-            no_pk: bool = True
-            for column_data in table_columns.values():
-                if "primary key" in (column_data.get("features") or []):
-                    no_pk = False
-                    break
-            if no_pk:
-                pydb_common.log(logger=logger,
-                                level=WARNING,
-                                msg=(f"RDBMS {source_rdbms}, "
-                                     f"table {source_schema}.{target_table}, "
-                                     f"no primary key column found"))
+        # register the target column properties
+        for column in columns:
+            features: list[str] = []
+            if hasattr(column, "identity") and column.identity:
+                features.append("identity")
+            if hasattr(column, "primary_key") and column.primary_key:
+                features.append("primary key")
+            if (hasattr(column, "foreign_keys") and
+               isinstance(column.foreign_keys, set) and
+               len(column.foreign_keys) > 0):
+                features.append("foreign key")
+            if hasattr(column, "unique") and column.unique:
+                features.append("unique")
+            if hasattr(column, "nullable") and column.nullable:
+                features.append("nullable")
+            if features:
+                table_columns[column.name]["features"] = features
+            table_columns[column.name]["target-type"] = str(column.type)
+
+        # register the migrated table
+        migrated_table: dict = {
+            "columns": table_columns,
+            "plain-count": 0,
+            "plain-status": "none",
+            "lob-count": 0,
+            "lob-status": "none"
+        }
+        result[target_table.name] = migrated_table
+
+        # issue warning if no primary key was found for table
+        no_pk: bool = True
+        for column_data in table_columns.values():
+            if "primary key" in (column_data.get("features") or []):
+                no_pk = False
+                break
+        if no_pk:
+            pydb_common.log(logger=logger,
+                            level=WARNING,
+                            msg=(f"RDBMS {source_rdbms}, "
+                                 f"table {source_schema}.{target_table}, "
+                                 f"no primary key column found"))
     return result
 
 

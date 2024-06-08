@@ -73,7 +73,8 @@ def migrate_metadata(errors: list[str],
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
                 source_metadata.reflect(bind=source_engine,
-                                        schema=from_schema)
+                                        schema=from_schema,
+                                        views=True)
             except SAWarning as e:
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
@@ -97,10 +98,11 @@ def migrate_metadata(errors: list[str],
                         include_tables.remove(table)
                     elif table in exclude_tables:
                         exclude_tables.remove(table)
-                    elif include and source_table.schema == from_schema:
+                    elif source_table.schema == from_schema and \
+                         (include or source_table.info.get("is_view", False)):
                         target_tables.append(source_table)
 
-                # proceed, if all tables in include and exclude lists were found
+                # proceed, if all tables in include and exclude lists were accounted for
                 if include_tables or exclude_tables:
                     # tables not found, report them
                     bad_tables: str = ",".join(include_tables + exclude_tables)
@@ -108,11 +110,16 @@ def migrate_metadata(errors: list[str],
                     errors.append(validate_format_error(142, bad_tables,
                                                         f"not found in {source_rdbms}/{source_schema}"))
                 else:
-                    # purge the source metadata from the tables not in input list, if applicable
                     if step_metadata:
-                        for sorted_table in source_tables:
-                            if sorted_table not in target_tables:
-                                source_metadata.remove(table=sorted_table)
+                        # remove views referencing non-included tables
+                        for source_table in source_tables:
+                            if source_table.info.get("is_view", False):
+                                target_tables.remove(source_table)
+
+                        # purge the source metadata from the tables not in input list, if applicable
+                        for source_table in source_tables:
+                            if source_table not in target_tables:
+                                source_metadata.remove(table=source_table)
 
                     # proceed with the appropriate tables
                     sorted_tables: list[Table] = []
@@ -155,7 +162,6 @@ def migrate_metadata(errors: list[str],
                                                     source_rdbms=source_rdbms,
                                                     target_rdbms=target_rdbms,
                                                     source_schema=source_schema,
-                                                    data_tables=include_tables,
                                                     target_tables=sorted_tables,
                                                     external_columns=external_columns,
                                                     logger=logger)
