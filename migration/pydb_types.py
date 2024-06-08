@@ -607,6 +607,8 @@ def migrate_column(source_rdbms: str,
                     msg=f"{msg} converted to {str(result)}")
 
     # wrap-up the type migration
+    if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):
+        result.nullable = True if is_lob(str(result)) else col_type_obj.nullable
     if hasattr(col_type_obj, "length") and hasattr(result, "length"):
         result.length = col_type_obj.length
     if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
@@ -615,8 +617,6 @@ def migrate_column(source_rdbms: str,
         result.precision = col_type_obj.precision
     if hasattr(col_type_obj, "scale") and hasattr(result, "scale"):
         result.scale = col_type_obj.scale
-    if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):
-        result.nullable = col_type_obj.nullable
     if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
         result.timezone = col_type_obj.timezone
 
