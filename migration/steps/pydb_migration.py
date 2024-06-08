@@ -139,6 +139,10 @@ def migrate_tables(errors: list[str],
                     features.append("identity")
                 if hasattr(column, "primary_key") and column.primary_key:
                     features.append("primary key")
+                if (hasattr(column, "foreign_keys") and
+                   isinstance(column.foreign_keys, set) and
+                   len(column.foreign_keys) > 0):
+                    features.append("foreign key")
                 if hasattr(column, "unique") and column.unique:
                     features.append("unique")
                 if hasattr(column, "nullable") and column.nullable:
