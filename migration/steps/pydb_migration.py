@@ -143,8 +143,9 @@ def migrate_tables(errors: list[str],
                     features.append("unique")
                 if hasattr(column, "nullable") and column.nullable:
                     features.append("nullable")
+                if features:
+                    table_columns[column.name]["features"] = features
                 table_columns[column.name]["target-type"] = str(column.type)
-                table_columns[column.name]["features"] = features
 
             # register the migrated table
             migrated_table: dict = {
