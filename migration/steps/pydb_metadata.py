@@ -97,7 +97,7 @@ def migrate_metadata(errors: list[str],
                         include_tables.remove(table)
                     elif table in exclude_tables:
                         exclude_tables.remove(table)
-                    elif include:
+                    elif include and source_table.schema == from_schema:
                         target_tables.append(source_table)
 
                 # proceed, if all tables in include and exclude lists were found
@@ -110,9 +110,9 @@ def migrate_metadata(errors: list[str],
                 else:
                     # purge the source metadata from the tables not in input list, if applicable
                     if step_metadata:
-                        for source_table in source_tables:
-                            if source_table not in target_tables:
-                                source_metadata.remove(table=source_table)
+                        for sorted_table in source_tables:
+                            if sorted_table not in target_tables:
+                                source_metadata.remove(table=sorted_table)
 
                     # proceed with the appropriate tables
                     sorted_tables: list[Table] = []
@@ -163,8 +163,8 @@ def migrate_metadata(errors: list[str],
                             # proceed, if migrating the metadata was indicated
                             if step_metadata:
                                 # assign the new schema for the migration candidate tables
-                                for source_table in sorted_tables:
-                                    source_table.schema = to_schema
+                                for sorted_table in sorted_tables:
+                                    sorted_table.schema = to_schema
 
                                 try:
                                     # migate the schema

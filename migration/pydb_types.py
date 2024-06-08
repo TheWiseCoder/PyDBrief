@@ -593,7 +593,8 @@ def migrate_column(source_rdbms: str,
                 type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
-        elif is_pk:
+        elif target_rdbms == "postgres" and (is_pk or is_fk):
+            # Postgres does not accept PK columns of type NUMBER, thus FK columns must follow suit
             if col_precision and col_precision > 9:
                 type_equiv = REF_BIGINT
             else:
