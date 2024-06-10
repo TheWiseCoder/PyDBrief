@@ -1,7 +1,7 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
+from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 

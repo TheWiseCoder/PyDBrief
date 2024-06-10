@@ -2,7 +2,7 @@ import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_has_table
-from sqlalchemy import Engine, Table, Column, Constraint, inspect
+from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
@@ -23,8 +23,8 @@ def migrate_schema(errors: list[str],
     result: str | None = None
 
     # create an inspector into the target engine
-    target_inspector = inspect(subject=target_engine,
-                               raiseerr=True)
+    target_inspector: Inspector = inspect(subject=target_engine,
+                                          raiseerr=True)
 
     # obtain the target schema's internal name
     for schema_name in target_inspector.get_schema_names():
@@ -41,13 +41,13 @@ def migrate_schema(errors: list[str],
             table_name: str = f"{target_schema}.{target_table.name}"
             if target_rdbms == "oracle":
                 # oracle has no 'IF EXISTS' clause
-                if table_name in schema_views:
+                if target_table.name.lower() in schema_views:
                     drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
                                       f"IS NOT NULL DROP VIEW {table_name};")
                 else:
                     drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
                                       f"IS NOT NULL DROP TABLE {table_name} CASCADE CONSTRAINTS;")
-            elif table_name in schema_views:
+            elif target_table.name.lower() in schema_views:
                 drop_stmt: str = f"DROP VIEW IF EXISTS {table_name}"
             else:
                 drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
@@ -71,7 +71,7 @@ def migrate_schema(errors: list[str],
                       logger=logger)
 
         # SANITY CHECK: it has happened that a schema creation failed, with no errors reported
-        if len(errors) == 0:
+        if not errors:
             target_inspector = inspect(subject=target_engine,
                                        raiseerr=True)
             for schema_name in target_inspector.get_schema_names():
