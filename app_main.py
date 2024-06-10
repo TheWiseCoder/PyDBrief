@@ -15,7 +15,8 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # ruff: noqa: E402
 from pypomes_core import (
-    get_versions, exc_format, str_as_list, validate_format_errors, validate_str
+    get_versions, exc_format, str_as_list,
+    validate_format_errors, validate_bool, validate_str
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -30,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.1.4"
+APP_VERSION: Final[str] = "1.1.5"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -253,7 +254,16 @@ def migrate_data() -> Response:
         - *from-schema*: the source schema for the migration
         - *to-rdbms*: the destination RDBMS for the migration
         - *to-schema*: the destination schema for the migration
-        - *tables*: optional list tables to migrate (defaults to all tables in *schema*)
+        - *migrate-metadata*: migrate metadata (this recreates the destination schema)
+        - *migrate-plaindata*: migrate non-LOB data
+        - *migrate-lobdata*: migrate LOBs (large binary objects)
+        - *omit-indexes*: do not migrate indexes, defaults to 'False'
+        - *omit-views*: do not migrate views, defaults to 'False'
+        - *include-tables*: optional list of tables to migrate
+        - *exclude-tables*: optional list of tables not to migrate
+
+    If *migrate-metadata* is not specified, *omit-indexes* and *omit-views* are ignored.
+    The parameters *include-tables* and *exclude-tables* are mutually exclusive.
 
     :return: the operation outcome
     """
@@ -266,12 +276,10 @@ def migrate_data() -> Response:
     # validate the source and target RDBMS engines
     (source_rdbms, target_rdbms) = pydb_validator.assert_rdbms_dual(errors=errors,
                                                                     scheme=scheme)
-
     # assert whether migration is warranted
     if len(errors) == 0:
         pydb_validator.assert_migration(errors=errors,
                                         scheme=scheme)
-
     reply: dict | None = None
     # is migration possible ?
     if len(errors) == 0:
@@ -289,12 +297,22 @@ def migrate_data() -> Response:
         step_metadata, step_plaindata, step_lobdata = \
             pydb_validator.assert_migration_steps(errors=errors,
                                                   scheme=scheme)
-
+        omit_indexes: bool | None = None
+        omit_views: bool | None = None
+        if step_metadata:
+            omit_indexes = validate_bool(errors=errors,
+                                         scheme=scheme,
+                                         attr="omit-indexes",
+                                         default=False)
+            omit_views = validate_bool(errors=errors,
+                                       scheme=scheme,
+                                       attr="omit-views",
+                                       default=False)
         # errors ?
         if not errors:
             # no, retrieve the tables and migrate the data
-            include_tables: list[str] = str_as_list(scheme.get("include-tables"))
-            exclude_tables: list[str] = str_as_list(scheme.get("exclude-tables"))
+            include_tables = [table.lower() for table in str_as_list(scheme.get("include-tables") or [])]
+            exclude_tables = [table.lower() for table in str_as_list(scheme.get("exclude-tables") or [])]
             reply = pydb_migrator.migrate(errors=errors,
                                           source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
@@ -303,15 +321,15 @@ def migrate_data() -> Response:
                                           step_metadata=step_metadata,
                                           step_plaindata=step_plaindata,
                                           step_lobdata=step_lobdata,
+                                          omit_indexes=omit_indexes,
+                                          omit_views=omit_views,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
                                           external_columns=external_columns,
                                           logger=PYPOMES_LOGGER)
-
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
-
     # log the response
     logging_log_info(f"Response: {result}")
 

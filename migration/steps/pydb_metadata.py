@@ -5,7 +5,7 @@ from sqlalchemy import Engine, Inspector, inspect, MetaData, Table
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
-from .pydb_migration import migrate_schema, migrate_tables
+from .pydb_migration import migrate_schema, migrate_tables, assert_views
 from .pydb_engine import build_engine
 
 
@@ -36,6 +36,8 @@ def migrate_metadata(errors: list[str],
                      source_schema: str,
                      target_schema: str,
                      step_metadata: bool,
+                     omit_indexes: bool,
+                     omit_views: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
                      external_columns: dict[str, Type],
@@ -67,14 +69,14 @@ def migrate_metadata(errors: list[str],
                 from_schema = schema_name
                 break
 
-        # does the source schema exist ?
+        # proceed, if the source schema exists
         if from_schema:
-            # yes, proceed
+            # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
-                                        views=True)
+                                        views=step_metadata and not omit_views)
             except SAWarning as e:
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
@@ -85,52 +87,65 @@ def migrate_metadata(errors: list[str],
                 errors.append(validate_format_error(104, "schema-reflection", exc_err))
 
             if not errors:
+                # obtain the views in the schema, if applicable
+                schema_views: list[str] = []
+                if step_metadata and not omit_views:
+                    schema_views = [view_name.lower() for view_name in
+                                    source_inspector.get_view_names(schema=from_schema)]
+
                 # build list of migration candidates
-                include_tables = [table.lower() for table in include_tables or []]
-                exclude_tables = [table.lower() for table in exclude_tables or []]
                 source_tables: list[Table] = list(source_metadata.tables.values())
                 target_tables: list[Table] = []
                 include: bool = not include_tables
                 for source_table in source_tables:
-                    table: str = source_table.name.lower()
-                    if table in include_tables:
+                    table_name: str = source_table.name.lower()
+                    if table_name in include_tables:
                         target_tables.append(source_table)
-                        include_tables.remove(table)
-                    elif table in exclude_tables:
-                        exclude_tables.remove(table)
-                    elif source_table.schema == from_schema and \
-                         (include or source_table.info.get("is_view", False)):
+                        include_tables.remove(table_name)
+                    elif table_name in exclude_tables:
+                        exclude_tables.remove(table_name)
+                    elif (table_name in schema_views or
+                          (include and source_table.schema == from_schema)):
                         target_tables.append(source_table)
 
                 # proceed, if all tables in include and exclude lists were accounted for
                 if include_tables or exclude_tables:
-                    # tables not found, report them
+                    # some tables not found, report them
                     bad_tables: str = ",".join(include_tables + exclude_tables)
                     # 142: Invalid value {}: {}
                     errors.append(validate_format_error(142, bad_tables,
                                                         f"not found in {source_rdbms}/{source_schema}"))
                 else:
-                    if step_metadata:
-                        # remove views referencing non-included tables
-                        for source_table in source_tables:
-                            if source_table.info.get("is_view", False):
-                                target_tables.remove(source_table)
+                    # remove views referencing non-reacheable tables
+                    if schema_views:
+                        taints: list[str] = assert_views(errors=errors,
+                                                         source_rdbms=source_rdbms,
+                                                         source_schema=source_schema,
+                                                         target_rdbms=target_rdbms,
+                                                         target_schema=target_schema,
+                                                         views=schema_views,
+                                                         tables=[tbl.name.lower() for tbl in target_tables],
+                                                         logger=logger)
+                        ditches: list[Table] = []
+                        for taint in taints:
+                            for target_table in target_tables:
+                                if taint == target_table.name.lower():
+                                    ditches.append(target_table)
+                                    break
+                        for ditch in ditches:
+                            target_tables.remove(ditch)
 
-                        # purge the source metadata from the tables not in input list, if applicable
-                        for source_table in source_tables:
-                            if source_table not in target_tables:
-                                source_metadata.remove(table=source_table)
+                    # purge the source metadata from tables not selected, and from indexes if applicable
+                    for source_table in source_tables:
+                        if source_table not in target_tables:
+                            source_metadata.remove(table=source_table)
+                        elif step_metadata and omit_indexes:
+                            source_table.indexes.clear()
 
                     # proceed with the appropriate tables
                     sorted_tables: list[Table] = []
                     try:
-                        temp_tables: list[Table] = source_metadata.sorted_tables
-                        if len(temp_tables) == len(target_tables):
-                            sorted_tables = temp_tables
-                        else:
-                            for temp_table in temp_tables:
-                                if temp_table in target_tables:
-                                    sorted_tables.append(temp_table)
+                        sorted_tables: list[Table] = source_metadata.sorted_tables
                     except SAWarning as e:
                         # - unable to organize the tables in the proper sequence:
                         #   probably, cross-dependencies between tables, caused by mutually dependent FKs
@@ -151,6 +166,7 @@ def migrate_metadata(errors: list[str],
                                                             target_schema=target_schema,
                                                             target_engine=target_engine,
                                                             target_tables=sorted_tables,
+                                                            schema_views=schema_views,
                                                             logger=logger)
                         else:
                             to_schema = target_schema
@@ -163,6 +179,7 @@ def migrate_metadata(errors: list[str],
                                                     target_rdbms=target_rdbms,
                                                     source_schema=source_schema,
                                                     target_tables=sorted_tables,
+                                                    schema_views=schema_views,
                                                     external_columns=external_columns,
                                                     logger=logger)
 

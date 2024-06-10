@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.1.2
+  version: 1.1.5
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -181,6 +181,8 @@ paths:
         - $ref: '#/components/parameters/ToRdbmsParam'
         - $ref: '#/components/parameters/ToSchemaParam'
         - $ref: '#/components/parameters/MigrateMetadataParam'
+        - $ref: '#/components/parameters/OmitIndexesParam'
+        - $ref: '#/components/parameters/OmitViewsParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
@@ -437,6 +439,22 @@ components:
       schema:
         type: boolean
         default: true
+    OmitIndexesParam:
+      name: omit-indexes
+      in: query
+      description: Whether indexes should be omitted. Defaults to false. Ignored if metadata is not being migrated.
+      required: false
+      schema:
+        type: boolean
+        default: false
+    OmitViewsParam:
+      name: omit-views
+      in: query
+      description: Whether views should be omitted. Defaults to false. Ignored if metadata is not being migrated.
+      required: false
+      schema:
+        type: boolean
+        default: false
     IncludeTablesParam:
       name: include-tables
       in: query

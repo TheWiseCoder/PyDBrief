@@ -32,11 +32,11 @@ def build_engine(errors: list[str],
     return result
 
 
-def engine_exc_stmt(errors: list[str],
-                    rdbms: str,
-                    engine: Engine,
-                    stmt: str,
-                    logger: Logger) -> Result:
+def excecute_stmt(errors: list[str],
+                  rdbms: str,
+                  engine: Engine,
+                  stmt: str,
+                  logger: Logger) -> Result:
 
     result: Result | None = None
     exc_stmt: TextClause = text(stmt)
