@@ -8,7 +8,7 @@ from typing import Any
 
 from migration import pydb_validator, pydb_types, pydb_common
 from .pydb_engine import excecute_stmt
-from pydb_database import get_view_dependencies
+from .pydb_database import get_view_dependencies
 
 
 def migrate_schema(errors: list[str],

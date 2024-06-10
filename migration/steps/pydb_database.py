@@ -21,7 +21,7 @@ def get_view_dependencies(errors: list[str],
         case "oracle":
             sel_stmt = ("SELECT DISTINCT referenced_name "
                         "FROM all_dependencies "
-                        "WHERE name = :1 AND owner = :2 "
+                        "WHERE name = UPPER(:1) AND owner = UPPER(:2) "
                         "AND type = 'VIEW' AND referenced_type = 'TABLE'")
         case "postgres":
             sel_stmt = ("SELECT DISTINCT cl1.relname "
@@ -29,12 +29,12 @@ def get_view_dependencies(errors: list[str],
                         "JOIN pg_rewrite AS rw ON rw.ev_class = cl1.oid "
                         "JOIN pg_depend AS d ON d.objid = rw.oid "
                         "JOIN pg_class AS cl2 ON cl2.oid = d.refobjid "
-                        "WHERE cl2.relname = %s AND cl2.relnamespace = "
-                        "(SELECT oid FROM pg_namespace WHERE nspname = %s)")
+                        "WHERE LOWER(cl2.relname) = LOWER(%s) AND cl2.relnamespace = "
+                        "(SELECT oid FROM pg_namespace WHERE LOWER(nspname) = LOWER(%s))")
         case "sqlserver":
             sel_stmt = ("SELECT DISTINCT referencing_entity_name "
-                        "FROM sys.dm_sql_referencing_entities (?, 'OBJECT') "
-                        "WHERE referencing_schema_name = ?")
+                        "FROM sys.dm_sql_referencing_entities (LOWER(?), 'OBJECT') "
+                        "WHERE LOWER(referencing_schema_name) = LOWER(?)")
 
     # initialize the local errors list
     op_errors: list[str] = []
