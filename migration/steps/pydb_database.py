@@ -1,56 +1,65 @@
 from logging import Logger, DEBUG
-from pypomes_db import db_execute, db_select
+from pypomes_db import db_get_param, db_execute
 from typing import Any
 
 from migration import pydb_common
 
 
-def get_view_dependencies(errors: list[str],
-                          rdbms: str,
-                          schema: str,
-                          view_name: str,
-                          logger: Logger) -> list[str]:
+def create_schema(errors: list[str],
+                  schema: str,
+                  rdbms: str,
+                  logger: Logger) -> None:
 
-    # initialize the return variable
-    result: list[str] | None = None
-
-    sel_stmt: str | None = None
-    match rdbms:
-        case "mysql":
-            pass
-        case "oracle":
-            sel_stmt = ("SELECT DISTINCT referenced_name "
-                        "FROM all_dependencies "
-                        "WHERE name = UPPER(:1) AND owner = UPPER(:2) "
-                        "AND type = 'VIEW' AND referenced_type = 'TABLE'")
-        case "postgres":
-            sel_stmt = ("SELECT DISTINCT cl1.relname "
-                        "FROM pg_class AS cl1 "
-                        "JOIN pg_rewrite AS rw ON rw.ev_class = cl1.oid "
-                        "JOIN pg_depend AS d ON d.objid = rw.oid "
-                        "JOIN pg_class AS cl2 ON cl2.oid = d.refobjid "
-                        "WHERE LOWER(cl2.relname) = LOWER(%s) AND cl2.relnamespace = "
-                        "(SELECT oid FROM pg_namespace WHERE LOWER(nspname) = LOWER(%s))")
-        case "sqlserver":
-            sel_stmt = ("SELECT DISTINCT referencing_entity_name "
-                        "FROM sys.dm_sql_referencing_entities (LOWER(?), 'OBJECT') "
-                        "WHERE LOWER(referencing_schema_name) = LOWER(?)")
-
-    # initialize the local errors list
-    op_errors: list[str] = []
-
-    # execute the query
-    recs: list[tuple[str]] = db_select(errors=op_errors,
-                                       sel_stmt=sel_stmt,
-                                       where_vals=(view_name, schema),
-                                       engine=rdbms,
-                                       logger=logger)
-    if op_errors:
-        errors.extend(op_errors)
+    if rdbms == "oracle":
+        stmt: str = f"CREATE USER {schema} IDENTIFIED BY {schema}"
     else:
-        result = [name[0].lower() for name in recs]
+        user: str = db_get_param(key="user",
+                                 engine=rdbms)
+        stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
+    db_execute(errors=errors,
+               exc_stmt=stmt,
+               engine=rdbms,
+               logger=logger)
 
-    return result
+
+def drop_table(errors: list[str],
+               table_name: str,
+               rdbms: str,
+               logger: Logger) -> None:
+
+    # build drop statement
+    if rdbms == "oracle":
+        # oracle has no 'IF EXISTS' clause
+        drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
+                          f"IS NOT NULL DROP TABLE {table_name} CASCADE CONSTRAINTS;")
+    else:
+        drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
+
+    # drop the table
+    db_execute(errors=errors,
+               exc_stmt=drop_stmt,
+               engine=rdbms,
+               logger=logger)
+
+
+def drop_view(errors: list[str],
+              view_name: str,
+              rdbms: str,
+              logger: Logger) -> None:
+
+    # build drop statement
+    if rdbms == "oracle":
+        # oracle has no 'IF EXISTS' clause
+        drop_stmt: str = (f"IF OBJECT_ID({view_name}, 'U') "
+                          f"IS NOT NULL DROP VIEW {view_name}")
+    else:
+        drop_stmt: str = f"DROP VIEW IF EXISTS {view_name}"
+
+    # drop the view
+    db_execute(errors=errors,
+               exc_stmt=drop_stmt,
+               engine=rdbms,
+               logger=logger)
 
 
 def disable_session_restrictions(errors: list[str],

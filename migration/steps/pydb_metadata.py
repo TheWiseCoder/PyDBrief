@@ -5,7 +5,7 @@ from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
-from .pydb_migration import migrate_schema, migrate_tables, assert_views
+from .pydb_migration import migrate_schema, migrate_tables, migrate_schema_views
 from .pydb_engine import build_engine
 
 
@@ -76,7 +76,7 @@ def migrate_metadata(errors: list[str],
             try:
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
-                                        views=step_metadata and not omit_views)
+                                        views=False)
             except SAWarning as e:
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
@@ -87,12 +87,6 @@ def migrate_metadata(errors: list[str],
                 errors.append(validate_format_error(104, "schema-reflection", exc_err))
 
             if not errors:
-                # obtain the views in the schema, if applicable
-                schema_views: list[str] = []
-                if step_metadata and not omit_views:
-                    schema_views = [view_name.lower() for view_name in
-                                    source_inspector.get_view_names(schema=from_schema)]
-
                 # build list of migration candidates
                 source_tables: list[Table] = list(source_metadata.tables.values())
                 target_tables: list[Table] = []
@@ -104,8 +98,7 @@ def migrate_metadata(errors: list[str],
                         include_tables.remove(table_name)
                     elif table_name in exclude_tables:
                         exclude_tables.remove(table_name)
-                    elif (table_name in schema_views or
-                          (include and source_table.schema == from_schema)):
+                    elif include and source_table.schema == from_schema:
                         target_tables.append(source_table)
 
                 # proceed, if all tables in include and exclude lists were accounted for
@@ -116,25 +109,6 @@ def migrate_metadata(errors: list[str],
                     errors.append(validate_format_error(142, bad_tables,
                                                         f"not found in {source_rdbms}/{source_schema}"))
                 else:
-                    # remove views referencing non-reacheable tables
-                    if schema_views:
-                        tainted_views: list[str] = assert_views(errors=errors,
-                                                                source_rdbms=source_rdbms,
-                                                                source_schema=source_schema,
-                                                                target_rdbms=target_rdbms,
-                                                                target_schema=target_schema,
-                                                                views=schema_views,
-                                                                tables=[tbl.name.lower() for tbl in target_tables],
-                                                                logger=logger)
-                        ditched_views: list[Table] = []
-                        for tainted_view in tainted_views:
-                            for target_table in target_tables:
-                                if tainted_view == target_table.name.lower():
-                                    ditched_views.append(target_table)
-                                    break
-                        for ditched_view in ditched_views:
-                            target_tables.remove(ditched_view)
-
                     # purge the source metadata from tables not selected, and from indexes if applicable
                     for source_table in source_tables:
                         if source_table not in target_tables:
@@ -160,13 +134,13 @@ def migrate_metadata(errors: list[str],
                     if not errors:
                         # no, proceed
                         if step_metadata:
+
                             # migrate the schema
                             to_schema: str = migrate_schema(errors=errors,
                                                             target_rdbms=target_rdbms,
                                                             target_schema=target_schema,
                                                             target_engine=target_engine,
                                                             target_tables=sorted_tables,
-                                                            schema_views=schema_views,
                                                             logger=logger)
                         else:
                             to_schema = target_schema
@@ -179,7 +153,6 @@ def migrate_metadata(errors: list[str],
                                                     target_rdbms=target_rdbms,
                                                     source_schema=source_schema,
                                                     target_tables=sorted_tables,
-                                                    schema_views=schema_views,
                                                     external_columns=external_columns,
                                                     logger=logger)
 
@@ -199,6 +172,16 @@ def migrate_metadata(errors: list[str],
                                                                       exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104, "schema-construction", exc_err))
+
+                                if not errors and not omit_views:
+                                    # migrate the views in the schema
+                                    migrate_schema_views(errors=errors,
+                                                         source_rdbms=source_rdbms,
+                                                         source_schema=source_schema,
+                                                         target_rdbms=target_rdbms,
+                                                         target_schema=target_schema,
+                                                         tables=[tbl.name.lower() for tbl in target_tables],
+                                                         logger=logger)
                         else:
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,

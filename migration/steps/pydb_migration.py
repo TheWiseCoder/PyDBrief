@@ -1,14 +1,16 @@
 import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_has_table
+from pypomes_db import (
+    db_execute, db_has_table, db_get_views,
+    db_get_view_dependencies, db_get_view_script
+)
 from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration import pydb_validator, pydb_types, pydb_common
-from .pydb_engine import excecute_stmt
-from .pydb_database import get_view_dependencies
+from migration import pydb_types, pydb_common
+from .pydb_database import create_schema, drop_table, drop_view
 
 
 def migrate_schema(errors: list[str],
@@ -16,7 +18,6 @@ def migrate_schema(errors: list[str],
                    target_schema: str,
                    target_engine: Engine,
                    target_tables: list[Table],
-                   schema_views: list[str],
                    logger: Logger) -> str:
 
     # initialize the return variable
@@ -38,38 +39,16 @@ def migrate_schema(errors: list[str],
     if result:
         # yes, drop existing tables (must be done in reverse order)
         for target_table in reversed(target_tables):
-            table_name: str = f"{target_schema}.{target_table.name}"
-            if target_rdbms == "oracle":
-                # oracle has no 'IF EXISTS' clause
-                if target_table.name.lower() in schema_views:
-                    drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
-                                      f"IS NOT NULL DROP VIEW {table_name};")
-                else:
-                    drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
-                                      f"IS NOT NULL DROP TABLE {table_name} CASCADE CONSTRAINTS;")
-            elif target_table.name.lower() in schema_views:
-                drop_stmt: str = f"DROP VIEW IF EXISTS {table_name}"
-            else:
-                drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
-            excecute_stmt(errors=errors,
-                          rdbms=target_rdbms,
-                          engine=target_engine,
-                          stmt=drop_stmt,
-                          logger=logger)
+            drop_table(errors=errors,
+                       table_name=f"{target_schema}.{target_table.name}",
+                       rdbms=target_rdbms,
+                       logger=logger)
     else:
         # no, create the target schema
-        if target_rdbms == "oracle":
-            stmt: str = f"CREATE USER {target_schema} IDENTIFIED BY {target_schema}"
-        else:
-            conn_params: dict = pydb_validator.get_connection_params(errors=errors,
-                                                                     scheme=target_rdbms)
-            stmt = f"CREATE SCHEMA {target_schema} AUTHORIZATION {conn_params.get('user')}"
-        excecute_stmt(errors=errors,
+        create_schema(errors=errors,
+                      schema=target_schema,
                       rdbms=target_rdbms,
-                      engine=target_engine,
-                      stmt=stmt,
                       logger=logger)
-
         # SANITY CHECK: it has happened that a schema creation failed, with no errors reported
         if not errors:
             target_inspector = inspect(subject=target_engine,
@@ -89,7 +68,6 @@ def migrate_tables(errors: list[str],
                    target_rdbms: str,
                    source_schema: str,
                    target_tables: list[Table],
-                   schema_views: list[str],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
@@ -104,9 +82,6 @@ def migrate_tables(errors: list[str],
     # setup target tables
     is_view: bool
     for target_table in target_tables:
-        # determine if table is a view
-        is_view: bool = target_table.name.lower() in schema_views
-
         # build the list of migrated columns for this table
         table_columns: dict = {}
         # noinspection PyProtectedMember
@@ -222,28 +197,31 @@ def setup_table_columns(errors: list[str],
             errors.append(validate_format_error(102, exc_err))
 
 
-def assert_views(errors: list[str],
-                 source_rdbms: str,
-                 source_schema: str,
-                 target_rdbms: str,
-                 target_schema: str,
-                 views: list[str],
-                 tables: list[str],
-                 logger: Logger) -> list[str]:
+def migrate_schema_views(errors: list[str],
+                         source_rdbms: str,
+                         source_schema: str,
+                         target_rdbms: str,
+                         target_schema: str,
+                         tables: list[str],
+                         logger: Logger) -> None:
 
-    # initialize the return variable
-    result: list[str] = []
+    # obtain the list of views in source schema
+    views: list[str] = db_get_views(errors=errors,
+                                    schema=source_schema,
+                                    engine=source_rdbms,
+                                    logger=logger)
 
     for view in views:
         op_errors: list[str] = []
-        dependencies: list[str] = get_view_dependencies(errors=op_errors,
-                                                        rdbms=source_rdbms,
-                                                        schema=source_schema,
-                                                        view_name=view,
-                                                        logger=logger)
+        dependencies: list[str] = db_get_view_dependencies(errors=op_errors,
+                                                           view_name=view,
+                                                           schema=source_schema,
+                                                           engine=source_rdbms,
+                                                           logger=logger)
         if op_errors:
             errors.extend(op_errors)
         else:
+            use_view: bool = True
             for dependency in dependencies:
                 if dependency not in tables and not \
                    db_has_table(errors=op_errors,
@@ -251,6 +229,25 @@ def assert_views(errors: list[str],
                                 schema=target_schema,
                                 engine=target_rdbms,
                                 logger=logger):
-                    result.append(view)
-
-    return result
+                    use_view = False
+                    break
+            if not op_errors and use_view:
+                # drop view in target schema
+                drop_view(errors=op_errors,
+                          view_name=f"{target_schema},{view}",
+                          rdbms=target_rdbms,
+                          logger=logger)
+                if not op_errors:
+                    # obtain the script used to create the view
+                    view_script: str = db_get_view_script(errors=op_errors,
+                                                          view_name=view,
+                                                          schema=source_schema,
+                                                          engine=source_rdbms,
+                                                          logger=logger)
+                    if view_script:
+                        # create the view in the target schema
+                        db_execute(errors=op_errors,
+                                   exc_stmt=view_script,
+                                   engine=target_rdbms)
+        # register eventual local errors
+        errors.extend(op_errors)
