@@ -163,25 +163,24 @@ def migrate_metadata(errors: list[str],
                                     sorted_table.schema = to_schema
 
                                 try:
-                                    # migate the schema
+                                    # migrate the schema
                                     source_metadata.create_all(bind=target_engine,
                                                                checkfirst=False)
+                                    if not omit_views:
+                                        # migrate the views in the schema
+                                        migrate_schema_views(errors=errors,
+                                                             source_rdbms=source_rdbms,
+                                                             source_schema=source_schema,
+                                                             target_rdbms=target_rdbms,
+                                                             target_schema=target_schema,
+                                                             tables=[tbl.name.lower() for tbl in target_tables],
+                                                             logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema - the migration is now doomed
                                     exc_err = str_sanitize(exc_format(exc=e,
                                                                       exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104, "schema-construction", exc_err))
-
-                                if not errors and not omit_views:
-                                    # migrate the views in the schema
-                                    migrate_schema_views(errors=errors,
-                                                         source_rdbms=source_rdbms,
-                                                         source_schema=source_schema,
-                                                         target_rdbms=target_rdbms,
-                                                         target_schema=target_schema,
-                                                         tables=[tbl.name.lower() for tbl in target_tables],
-                                                         logger=logger)
                         else:
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,
