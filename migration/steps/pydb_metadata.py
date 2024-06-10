@@ -118,22 +118,22 @@ def migrate_metadata(errors: list[str],
                 else:
                     # remove views referencing non-reacheable tables
                     if schema_views:
-                        taints: list[str] = assert_views(errors=errors,
-                                                         source_rdbms=source_rdbms,
-                                                         source_schema=source_schema,
-                                                         target_rdbms=target_rdbms,
-                                                         target_schema=target_schema,
-                                                         views=schema_views,
-                                                         tables=[tbl.name.lower() for tbl in target_tables],
-                                                         logger=logger)
-                        ditches: list[Table] = []
-                        for taint in taints:
+                        tainted_views: list[str] = assert_views(errors=errors,
+                                                                source_rdbms=source_rdbms,
+                                                                source_schema=source_schema,
+                                                                target_rdbms=target_rdbms,
+                                                                target_schema=target_schema,
+                                                                views=schema_views,
+                                                                tables=[tbl.name.lower() for tbl in target_tables],
+                                                                logger=logger)
+                        ditched_views: list[Table] = []
+                        for tainted_view in tainted_views:
                             for target_table in target_tables:
-                                if taint == target_table.name.lower():
-                                    ditches.append(target_table)
+                                if tainted_view == target_table.name.lower():
+                                    ditched_views.append(target_table)
                                     break
-                        for ditch in ditches:
-                            target_tables.remove(ditch)
+                        for ditched_view in ditched_views:
+                            target_tables.remove(ditched_view)
 
                     # purge the source metadata from tables not selected, and from indexes if applicable
                     for source_table in source_tables:

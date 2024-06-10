@@ -102,8 +102,10 @@ def migrate_tables(errors: list[str],
                                           target_rdbms=target_rdbms)
 
     # setup target tables
-    for target_table in [table for table in target_tables
-                         if table.name.lower() not in schema_views]:
+    is_view: bool
+    for target_table in target_tables:
+        # determine if table is a view
+        is_view: bool = target_table.name.lower() in schema_views
 
         # build the list of migrated columns for this table
         table_columns: dict = {}
