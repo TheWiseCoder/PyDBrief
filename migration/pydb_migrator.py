@@ -175,6 +175,9 @@ def migrate(errors: list[str],
         "total-plains": plain_count,
         "total-lobs": lob_count
     }
+    if step_metadata:
+        result["omit-indexes"] = omit_indexes
+        result["omit-views"] = omit_views
     if include_tables:
         result["include-tables"]: include_tables
     if exclude_tables:
