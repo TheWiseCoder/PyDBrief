@@ -32,11 +32,10 @@ def drop_table(errors: list[str],
         # oracle has no 'IF EXISTS' clause
         drop_stmt: str = \
             (f"BEGIN\n"
-             f"  EXECUTE IMMEDIATE 'DROP TABLE {table_name} CASCADE CONSTRAINTS'\n;"
+             f"  EXECUTE IMMEDIATE 'DROP TABLE {table_name} CASCADE CONSTRAINTS';\n"
              "EXCEPTION\n"
-             "  WHEN OTHERS THEN NULL;"
-             "END\n;"
-             "/")
+             "  WHEN OTHERS THEN NULL;\n"
+             "END;")
     else:
         drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
 
@@ -57,11 +56,10 @@ def drop_view(errors: list[str],
         # oracle has no 'IF EXISTS' clause
         drop_stmt: str = \
             (f"BEGIN\n"
-             f"  EXECUTE IMMEDIATE 'DROP VIEW {view_name}'\n;"
+             f"  EXECUTE IMMEDIATE 'DROP VIEW {view_name}';\n"
              "EXCEPTION\n"
-             "  WHEN OTHERS THEN NULL;"
-             "END\n;"
-             "/")
+             "  WHEN OTHERS THEN NULL;\n"
+             "END;")
     else:
         drop_stmt: str = f"DROP VIEW IF EXISTS {view_name}"
 
