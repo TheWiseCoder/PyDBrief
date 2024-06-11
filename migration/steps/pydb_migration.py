@@ -240,11 +240,11 @@ def migrate_schema_views(errors: list[str],
                 if not op_errors:
                     # obtain the script used to create the view
                     view_script: str = f"CREATE VIEW {view.upper()} AS " + \
-                                       db_get_view_script(errors=op_errors,
-                                                          view_name=view,
-                                                          schema=source_schema,
-                                                          engine=source_rdbms,
-                                                          logger=logger)
+                                       (db_get_view_script(errors=op_errors,
+                                                           view_name=view,
+                                                           schema=source_schema,
+                                                           engine=source_rdbms,
+                                                           logger=logger) or "")
                     if not op_errors:
                         # create the view in the target schema
                         db_execute(errors=op_errors,
