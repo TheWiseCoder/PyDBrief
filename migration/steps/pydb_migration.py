@@ -239,19 +239,19 @@ def migrate_schema_views(errors: list[str],
                           logger=logger)
                 if not op_errors:
                     # obtain the script used to create the view
-                    view_script: str = db_get_view_script(errors=op_errors,
+                    view_script: str = f"CREATE VIEW {view.upper()} AS " + \
+                                       db_get_view_script(errors=op_errors,
                                                           view_name=view,
                                                           schema=source_schema,
                                                           engine=source_rdbms,
                                                           logger=logger)
-                    if view_script:
+                    if not op_errors:
                         # create the view in the target schema
                         db_execute(errors=op_errors,
                                    exc_stmt=view_script,
                                    engine=target_rdbms)
                         if op_errors:
-                            err_msg: str = (f"Error executing 'CREATE VIEW {view.upper()} "
-                                            f"AS {str_sanitize(view_script)}'")
+                            err_msg: str = f"Error executing '{str_sanitize(view_script)}'"
                             # 101: {}
                             op_errors.insert(0, validate_format_error(101, err_msg))
         # register eventual local errors
