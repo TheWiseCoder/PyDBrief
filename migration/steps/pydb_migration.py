@@ -250,8 +250,8 @@ def migrate_schema_views(errors: list[str],
                                    exc_stmt=view_script,
                                    engine=target_rdbms)
                         if op_errors:
-                            err_msg: str = (f"Error executing 'CREATE VIEW {view.upper()} AS "
-                                            f" {str_sanitize(view_script)}'")
+                            err_msg: str = (f"Error executing 'CREATE VIEW {view.upper()} "
+                                            f"AS {str_sanitize(view_script)}'")
                             op_errors.insert(0, validate_format_error(101, err_msg))
         # register eventual local errors
         errors.extend(op_errors)
