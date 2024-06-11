@@ -234,7 +234,7 @@ def migrate_schema_views(errors: list[str],
             if not op_errors and use_view:
                 # drop view in target schema
                 drop_view(errors=op_errors,
-                          view_name=f"{target_schema},{view}",
+                          view_name=f"{target_schema}.{view}",
                           rdbms=target_rdbms,
                           logger=logger)
                 if not op_errors:
@@ -252,6 +252,7 @@ def migrate_schema_views(errors: list[str],
                         if op_errors:
                             err_msg: str = (f"Error executing 'CREATE VIEW {view.upper()} "
                                             f"AS {str_sanitize(view_script)}'")
+                            # 101: {}
                             op_errors.insert(0, validate_format_error(101, err_msg))
         # register eventual local errors
         errors.extend(op_errors)

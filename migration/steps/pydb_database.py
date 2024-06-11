@@ -30,8 +30,13 @@ def drop_table(errors: list[str],
     # build drop statement
     if rdbms == "oracle":
         # oracle has no 'IF EXISTS' clause
-        drop_stmt: str = (f"IF OBJECT_ID({table_name}, 'U') "
-                          f"IS NOT NULL DROP TABLE {table_name} CASCADE CONSTRAINTS;")
+        drop_stmt: str = \
+            (f"BEGIN\n"
+             f"  EXECUTE IMMEDIATE 'DROP TABLE {table_name} CASCADE CONSTRAINTS'\n;"
+             "EXCEPTION\n"
+             "  WHEN OTHERS THEN NULL;"
+             "END\n;"
+             "/")
     else:
         drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
 
@@ -50,8 +55,13 @@ def drop_view(errors: list[str],
     # build drop statement
     if rdbms == "oracle":
         # oracle has no 'IF EXISTS' clause
-        drop_stmt: str = (f"IF OBJECT_ID({view_name}, 'U') "
-                          f"IS NOT NULL DROP VIEW {view_name}")
+        drop_stmt: str = \
+            (f"BEGIN\n"
+             f"  EXECUTE IMMEDIATE 'DROP VIEW {view_name}'\n;"
+             "EXCEPTION\n"
+             "  WHEN OTHERS THEN NULL;"
+             "END\n;"
+             "/")
     else:
         drop_stmt: str = f"DROP VIEW IF EXISTS {view_name}"
 
