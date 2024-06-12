@@ -111,7 +111,7 @@ def migrate_metadata(errors: list[str],
                     bad_tables: str = ",".join(include_tables + exclude_tables)
                     # 142: Invalid value {}: {}
                     errors.append(validate_format_error(142, bad_tables,
-                                                        f"not found in {source_rdbms}/{source_schema}"))
+                                                        f"not found in {source_rdbms}.{source_schema}"))
                 else:
                     # purge the source metadata from tables not selected, and from indexes if applicable
                     for source_table in source_tables:
@@ -128,7 +128,7 @@ def migrate_metadata(errors: list[str],
                         # - unable to organize the tables in the proper sequence:
                         #   probably, cross-dependencies between tables, caused by mutually dependent FKs
                         # - this error will cause the migration to be aborted,
-                        #   as SQLAlchemy will not be able to compile the migrated schema
+                        #   as SQLAlchemy would not be able to compile the migrated schema
                         exc_err = str_sanitize(exc_format(exc=e,
                                                           exc_info=sys.exc_info()))
                         # 104: The operation {} returned the error {}

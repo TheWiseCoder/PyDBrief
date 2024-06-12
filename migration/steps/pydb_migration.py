@@ -237,7 +237,7 @@ def migrate_schema_views(errors: list[str],
                 # errors ?
                 if op_errors:
                     # yes, insert a leading explanatory error message
-                    err_msg: str = f"Unable to create view ({str_sanitize(view_script)})"
+                    err_msg: str = f"Failed: '{str_sanitize(view_script)}'"
                     # 101: {}
                     op_errors.insert(0, validate_format_error(101, err_msg))
         # register eventual local errors
