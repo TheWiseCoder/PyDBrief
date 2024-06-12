@@ -2,12 +2,11 @@ import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import (
-    db_execute, db_has_table, db_get_views,
-    db_get_view_dependencies, db_get_view_script
+    db_execute, db_get_views, db_get_view_script
 )
 from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, Literal
 
 from migration import pydb_types, pydb_common
 from .pydb_database import create_schema, drop_table, drop_view
@@ -118,11 +117,11 @@ def migrate_tables(errors: list[str],
             if hasattr(column, "identity") and column.identity:
                 features.append("identity")
             if hasattr(column, "primary_key") and column.primary_key:
-                features.append("primary key")
+                features.append("primary-key")
             if (hasattr(column, "foreign_keys") and
                isinstance(column.foreign_keys, set) and
                len(column.foreign_keys) > 0):
-                features.append("foreign key")
+                features.append("foreign-key")
             if hasattr(column, "unique") and column.unique:
                 features.append("unique")
             if hasattr(column, "nullable") and column.nullable:
@@ -202,57 +201,44 @@ def migrate_schema_views(errors: list[str],
                          source_schema: str,
                          target_rdbms: str,
                          target_schema: str,
-                         tables: list[str],
+                         view_type: Literal["S", "M"],
                          logger: Logger) -> None:
 
     # obtain the list of views in source schema
-    views: list[str] = db_get_views(errors=errors,
-                                    schema=source_schema,
-                                    engine=source_rdbms,
-                                    logger=logger)
-
-    for view in views:
+    source_views: list[str] = db_get_views(errors=errors,
+                                           view_type=view_type,
+                                           schema=source_schema,
+                                           engine=source_rdbms,
+                                           logger=logger) or []
+    # traverse the views list
+    for source_view in source_views:
         op_errors: list[str] = []
-        dependencies: list[str] = db_get_view_dependencies(errors=op_errors,
-                                                           view_name=view,
-                                                           schema=source_schema,
-                                                           engine=source_rdbms,
-                                                           logger=logger)
-        if op_errors:
-            errors.extend(op_errors)
-        else:
-            use_view: bool = True
-            for dependency in dependencies:
-                if dependency not in tables and not \
-                   db_has_table(errors=op_errors,
-                                table_name=dependency,
-                                schema=target_schema,
-                                engine=target_rdbms,
-                                logger=logger):
-                    use_view = False
-                    break
-            if not op_errors and use_view:
-                # drop view in target schema
-                drop_view(errors=op_errors,
-                          view_name=f"{target_schema}.{view}",
-                          rdbms=target_rdbms,
-                          logger=logger)
-                if not op_errors:
-                    # obtain the script used to create the view
-                    view_script: str = db_get_view_script(errors=op_errors,
-                                                          view_name=view,
-                                                          schema=source_schema,
-                                                          engine=source_rdbms,
-                                                          logger=logger)
-                    if not op_errors:
-                        # create the view in the target schema
-                        db_execute(errors=op_errors,
-                                   exc_stmt=view_script,
-                                   engine=target_rdbms)
-                        if op_errors:
-                            # insert a leading explanatory error message
-                            err_msg: str = f"Error executing '{str_sanitize(view_script)}'"
-                            # 101: {}
-                            op_errors.insert(0, validate_format_error(101, err_msg))
+        target_view: str = target_schema + source_view.replace(source_schema, target_schema, 1)
+        # drop view in target schema
+        drop_view(errors=op_errors,
+                  view_name=target_view,
+                  rdbms=target_rdbms,
+                  logger=logger)
+        # errors ?
+        if not op_errors:
+            # no, obtain the script used to create the view
+            view_script: str = db_get_view_script(errors=op_errors,
+                                                  view_type=view_type,
+                                                  view_name=source_view,
+                                                  engine=source_rdbms,
+                                                  logger=logger)
+            # errors ?
+            if not op_errors:
+                # no, create the view in the target schema
+                view_script = view_script.replace(source_schema, target_schema, 1)
+                db_execute(errors=op_errors,
+                           exc_stmt=view_script,
+                           engine=target_rdbms)
+                # errors ?
+                if op_errors:
+                    # yes, insert a leading explanatory error message
+                    err_msg: str = f"Unable to create view ({str_sanitize(view_script)})"
+                    # 101: {}
+                    op_errors.insert(0, validate_format_error(101, err_msg))
         # register eventual local errors
         errors.extend(op_errors)

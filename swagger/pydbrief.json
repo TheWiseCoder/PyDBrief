@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.1.2"
+    "version": "1.1.6"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -304,6 +304,15 @@
           },
           {
             "$ref": "#/components/parameters/MigrateLobsParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProcessIndexesParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProcessViewsParam"
+          },
+          {
+            "$ref": "#/components/parameters/ProcessMViewsParam"
           },
           {
             "$ref": "#/components/parameters/IncludeTablesParam"
@@ -688,6 +697,36 @@
           "default": true
         }
       },
+      "ProcessIndexesParam": {
+        "name": "process-indexes",
+        "in": "query",
+        "description": "Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "ProcessViewsParam": {
+        "name": "process-views",
+        "in": "query",
+        "description": "Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "ProcessMViewsParam": {
+        "name": "process-mviews",
+        "in": "query",
+        "description": "Whether materialized views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
       "IncludeTablesParam": {
         "name": "include-tables",
         "in": "query",
@@ -931,7 +970,7 @@
           "migrated-tables": {
             "type": "object",
             "properties": {
-              "my_table": {
+              "my-table": {
                 "type": "object",
                 "properties": {
                   "plain-count": {
@@ -950,7 +989,7 @@
                     "type": "string",
                     "example": "full"
                   },
-                  "my_column": {
+                  "my-column": {
                     "type": "object",
                     "properties": {
                       "source-type": {
@@ -968,7 +1007,7 @@
                         },
                         "example": [
                           "identity",
-                          "primary key"
+                          "primary-key"
                         ]
                       }
                     }

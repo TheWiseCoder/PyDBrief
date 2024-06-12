@@ -18,7 +18,39 @@ from migration.steps.pydb_plaindata import migrate_plain
 warnings.filterwarnings("error")
 
 
-# this is the entry point for the migration process
+# structure of the migration data returned:
+# {
+#   "started": <yyyy-mm-dd>,
+#   "finished": <yyyy-mm-dd>,
+#   "source": {
+#     "rdbms": <rdbms>,
+#     "schema": <schema>
+#   },
+#   "target": {
+#     "rdbms": <rdbms>,
+#     "schema": <schema>
+#   },
+#   "steps": [
+#     "migrate-metadata",
+#     "migrate-plaindata",
+#     "migrate-lobdata"
+#   ],
+#   "process-views": false,
+#   "process-mviews": false,
+#   "process-indexes": true,
+#   "include_tables": <list>,
+#   "exclude_tables": <list>,
+#   "external-columns": {
+#     "<schema>.<table>.column>": <type>
+#   }
+#   "total-plains": nnn,
+#   "total-lobs": nnn,
+#   "notes": [
+#     <note-1>,
+#     <note-n>
+#   ],
+#   "migrated-tables": <migrated-tables-structure>
+# }
 def migrate(errors: list[str],
             source_rdbms: str,
             target_rdbms: str,
@@ -27,8 +59,9 @@ def migrate(errors: list[str],
             step_metadata: bool,
             step_plaindata: bool,
             step_lobdata: bool,
-            omit_indexes: bool,
-            omit_views: bool,
+            process_indexes: bool,
+            process_views: bool,
+            process_mviews: bool,
             include_tables: list[str],
             exclude_tables: list[str],
             external_columns: dict[str, Type],
@@ -64,8 +97,9 @@ def migrate(errors: list[str],
                                              source_schema=source_schema,
                                              target_schema=target_schema,
                                              step_metadata=step_metadata,
-                                             omit_indexes=omit_indexes,
-                                             omit_views=omit_views,
+                                             process_indexes=process_indexes,
+                                             process_views=process_views,
+                                             process_mviews=process_mviews,
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
                                              external_columns=external_columns,
@@ -176,8 +210,9 @@ def migrate(errors: list[str],
         "total-lobs": lob_count
     }
     if step_metadata:
-        result["omit-indexes"] = omit_indexes
-        result["omit-views"] = omit_views
+        result["process-views"] = process_views
+        result["process-mviews"] = process_mviews
+        result["process-indexes"] = process_indexes
     if include_tables:
         result["include-tables"]: include_tables
     if exclude_tables:

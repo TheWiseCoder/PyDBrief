@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.1.5"
+APP_VERSION: Final[str] = "1.1.6"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -297,22 +297,29 @@ def migrate_data() -> Response:
         step_metadata, step_plaindata, step_lobdata = \
             pydb_validator.assert_migration_steps(errors=errors,
                                                   scheme=scheme)
-        omit_indexes: bool | None = None
-        omit_views: bool | None = None
+        process_indexes: bool | None = None
+        process_views: bool | None = None
+        process_mviews: bool | None = None
         if step_metadata:
-            omit_indexes = validate_bool(errors=errors,
-                                         scheme=scheme,
-                                         attr="omit-indexes",
-                                         default=False)
-            omit_views = validate_bool(errors=errors,
-                                       scheme=scheme,
-                                       attr="omit-views",
-                                       default=False)
+            process_indexes = validate_bool(errors=errors,
+                                            scheme=scheme,
+                                            attr="process-indexes",
+                                            default=False)
+            process_views = validate_bool(errors=errors,
+                                          scheme=scheme,
+                                          attr="process-views",
+                                          default=False)
+            process_mviews = validate_bool(errors=errors,
+                                           scheme=scheme,
+                                           attr="process-mviews",
+                                           default=False)
         # errors ?
         if not errors:
             # no, retrieve the tables and migrate the data
-            include_tables = [table.lower() for table in str_as_list(scheme.get("include-tables") or [])]
-            exclude_tables = [table.lower() for table in str_as_list(scheme.get("exclude-tables") or [])]
+            include_tables = [table.lower()
+                              for table in str_as_list(scheme.get("include-tables") or [])]
+            exclude_tables = [table.lower()
+                              for table in str_as_list(scheme.get("exclude-tables") or [])]
             reply = pydb_migrator.migrate(errors=errors,
                                           source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
@@ -321,8 +328,9 @@ def migrate_data() -> Response:
                                           step_metadata=step_metadata,
                                           step_plaindata=step_plaindata,
                                           step_lobdata=step_lobdata,
-                                          omit_indexes=omit_indexes,
-                                          omit_views=omit_views,
+                                          process_indexes=process_indexes,
+                                          process_views=process_views,
+                                          process_mviews=process_mviews,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
                                           external_columns=external_columns,

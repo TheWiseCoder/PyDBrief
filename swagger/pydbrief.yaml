@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.1.5
+  version: 1.1.6
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -181,10 +181,11 @@ paths:
         - $ref: '#/components/parameters/ToRdbmsParam'
         - $ref: '#/components/parameters/ToSchemaParam'
         - $ref: '#/components/parameters/MigrateMetadataParam'
-        - $ref: '#/components/parameters/OmitIndexesParam'
-        - $ref: '#/components/parameters/OmitViewsParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
+        - $ref: '#/components/parameters/ProcessIndexesParam'
+        - $ref: '#/components/parameters/ProcessViewsParam'
+        - $ref: '#/components/parameters/ProcessMViewsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
       responses:
@@ -439,18 +440,26 @@ components:
       schema:
         type: boolean
         default: true
-    OmitIndexesParam:
-      name: omit-indexes
+    ProcessIndexesParam:
+      name: process-indexes
       in: query
-      description: Whether indexes should be omitted. Defaults to false. Ignored if metadata is not being migrated.
+      description: Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.
       required: false
       schema:
         type: boolean
         default: false
-    OmitViewsParam:
-      name: omit-views
+    ProcessViewsParam:
+      name: process-views
       in: query
-      description: Whether views should be omitted. Defaults to false. Ignored if metadata is not being migrated.
+      description: Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
+      required: false
+      schema:
+        type: boolean
+        default: false
+    ProcessMViewsParam:
+      name: process-mviews
+      in: query
+      description: Whether materialized views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
       required: false
       schema:
         type: boolean
@@ -631,7 +640,7 @@ components:
         migrated-tables:
           type: object
           properties:
-            my_table:
+            my-table:
               type: object
               properties:
                 plain-count:
@@ -646,7 +655,7 @@ components:
                 lob-status:
                   type: string
                   example: "full"
-                my_column:
+                my-column:
                   type: object
                   properties:
                     source-type:
@@ -661,7 +670,7 @@ components:
                         type: string
                       example:
                         - identity
-                        - primary key
+                        - primary-key
     SchemaError:
       type: object
       properties:

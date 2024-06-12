@@ -19,7 +19,10 @@ from .pydb_engine import build_engine
 #          "target-type": <column-type>,
 #          "features": [
 #            "identity",
-#            "primary_key"
+#            "nullable",
+#            "unique",
+#            "foreign-key",
+#            "primary-key"
 #          ]
 #        },
 #        ...
@@ -36,8 +39,9 @@ def migrate_metadata(errors: list[str],
                      source_schema: str,
                      target_schema: str,
                      step_metadata: bool,
-                     omit_indexes: bool,
-                     omit_views: bool,
+                     process_indexes: bool,
+                     process_views: bool,
+                     process_mviews: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
                      external_columns: dict[str, Type],
@@ -113,7 +117,7 @@ def migrate_metadata(errors: list[str],
                     for source_table in source_tables:
                         if source_table not in target_tables:
                             source_metadata.remove(table=source_table)
-                        elif step_metadata and omit_indexes:
+                        elif step_metadata and not process_indexes:
                             source_table.indexes.clear()
 
                     # proceed with the appropriate tables
@@ -166,14 +170,23 @@ def migrate_metadata(errors: list[str],
                                     # migrate the schema
                                     source_metadata.create_all(bind=target_engine,
                                                                checkfirst=False)
-                                    if not omit_views:
+                                    if process_views:
                                         # migrate the views in the schema
                                         migrate_schema_views(errors=errors,
                                                              source_rdbms=source_rdbms,
                                                              source_schema=source_schema,
                                                              target_rdbms=target_rdbms,
                                                              target_schema=target_schema,
-                                                             tables=[tbl.name.lower() for tbl in target_tables],
+                                                             view_type="S",
+                                                             logger=logger)
+                                    if process_mviews:
+                                        # migrate the materialized views in the schema
+                                        migrate_schema_views(errors=errors,
+                                                             source_rdbms=source_rdbms,
+                                                             source_schema=source_schema,
+                                                             target_rdbms=target_rdbms,
+                                                             target_schema=target_schema,
+                                                             view_type="M",
                                                              logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema - the migration is now doomed
