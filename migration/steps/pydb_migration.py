@@ -213,7 +213,7 @@ def migrate_schema_views(errors: list[str],
     # traverse the views list
     for source_view in source_views:
         op_errors: list[str] = []
-        target_view: str = target_schema + source_view.replace(source_schema, target_schema, 1)
+        target_view: str = source_view.lower().replace(source_schema, target_schema, 1)
         # drop view in target schema
         drop_view(errors=op_errors,
                   view_name=target_view,
@@ -230,7 +230,7 @@ def migrate_schema_views(errors: list[str],
             # errors ?
             if not op_errors:
                 # no, create the view in the target schema
-                view_script = view_script.replace(source_schema, target_schema, 1)
+                view_script = view_script.lower().replace(source_schema, target_schema, 1)
                 db_execute(errors=op_errors,
                            exc_stmt=view_script,
                            engine=target_rdbms)

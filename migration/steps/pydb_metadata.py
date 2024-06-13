@@ -170,15 +170,6 @@ def migrate_metadata(errors: list[str],
                                     # migrate the schema
                                     source_metadata.create_all(bind=target_engine,
                                                                checkfirst=False)
-                                    if process_views:
-                                        # migrate the views in the schema
-                                        migrate_schema_views(errors=errors,
-                                                             source_rdbms=source_rdbms,
-                                                             source_schema=source_schema,
-                                                             target_rdbms=target_rdbms,
-                                                             target_schema=target_schema,
-                                                             view_type="P",
-                                                             logger=logger)
                                     if process_mviews:
                                         # migrate the materialized views in the schema
                                         migrate_schema_views(errors=errors,
@@ -187,6 +178,15 @@ def migrate_metadata(errors: list[str],
                                                              target_rdbms=target_rdbms,
                                                              target_schema=target_schema,
                                                              view_type="M",
+                                                             logger=logger)
+                                    if process_views:
+                                        # migrate the views in the schema
+                                        migrate_schema_views(errors=errors,
+                                                             source_rdbms=source_rdbms,
+                                                             source_schema=source_schema,
+                                                             target_rdbms=target_rdbms,
+                                                             target_schema=target_schema,
+                                                             view_type="P",
                                                              logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema
