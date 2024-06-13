@@ -230,7 +230,10 @@ def migrate_schema_views(errors: list[str],
             # errors ?
             if not op_errors:
                 # no, create the view in the target schema
-                view_script = view_script.lower().replace(source_schema, target_schema, 1)
+                view_script = view_script.lower().replace(f'{source_schema}.', f'{target_schema}.')\
+                                                 .replace(f'"{source_schema}".', f'"{target_schema}".')
+                if source_rdbms == "oracle":
+                    view_script = view_script.replace ("force editionable ", "")
                 db_execute(errors=op_errors,
                            exc_stmt=view_script,
                            engine=target_rdbms)

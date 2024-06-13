@@ -180,7 +180,7 @@ def migrate_metadata(errors: list[str],
                                                              view_type="M",
                                                              logger=logger)
                                     if process_views:
-                                        # migrate the views in the schema
+                                        # migrate the plain views in the schema
                                         migrate_schema_views(errors=errors,
                                                              source_rdbms=source_rdbms,
                                                              source_schema=source_schema,
