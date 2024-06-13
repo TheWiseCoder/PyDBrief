@@ -201,7 +201,7 @@ def migrate_schema_views(errors: list[str],
                          source_schema: str,
                          target_rdbms: str,
                          target_schema: str,
-                         view_type: Literal["S", "M"],
+                         view_type: Literal["M", "P"],
                          logger: Logger) -> None:
 
     # obtain the list of views in source schema

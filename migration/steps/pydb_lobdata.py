@@ -26,11 +26,12 @@ def migrate_lobs(errors: list[str],
         # organize the information, using LOB (large binary objects) types from the column names list
         table_pks: list[str] = []
         table_lobs: list[str] = []
-        for column_name, column_data in table_data["columns"].items():
-            column_type: str = column_data["source-type"]
+        table_columns = table_data.get("columns") or {}
+        for column_name, column_data in table_columns.items():
+            column_type: str = column_data.get("source-type")
             if pydb_types.is_lob(column_type):
                 table_lobs.append(column_name)
-            features: list[str] = column_data["features"]
+            features: list[str] = column_data.get("features") or []
             if "primary key" in features:
                 table_pks.append(column_name)
 

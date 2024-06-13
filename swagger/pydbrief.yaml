@@ -184,7 +184,7 @@ paths:
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
         - $ref: '#/components/parameters/ProcessIndexesParam'
-        - $ref: '#/components/parameters/ProcessViewsParam'
+        - $ref: '#/components/parameters/ProcessPViewsParam'
         - $ref: '#/components/parameters/ProcessMViewsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
@@ -448,10 +448,10 @@ components:
       schema:
         type: boolean
         default: false
-    ProcessViewsParam:
+    ProcessPViewsParam:
       name: process-views
       in: query
-      description: Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
+      description: Whether plain views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
       required: false
       schema:
         type: boolean

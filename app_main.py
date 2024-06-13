@@ -297,9 +297,9 @@ def migrate_data() -> Response:
         step_metadata, step_plaindata, step_lobdata = \
             pydb_validator.assert_migration_steps(errors=errors,
                                                   scheme=scheme)
-        process_indexes: bool | None = None
-        process_views: bool | None = None
-        process_mviews: bool | None = None
+        process_indexes: bool = False
+        process_views: bool = False
+        process_mviews: bool = False
         if step_metadata:
             process_indexes = validate_bool(errors=errors,
                                             scheme=scheme,

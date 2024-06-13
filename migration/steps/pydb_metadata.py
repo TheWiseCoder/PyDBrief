@@ -177,7 +177,7 @@ def migrate_metadata(errors: list[str],
                                                              source_schema=source_schema,
                                                              target_rdbms=target_rdbms,
                                                              target_schema=target_schema,
-                                                             view_type="S",
+                                                             view_type="P",
                                                              logger=logger)
                                     if process_mviews:
                                         # migrate the materialized views in the schema
@@ -189,7 +189,7 @@ def migrate_metadata(errors: list[str],
                                                              view_type="M",
                                                              logger=logger)
                                 except Exception as e:
-                                    # unable to fully compile the schema - the migration is now doomed
+                                    # unable to fully compile the schema
                                     exc_err = str_sanitize(exc_format(exc=e,
                                                                       exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
