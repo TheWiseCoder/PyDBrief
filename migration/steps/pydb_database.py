@@ -31,13 +31,21 @@ def drop_table(errors: list[str],
     if rdbms == "oracle":
         # oracle has no 'IF EXISTS' clause
         drop_stmt: str = \
-            (f"BEGIN\n"
-             f"  EXECUTE IMMEDIATE 'DROP TABLE {table_name} CASCADE CONSTRAINTS';\n"
-             "EXCEPTION\n"
-             "  WHEN OTHERS THEN NULL;\n"
+            (f"BEGIN"
+             f"  EXECUTE IMMEDIATE 'DROP TABLE {table_name} CASCADE CONSTRAINTS'; "
+             "EXCEPTION"
+             "  WHEN OTHERS THEN NULL; "
              "END;")
+    elif rdbms == "postgres":
+        drop_stmt: str = \
+            ("DO $$"
+             "BEGIN" 
+             "  EXECUTE 'DROP TABLE IF EXISTS {table_name} CASCADE'; "
+             "EXCEPTION"
+             "  WHEN OTHERS THEN NULL; "
+             "END $$;")
     else:
-        drop_stmt: str = f"DROP TABLE IF EXISTS {table_name} CASCADE"
+        drop_stmt: str = f"DROP TABLE IF EXISTS {table_name}"
 
     # drop the table
     db_execute(errors=errors,
@@ -57,11 +65,19 @@ def drop_view(errors: list[str],
     if rdbms == "oracle":
         # oracle has no 'IF EXISTS' clause
         drop_stmt: str = \
-            (f"BEGIN\n"
-             f"  EXECUTE IMMEDIATE 'DROP {tag} {view_name}';\n"
-             "EXCEPTION\n"
-             "  WHEN OTHERS THEN NULL;\n"
+            (f"BEGIN"
+             f"  EXECUTE IMMEDIATE 'DROP {tag} {view_name}'; "
+             "EXCEPTION"
+             "  WHEN OTHERS THEN NULL; "
              "END;")
+    elif rdbms == "postgres":
+        drop_stmt: str = \
+            ("DO $$"
+             "BEGIN" 
+             f"  EXECUTE 'DROP {tag} IF EXISTS {view_name} CASCADE'; "
+             "EXCEPTION"
+             "  WHEN OTHERS THEN NULL; "
+             "END $$;")
     else:
         drop_stmt: str = f"DROP {tag} IF EXISTS {view_name}"
 

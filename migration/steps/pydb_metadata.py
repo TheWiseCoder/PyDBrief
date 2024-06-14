@@ -5,7 +5,7 @@ from pypomes_db import db_get_view_script, db_execute
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
-from typing import Any, Literal
+from typing import Literal
 
 from .pydb_migration import migrate_schema, migrate_tables
 from .pydb_engine import build_engine
@@ -166,7 +166,7 @@ def migrate_metadata(errors: list[str],
                             result = migrate_tables(errors=errors,
                                                     source_rdbms=source_rdbms,
                                                     target_rdbms=target_rdbms,
-                                                    source_schema=source_schema,
+                                                    source_schema=from_schema,
                                                     target_tables=sorted_tables,
                                                     external_columns=external_columns,
                                                     logger=logger)
