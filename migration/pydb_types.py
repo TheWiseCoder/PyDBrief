@@ -509,6 +509,8 @@ LOBS: Final[list[str]] = [
 
 def migrate_table_column(source_rdbms: str,
                          target_rdbms: str,
+                         source_schema: str,
+                         target_schema: str,
                          native_ordinal: int,
                          reference_ordinal: int,
                          source_column: Column,
@@ -543,8 +545,9 @@ def migrate_table_column(source_rdbms: str,
     if is_fk:
         # yes, check whether it is safe to force type conformity
         fk_column: Column = list(source_column.foreign_keys)[0].column
-        # is the fk in the same schema as the column it points to ?
-        if fk_column.table.schema == source_column.table.schema:
+        # make sure references to source schema are changed to target schema
+        if fk_column.table.schema in [source_schema, target_schema]:
+            fk_column.table.schema = target_schema
             # yes, force type conformity
             type_equiv = fk_column.type.__class__
         elif external_columns:
