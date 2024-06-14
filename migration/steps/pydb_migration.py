@@ -219,10 +219,9 @@ def migrate_view(errors: list[str],
                  logger: Logger) -> None:
 
     # obtain the script used to create the view
-    full_name: str = f"{target_schema}.{view_name}"
     view_script: str = db_get_view_script(errors=errors,
                                           view_type=view_type,
-                                          view_name=full_name,
+                                          view_name=f"{source_schema}.{view_name}",
                                           engine=source_rdbms,
                                           logger=logger)
     # has the script been retrieved ?
@@ -247,4 +246,4 @@ def migrate_view(errors: list[str],
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
                                             "unable to retrieve creation script "
-                                            f"for view '{target_rdbms}.{full_name}'"))
+                                            f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
