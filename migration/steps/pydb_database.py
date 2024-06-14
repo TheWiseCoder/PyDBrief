@@ -40,7 +40,7 @@ def drop_table(errors: list[str],
         drop_stmt: str = \
             ("DO $$"
              "BEGIN" 
-             "  EXECUTE 'DROP TABLE IF EXISTS {table_name} CASCADE'; "
+             f"  EXECUTE 'DROP TABLE IF EXISTS {table_name} CASCADE'; "
              "EXCEPTION"
              "  WHEN OTHERS THEN NULL; "
              "END $$;")
@@ -74,7 +74,7 @@ def drop_view(errors: list[str],
         drop_stmt: str = \
             ("DO $$"
              "BEGIN" 
-             f"  EXECUTE 'DROP {tag} IF EXISTS {view_name} CASCADE'; "
+             f"  EXECUTE 'DROP {tag} IF EXISTS {view_name}'; "
              "EXCEPTION"
              "  WHEN OTHERS THEN NULL; "
              "END $$;")
