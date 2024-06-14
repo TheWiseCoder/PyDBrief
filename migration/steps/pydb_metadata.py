@@ -173,9 +173,9 @@ def migrate_metadata(errors: list[str],
                                         migrate_schema_views(errors=errors,
                                                              source_inspector=source_inspector,
                                                              source_engine=source_engine,
+                                                             target_engine=target_engine,
                                                              source_schema=from_schema,
                                                              target_schema=to_schema,
-                                                             target_engine=target_engine,
                                                              process_views=process_views,
                                                              process_mviews=process_mviews)
                                 except Exception as e:

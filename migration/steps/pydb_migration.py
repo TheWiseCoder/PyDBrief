@@ -207,11 +207,11 @@ def migrate_schema_views(errors: list[str],
                          process_mviews: bool) -> None:
 
     # obtain the list of plain and materialized views
-    source_views: list = []
+    source_views: list[str] = []
     if process_views:
-        source_views.append(source_inspector.get_view_names())
+        source_views.extend(source_inspector.get_view_names())
     if process_mviews:
-        source_views.append(source_inspector.get_materialized_view_names())
+        source_views.extend(source_inspector.get_materialized_view_names())
 
     # obtain the source schema metadata
     source_metadata: MetaData = MetaData(schema=source_schema)
