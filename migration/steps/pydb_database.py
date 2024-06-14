@@ -44,6 +44,13 @@ def drop_table(errors: list[str],
              "EXCEPTION"
              " WHEN OTHERS THEN NULL; "
              "END $$;")
+    elif rdbms == "sqlserver":
+        drop_stmt: str = \
+            ("BEGIN TRY" 
+             f" EXEC('DROP TABLE IF EXISTS {table_name} CASCADE;'); "
+             "END TRY "
+             "BEGIN CATCH "
+             "END CATCH;")
     else:
         drop_stmt: str = f"DROP TABLE IF EXISTS {table_name}"
 
@@ -78,6 +85,14 @@ def drop_view(errors: list[str],
              "EXCEPTION"
              " WHEN OTHERS THEN NULL; "
              "END $$;")
+    elif rdbms == "sqlserver":
+        # in SQLServer, materialized views are regular views with indexes
+        drop_stmt: str = \
+            ("BEGIN TRY" 
+             f" EXEC('DROP VIEW IF EXISTS {view_name};'); "
+             "END TRY "
+             "BEGIN CATCH "
+             "END CATCH;")
     else:
         drop_stmt: str = f"DROP {tag} IF EXISTS {view_name}"
 
