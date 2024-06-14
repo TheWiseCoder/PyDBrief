@@ -1,15 +1,14 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_get_views
+from pypomes_db import db_get_view_script, db_execute
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, Literal
 
 from .pydb_migration import migrate_schema, migrate_tables
 from .pydb_engine import build_engine
-from ..pydb_types import establish_equivalences, migrate_table_column
 
 
 # structure of the migration data returned:
@@ -78,12 +77,16 @@ def migrate_metadata(errors: list[str],
 
         # proceed, if the source schema exists
         if from_schema:
+            # obtain the list of plain and materialized views in source schema
+            plain_views: list[str] = source_inspector.get_view_names()
+            mat_views: list[str] = source_inspector.get_materialized_view_names()
+
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
-                                        views=False)
+                                        views=True)
             except SAWarning as e:
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
@@ -105,7 +108,9 @@ def migrate_metadata(errors: list[str],
                         include_tables.remove(table_name)
                     elif table_name in exclude_tables:
                         exclude_tables.remove(table_name)
-                    elif include and source_table.schema == from_schema:
+                    elif (include and source_table.schema == from_schema and not
+                          (table_name in plain_views and not process_views) and not
+                          (table_name in mat_views and not process_mviews)):
                         target_tables.append(source_table)
 
                 # proceed, if all tables in include and exclude lists were accounted for
@@ -141,13 +146,16 @@ def migrate_metadata(errors: list[str],
                     if not errors:
                         # no, proceed
                         if step_metadata:
-
                             # migrate the schema
                             to_schema: str = migrate_schema(errors=errors,
                                                             target_rdbms=target_rdbms,
                                                             target_schema=target_schema,
                                                             target_engine=target_engine,
                                                             target_tables=sorted_tables,
+                                                            plain_views=plain_views,
+                                                            mat_views=mat_views,
+                                                            process_views=process_views,
+                                                            process_mviews=process_mviews,
                                                             logger=logger)
                         else:
                             to_schema = target_schema
@@ -165,31 +173,31 @@ def migrate_metadata(errors: list[str],
 
                             # proceed, if migrating the metadata was indicated
                             if step_metadata:
-                                # assign the new schema for the migration candidate tables
                                 for sorted_table in sorted_tables:
+                                    # assign the new schema for the migration candidate table
                                     sorted_table.schema = to_schema
-                                try:
-                                    # migrate the schema
-                                    source_metadata.create_all(bind=target_engine,
-                                                               checkfirst=False)
-                                    if process_views or process_mviews:
-                                        migrate_views(errors=errors,
-                                                      source_engine=source_engine,
-                                                      target_engine=target_engine,
-                                                      source_rdbms=source_rdbms,
-                                                      target_rdbms=target_rdbms,
-                                                      source_schema=from_schema,
-                                                      target_schema=to_schema,
-                                                      process_views=process_views,
-                                                      process_mviews=process_mviews,
-                                                      external_columns=external_columns,
-                                                      logger=logger)
-                                except Exception as e:
-                                    # unable to fully compile the schema
-                                    exc_err = str_sanitize(exc_format(exc=e,
-                                                                      exc_info=sys.exc_info()))
-                                    # 104: The operation {} returned the error {}
-                                    errors.append(validate_format_error(104, "schema-construction", exc_err))
+                                    try:
+                                        # migrate the schema, one table/view at a time
+                                        if sorted_table.name in plain_views or \
+                                           sorted_table.name in mat_views:
+                                            migrate_view(errors=errors,
+                                                         view_name=sorted_table.name,
+                                                         view_type="M" if sorted_table.name in mat_views else "P",
+                                                         source_rdbms=source_rdbms,
+                                                         target_rdbms=target_rdbms,
+                                                         source_schema=from_schema,
+                                                         target_schema=to_schema,
+                                                         logger=logger)
+                                        else:
+                                            source_metadata.create_all(bind=target_engine,
+                                                                       tables=[sorted_table],
+                                                                       checkfirst=False)
+                                    except Exception as e:
+                                        # unable to fully compile the schema
+                                        exc_err = str_sanitize(exc_format(exc=e,
+                                                                          exc_info=sys.exc_info()))
+                                        # 104: The operation {} returned the error {}
+                                        errors.append(validate_format_error(104, "schema-construction", exc_err))
                         else:
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,
@@ -203,116 +211,35 @@ def migrate_metadata(errors: list[str],
     return result
 
 
-def migrate_views(errors: list[str],
-                  source_engine: Engine,
-                  target_engine: Engine,
-                  source_rdbms: str,
-                  target_rdbms: str,
-                  source_schema: str,
-                  target_schema: str,
-                  process_views: bool,
-                  process_mviews: bool,
-                  external_columns: dict[str, Type],
-                  logger: Logger) -> None:
+def migrate_view(errors: list[str],
+                 view_name: str,
+                 view_type: Literal["M", "P"],
+                 source_rdbms: str,
+                 source_schema: str,
+                 target_rdbms: str,
+                 target_schema: str,
+                 logger: Logger) -> None:
 
-    # obtain the list of plain and materialized views
-    source_views: list[str] = []
-    target_views: list[str] = []
-    if process_views:
-        source_views.extend(db_get_views(errors=errors,
-                                         view_type="P",
-                                         schema=source_schema,
-                                         engine=source_rdbms,
-                                         logger=logger) or [])
-        target_views.extend(db_get_views(errors=errors,
-                                         view_type="P",
-                                         schema=target_schema,
-                                         engine=target_rdbms,
-                                         logger=logger) or [])
-    if process_mviews:
-        source_views.extend(db_get_views(errors=errors,
-                                         view_type="M",
-                                         schema=source_schema,
-                                         engine=source_rdbms,
-                                         logger=logger) or [])
-        target_views.extend(db_get_views(errors=errors,
-                                         view_type="M",
-                                         schema=target_schema,
-                                         engine=target_rdbms,
-                                         logger=logger) or [])
-    # remove the schema qualification from the names of the views
-    source_views = [view[view.index(".")+1:].lower() for view in source_views]
-    target_views = [view[view.index(".")+1:].lower() for view in target_views]
-
-    # obtain the source schema metadata
-    source_metadata: MetaData = MetaData(schema=source_schema)
-    try:
-        source_metadata.reflect(bind=source_engine,
-                                schema=source_schema,
-                                views=True,
-                                only=source_views)
-    except SAWarning as e:
-        # - unable to fully reflect the schema
-        # - this error will cause the migration to be aborted,
-        #   as SQLAlchemy will not be able to find the schema tables
-        exc_err = str_sanitize(exc_format(exc=e,
-                                          exc_info=sys.exc_info()))
-        # 104: The operation {} returned the error {}
-        errors.append(validate_format_error(104, "views-reflection", exc_err))
-
-    # any errors ?
+    # obtain the script used to create the view
+    view_script: str = db_get_view_script(errors=errors,
+                                          view_type=view_type,
+                                          view_name=f"{target_schema}.{view_name}",
+                                          engine=source_rdbms,
+                                          logger=logger)
+    # errors ?
     if not errors:
-        # no, proceed with the appropriate tables
-        sorted_views: list[Table] = []
-        try:
-            sorted_views: list[Table] = source_metadata.sorted_tables
-        except SAWarning as e:
-            # - unable to organize the views in the proper sequence:
-            #   probably, cross-dependencies between views
-            # - this error will cause the views migration to be aborted,
-            #   as SQLAlchemy would not be able to compile the migrated schema
-            exc_err = str_sanitize(exc_format(exc=e,
-                                              exc_info=sys.exc_info()))
-            # 104: The operation {} returned the error {}
-            errors.append(validate_format_error(104, "views-migration", exc_err))
-
-        # any errors ?
-        if not errors:
-            # no, proceed
-            for sorted_view in reversed(sorted_views):
-                # is the view natively in source schema, and not in target schema ?
-                if sorted_view.schema == source_schema and \
-                   sorted_view.name in source_views and \
-                   sorted_view.name not in target_views:
-                    # yes, establish the migration equivalences
-                    (native_ordinal, reference_ordinal, nat_equivalences) = \
-                        establish_equivalences(source_rdbms=source_rdbms,
-                                               target_rdbms=target_rdbms)
-                    # traverse the view columns
-                    # noinspection PyProtectedMember
-                    for view_column in sorted_view.c._all_columns:
-                        target_type: Any = migrate_table_column(source_rdbms=source_rdbms,
-                                                                target_rdbms=target_rdbms,
-                                                                native_ordinal=native_ordinal,
-                                                                reference_ordinal=reference_ordinal,
-                                                                source_column=view_column,
-                                                                nat_equivalences=nat_equivalences,
-                                                                external_columns=external_columns,
-                                                                logger=logger)
-                        # set view column's new type
-                        view_column.type = target_type
-                    # set the view's new schema
-                    sorted_view.schema = target_schema
-                else:
-                    # no, remove it
-                    source_metadata.remove(sorted_view)
-            try:
-                # migrate the schema
-                source_metadata.create_all(bind=target_engine,
-                                           checkfirst=False)
-            except Exception as e:
-                # unable to fully compile the schema
-                exc_err = str_sanitize(exc_format(exc=e,
-                                                  exc_info=sys.exc_info()))
-                # 104: The operation {} returned the error {}
-                errors.append(validate_format_error(104, "views-construction", exc_err))
+        # no, create the view in the target schema
+        view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
+                                         .replace(f'"{source_schema}".', f'"{target_schema}".')
+        if source_rdbms == "oracle":
+            # purge Oracle-specific clauses
+            view_script = view_script.replace("force editionable ", "")
+        db_execute(errors=errors,
+                   exc_stmt=view_script,
+                   engine=target_rdbms)
+        # errors ?
+        if errors:
+            # yes, insert a leading explanatory error message
+            err_msg: str = f"Failed: '{str_sanitize(view_script)}'"
+            # 101: {}
+            errors.insert(0, validate_format_error(101, err_msg))

@@ -1,12 +1,9 @@
 import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import (
-    db_execute, db_get_views, db_get_view_script
-)
 from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
-from typing import Any, Literal
+from typing import Any
 
 from migration import pydb_common
 from migration.pydb_types import migrate_table_column, establish_equivalences
@@ -18,6 +15,10 @@ def migrate_schema(errors: list[str],
                    target_schema: str,
                    target_engine: Engine,
                    target_tables: list[Table],
+                   plain_views: list[str],
+                   mat_views: list[str],
+                   process_views: bool,
+                   process_mviews: bool,
                    logger: Logger) -> str:
 
     # initialize the return variable
@@ -39,10 +40,24 @@ def migrate_schema(errors: list[str],
     if result:
         # yes, drop existing tables (must be done in reverse order)
         for target_table in reversed(target_tables):
-            drop_table(errors=errors,
-                       table_name=f"{target_schema}.{target_table.name}",
-                       rdbms=target_rdbms,
-                       logger=logger)
+            full_name: str = f"{target_schema}.{target_table.name}"
+            if process_views and target_table.name in plain_views:
+                drop_view(errors=errors,
+                          view_name=full_name,
+                          view_type="P",
+                          rdbms=target_rdbms,
+                          logger=logger)
+            elif process_mviews and target_table.name in mat_views:
+                drop_view(errors=errors,
+                          view_name=full_name,
+                          view_type="M",
+                          rdbms=target_rdbms,
+                          logger=logger)
+            else:
+                drop_table(errors=errors,
+                           table_name=full_name,
+                           rdbms=target_rdbms,
+                           logger=logger)
     else:
         # no, create the target schema
         create_schema(errors=errors,
@@ -195,55 +210,3 @@ def setup_table_columns(errors: list[str],
                                               exc_info=sys.exc_info()))
             # 102: Unexpected error: {}
             errors.append(validate_format_error(102, exc_err))
-
-
-def migrate_schema_views(errors: list[str],
-                         source_rdbms: str,
-                         source_schema: str,
-                         target_rdbms: str,
-                         target_schema: str,
-                         view_type: Literal["M", "P"],
-                         logger: Logger) -> None:
-
-    # obtain the list of views in source schema
-    source_views: list[str] = db_get_views(errors=errors,
-                                           view_type=view_type,
-                                           schema=source_schema,
-                                           engine=source_rdbms,
-                                           logger=logger) or []
-    # traverse the views list
-    for source_view in source_views:
-        op_errors: list[str] = []
-        target_view: str = source_view.lower().replace(source_schema, target_schema, 1)
-        # drop view in target schema
-        drop_view(errors=op_errors,
-                  view_name=target_view,
-                  rdbms=target_rdbms,
-                  logger=logger)
-        # errors ?
-        if not op_errors:
-            # no, obtain the script used to create the view
-            view_script: str = db_get_view_script(errors=op_errors,
-                                                  view_type=view_type,
-                                                  view_name=source_view,
-                                                  engine=source_rdbms,
-                                                  logger=logger)
-            # errors ?
-            if not op_errors:
-                # no, create the view in the target schema
-                view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                                                 .replace(f'"{source_schema}".', f'"{target_schema}".')
-                if source_rdbms == "oracle":
-                    # purge Oracle-specific clauses
-                    view_script = view_script.replace("force editionable ", "")
-                db_execute(errors=op_errors,
-                           exc_stmt=view_script,
-                           engine=target_rdbms)
-                # errors ?
-                if op_errors:
-                    # yes, insert a leading explanatory error message
-                    err_msg: str = f"Failed: '{str_sanitize(view_script)}'"
-                    # 101: {}
-                    op_errors.insert(0, validate_format_error(101, err_msg))
-        # register eventual local errors
-        errors.extend(op_errors)

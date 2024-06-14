@@ -1,6 +1,6 @@
 from logging import Logger, DEBUG
 from pypomes_db import db_get_param, db_execute
-from typing import Any
+from typing import Any, Literal
 
 from migration import pydb_common
 
@@ -48,20 +48,22 @@ def drop_table(errors: list[str],
 
 def drop_view(errors: list[str],
               view_name: str,
+              view_type: Literal["P", "M"],
               rdbms: str,
               logger: Logger) -> None:
 
     # build drop statement
+    tag: str = "MATERIALIZED VIEW" if view_type == "M" else "VIEW"
     if rdbms == "oracle":
         # oracle has no 'IF EXISTS' clause
         drop_stmt: str = \
             (f"BEGIN\n"
-             f"  EXECUTE IMMEDIATE 'DROP VIEW {view_name}';\n"
+             f"  EXECUTE IMMEDIATE 'DROP {tag} {view_name}';\n"
              "EXCEPTION\n"
              "  WHEN OTHERS THEN NULL;\n"
              "END;")
     else:
-        drop_stmt: str = f"DROP VIEW IF EXISTS {view_name}"
+        drop_stmt: str = f"DROP {tag} IF EXISTS {view_name}"
 
     # drop the view
     db_execute(errors=errors,
