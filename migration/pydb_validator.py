@@ -140,7 +140,7 @@ def get_column_types(errors: list[str],
             column_type: Type = pydb_types.name_to_class(rdbms=rdbms,
                                                          type_name=type_name)
             if column_type:
-                result[foreign_column.get("column-name")] = column_type
+                result[foreign_column.get("column-name").lower()] = column_type
             else:
                 # 142: Invalid value {}: {}
                 errors.append(validate_format_error(142, type_name,

@@ -544,14 +544,14 @@ def migrate_table_column(source_rdbms: str,
         # yes, check whether it is safe to force type conformity
         fk_column: Column = list(source_column.foreign_keys)[0].column
         # is the fk in the same schema as the column it points to ?
-        if fk_column.table.schema.lower() == source_column.table.schema.lower():
+        if fk_column.table.schema == source_column.table.schema:
             # yes, force type conformity
             type_equiv = fk_column.type.__class__
         elif external_columns:
             # no, use the externally provided type, if available
-            external_name: str = (f"{fk_column.table.schema.lower()}."
+            external_name: str = (f"{fk_column.table.schema}."
                                   f"{fk_column.table.name}."
-                                  f"{fk_column.name}")
+                                  f"{fk_column.name}").lower()
             type_equiv = external_columns.get(external_name)
 
     # if necessary, inspect the native equivalences first

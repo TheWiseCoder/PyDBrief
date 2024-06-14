@@ -173,8 +173,6 @@ def migrate_metadata(errors: list[str],
                             # proceed, if migrating the metadata was indicated
                             if step_metadata:
                                 for sorted_table in sorted_tables:
-                                    # assign the new schema for the migration candidate table
-                                    sorted_table.schema = to_schema
                                     try:
                                         # migrate the schema, one table/view at a time
                                         if sorted_table.name in plain_views or \
