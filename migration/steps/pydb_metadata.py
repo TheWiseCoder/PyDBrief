@@ -176,10 +176,14 @@ def migrate_metadata(errors: list[str],
                                                       source_inspector=source_inspector,
                                                       source_engine=source_engine,
                                                       target_engine=target_engine,
+                                                      source_rdbms=source_rdbms,
+                                                      target_rdbms=target_rdbms,
                                                       source_schema=from_schema,
                                                       target_schema=to_schema,
                                                       process_views=process_views,
-                                                      process_mviews=process_mviews)
+                                                      process_mviews=process_mviews,
+                                                      external_columns=external_columns,
+                                                      logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema
                                     exc_err = str_sanitize(exc_format(exc=e,
