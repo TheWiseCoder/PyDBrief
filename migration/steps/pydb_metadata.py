@@ -4,9 +4,11 @@ from pypomes_core import exc_format, str_sanitize, validate_format_error
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
+from typing import Any
 
 from .pydb_migration import migrate_schema, migrate_tables
 from .pydb_engine import build_engine
+from ..pydb_types import establish_equivalences, migrate_table_column
 
 
 # structure of the migration data returned:
@@ -201,10 +203,14 @@ def migrate_views(errors: list[str],
                   source_inspector: Inspector,
                   source_engine: Engine,
                   target_engine: Engine,
+                  source_rdbms: str,
+                  target_rdbms: str,
                   source_schema: str,
                   target_schema: str,
                   process_views: bool,
-                  process_mviews: bool) -> None:
+                  process_mviews: bool,
+                  external_columns: dict[str, Type],
+                  logger: Logger) -> None:
 
     # obtain the list of plain and materialized views
     source_views: list[str] = []
@@ -249,12 +255,29 @@ def migrate_views(errors: list[str],
         if not errors:
             # no, proceed
             for sorted_view in reversed(sorted_views):
+                # is the view natively in source schema ?
                 if sorted_view.schema == source_schema:
+                    # yes, establish the migration equivalences
+                    (native_ordinal, reference_ordinal, nat_equivalences) = \
+                        establish_equivalences(source_rdbms=source_rdbms,
+                                               target_rdbms=target_rdbms)
+                    # traverse the view columns
                     # noinspection PyProtectedMember
-                    for column in sorted_view.c._all_columns:
-                        print(column)
+                    for view_column in sorted_view.c._all_columns:
+                        target_type: Any = migrate_table_column(source_rdbms=source_rdbms,
+                                                                target_rdbms=target_rdbms,
+                                                                native_ordinal=native_ordinal,
+                                                                reference_ordinal=reference_ordinal,
+                                                                source_column=view_column,
+                                                                nat_equivalences=nat_equivalences,
+                                                                external_columns=external_columns,
+                                                                logger=logger)
+                        # set view column's new type
+                        view_column.type = target_type
+                    # set the view's new schema
                     sorted_view.schema = target_schema
                 else:
+                    # no, remove it
                     source_metadata.remove(sorted_view)
             try:
                 # migrate the schema
