@@ -1,13 +1,11 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_get_view_script, db_execute
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
-from typing import Literal
 
-from .pydb_migration import migrate_schema, migrate_tables
+from .pydb_migration import migrate_schema, migrate_tables, migrate_view
 from .pydb_engine import build_engine
 
 
@@ -209,37 +207,3 @@ def migrate_metadata(errors: list[str],
                                                 f"schema not found in RDBMS {source_rdbms}",
                                                 "@from-schema"))
     return result
-
-
-def migrate_view(errors: list[str],
-                 view_name: str,
-                 view_type: Literal["M", "P"],
-                 source_rdbms: str,
-                 source_schema: str,
-                 target_rdbms: str,
-                 target_schema: str,
-                 logger: Logger) -> None:
-
-    # obtain the script used to create the view
-    view_script: str = db_get_view_script(errors=errors,
-                                          view_type=view_type,
-                                          view_name=f"{target_schema}.{view_name}",
-                                          engine=source_rdbms,
-                                          logger=logger)
-    # has the script been retrieved ?
-    if view_script:
-        # yes, create the view in the target schema
-        view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                                         .replace(f'"{source_schema}".', f'"{target_schema}".')
-        if source_rdbms == "oracle":
-            # purge Oracle-specific clauses
-            view_script = view_script.replace("force editionable ", "")
-        db_execute(errors=errors,
-                   exc_stmt=view_script,
-                   engine=target_rdbms)
-        # errors ?
-        if errors:
-            # yes, insert a leading explanatory error message
-            err_msg: str = f"Failed: '{str_sanitize(view_script)}'"
-            # 101: {}
-            errors.insert(0, validate_format_error(101, err_msg))

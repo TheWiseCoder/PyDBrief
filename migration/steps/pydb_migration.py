@@ -1,9 +1,10 @@
 import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
+from pypomes_db import db_get_view_script, db_execute
 from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, Literal
 
 from migration import pydb_common
 from migration.pydb_types import migrate_table_column, establish_equivalences
@@ -205,3 +206,44 @@ def setup_table_columns(errors: list[str],
                                               exc_info=sys.exc_info()))
             # 102: Unexpected error: {}
             errors.append(validate_format_error(102, exc_err))
+
+
+def migrate_view(errors: list[str],
+                 view_name: str,
+                 view_type: Literal["M", "P"],
+                 source_rdbms: str,
+                 source_schema: str,
+                 target_rdbms: str,
+                 target_schema: str,
+                 logger: Logger) -> None:
+
+    # obtain the script used to create the view
+    full_name: str = f"{target_schema}.{view_name}"
+    view_script: str = db_get_view_script(errors=errors,
+                                          view_type=view_type,
+                                          view_name=full_name,
+                                          engine=source_rdbms,
+                                          logger=logger)
+    # has the script been retrieved ?
+    if view_script:
+        # yes, create the view in the target schema
+        view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
+                                         .replace(f'"{source_schema}".', f'"{target_schema}".')
+        if source_rdbms == "oracle":
+            # purge Oracle-specific clauses
+            view_script = view_script.replace("force editionable ", "")
+        db_execute(errors=errors,
+                   exc_stmt=view_script,
+                   engine=target_rdbms)
+        # errors ?
+        if errors:
+            # yes, insert a leading explanatory error message
+            err_msg: str = f"Failed: '{str_sanitize(view_script)}'"
+            # 101: {}
+            errors.insert(0, validate_format_error(101, err_msg))
+    else:
+        # no, report the problem
+        # 102: Unexpected error: {}
+        errors.append(validate_format_error(102,
+                                            "unable to retrieve creation script "
+                                            f"for view {full_name} in RDBMS {target_rdbms}"))
