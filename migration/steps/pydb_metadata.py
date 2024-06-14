@@ -178,24 +178,6 @@ def migrate_metadata(errors: list[str],
                                                              target_engine=target_engine,
                                                              process_views=process_views,
                                                              process_mviews=process_mviews)
-                                    # if process_mviews:
-                                    #     # migrate the materialized views in the schema
-                                    #     migrate_schema_vixxs(errors=errors,
-                                    #                          source_rdbms=source_rdbms,
-                                    #                          source_schema=source_schema,
-                                    #                          target_rdbms=target_rdbms,
-                                    #                          target_schema=target_schema,
-                                    #                          view_type="M",
-                                    #                          logger=logger)
-                                    # if process_views:
-                                    #     # migrate the plain views in the schema
-                                    #     migrate_schema_vixxs(errors=errors,
-                                    #                          source_rdbms=source_rdbms,
-                                    #                          source_schema=source_schema,
-                                    #                          target_rdbms=target_rdbms,
-                                    #                          target_schema=target_schema,
-                                    #                          view_type="P",
-                                    #                          logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema
                                     exc_err = str_sanitize(exc_format(exc=e,
