@@ -1,6 +1,7 @@
 import sys
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
+from pypomes_db import db_get_views
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
@@ -173,7 +174,6 @@ def migrate_metadata(errors: list[str],
                                                                checkfirst=False)
                                     if process_views or process_mviews:
                                         migrate_views(errors=errors,
-                                                      source_inspector=source_inspector,
                                                       source_engine=source_engine,
                                                       target_engine=target_engine,
                                                       source_rdbms=source_rdbms,
@@ -204,7 +204,6 @@ def migrate_metadata(errors: list[str],
 
 
 def migrate_views(errors: list[str],
-                  source_inspector: Inspector,
                   source_engine: Engine,
                   target_engine: Engine,
                   source_rdbms: str,
@@ -218,10 +217,32 @@ def migrate_views(errors: list[str],
 
     # obtain the list of plain and materialized views
     source_views: list[str] = []
+    target_views: list[str] = []
     if process_views:
-        source_views.extend(source_inspector.get_view_names())
+        source_views.extend(db_get_views(errors=errors,
+                                         view_type="P",
+                                         schema=source_schema,
+                                         engine=source_rdbms,
+                                         logger=logger) or [])
+        target_views.extend(db_get_views(errors=errors,
+                                         view_type="P",
+                                         schema=target_schema,
+                                         engine=target_rdbms,
+                                         logger=logger) or [])
     if process_mviews:
-        source_views.extend(source_inspector.get_materialized_view_names())
+        source_views.extend(db_get_views(errors=errors,
+                                         view_type="M",
+                                         schema=source_schema,
+                                         engine=source_rdbms,
+                                         logger=logger) or [])
+        target_views.extend(db_get_views(errors=errors,
+                                         view_type="M",
+                                         schema=target_schema,
+                                         engine=target_rdbms,
+                                         logger=logger) or [])
+    # remove the schema qualification from the names of the views
+    source_views = [view[view.index(".")+1:].lower() for view in source_views]
+    target_views = [view[view.index(".")+1:].lower() for view in target_views]
 
     # obtain the source schema metadata
     source_metadata: MetaData = MetaData(schema=source_schema)
@@ -259,8 +280,10 @@ def migrate_views(errors: list[str],
         if not errors:
             # no, proceed
             for sorted_view in reversed(sorted_views):
-                # is the view natively in source schema ?
-                if sorted_view.schema == source_schema:
+                # is the view natively in source schema, and not in target schema ?
+                if sorted_view.schema == source_schema and \
+                   sorted_view.name in source_views and \
+                   sorted_view.name not in target_views:
                     # yes, establish the migration equivalences
                     (native_ordinal, reference_ordinal, nat_equivalences) = \
                         establish_equivalences(source_rdbms=source_rdbms,
