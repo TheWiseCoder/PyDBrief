@@ -165,6 +165,7 @@ def migrate_metadata(errors: list[str],
                                                     source_rdbms=source_rdbms,
                                                     target_rdbms=target_rdbms,
                                                     source_schema=from_schema,
+                                                    target_schema=to_schema,
                                                     target_tables=sorted_tables,
                                                     external_columns=external_columns,
                                                     logger=logger)

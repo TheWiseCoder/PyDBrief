@@ -2,7 +2,9 @@ import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_get_view_script, db_execute
-from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
+from sqlalchemy import (
+    Engine, Inspector, Table, Column, Constraint, ForeignKeyConstraint, inspect
+)
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
 
@@ -82,6 +84,7 @@ def migrate_tables(errors: list[str],
                    source_rdbms: str,
                    target_rdbms: str,
                    source_schema: str,
+                   target_schema: str,
                    target_tables: list[Table],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
@@ -124,6 +127,10 @@ def migrate_tables(errors: list[str],
                 excess_constraints.append(constraint)
             else:
                 constraint_names.append(constraint.name)
+                if isinstance(constraint, ForeignKeyConstraint):
+                    for element in constraint.elements:
+                        if element.column.table.schema == source_schema:
+                            element.column.table.schema = target_schema
         for excess_constraint in excess_constraints:
             target_table.constraints.remove(excess_constraint)
 
