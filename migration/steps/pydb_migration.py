@@ -252,7 +252,7 @@ def migrate_schema_views(errors: list[str],
                 if sorted_table.schema == source_schema:
                     sorted_table.schema = target_schema
                 else:
-                    return source_metadata.remove(sorted_table)
+                    source_metadata.remove(sorted_table)
             try:
                 # migrate the schema
                 source_metadata.create_all(bind=target_engine,
