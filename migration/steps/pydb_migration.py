@@ -238,7 +238,7 @@ def migrate_view(errors: list[str],
         # errors ?
         if errors:
             # yes, insert a leading explanatory error message
-            err_msg: str = f"Failed: '{str_sanitize(view_script)}' - {errors[0]}"
+            err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {errors[0]}"
             # 101: {}
             errors[0] = validate_format_error(101, err_msg)
     else:
