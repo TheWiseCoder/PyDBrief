@@ -4,12 +4,12 @@ from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import (
     db_execute, db_get_views, db_get_view_script
 )
-from sqlalchemy import MetaData, Engine, Inspector, Table, Column, Constraint, inspect
-from sqlalchemy.exc import SAWarning
+from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
 
-from migration import pydb_types, pydb_common
+from migration import pydb_common
+from migration.pydb_types import migrate_table_column, establish_equivalences
 from .pydb_database import create_schema, drop_table, drop_view
 
 
@@ -76,8 +76,8 @@ def migrate_tables(errors: list[str],
 
     # establish the migration equivalences
     (native_ordinal, reference_ordinal, nat_equivalences) = \
-        pydb_types.establish_equivalences(source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms)
+        establish_equivalences(source_rdbms=source_rdbms,
+                               target_rdbms=target_rdbms)
 
     # setup target tables
     is_view: bool
@@ -170,14 +170,14 @@ def setup_table_columns(errors: list[str],
     for table_column in table_columns:
         try:
             # convert the type
-            target_type: Any = pydb_types.migrate_column(source_rdbms=source_rdbms,
-                                                         target_rdbms=target_rdbms,
-                                                         native_ordinal=native_ordinal,
-                                                         reference_ordinal=reference_ordinal,
-                                                         source_column=table_column,
-                                                         nat_equivalences=nat_equivalences,
-                                                         external_columns=external_columns,
-                                                         logger=logger)
+            target_type: Any = migrate_table_column(source_rdbms=source_rdbms,
+                                                    target_rdbms=target_rdbms,
+                                                    native_ordinal=native_ordinal,
+                                                    reference_ordinal=reference_ordinal,
+                                                    source_column=table_column,
+                                                    nat_equivalences=nat_equivalences,
+                                                    external_columns=external_columns,
+                                                    logger=logger)
             # set column's new type
             table_column.type = target_type
 
@@ -198,74 +198,6 @@ def setup_table_columns(errors: list[str],
 
 
 def migrate_schema_views(errors: list[str],
-                         source_inspector: Inspector,
-                         source_engine: Engine,
-                         target_engine: Engine,
-                         source_schema: str,
-                         target_schema: str,
-                         process_views: bool,
-                         process_mviews: bool) -> None:
-
-    # obtain the list of plain and materialized views
-    source_views: list[str] = []
-    if process_views:
-        source_views.extend(source_inspector.get_view_names())
-    if process_mviews:
-        source_views.extend(source_inspector.get_materialized_view_names())
-
-    # obtain the source schema metadata
-    source_metadata: MetaData = MetaData(schema=source_schema)
-    try:
-        source_metadata.reflect(bind=source_engine,
-                                schema=source_schema,
-                                views=True,
-                                only=source_views)
-    except SAWarning as e:
-        # - unable to fully reflect the schema
-        # - this error will cause the migration to be aborted,
-        #   as SQLAlchemy will not be able to find the schema tables
-        exc_err = str_sanitize(exc_format(exc=e,
-                                          exc_info=sys.exc_info()))
-        # 104: The operation {} returned the error {}
-        errors.append(validate_format_error(104, "views-reflection", exc_err))
-
-    # any errors ?
-    if not errors:
-        # no, proceed with the appropriate tables
-        sorted_tables: list[Table] = []
-        try:
-            sorted_tables: list[Table] = source_metadata.sorted_tables
-        except SAWarning as e:
-            # - unable to organize the views in the proper sequence:
-            #   probably, cross-dependencies between views
-            # - this error will cause the views migration to be aborted,
-            #   as SQLAlchemy would not be able to compile the migrated schema
-            exc_err = str_sanitize(exc_format(exc=e,
-                                              exc_info=sys.exc_info()))
-            # 104: The operation {} returned the error {}
-            errors.append(validate_format_error(104, "views-migration", exc_err))
-
-        # any errors ?
-        if not errors:
-            # no, proceed
-            for sorted_table in reversed(sorted_tables):
-                if sorted_table.schema == source_schema:
-                    sorted_table.schema = target_schema
-                else:
-                    source_metadata.remove(sorted_table)
-            try:
-                # migrate the schema
-                source_metadata.create_all(bind=target_engine,
-                                           checkfirst=False)
-            except Exception as e:
-                # unable to fully compile the schema
-                exc_err = str_sanitize(exc_format(exc=e,
-                                                  exc_info=sys.exc_info()))
-                # 104: The operation {} returned the error {}
-                errors.append(validate_format_error(104, "views-construction", exc_err))
-
-
-def migrate_schema_vixxs(errors: list[str],
                          source_rdbms: str,
                          source_schema: str,
                          target_rdbms: str,

@@ -5,7 +5,7 @@ from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
-from .pydb_migration import migrate_schema, migrate_tables, migrate_schema_views
+from .pydb_migration import migrate_schema, migrate_tables
 from .pydb_engine import build_engine
 
 
@@ -170,14 +170,14 @@ def migrate_metadata(errors: list[str],
                                     source_metadata.create_all(bind=target_engine,
                                                                checkfirst=False)
                                     if process_views or process_mviews:
-                                        migrate_schema_views(errors=errors,
-                                                             source_inspector=source_inspector,
-                                                             source_engine=source_engine,
-                                                             target_engine=target_engine,
-                                                             source_schema=from_schema,
-                                                             target_schema=to_schema,
-                                                             process_views=process_views,
-                                                             process_mviews=process_mviews)
+                                        migrate_views(errors=errors,
+                                                      source_inspector=source_inspector,
+                                                      source_engine=source_engine,
+                                                      target_engine=target_engine,
+                                                      source_schema=from_schema,
+                                                      target_schema=to_schema,
+                                                      process_views=process_views,
+                                                      process_mviews=process_mviews)
                                 except Exception as e:
                                     # unable to fully compile the schema
                                     exc_err = str_sanitize(exc_format(exc=e,
@@ -195,3 +195,74 @@ def migrate_metadata(errors: list[str],
                                                 f"schema not found in RDBMS {source_rdbms}",
                                                 "@from-schema"))
     return result
+
+
+def migrate_views(errors: list[str],
+                  source_inspector: Inspector,
+                  source_engine: Engine,
+                  target_engine: Engine,
+                  source_schema: str,
+                  target_schema: str,
+                  process_views: bool,
+                  process_mviews: bool) -> None:
+
+    # obtain the list of plain and materialized views
+    source_views: list[str] = []
+    if process_views:
+        source_views.extend(source_inspector.get_view_names())
+    if process_mviews:
+        source_views.extend(source_inspector.get_materialized_view_names())
+
+    # obtain the source schema metadata
+    source_metadata: MetaData = MetaData(schema=source_schema)
+    try:
+        source_metadata.reflect(bind=source_engine,
+                                schema=source_schema,
+                                views=True,
+                                only=source_views)
+    except SAWarning as e:
+        # - unable to fully reflect the schema
+        # - this error will cause the migration to be aborted,
+        #   as SQLAlchemy will not be able to find the schema tables
+        exc_err = str_sanitize(exc_format(exc=e,
+                                          exc_info=sys.exc_info()))
+        # 104: The operation {} returned the error {}
+        errors.append(validate_format_error(104, "views-reflection", exc_err))
+
+    # any errors ?
+    if not errors:
+        # no, proceed with the appropriate tables
+        sorted_views: list[Table] = []
+        try:
+            sorted_views: list[Table] = source_metadata.sorted_tables
+        except SAWarning as e:
+            # - unable to organize the views in the proper sequence:
+            #   probably, cross-dependencies between views
+            # - this error will cause the views migration to be aborted,
+            #   as SQLAlchemy would not be able to compile the migrated schema
+            exc_err = str_sanitize(exc_format(exc=e,
+                                              exc_info=sys.exc_info()))
+            # 104: The operation {} returned the error {}
+            errors.append(validate_format_error(104, "views-migration", exc_err))
+
+        # any errors ?
+        if not errors:
+            # no, proceed
+            for sorted_view in reversed(sorted_views):
+                if sorted_view.schema == source_schema:
+                    # noinspection PyProtectedMember
+                    for column in sorted_view.c._all_columns:
+                        print(column)
+                    sorted_view.schema = target_schema
+                else:
+                    source_metadata.remove(sorted_view)
+            try:
+                # migrate the schema
+                source_metadata.create_all(bind=target_engine,
+                                           checkfirst=False)
+            except Exception as e:
+                # unable to fully compile the schema
+                exc_err = str_sanitize(exc_format(exc=e,
+                                                  exc_info=sys.exc_info()))
+                # 104: The operation {} returned the error {}
+                errors.append(validate_format_error(104, "views-construction", exc_err))

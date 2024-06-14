@@ -507,14 +507,14 @@ LOBS: Final[list[str]] = [
 ]
 
 
-def migrate_column(source_rdbms: str,
-                   target_rdbms: str,
-                   native_ordinal: int,
-                   reference_ordinal: int,
-                   source_column: Column,
-                   nat_equivalences: list[tuple],
-                   external_columns: dict[str, Type],
-                   logger: Logger) -> Any:
+def migrate_table_column(source_rdbms: str,
+                         target_rdbms: str,
+                         native_ordinal: int,
+                         reference_ordinal: int,
+                         source_column: Column,
+                         nat_equivalences: list[tuple],
+                         external_columns: dict[str, Type],
+                         logger: Logger) -> Any:
 
     # declare the return variable
     result: Any
