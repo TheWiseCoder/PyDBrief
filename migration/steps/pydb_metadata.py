@@ -68,7 +68,7 @@ def migrate_metadata(errors: list[str],
                                               raiseerr=True)
         for schema_name in source_inspector.get_schema_names():
             # is this the source schema ?
-            if source_schema.lower() == schema_name.lower():
+            if source_schema == schema_name.lower():
                 # yes, use the actual name with its case imprint
                 from_schema = schema_name
                 break
@@ -165,29 +165,37 @@ def migrate_metadata(errors: list[str],
                                 # assign the new schema for the migration candidate tables
                                 for sorted_table in sorted_tables:
                                     sorted_table.schema = to_schema
-
                                 try:
                                     # migrate the schema
                                     source_metadata.create_all(bind=target_engine,
                                                                checkfirst=False)
-                                    if process_mviews:
-                                        # migrate the materialized views in the schema
+                                    if process_views or process_mviews:
                                         migrate_schema_views(errors=errors,
-                                                             source_rdbms=source_rdbms,
-                                                             source_schema=source_schema,
-                                                             target_rdbms=target_rdbms,
-                                                             target_schema=target_schema,
-                                                             view_type="M",
-                                                             logger=logger)
-                                    if process_views:
-                                        # migrate the plain views in the schema
-                                        migrate_schema_views(errors=errors,
-                                                             source_rdbms=source_rdbms,
-                                                             source_schema=source_schema,
-                                                             target_rdbms=target_rdbms,
-                                                             target_schema=target_schema,
-                                                             view_type="P",
-                                                             logger=logger)
+                                                             source_inspector=source_inspector,
+                                                             source_engine=source_engine,
+                                                             source_schema=from_schema,
+                                                             target_schema=to_schema,
+                                                             target_engine=target_engine,
+                                                             process_views=process_views,
+                                                             process_mviews=process_mviews)
+                                    # if process_mviews:
+                                    #     # migrate the materialized views in the schema
+                                    #     migrate_schema_vixxs(errors=errors,
+                                    #                          source_rdbms=source_rdbms,
+                                    #                          source_schema=source_schema,
+                                    #                          target_rdbms=target_rdbms,
+                                    #                          target_schema=target_schema,
+                                    #                          view_type="M",
+                                    #                          logger=logger)
+                                    # if process_views:
+                                    #     # migrate the plain views in the schema
+                                    #     migrate_schema_vixxs(errors=errors,
+                                    #                          source_rdbms=source_rdbms,
+                                    #                          source_schema=source_schema,
+                                    #                          target_rdbms=target_rdbms,
+                                    #                          target_schema=target_schema,
+                                    #                          view_type="P",
+                                    #                          logger=logger)
                                 except Exception as e:
                                     # unable to fully compile the schema
                                     exc_err = str_sanitize(exc_format(exc=e,

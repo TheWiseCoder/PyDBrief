@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.1.6"
+APP_VERSION: Final[str] = "1.1.7"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -323,8 +323,8 @@ def migrate_data() -> Response:
             reply = pydb_migrator.migrate(errors=errors,
                                           source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
-                                          source_schema=source_schema,
-                                          target_schema=target_schema,
+                                          source_schema=source_schema.lower(),
+                                          target_schema=target_schema.lower(),
                                           step_metadata=step_metadata,
                                           step_plaindata=step_plaindata,
                                           step_lobdata=step_lobdata,

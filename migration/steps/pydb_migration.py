@@ -4,7 +4,8 @@ from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import (
     db_execute, db_get_views, db_get_view_script
 )
-from sqlalchemy import Engine, Inspector, Table, Column, Constraint, inspect
+from sqlalchemy import MetaData, Engine, Inspector, Table, Column, Constraint, inspect
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
 
@@ -29,7 +30,7 @@ def migrate_schema(errors: list[str],
     # obtain the target schema's internal name
     for schema_name in target_inspector.get_schema_names():
         # is this the target schema ?
-        if target_schema.lower() == schema_name.lower():
+        if target_schema == schema_name.lower():
             # yes, use the actual name with its case imprint
             result = schema_name
             break
@@ -54,7 +55,7 @@ def migrate_schema(errors: list[str],
                                        raiseerr=True)
             for schema_name in target_inspector.get_schema_names():
                 # is this the target schema ?
-                if target_schema.lower() == schema_name.lower():
+                if target_schema == schema_name.lower():
                     # yes, use the actual name with its case imprint
                     result = schema_name
                     break
@@ -197,6 +198,74 @@ def setup_table_columns(errors: list[str],
 
 
 def migrate_schema_views(errors: list[str],
+                         source_inspector: Inspector,
+                         source_engine: Engine,
+                         target_engine: Engine,
+                         source_schema: str,
+                         target_schema: str,
+                         process_views: bool,
+                         process_mviews: bool) -> None:
+
+    # obtain the list of plain and materialized views
+    source_views: list = []
+    if process_views:
+        source_views.append(source_inspector.get_view_names())
+    if process_mviews:
+        source_views.append(source_inspector.get_materialized_view_names())
+
+    # obtain the source schema metadata
+    source_metadata: MetaData = MetaData(schema=source_schema)
+    try:
+        source_metadata.reflect(bind=source_engine,
+                                schema=source_schema,
+                                views=True,
+                                only=source_views)
+    except SAWarning as e:
+        # - unable to fully reflect the schema
+        # - this error will cause the migration to be aborted,
+        #   as SQLAlchemy will not be able to find the schema tables
+        exc_err = str_sanitize(exc_format(exc=e,
+                                          exc_info=sys.exc_info()))
+        # 104: The operation {} returned the error {}
+        errors.append(validate_format_error(104, "views-reflection", exc_err))
+
+    # any errors ?
+    if not errors:
+        # no, proceed with the appropriate tables
+        sorted_tables: list[Table] = []
+        try:
+            sorted_tables: list[Table] = source_metadata.sorted_tables
+        except SAWarning as e:
+            # - unable to organize the views in the proper sequence:
+            #   probably, cross-dependencies between views
+            # - this error will cause the views migration to be aborted,
+            #   as SQLAlchemy would not be able to compile the migrated schema
+            exc_err = str_sanitize(exc_format(exc=e,
+                                              exc_info=sys.exc_info()))
+            # 104: The operation {} returned the error {}
+            errors.append(validate_format_error(104, "views-migration", exc_err))
+
+        # any errors ?
+        if not errors:
+            # no, proceed
+            for sorted_table in reversed(sorted_tables):
+                if sorted_table.schema == source_schema:
+                    sorted_table.schema = target_schema
+                else:
+                    return source_metadata.remove(sorted_table)
+            try:
+                # migrate the schema
+                source_metadata.create_all(bind=target_engine,
+                                           checkfirst=False)
+            except Exception as e:
+                # unable to fully compile the schema
+                exc_err = str_sanitize(exc_format(exc=e,
+                                                  exc_info=sys.exc_info()))
+                # 104: The operation {} returned the error {}
+                errors.append(validate_format_error(104, "views-construction", exc_err))
+
+
+def migrate_schema_vixxs(errors: list[str],
                          source_rdbms: str,
                          source_schema: str,
                          target_rdbms: str,
@@ -230,10 +299,11 @@ def migrate_schema_views(errors: list[str],
             # errors ?
             if not op_errors:
                 # no, create the view in the target schema
-                view_script = view_script.lower().replace(f'{source_schema}.', f'{target_schema}.')\
+                view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
                                                  .replace(f'"{source_schema}".', f'"{target_schema}".')
                 if source_rdbms == "oracle":
-                    view_script = view_script.replace ("force editionable ", "")
+                    # purge Oracle-specific clauses
+                    view_script = view_script.replace("force editionable ", "")
                 db_execute(errors=op_errors,
                            exc_stmt=view_script,
                            engine=target_rdbms)
