@@ -41,16 +41,11 @@ def migrate_schema(errors: list[str],
         # yes, drop existing tables (must be done in reverse order)
         for target_table in reversed(target_tables):
             full_name: str = f"{target_schema}.{target_table.name}"
-            if process_views and target_table.name in plain_views:
+            if process_views and target_table.name in plain_views or \
+               process_mviews and target_table.name in mat_views:
                 drop_view(errors=errors,
                           view_name=full_name,
-                          view_type="P",
-                          rdbms=target_rdbms,
-                          logger=logger)
-            elif process_mviews and target_table.name in mat_views:
-                drop_view(errors=errors,
-                          view_name=full_name,
-                          view_type="M",
+                          view_type="M" if target_table.name in mat_views else "P",
                           rdbms=target_rdbms,
                           logger=logger)
             else:
