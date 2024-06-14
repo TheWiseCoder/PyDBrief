@@ -56,12 +56,15 @@ def migrate_schema(errors: list[str],
                            logger=logger)
     else:
         # no, create the target schema
-        create_schema(errors=errors,
+        op_errors: list[str] = []
+        create_schema(errors=op_errors,
                       schema=target_schema,
                       rdbms=target_rdbms,
                       logger=logger)
         # SANITY CHECK: errorless schema creation failure has happened
-        if not errors:
+        if op_errors:
+            errors.extend(op_errors)
+        else:
             # refresh the target RDBMS inspector
             target_inspector = inspect(subject=target_engine,
                                        raiseerr=True)
@@ -218,8 +221,11 @@ def migrate_view(errors: list[str],
                  target_schema: str,
                  logger: Logger) -> None:
 
+    # initialize the local error messages list
+    op_errors: list[str] = []
+
     # obtain the script used to create the view
-    view_script: str = db_get_view_script(errors=errors,
+    view_script: str = db_get_view_script(errors=op_errors,
                                           view_type=view_type,
                                           view_name=f"{source_schema}.{view_name}",
                                           engine=source_rdbms,
@@ -232,18 +238,21 @@ def migrate_view(errors: list[str],
         if source_rdbms == "oracle":
             # purge Oracle-specific clauses
             view_script = view_script.replace("force editionable ", "")
-        db_execute(errors=errors,
+        db_execute(errors=op_errors,
                    exc_stmt=view_script,
                    engine=target_rdbms)
         # errors ?
-        if errors:
+        if op_errors:
             # yes, insert a leading explanatory error message
-            err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {errors[-1]}"
+            err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {op_errors[-1]}"
             # 101: {}
-            errors[-1] = validate_format_error(101, err_msg)
+            op_errors[-1] = validate_format_error(101, err_msg)
     else:
         # no, report the problem
         # 102: Unexpected error: {}
-        errors.append(validate_format_error(102,
-                                            "unable to retrieve creation script "
-                                            f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
+        op_errors.append(validate_format_error(102,
+                                               "unable to retrieve creation script "
+                                               f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
+
+    # register local errors
+    errors.extend(op_errors)
