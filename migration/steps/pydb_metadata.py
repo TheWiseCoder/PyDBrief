@@ -226,9 +226,9 @@ def migrate_view(errors: list[str],
                                           view_name=f"{target_schema}.{view_name}",
                                           engine=source_rdbms,
                                           logger=logger)
-    # errors ?
-    if not errors:
-        # no, create the view in the target schema
+    # has the script been retrieved ?
+    if view_script:
+        # yes, create the view in the target schema
         view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
                                          .replace(f'"{source_schema}".', f'"{target_schema}".')
         if source_rdbms == "oracle":
