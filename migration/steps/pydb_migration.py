@@ -25,7 +25,7 @@ def migrate_schema(errors: list[str],
     # initialize the return variable
     result: str | None = None
 
-    # create an inspector into the target engine
+    # create an inspector into the target RDBMS
     target_inspector: Inspector = inspect(subject=target_engine,
                                           raiseerr=True)
 
@@ -60,8 +60,9 @@ def migrate_schema(errors: list[str],
                       schema=target_schema,
                       rdbms=target_rdbms,
                       logger=logger)
-        # SANITY CHECK: it has happened that a schema creation failed, with no errors reported
+        # SANITY CHECK: errorless schema creation failure has happened
         if not errors:
+            # refresh the target RDBMS inspector
             target_inspector = inspect(subject=target_engine,
                                        raiseerr=True)
             for schema_name in target_inspector.get_schema_names():
@@ -246,4 +247,4 @@ def migrate_view(errors: list[str],
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
                                             "unable to retrieve creation script "
-                                            f"for view {full_name} in RDBMS {target_rdbms}"))
+                                            f"for view '{target_rdbms}.{full_name}'"))
