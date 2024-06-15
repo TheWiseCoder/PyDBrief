@@ -188,8 +188,8 @@ paths:
         - $ref: '#/components/parameters/ProcessMViewsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
-        - $ref: '#/components/parameters/DropCkConstraintsParam'
-        - $ref: '#/components/parameters/DropFkConstraintsParam'
+        - $ref: '#/components/parameters/SkipCkConstraintsParam'
+        - $ref: '#/components/parameters/SkipFkConstraintsParam'
       responses:
         '200':
           description: Successful operation
@@ -486,20 +486,20 @@ components:
         type: array
         items:
           type: string
-    DropFkConstraintsParam:
-      name: drop-fk-constraints
+    SkipFkConstraintsParam:
+      name: skip-fk-constraints
       in: query
-      description: Tables to drop the foreign-key constraints for
+      description: Tables to skip the foreign-key constraints for
       required: false
       explode: false
       schema:
         type: array
         items:
           type: string
-    DropCkConstraintsParam:
-      name: drop-ck-constraints
+    SkipCkConstraintsParam:
+      name: skip-ck-constraints
       in: query
-      description: Tables to drop the check constraints for
+      description: Tables to skip the check constraints for
       required: false
       explode: false
       schema:

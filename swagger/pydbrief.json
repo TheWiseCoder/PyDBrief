@@ -321,10 +321,10 @@
             "$ref": "#/components/parameters/ExcludeTablesParam"
           },
           {
-            "$ref": "#/components/parameters/DropCkConstraintsParam"
+            "$ref": "#/components/parameters/SkipCkConstraintsParam"
           },
           {
-            "$ref": "#/components/parameters/DropFkConstraintsParam"
+            "$ref": "#/components/parameters/SkipFkConstraintsParam"
           }
         ],
         "responses": {
@@ -759,10 +759,10 @@
           }
         }
       },
-      "DropFkConstraintsParam": {
-        "name": "drop-fk-constraints",
+      "SkipFkConstraintsParam": {
+        "name": "skip-fk-constraints",
         "in": "query",
-        "description": "Tables to drop the foreign-key constraints for",
+        "description": "Tables to skip the foreign-key constraints for",
         "required": false,
         "explode": false,
         "schema": {
@@ -772,10 +772,10 @@
           }
         }
       },
-      "DropCkConstraintsParam": {
-        "name": "drop-ck-constraints",
+      "SkipCkConstraintsParam": {
+        "name": "skip-ck-constraints",
         "in": "query",
-        "description": "Tables to drop the check constraints for",
+        "description": "Tables to skip the check constraints for",
         "required": false,
         "explode": false,
         "schema": {

@@ -87,8 +87,8 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    target_schema: str,
                    target_tables: list[Table],
-                   drop_ck_constraints: list[str],
-                   drop_fk_constraints: list[str],
+                   skip_ck_constraints: list[str],
+                   skip_fk_constraints: list[str],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
@@ -134,9 +134,9 @@ def migrate_tables(errors: list[str],
         excess_constraints: list[Constraint] = []
         for constraint in target_table.constraints:
             if ((isinstance(constraint, CheckConstraint) and
-                 target_table in drop_ck_constraints) or
+                 target_table in skip_ck_constraints) or
                 (isinstance(constraint, ForeignKeyConstraint) and
-                 target_table in drop_fk_constraints)):
+                 target_table in skip_fk_constraints)):
                 target_table.constraints.remove(constraint)
             elif constraint.name in constraint_names:
                 excess_constraints.append(constraint)

@@ -44,8 +44,8 @@ def migrate_metadata(errors: list[str],
                      process_mviews: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
-                     drop_ck_constraints: list[str],
-                     drop_fk_constraints: list[str],
+                     skip_ck_constraints: list[str],
+                     skip_fk_constraints: list[str],
                      external_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
@@ -169,8 +169,8 @@ def migrate_metadata(errors: list[str],
                                                     source_schema=from_schema,
                                                     target_schema=to_schema,
                                                     target_tables=sorted_tables,
-                                                    drop_ck_constraints=drop_ck_constraints,
-                                                    drop_fk_constraints=drop_fk_constraints,
+                                                    skip_ck_constraints=skip_ck_constraints,
+                                                    skip_fk_constraints=skip_fk_constraints,
                                                     external_columns=external_columns,
                                                     logger=logger)
 

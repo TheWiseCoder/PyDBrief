@@ -295,12 +295,12 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           required=True)
-        drop_ck_constraints: list[str] = validate_strs(errors=errors,
+        skip_ck_constraints: list[str] = validate_strs(errors=errors,
                                                        scheme=scheme,
-                                                       attr="drop-ck-constraints")
-        drop_fk_constraints: list[str] = validate_strs(errors=errors,
+                                                       attr="skip-ck-constraints")
+        skip_fk_constraints: list[str] = validate_strs(errors=errors,
                                                        scheme=scheme,
-                                                       attr="drop-fk-constraints")
+                                                       attr="skip-fk-constraints")
         external_columns: dict[str, Type] = \
             pydb_validator.get_column_types(errors=errors, scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
@@ -338,8 +338,8 @@ def migrate_data() -> Response:
                                           process_mviews=process_mviews,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
-                                          drop_ck_constraints=drop_ck_constraints,
-                                          drop_fk_constraints=drop_fk_constraints,
+                                          skip_ck_constraints=skip_ck_constraints,
+                                          skip_fk_constraints=skip_fk_constraints,
                                           external_columns=external_columns,
                                           logger=PYPOMES_LOGGER)
     # build the response
