@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.1.6"
+    "version": "1.1.9"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -309,7 +309,7 @@
             "$ref": "#/components/parameters/ProcessIndexesParam"
           },
           {
-            "$ref": "#/components/parameters/ProcessViewsParam"
+            "$ref": "#/components/parameters/ProcessPViewsParam"
           },
           {
             "$ref": "#/components/parameters/ProcessMViewsParam"
@@ -319,6 +319,12 @@
           },
           {
             "$ref": "#/components/parameters/ExcludeTablesParam"
+          },
+          {
+            "$ref": "#/components/parameters/DropCkConstraintsParam"
+          },
+          {
+            "$ref": "#/components/parameters/DropFkConstraintsParam"
           }
         ],
         "responses": {
@@ -707,10 +713,10 @@
           "default": false
         }
       },
-      "ProcessViewsParam": {
+      "ProcessPViewsParam": {
         "name": "process-views",
         "in": "query",
-        "description": "Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "description": "Whether plain views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -744,6 +750,32 @@
         "name": "exclude-tables",
         "in": "query",
         "description": "Tables not to migrate (mutually exclusive with 'include-tables')",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "DropFkConstraintsParam": {
+        "name": "drop-fk-constraints",
+        "in": "query",
+        "description": "Tables to drop the foreign-key constraints for",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "DropCkConstraintsParam": {
+        "name": "drop-ck-constraints",
+        "in": "query",
+        "description": "Tables to drop the check constraints for",
         "required": false,
         "explode": false,
         "schema": {

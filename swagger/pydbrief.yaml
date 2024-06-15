@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.1.6
+  version: 1.1.9
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -188,6 +188,8 @@ paths:
         - $ref: '#/components/parameters/ProcessMViewsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
+        - $ref: '#/components/parameters/DropCkConstraintsParam'
+        - $ref: '#/components/parameters/DropFkConstraintsParam'
       responses:
         '200':
           description: Successful operation
@@ -478,6 +480,26 @@ components:
       name: exclude-tables
       in: query
       description: Tables not to migrate (mutually exclusive with 'include-tables')
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    DropFkConstraintsParam:
+      name: drop-fk-constraints
+      in: query
+      description: Tables to drop the foreign-key constraints for
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    DropCkConstraintsParam:
+      name: drop-ck-constraints
+      in: query
+      description: Tables to drop the check constraints for
       required: false
       explode: false
       schema:

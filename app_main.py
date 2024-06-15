@@ -16,7 +16,7 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 # ruff: noqa: E402
 from pypomes_core import (
     get_versions, exc_format, str_as_list,
-    validate_format_errors, validate_bool, validate_str
+    validate_format_errors, validate_bool, validate_str, validate_strs
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -257,10 +257,13 @@ def migrate_data() -> Response:
         - *migrate-metadata*: migrate metadata (this recreates the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
-        - *omit-indexes*: do not migrate indexes, defaults to 'False'
-        - *omit-views*: do not migrate views, defaults to 'False'
+        - *include-indexes*: whether to migrate indexes, defaults to 'False'
+        - *include-views*: whether to migrate plain views, defaults to 'False'
+        - *include-mviews*: whether to migrate materialized views, defaults to 'False'
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
+        - *drop-ck-constraints*: list of tables for which to drop check constraints
+        - *drop-fk-constraints*: list of tables for which to drop foreign-key constraints
 
     If *migrate-metadata* is not specified, *omit-indexes* and *omit-views* are ignored.
     The parameters *include-tables* and *exclude-tables* are mutually exclusive.
@@ -292,34 +295,36 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           required=True)
-        external_columns: dict[str, Type] = pydb_validator.get_column_types(errors=errors,
-                                                                            scheme=scheme)
+        drop_ck_constraints: list[str] = validate_strs(errors=errors,
+                                                       scheme=scheme,
+                                                       attr="drop-ck-constraints")
+        drop_fk_constraints: list[str] = validate_strs(errors=errors,
+                                                       scheme=scheme,
+                                                       attr="drop-fk-constraints")
+        external_columns: dict[str, Type] = \
+            pydb_validator.get_column_types(errors=errors, scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
             pydb_validator.assert_migration_steps(errors=errors,
                                                   scheme=scheme)
-        process_indexes: bool = False
-        process_views: bool = False
-        process_mviews: bool = False
-        if step_metadata:
-            process_indexes = validate_bool(errors=errors,
-                                            scheme=scheme,
-                                            attr="process-indexes",
-                                            default=False)
-            process_views = validate_bool(errors=errors,
-                                          scheme=scheme,
-                                          attr="process-views",
-                                          default=False)
-            process_mviews = validate_bool(errors=errors,
-                                           scheme=scheme,
-                                           attr="process-mviews",
-                                           default=False)
+        process_indexes = step_metadata and validate_bool(errors=errors,
+                                                          scheme=scheme,
+                                                          attr="process-indexes",
+                                                          default=False)
+        process_views = step_metadata and validate_bool(errors=errors,
+                                                        scheme=scheme,
+                                                        attr="process-views",
+                                                        default=False)
+        process_mviews = step_metadata and validate_bool(errors=errors,
+                                                         scheme=scheme,
+                                                         attr="process-mviews",
+                                                         default=False)
+        include_tables = [table.lower()
+                          for table in str_as_list(scheme.get("include-tables") or [])]
+        exclude_tables = [table.lower()
+                          for table in str_as_list(scheme.get("exclude-tables") or [])]
         # errors ?
         if not errors:
-            # no, retrieve the tables and migrate the data
-            include_tables = [table.lower()
-                              for table in str_as_list(scheme.get("include-tables") or [])]
-            exclude_tables = [table.lower()
-                              for table in str_as_list(scheme.get("exclude-tables") or [])]
+            # no, migrate the data
             reply = pydb_migrator.migrate(errors=errors,
                                           source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
@@ -333,6 +338,8 @@ def migrate_data() -> Response:
                                           process_mviews=process_mviews,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
+                                          drop_ck_constraints=drop_ck_constraints,
+                                          drop_fk_constraints=drop_fk_constraints,
                                           external_columns=external_columns,
                                           logger=PYPOMES_LOGGER)
     # build the response

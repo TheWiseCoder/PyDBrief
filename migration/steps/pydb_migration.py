@@ -3,7 +3,8 @@ from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_get_view_script, db_execute
 from sqlalchemy import (
-    Engine, Inspector, Table, Column, Constraint, inspect
+    Engine, Inspector, Table, Column, Constraint,
+    CheckConstraint, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -86,13 +87,15 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    target_schema: str,
                    target_tables: list[Table],
+                   drop_ck_constraints: list[str],
+                   drop_fk_constraints: list[str],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
     # iinitialize the return variable
     result: dict = {}
 
-    # immediately assign the target schema to all migration candidate tables
+    # immediately: assign the target schema to all migration candidate tables
     for target_table in target_tables:
         target_table.schema = target_schema
 
@@ -100,7 +103,6 @@ def migrate_tables(errors: list[str],
     (native_ordinal, reference_ordinal, nat_equivalences) = \
         establish_equivalences(source_rdbms=source_rdbms,
                                target_rdbms=target_rdbms)
-
     # setup target tables
     is_view: bool
     for target_table in target_tables:
@@ -125,11 +127,18 @@ def migrate_tables(errors: list[str],
                             nat_equivalences=nat_equivalences,
                             external_columns=external_columns,
                             logger=logger)
-        # make sure table does not have duplicate constraints
+
+        # 1- make sure table does not have duplicate constraints
+        # 2- drop CK and FK constraints, if applicable
         constraint_names: list[str] = []
         excess_constraints: list[Constraint] = []
         for constraint in target_table.constraints:
-            if constraint.name in constraint_names:
+            if ((isinstance(constraint, CheckConstraint) and
+                 target_table in drop_ck_constraints) or
+                (isinstance(constraint, ForeignKeyConstraint) and
+                 target_table in drop_fk_constraints)):
+                target_table.constraints.remove(constraint)
+            elif constraint.name in constraint_names:
                 excess_constraints.append(constraint)
             else:
                 constraint_names.append(constraint.name)

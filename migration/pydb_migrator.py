@@ -64,6 +64,8 @@ def migrate(errors: list[str],
             process_mviews: bool,
             include_tables: list[str],
             exclude_tables: list[str],
+            drop_ck_constraints: list[str],
+            drop_fk_constraints: list[str],
             external_columns: dict[str, Type],
             logger: Logger | None) -> dict:
 
@@ -102,6 +104,8 @@ def migrate(errors: list[str],
                                              process_mviews=process_mviews,
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
+                                             drop_ck_constraints=drop_ck_constraints,
+                                             drop_fk_constraints=drop_fk_constraints,
                                              external_columns=external_columns,
                                              logger=logger)
     pydb_common.log(logger=logger,
