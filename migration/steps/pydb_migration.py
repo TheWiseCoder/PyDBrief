@@ -134,9 +134,9 @@ def migrate_tables(errors: list[str],
         excess_constraints: list[Constraint] = []
         for constraint in target_table.constraints:
             if ((isinstance(constraint, CheckConstraint) and
-                 target_table in skip_ck_constraints) or
+                 target_table.name in skip_ck_constraints) or
                 (isinstance(constraint, ForeignKeyConstraint) and
-                 target_table in skip_fk_constraints)):
+                 target_table.name in skip_fk_constraints)):
                 target_table.constraints.remove(constraint)
             elif constraint.name in constraint_names:
                 excess_constraints.append(constraint)
@@ -275,6 +275,5 @@ def migrate_view(errors: list[str],
         op_errors.append(validate_format_error(102,
                                                "unable to retrieve creation script "
                                                f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
-
     # register local errors
     errors.extend(op_errors)
