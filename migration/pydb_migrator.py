@@ -35,11 +35,13 @@ warnings.filterwarnings("error")
 #     "migrate-plaindata",
 #     "migrate-lobdata"
 #   ],
-#   "process-views": false,
-#   "process-mviews": false,
 #   "process-indexes": true,
-#   "include_tables": <list>,
-#   "exclude_tables": <list>,
+#   "include-tables": <list>,
+#   "exclude-tables": <list>,
+#   "include-views": <list>,
+#   "skip-ck-constraints": list[str],
+#   "skip-fk-constraints": list[str],
+#   "skip-named-constraints": list[str],
 #   "external-columns": {
 #     "<schema>.<table>.column>": <type>
 #   }
@@ -60,16 +62,19 @@ def migrate(errors: list[str],
             step_plaindata: bool,
             step_lobdata: bool,
             process_indexes: bool,
-            process_views: bool,
-            process_mviews: bool,
             include_tables: list[str],
             exclude_tables: list[str],
+            include_views: list[str],
             skip_ck_constraints: list[str],
             skip_fk_constraints: list[str],
+            skip_named_constraints: list[str],
             external_columns: dict[str, Type],
             logger: Logger | None) -> dict:
 
     # log the start of the migration
+    msg: str = (f"Migration started, "
+                f"from {source_rdbms}.{source_schema} "
+                f"to {target_rdbms}.{target_schema}")
     steps: str = ""
     if step_metadata:
         steps += ", metadata"
@@ -77,19 +82,57 @@ def migrate(errors: list[str],
         steps += ", plaindata"
     if step_lobdata:
         steps += ", lobdata"
-    msg: str = (f"Migration started, "
-                f"from {source_rdbms}.{source_schema} "
-                f"to {target_rdbms}.{target_schema}, "
-                f"steps {steps[2:]}")
+    msg += f"steps {steps}"
+    if process_indexes:
+        msg += ", process indexes"
     if include_tables:
         msg += f", include tables {','.join(include_tables)}"
     if exclude_tables:
         msg += f", exclude tables {','.join(exclude_tables)}"
+    if include_views:
+        msg += f", include views {','.join(include_views)}"
+    if skip_ck_constraints:
+        msg += f", skip CK constaints {','.join(skip_ck_constraints)}"
+    if skip_fk_constraints:
+        msg += f", skip FK constaints {','.join(skip_fk_constraints)}"
+    if skip_named_constraints:
+        msg += f", skip named constaints {','.join(skip_named_constraints)}"
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg=msg)
 
+    # initialize the return variable
     started: datetime = datetime.now()
+    result: dict = {
+        "started": started.strftime(format=DATETIME_FORMAT_INV),
+        "steps": steps,
+        "source": {
+            "rdbms": source_rdbms,
+            "schema": source_schema
+        },
+        "target": {
+            "rdbms": target_rdbms,
+            "schema": target_schema
+        }
+    }
+    if step_metadata:
+        result["process-indexes"] = process_indexes
+    if include_tables:
+        result["include-tables"]: include_tables
+    if exclude_tables:
+        result["exclude-tables"]: exclude_tables
+    if include_views:
+        result["include-views"]: include_tables
+    if skip_ck_constraints:
+        result["skip-ck-constraints"]: skip_ck_constraints
+    if skip_fk_constraints:
+        result["skip-fk-constraints"]: skip_fk_constraints
+    if skip_named_constraints:
+        result["skip-named-constraints"]: skip_ck_constraints
+    if external_columns:
+        result["external-columns"] = {col_name: str(col_type())
+                                      for (col_name, col_type) in external_columns.items()}
+
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg="Started discovering the metadata")
@@ -100,12 +143,12 @@ def migrate(errors: list[str],
                                              target_schema=target_schema,
                                              step_metadata=step_metadata,
                                              process_indexes=process_indexes,
-                                             process_views=process_views,
-                                             process_mviews=process_mviews,
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
+                                             include_views=include_views,
                                              skip_ck_constraints=skip_ck_constraints,
                                              skip_fk_constraints=skip_fk_constraints,
+                                             skip_named_constraints=skip_named_constraints,
                                              external_columns=external_columns,
                                              logger=logger)
     pydb_common.log(logger=logger,
@@ -188,41 +231,9 @@ def migrate(errors: list[str],
             source_conn.close()
             target_conn.close()
 
-    finished: datetime = datetime.now()
-    steps: list[str] = []
-    if step_metadata:
-        steps.append("migrate-metadata")
-    if step_plaindata:
-        steps.append("migrate-plaindata")
-    if step_lobdata:
-        steps.append("migrate-lobdata")
-
-    result: dict = {
-        "started": started.strftime(format=DATETIME_FORMAT_INV),
-        "finished": finished.strftime(format=DATETIME_FORMAT_INV),
-        "steps": steps,
-        "source": {
-            "rdbms": source_rdbms,
-            "schema": source_schema
-        },
-        "target": {
-            "rdbms": target_rdbms,
-            "schema": target_schema
-        },
-        "migrated-tables": migrated_tables,
-        "total-plains": plain_count,
-        "total-lobs": lob_count
-    }
-    if step_metadata:
-        result["process-views"] = process_views
-        result["process-mviews"] = process_mviews
-        result["process-indexes"] = process_indexes
-    if include_tables:
-        result["include-tables"]: include_tables
-    if exclude_tables:
-        result["exclude-tables"]: exclude_tables
-    if external_columns:
-        result["external-columns"] = {col_name: str(col_type())
-                                      for (col_name, col_type) in external_columns.items()}
+    result["finished"] = datetime.now()
+    result["migrated-tables"] = migrated_tables
+    result["total-plains"] = plain_count
+    result["total-lobs"] = lob_count
 
     return result

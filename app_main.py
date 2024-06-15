@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.1.8"
+APP_VERSION: Final[str] = "1.1.9"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -299,6 +299,8 @@ def migrate_data() -> Response:
                                           for table in str_as_list(scheme.get("skip-ck-constraints") or [])]
         skip_fk_constraints: list[str] = [table.lower()
                                           for table in str_as_list(scheme.get("skip-fk-constraints") or [])]
+        skip_named_constraints: list[str] = [table.lower()
+                                             for table in str_as_list(scheme.get("skip-named-constraints") or [])]
         external_columns: dict[str, Type] = \
             pydb_validator.get_column_types(errors=errors, scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
@@ -308,18 +310,12 @@ def migrate_data() -> Response:
                                                           scheme=scheme,
                                                           attr="process-indexes",
                                                           default=False)
-        process_views = step_metadata and validate_bool(errors=errors,
-                                                        scheme=scheme,
-                                                        attr="process-views",
-                                                        default=False)
-        process_mviews = step_metadata and validate_bool(errors=errors,
-                                                         scheme=scheme,
-                                                         attr="process-mviews",
-                                                         default=False)
         include_tables = [table.lower()
                           for table in str_as_list(scheme.get("include-tables") or [])]
         exclude_tables = [table.lower()
                           for table in str_as_list(scheme.get("exclude-tables") or [])]
+        include_views = [table.lower()
+                         for table in str_as_list(scheme.get("include-views") or [])]
         # errors ?
         if not errors:
             # no, migrate the data
@@ -332,12 +328,12 @@ def migrate_data() -> Response:
                                           step_plaindata=step_plaindata,
                                           step_lobdata=step_lobdata,
                                           process_indexes=process_indexes,
-                                          process_views=process_views,
-                                          process_mviews=process_mviews,
                                           include_tables=include_tables,
                                           exclude_tables=exclude_tables,
+                                          include_views=include_views,
                                           skip_ck_constraints=skip_ck_constraints,
                                           skip_fk_constraints=skip_fk_constraints,
+                                          skip_named_constraints=skip_named_constraints,
                                           external_columns=external_columns,
                                           logger=PYPOMES_LOGGER)
     # build the response

@@ -63,7 +63,7 @@ def drop_table(errors: list[str],
 
 def drop_view(errors: list[str],
               view_name: str,
-              view_type: Literal["P", "M"],
+              view_type: Literal["M", "P"],
               rdbms: str,
               logger: Logger) -> None:
 

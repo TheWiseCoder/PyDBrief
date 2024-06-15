@@ -40,12 +40,12 @@ def migrate_metadata(errors: list[str],
                      target_schema: str,
                      step_metadata: bool,
                      process_indexes: bool,
-                     process_views: bool,
-                     process_mviews: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
+                     include_views: list[str],
                      skip_ck_constraints: list[str],
                      skip_fk_constraints: list[str],
+                     skip_named_constraints: list[str],
                      external_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
@@ -78,15 +78,15 @@ def migrate_metadata(errors: list[str],
         # proceed, if the source schema exists
         if from_schema:
             # obtain the list of plain and materialized views in source schema
-            plain_views: list[str] = source_inspector.get_view_names()
-            mat_views: list[str] = source_inspector.get_materialized_view_names()
+            plain_views: list[str] = source_inspector.get_view_names() if include_views else []
+            mat_views: list[str] = source_inspector.get_materialized_view_names() if include_views else []
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
-                                        views=True)
+                                        views=len(include_views) > 0)
             except SAWarning as e:
                 # - unable to fully reflect the schema
                 # - this error will cause the migration to be aborted,
@@ -108,20 +108,22 @@ def migrate_metadata(errors: list[str],
                         include_tables.remove(table_name)
                     elif table_name in exclude_tables:
                         exclude_tables.remove(table_name)
-                    elif (include and source_table.schema == from_schema and not
-                          (table_name in plain_views and not process_views) and not
-                          (table_name in mat_views and not process_mviews)):
+                    elif table_name in include_views:
+                        target_tables.append(source_table)
+                        include_views.remove(table_name)
+                    elif (include and source_table.schema == from_schema and
+                          table_name not in plain_views and table_name not in mat_views):
                         target_tables.append(source_table)
 
                 # proceed, if all tables in include and exclude lists were accounted for
-                if include_tables or exclude_tables:
+                if include_tables or exclude_tables or include_views:
                     # some tables not found, report them
-                    bad_tables: str = ",".join(include_tables + exclude_tables)
+                    bad_tables: str = ",".join(include_tables + exclude_tables + include_views)
                     # 142: Invalid value {}: {}
                     errors.append(validate_format_error(142, bad_tables,
                                                         f"not found in {source_rdbms}.{source_schema}"))
                 else:
-                    # purge the source metadata from tables not selected, and from indexes if applicable
+                    # purge the source metadata from tables not selected, and from indexes, if applicable
                     for source_table in source_tables:
                         if source_table not in target_tables:
                             source_metadata.remove(table=source_table)
@@ -154,8 +156,6 @@ def migrate_metadata(errors: list[str],
                                                             target_tables=sorted_tables,
                                                             plain_views=plain_views,
                                                             mat_views=mat_views,
-                                                            process_views=process_views,
-                                                            process_mviews=process_mviews,
                                                             logger=logger)
                         else:
                             to_schema = target_schema
@@ -171,6 +171,7 @@ def migrate_metadata(errors: list[str],
                                                     target_tables=sorted_tables,
                                                     skip_ck_constraints=skip_ck_constraints,
                                                     skip_fk_constraints=skip_fk_constraints,
+                                                    skip_named_constraints=skip_named_constraints,
                                                     external_columns=external_columns,
                                                     logger=logger)
 
@@ -195,15 +196,14 @@ def migrate_metadata(errors: list[str],
                                 for sorted_table in sorted_tables:
                                     if sorted_table.name in plain_views or \
                                        sorted_table.name in mat_views:
-                                        view_script: str = \
-                                            source_inspector.get_view_definition(
-                                                view_name=sorted_table.name)
                                         migrate_view(errors=errors,
-                                                     view_script=view_script,
+                                                     view_name=sorted_table.name,
+                                                     view_type="M" if sorted_table.name in mat_views else "P",
                                                      source_rdbms=source_rdbms,
                                                      target_rdbms=target_rdbms,
                                                      source_schema=from_schema,
-                                                     target_schema=to_schema)
+                                                     target_schema=to_schema,
+                                                     logger=logger)
                         else:
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,

@@ -183,11 +183,11 @@ paths:
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
-        - $ref: '#/components/parameters/ProcessIndexesParam'
-        - $ref: '#/components/parameters/ProcessPViewsParam'
-        - $ref: '#/components/parameters/ProcessMViewsParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
+        - $ref: '#/components/parameters/IncludeViewsParam'
+        - $ref: '#/components/parameters/ProcessIndexesParam'
+        - $ref: '#/components/parameters/SkipNamedConstraintsParam'
         - $ref: '#/components/parameters/SkipCkConstraintsParam'
         - $ref: '#/components/parameters/SkipFkConstraintsParam'
       responses:
@@ -450,22 +450,6 @@ components:
       schema:
         type: boolean
         default: false
-    ProcessPViewsParam:
-      name: process-views
-      in: query
-      description: Whether plain views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
-      required: false
-      schema:
-        type: boolean
-        default: false
-    ProcessMViewsParam:
-      name: process-mviews
-      in: query
-      description: Whether materialized views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
-      required: false
-      schema:
-        type: boolean
-        default: false
     IncludeTablesParam:
       name: include-tables
       in: query
@@ -486,10 +470,10 @@ components:
         type: array
         items:
           type: string
-    SkipFkConstraintsParam:
-      name: skip-fk-constraints
+    IncludeViewsParam:
+      name: include-views
       in: query
-      description: Tables to skip the foreign-key constraints for
+      description: Views to migrate (by default, views are not migrated - specify '*' to migrate all views)
       required: false
       explode: false
       schema:
@@ -500,6 +484,26 @@ components:
       name: skip-ck-constraints
       in: query
       description: Tables to skip the check constraints for
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    SkipFkConstraintsParam:
+      name: skip-fk-constraints
+      in: query
+      description: Tables to skip the foreign-key constraints for
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    SkipNamedConstraintsParam:
+      name: skip-named-constraints
+      in: query
+      description: Constraints to skip by name
       required: false
       explode: false
       schema:
