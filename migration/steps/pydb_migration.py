@@ -131,19 +131,19 @@ def migrate_tables(errors: list[str],
         # 1- make sure table does not have duplicate constraints
         # 2- drop CK and FK constraints, if applicable
         constraint_names: list[str] = []
-        excess_constraints: list[Constraint] = []
+        tainted_constraints: list[Constraint] = []
         for constraint in target_table.constraints:
-            if ((isinstance(constraint, CheckConstraint) and
+            if (constraint.name in constraint_names or
+                (isinstance(constraint, CheckConstraint) and
                  target_table.name in skip_ck_constraints) or
                 (isinstance(constraint, ForeignKeyConstraint) and
                  target_table.name in skip_fk_constraints)):
                 target_table.constraints.remove(constraint)
-            elif constraint.name in constraint_names:
-                excess_constraints.append(constraint)
+                tainted_constraints.append(constraint)
             else:
                 constraint_names.append(constraint.name)
-        for excess_constraint in excess_constraints:
-            target_table.constraints.remove(excess_constraint)
+        for tainted_constraint in tainted_constraints:
+            target_table.constraints.remove(tainted_constraint)
 
         # register the target column properties
         for column in columns:
