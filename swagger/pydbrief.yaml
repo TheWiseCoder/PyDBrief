@@ -421,7 +421,7 @@ components:
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
-      description: Whether metadata should be migrated. This will recreate the destination schema.
+      description: Whether metadata should be migrated. This will create or transform the destination schema.
       required: false
       schema:
         type: boolean

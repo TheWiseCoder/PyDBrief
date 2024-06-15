@@ -90,7 +90,7 @@ def migrate_metadata(errors: list[str],
                                         schema=from_schema,
                                         views=len(include_views) > 0)
             except SAWarning as e:
-                # - unable to fully reflect the schema
+                # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
                 exc_err = str_sanitize(exc_format(exc=e,
@@ -123,7 +123,7 @@ def migrate_metadata(errors: list[str],
                     bad_tables: str = ",".join(include_tables + exclude_tables + include_views)
                     # 142: Invalid value {}: {}
                     errors.append(validate_format_error(142, bad_tables,
-                                                        f"not found in {source_rdbms}.{source_schema}"))
+                                                        f"table(s) not found in {source_rdbms}.{source_schema}"))
                 else:
                     # purge the source metadata from tables not selected, and from indexes, if applicable
                     for source_table in source_tables:
@@ -188,7 +188,7 @@ def migrate_metadata(errors: list[str],
                                                                        tables=[sorted_table],
                                                                        checkfirst=False)
                                         except Exception as e:
-                                            # unable to fully compile the schema
+                                            # unable to fully compile the schema with a single table
                                             exc_err = str_sanitize(exc_format(exc=e,
                                                                               exc_info=sys.exc_info()))
                                             # 104: The operation {} returned the error {}

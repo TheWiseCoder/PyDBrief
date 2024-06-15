@@ -1,5 +1,8 @@
 from logging import Logger
-from pypomes_core import str_sanitize, validate_int
+from pypomes_core import (
+    str_sanitize, validate_int, validate_format_error, validate_str
+)
+from pypomes_db import db_get_params, db_setup
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
@@ -16,9 +19,9 @@ def get_migration_params() -> dict:
     }
 
 
-def set_migration_parameters(errors: list[str],
-                             scheme: dict,
-                             logger: Logger) -> None:
+def set_migration_params(errors: list[str],
+                         scheme: dict,
+                         logger: Logger) -> None:
 
     # validate the optional 'batch-size' parameter
     batch_size: int = validate_int(errors=errors,
@@ -63,22 +66,65 @@ def set_migration_parameters(errors: list[str],
         MIGRATION_MAX_PROCESSES = processes
 
 
-def log(logger: Logger,
-        level: int,
-        msg: str) -> None:
+def get_connection_params(errors: list[str],
+                          rdbms: str) -> dict:
 
-    if logger:
-        match level:
-            case 10:    # DEBUG
-                logger.debug(msg)
-            case 20:    # INFO
-                logger.info(msg)
-            case 30:    # WARNING
-                logger.warning(msg)
-            case 40:    # ERROR
-                logger.error(msg)
-            case 50:    # CRITICAL
-                logger.critical(msg)
+    result: dict = db_get_params(engine=rdbms)
+    if isinstance(result, dict):
+        result["rdbms"] = rdbms
+    else:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, rdbms,
+                                            "unknown or unconfigured RDBMS engine", "@rdbms"))
+
+    return result
+
+
+def set_connection_params(errors: list[str],
+                          scheme: dict) -> None:
+
+    engine: str = validate_str(errors=errors,
+                               scheme=scheme,
+                               attr="rdbms",
+                               required=True)
+    db_name: str = validate_str(errors=errors,
+                                scheme=scheme,
+                                attr="db-name",
+                                required=True)
+    db_host: str = validate_str(errors=errors,
+                                scheme=scheme,
+                                attr="db-host",
+                                required=True)
+    db_port: int = validate_int(errors=errors,
+                                scheme=scheme,
+                                attr="db-port",
+                                min_val=1,
+                                required=True)
+    db_user: str = validate_str(errors=errors,
+                                scheme=scheme,
+                                attr="db-user",
+                                required=True)
+    db_pwd: str = validate_str(errors=errors,
+                               scheme=scheme,
+                               attr="db-pwd",
+                               required=True)
+    db_client: str = validate_str(errors=errors,
+                                  scheme=scheme,
+                                  attr="db-client")
+    db_driver: str = validate_str(errors=errors,
+                                  scheme=scheme,
+                                  attr="db-driver")
+    # noinspection PyTypeChecker
+    if not errors and not db_setup(engine=engine,
+                                   db_name=db_name,
+                                   db_host=db_host,
+                                   db_port=db_port,
+                                   db_user=db_user,
+                                   db_pwd=db_pwd,
+                                   db_client=db_client,
+                                   db_driver=db_driver):
+        # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
+        errors.append(validate_format_error(120))
 
 
 def db_build_query_msg(query_stmt: str,
@@ -101,6 +147,24 @@ def db_build_query_msg(query_stmt: str,
             result = result.replace("?", sval, 1)
 
     return result
+
+
+def log(logger: Logger,
+        level: int,
+        msg: str) -> None:
+
+    if logger:
+        match level:
+            case 10:    # DEBUG
+                logger.debug(msg)
+            case 20:    # INFO
+                logger.info(msg)
+            case 30:    # WARNING
+                logger.warning(msg)
+            case 40:    # ERROR
+                logger.error(msg)
+            case 50:    # CRITICAL
+                logger.critical(msg)
 
 
 def db_log(errors: list[str],

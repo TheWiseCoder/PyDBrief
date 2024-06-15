@@ -15,8 +15,8 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # ruff: noqa: E402
 from pypomes_core import (
-    get_versions, exc_format, str_as_list,
-    validate_format_errors, validate_bool, validate_str
+    get_versions, exc_format,
+    str_lower, str_as_list, validate_format_errors
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -144,10 +144,11 @@ def handle_rdbms(rdbms: str) -> Response:
         - *db-user*: the logon user
         - *db-pwd*: the logon password
         - *db-host*: the host URL
+        - *db-port*: the connection port
         - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
-    :param rdbms: the type of RDBMS (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+    :param rdbms: the RDBMS type (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -155,17 +156,17 @@ def handle_rdbms(rdbms: str) -> Response:
 
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request=request)
-    scheme["rdbms"] = rdbms
 
     reply: dict | None = None
     if request.method == "GET":
         # get RDBMS connection params
-        reply = pydb_validator.get_connection_params(errors=errors,
-                                                     scheme=scheme)
+        reply = pydb_common.get_connection_params(errors=errors,
+                                                  rdbms=rdbms)
     else:
+        scheme["rdbms"] = rdbms
         # configure the RDBMS
-        pydb_validator.set_connection_params(errors=errors,
-                                             scheme=scheme)
+        pydb_common.set_connection_params(errors=errors,
+                                          scheme=scheme)
         if not errors:
             reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
 
@@ -210,10 +211,10 @@ def handle_migration() -> Response:
             reply = pydb_common.get_migration_params()
         case "PATCH":
             # establish the migration parameters
-            pydb_common.set_migration_parameters(errors=errors,
-                                                 scheme=scheme,
-                                                 logger=PYPOMES_LOGGER)
-            if len(errors) == 0:
+            pydb_common.set_migration_params(errors=errors,
+                                             scheme=scheme,
+                                             logger=PYPOMES_LOGGER)
+            if not errors:
                 reply = {"status": "Configuration updated"}
         case "POST":
             # validate the source and target RDBMS engines
@@ -222,8 +223,7 @@ def handle_migration() -> Response:
             # errors ?
             if not errors:
                 # no, assert the migration parameters
-                pydb_validator.assert_migration(errors=errors,
-                                                scheme=scheme)
+                pydb_validator.assert_migration_params(errors=errors)
                 # errors ?
                 if errors:
                     # yes, report the problems
@@ -247,25 +247,26 @@ def handle_migration() -> Response:
            methods=["POST"])
 def migrate_data() -> Response:
     """
-    Migrate the specified schema/tables from the source to the target RDBMS.
+    Migrate the specified schema/tables/views from the source to the target RDBMS.
 
     These are the expected parameters:
         - *from-rdbms*: the source RDBMS for the migration
         - *from-schema*: the source schema for the migration
         - *to-rdbms*: the destination RDBMS for the migration
         - *to-schema*: the destination schema for the migration
-        - *migrate-metadata*: migrate metadata (this recreates the destination schema)
+        - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
-        - *include-indexes*: whether to migrate indexes, defaults to 'False'
-        - *include-views*: whether to migrate plain views, defaults to 'False'
-        - *include-mviews*: whether to migrate materialized views, defaults to 'False'
+        - *process-indexes*: whether to migrate indexes, defaults to 'False'
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
-        - *drop-ck-constraints*: list of tables for which to drop check constraints
-        - *drop-fk-constraints*: list of tables for which to drop foreign-key constraints
+        - *include-views*: optional list of views to migrate ('*' migrates all views)
+        - *skip-ck-constraints*: list of tables for which to skip check constraints
+        - *skip-fk-constraints*: list of tables for which to skip foreign-key constraints
+        - *skip-named-constraints*: list of constraints to skip
 
-    If *migrate-metadata* is not specified, *omit-indexes* and *omit-views* are ignored.
+    If *migrate-metadata* is not specified, *process-indexes*, *include-views*,
+    *skip-ck-constraints*, *skip-fk-constraints*, and *skip-named-constraints* are ignored.
     The parameters *include-tables* and *exclude-tables* are mutually exclusive.
 
     :return: the operation outcome
@@ -276,66 +277,49 @@ def migrate_data() -> Response:
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request=request)
 
-    # validate the source and target RDBMS engines
-    (source_rdbms, target_rdbms) = pydb_validator.assert_rdbms_dual(errors=errors,
-                                                                    scheme=scheme)
     # assert whether migration is warranted
-    if len(errors) == 0:
-        pydb_validator.assert_migration(errors=errors,
-                                        scheme=scheme)
+    pydb_validator.assert_migration(errors=errors,
+                                    scheme=scheme)
+
     reply: dict | None = None
     # is migration possible ?
-    if len(errors) == 0:
-        # yes, retrieve the schemas
-        source_schema: str = validate_str(errors=errors,
-                                          scheme=scheme,
-                                          attr="from-schema",
-                                          required=True)
-        target_schema: str = validate_str(errors=errors,
-                                          scheme=scheme,
-                                          attr="to-schema",
-                                          required=True)
-        skip_ck_constraints: list[str] = [table.lower()
-                                          for table in str_as_list(scheme.get("skip-ck-constraints") or [])]
-        skip_fk_constraints: list[str] = [table.lower()
-                                          for table in str_as_list(scheme.get("skip-fk-constraints") or [])]
-        skip_named_constraints: list[str] = [table.lower()
-                                             for table in str_as_list(scheme.get("skip-named-constraints") or [])]
+    if not errors:
+        # yes, establish the migration parameters
+        source_rdbms: str = scheme.get("from-rdbms")
+        target_rdbms: str = scheme.get("to-rdbms")
+        source_schema: str = scheme.get("from-schema").lower()
+        target_schema: str = scheme.get("to-schema").lower()
+        step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
+        step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
+        step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
+        process_indexes: bool = step_metadata and str_lower(scheme.get("process-indexes")) in ["t", "true"]
+        include_tables: list[str] = str_as_list(str_lower(scheme.get("include-tables"))) or []
+        exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
+        include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
+        skip_ck_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-ck-constraints"))) or []
+        skip_fk_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-cf-constraints"))) or []
+        skip_named_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-named-constraints"))) or []
         external_columns: dict[str, Type] = \
-            pydb_validator.get_column_types(errors=errors, scheme=scheme)
-        step_metadata, step_plaindata, step_lobdata = \
-            pydb_validator.assert_migration_steps(errors=errors,
-                                                  scheme=scheme)
-        process_indexes = step_metadata and validate_bool(errors=errors,
-                                                          scheme=scheme,
-                                                          attr="process-indexes",
-                                                          default=False)
-        include_tables = [table.lower()
-                          for table in str_as_list(scheme.get("include-tables") or [])]
-        exclude_tables = [table.lower()
-                          for table in str_as_list(scheme.get("exclude-tables") or [])]
-        include_views = [table.lower()
-                         for table in str_as_list(scheme.get("include-views") or [])]
-        # errors ?
-        if not errors:
-            # no, migrate the data
-            reply = pydb_migrator.migrate(errors=errors,
-                                          source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms,
-                                          source_schema=source_schema.lower(),
-                                          target_schema=target_schema.lower(),
-                                          step_metadata=step_metadata,
-                                          step_plaindata=step_plaindata,
-                                          step_lobdata=step_lobdata,
-                                          process_indexes=process_indexes,
-                                          include_tables=include_tables,
-                                          exclude_tables=exclude_tables,
-                                          include_views=include_views,
-                                          skip_ck_constraints=skip_ck_constraints,
-                                          skip_fk_constraints=skip_fk_constraints,
-                                          skip_named_constraints=skip_named_constraints,
-                                          external_columns=external_columns,
-                                          logger=PYPOMES_LOGGER)
+            pydb_validator.assert_column_types(errors=None,
+                                               scheme=scheme)
+        # migrate the data
+        reply = pydb_migrator.migrate(errors=errors,
+                                      source_rdbms=source_rdbms,
+                                      target_rdbms=target_rdbms,
+                                      source_schema=source_schema,
+                                      target_schema=target_schema,
+                                      step_metadata=step_metadata,
+                                      step_plaindata=step_plaindata,
+                                      step_lobdata=step_lobdata,
+                                      process_indexes=process_indexes,
+                                      include_tables=include_tables,
+                                      exclude_tables=exclude_tables,
+                                      include_views=include_views,
+                                      skip_ck_constraints=skip_ck_constraints,
+                                      skip_fk_constraints=skip_fk_constraints,
+                                      skip_named_constraints=skip_named_constraints,
+                                      external_columns=external_columns,
+                                      logger=PYPOMES_LOGGER)
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
