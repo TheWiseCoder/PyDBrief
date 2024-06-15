@@ -16,7 +16,7 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 # ruff: noqa: E402
 from pypomes_core import (
     get_versions, exc_format, str_as_list,
-    validate_format_errors, validate_bool, validate_str, validate_strs
+    validate_format_errors, validate_bool, validate_str
 )  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
@@ -296,13 +296,9 @@ def migrate_data() -> Response:
                                           attr="to-schema",
                                           required=True)
         skip_ck_constraints: list[str] = [table.lower()
-                                          for table in validate_strs(errors=errors,
-                                                                     scheme=scheme,
-                                                                     attr="skip-ck-constraints")]
+                                          for table in str_as_list(scheme.get("skip-ck-constraints") or [])]
         skip_fk_constraints: list[str] = [table.lower()
-                                          for table in validate_strs(errors=errors,
-                                                                     scheme=scheme,
-                                                                     attr="skip-fk-constraints")]
+                                          for table in str_as_list(scheme.get("skip-fk-constraints") or [])]
         external_columns: dict[str, Type] = \
             pydb_validator.get_column_types(errors=errors, scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
