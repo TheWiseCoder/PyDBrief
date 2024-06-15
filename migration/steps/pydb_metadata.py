@@ -176,29 +176,34 @@ def migrate_metadata(errors: list[str],
 
                             # proceed, if migrating the metadata was indicated
                             if step_metadata:
+                                # migrate the schema, one table at a time
                                 for sorted_table in sorted_tables:
-                                    try:
-                                        # migrate the schema, one table/view at a time
-                                        if sorted_table.name in plain_views or \
-                                           sorted_table.name in mat_views:
-                                            migrate_view(errors=errors,
-                                                         view_name=sorted_table.name,
-                                                         view_type="M" if sorted_table.name in mat_views else "P",
-                                                         source_rdbms=source_rdbms,
-                                                         target_rdbms=target_rdbms,
-                                                         source_schema=from_schema,
-                                                         target_schema=to_schema,
-                                                         logger=logger)
-                                        else:
+                                    if sorted_table.name not in plain_views and \
+                                       sorted_table.name not in mat_views:
+                                        try:
                                             source_metadata.create_all(bind=target_engine,
                                                                        tables=[sorted_table],
                                                                        checkfirst=False)
-                                    except Exception as e:
-                                        # unable to fully compile the schema
-                                        exc_err = str_sanitize(exc_format(exc=e,
-                                                                          exc_info=sys.exc_info()))
-                                        # 104: The operation {} returned the error {}
-                                        errors.append(validate_format_error(104, "schema-construction", exc_err))
+                                        except Exception as e:
+                                            # unable to fully compile the schema
+                                            exc_err = str_sanitize(exc_format(exc=e,
+                                                                              exc_info=sys.exc_info()))
+                                            # 104: The operation {} returned the error {}
+                                            errors.append(validate_format_error(104, "schema-construction", exc_err))
+
+                                # migrate the schema, one view at a time
+                                for sorted_table in sorted_tables:
+                                    if sorted_table.name in plain_views or \
+                                       sorted_table.name in mat_views:
+                                        view_script: str = \
+                                            source_inspector.get_view_definition(
+                                                view_name=sorted_table.name)
+                                        migrate_view(errors=errors,
+                                                     view_script=view_script,
+                                                     source_rdbms=source_rdbms,
+                                                     target_rdbms=target_rdbms,
+                                                     source_schema=from_schema,
+                                                     target_schema=to_schema)
                         else:
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,

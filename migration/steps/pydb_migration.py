@@ -1,13 +1,13 @@
 import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_get_view_script, db_execute
+from pypomes_db import db_execute
 from sqlalchemy import (
     Engine, Inspector, Table, Column, Constraint,
     CheckConstraint, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
-from typing import Any, Literal
+from typing import Any
 
 from migration import pydb_common
 from migration.pydb_types import migrate_table_column, establish_equivalences
@@ -234,45 +234,30 @@ def setup_table_columns(errors: list[str],
 
 
 def migrate_view(errors: list[str],
-                 view_name: str,
-                 view_type: Literal["M", "P"],
+                 view_script: str,
                  source_rdbms: str,
                  source_schema: str,
                  target_rdbms: str,
-                 target_schema: str,
-                 logger: Logger) -> None:
+                 target_schema: str) -> None:
 
     # initialize the local error messages list
     op_errors: list[str] = []
 
-    # obtain the script used to create the view
-    view_script: str = db_get_view_script(errors=op_errors,
-                                          view_type=view_type,
-                                          view_name=f"{source_schema}.{view_name}",
-                                          engine=source_rdbms,
-                                          logger=logger)
-    # has the script been retrieved ?
-    if view_script:
-        # yes, create the view in the target schema
-        view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                                         .replace(f'"{source_schema}".', f'"{target_schema}".')
-        if source_rdbms == "oracle":
-            # purge Oracle-specific clauses
-            view_script = view_script.replace("force editionable ", "")
-        db_execute(errors=op_errors,
-                   exc_stmt=view_script,
-                   engine=target_rdbms)
-        # errors ?
-        if op_errors:
-            # yes, insert a leading explanatory error message
-            err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {op_errors[-1]}"
-            # 101: {}
-            op_errors[-1] = validate_format_error(101, err_msg)
-    else:
-        # no, report the problem
-        # 102: Unexpected error: {}
-        op_errors.append(validate_format_error(102,
-                                               "unable to retrieve creation script "
-                                               f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
-    # register local errors
-    errors.extend(op_errors)
+    # create the view in the target schema
+    view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
+                                     .replace(f'"{source_schema}".', f'"{target_schema}".')
+    if source_rdbms == "oracle":
+        # purge Oracle-specific clauses
+        view_script = view_script.replace("force editionable ", "")
+    db_execute(errors=op_errors,
+               exc_stmt=view_script,
+               engine=target_rdbms)
+
+    # errors ?
+    if op_errors:
+        # yes, insert a leading explanatory error message
+        err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {op_errors[-1]}"
+        # 101: {}
+        op_errors[-1] = validate_format_error(101, err_msg)
+        # register local errors
+        errors.extend(op_errors)
