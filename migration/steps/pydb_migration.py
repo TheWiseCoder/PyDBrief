@@ -1,7 +1,9 @@
 import sys
 from logging import Logger, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_get_view_script, db_execute
+from pypomes_db import (
+    db_get_view_script, db_execute, db_drop_table, db_drop_view
+)
 from sqlalchemy import (
     Engine, Inspector, Table, Column, Constraint,
     CheckConstraint, ForeignKeyConstraint, inspect
@@ -11,7 +13,7 @@ from typing import Any, Literal
 
 from migration import pydb_common
 from migration.pydb_types import migrate_table_column, establish_equivalences
-from .pydb_database import create_schema, drop_table, drop_view
+from .pydb_database import create_schema
 
 
 def migrate_schema(errors: list[str],
@@ -45,16 +47,16 @@ def migrate_schema(errors: list[str],
             full_name: str = f"{target_schema}.{target_table.name}"
             if target_table.name in plain_views or \
                target_table.name in mat_views:
-                drop_view(errors=errors,
-                          view_name=full_name,
-                          view_type="M" if target_table.name in mat_views else "P",
-                          rdbms=target_rdbms,
-                          logger=logger)
+                db_drop_view(errors=errors,
+                             view_name=full_name,
+                             view_type="M" if target_table.name in mat_views else "P",
+                             engine=target_rdbms,
+                             logger=logger)
             else:
-                drop_table(errors=errors,
-                           table_name=full_name,
-                           rdbms=target_rdbms,
-                           logger=logger)
+                db_drop_table(errors=errors,
+                              table_name=full_name,
+                              engine=target_rdbms,
+                              logger=logger)
     else:
         # no, create the target schema
         op_errors: list[str] = []

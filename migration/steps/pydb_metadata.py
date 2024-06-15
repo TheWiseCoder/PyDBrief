@@ -80,6 +80,8 @@ def migrate_metadata(errors: list[str],
             # obtain the list of plain and materialized views in source schema
             plain_views: list[str] = source_inspector.get_view_names() if include_views else []
             mat_views: list[str] = source_inspector.get_materialized_view_names() if include_views else []
+            if len(include_views) == 1 and include_views[0] == "*":
+                include_views = plain_views + mat_views
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
@@ -160,7 +162,7 @@ def migrate_metadata(errors: list[str],
                         else:
                             to_schema = target_schema
 
-                        # proceed, if there is a schema to work with
+                        # is there is a target schema to work with ?
                         if to_schema:
                             # yes, migrate the tables
                             result = migrate_tables(errors=errors,
