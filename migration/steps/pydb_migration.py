@@ -138,7 +138,6 @@ def migrate_tables(errors: list[str],
                  target_table.name in skip_ck_constraints) or
                 (isinstance(constraint, ForeignKeyConstraint) and
                  target_table.name in skip_fk_constraints)):
-                target_table.constraints.remove(constraint)
                 tainted_constraints.append(constraint)
             else:
                 constraint_names.append(constraint.name)
