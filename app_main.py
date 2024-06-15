@@ -295,12 +295,14 @@ def migrate_data() -> Response:
                                           scheme=scheme,
                                           attr="to-schema",
                                           required=True)
-        skip_ck_constraints: list[str] = validate_strs(errors=errors,
-                                                       scheme=scheme,
-                                                       attr="skip-ck-constraints")
-        skip_fk_constraints: list[str] = validate_strs(errors=errors,
-                                                       scheme=scheme,
-                                                       attr="skip-fk-constraints")
+        skip_ck_constraints: list[str] = [table.lower()
+                                          for table in validate_strs(errors=errors,
+                                                                     scheme=scheme,
+                                                                     attr="skip-ck-constraints")]
+        skip_fk_constraints: list[str] = [table.lower()
+                                          for table in validate_strs(errors=errors,
+                                                                     scheme=scheme,
+                                                                     attr="skip-fk-constraints")]
         external_columns: dict[str, Type] = \
             pydb_validator.get_column_types(errors=errors, scheme=scheme)
         step_metadata, step_plaindata, step_lobdata = \
