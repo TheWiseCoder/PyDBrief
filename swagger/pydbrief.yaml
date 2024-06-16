@@ -169,7 +169,7 @@ paths:
       description:  Migrate the data from the source to the target RDBMS and schema.
       operationId: migrate-schema
       requestBody:
-        description: Optional list of referenced columns from other schemas
+        description: Optional list of referenced columns from other schemas. Edit or removed them.
         required: false
         content:
           application/json:
@@ -183,13 +183,13 @@ paths:
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
+        - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
         - $ref: '#/components/parameters/IncludeViewsParam'
-        - $ref: '#/components/parameters/ProcessIndexesParam'
-        - $ref: '#/components/parameters/SkipNamedConstraintsParam'
         - $ref: '#/components/parameters/SkipCkConstraintsParam'
         - $ref: '#/components/parameters/SkipFkConstraintsParam'
+        - $ref: '#/components/parameters/SkipNamedConstraintsParam'
       responses:
         '200':
           description: Successful operation
@@ -421,16 +421,16 @@ components:
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
-      description: Whether metadata should be migrated. This will create or transform the destination schema.
-      required: false
+      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'include-views', 'skip-ck-constraints', 'skip-fk-constraints', and 'skip-named-constraints' are ignored.
+      required: true
       schema:
         type: boolean
         default: true
     MigratePlainParam:
       name: migrate-plaindata
       in: query
-      description: Whether plain data should be migrated. This assumes all affected tables in destination schema are empty.
-      required: false
+      description: Whether plain data should be migrated. This assumes that metadata is being migrated, or all affected tables exist in destination schema and are empty.
+      required: true
       schema:
         type: boolean
         default: true
@@ -438,7 +438,7 @@ components:
       name: migrate-lobdata
       in: query
       description: Whether LOB data should be migrated. This assumes that plain data are being, or have already been, migrated.
-      required: false
+      required: true
       schema:
         type: boolean
         default: true
@@ -473,7 +473,7 @@ components:
     IncludeViewsParam:
       name: include-views
       in: query
-      description: Views to migrate (by default, views are not migrated - specify '*' to migrate all views)
+      description: Views to migrate (by default, views are not migrated - specify '*' to migrate all views). Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:
@@ -483,7 +483,7 @@ components:
     SkipCkConstraintsParam:
       name: skip-ck-constraints
       in: query
-      description: Tables to skip the check constraints for
+      description: Tables for which to skip the check constraints. Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:
@@ -493,7 +493,7 @@ components:
     SkipFkConstraintsParam:
       name: skip-fk-constraints
       in: query
-      description: Tables to skip the foreign-key constraints for
+      description: Tables for which to skip the foreign-key constraints. Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:
@@ -503,7 +503,7 @@ components:
     SkipNamedConstraintsParam:
       name: skip-named-constraints
       in: query
-      description: Constraints to skip by name
+      description: Constraints to skip by name. Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:

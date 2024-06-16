@@ -273,7 +273,7 @@
         "description": "Migrate the data from the source to the target RDBMS and schema.",
         "operationId": "migrate-schema",
         "requestBody": {
-          "description": "Optional list of referenced columns from other schemas",
+          "description": "Optional list of referenced columns from other schemas. Edit or removed them.",
           "required": false,
           "content": {
             "application/json": {
@@ -309,22 +309,22 @@
             "$ref": "#/components/parameters/ProcessIndexesParam"
           },
           {
-            "$ref": "#/components/parameters/ProcessPViewsParam"
-          },
-          {
-            "$ref": "#/components/parameters/ProcessMViewsParam"
-          },
-          {
             "$ref": "#/components/parameters/IncludeTablesParam"
           },
           {
             "$ref": "#/components/parameters/ExcludeTablesParam"
           },
           {
+            "$ref": "#/components/parameters/IncludeViewsParam"
+          },
+          {
             "$ref": "#/components/parameters/SkipCkConstraintsParam"
           },
           {
             "$ref": "#/components/parameters/SkipFkConstraintsParam"
+          },
+          {
+            "$ref": "#/components/parameters/SkipNamedConstraintsParam"
           }
         ],
         "responses": {
@@ -676,8 +676,8 @@
       "MigrateMetadataParam": {
         "name": "migrate-metadata",
         "in": "query",
-        "description": "Whether metadata should be migrated. This will recreate the destination schema.",
-        "required": false,
+        "description": "Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'include-views', 'skip-ck-constraints', 'skip-fk-constraints', and 'skip-named-constraints' are ignored.",
+        "required": true,
         "schema": {
           "type": "boolean",
           "default": true
@@ -686,8 +686,8 @@
       "MigratePlainParam": {
         "name": "migrate-plaindata",
         "in": "query",
-        "description": "Whether plain data should be migrated. This assumes all affected tables in destination schema are empty.",
-        "required": false,
+        "description": "Whether plain data should be migrated. This assumes that metadata is being migrated, or all affected tables exist in destination schema and are empty.",
+        "required": true,
         "schema": {
           "type": "boolean",
           "default": true
@@ -697,7 +697,7 @@
         "name": "migrate-lobdata",
         "in": "query",
         "description": "Whether LOB data should be migrated. This assumes that plain data are being, or have already been, migrated.",
-        "required": false,
+        "required": true,
         "schema": {
           "type": "boolean",
           "default": true
@@ -707,26 +707,6 @@
         "name": "process-indexes",
         "in": "query",
         "description": "Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
-        "required": false,
-        "schema": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "ProcessPViewsParam": {
-        "name": "process-views",
-        "in": "query",
-        "description": "Whether plain views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
-        "required": false,
-        "schema": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "ProcessMViewsParam": {
-        "name": "process-mviews",
-        "in": "query",
-        "description": "Whether materialized views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -759,10 +739,10 @@
           }
         }
       },
-      "SkipFkConstraintsParam": {
-        "name": "skip-fk-constraints",
+      "IncludeViewsParam": {
+        "name": "include-views",
         "in": "query",
-        "description": "Tables to skip the foreign-key constraints for",
+        "description": "Views to migrate (by default, views are not migrated - specify '*' to migrate all views). Ignored if metadata is not being migrated.",
         "required": false,
         "explode": false,
         "schema": {
@@ -775,7 +755,33 @@
       "SkipCkConstraintsParam": {
         "name": "skip-ck-constraints",
         "in": "query",
-        "description": "Tables to skip the check constraints for",
+        "description": "Tables for which to skip the check constraints. Ignored if metadata is not being migrated.",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "SkipFkConstraintsParam": {
+        "name": "skip-fk-constraints",
+        "in": "query",
+        "description": "Tables for which to skip the foreign-key constraints. Ignored if metadata is not being migrated.",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "SkipNamedConstraintsParam": {
+        "name": "skip-named-constraints",
+        "in": "query",
+        "description": "Constraints to skip by name. Ignored if metadata is not being migrated.",
         "required": false,
         "explode": false,
         "schema": {

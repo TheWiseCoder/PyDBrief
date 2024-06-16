@@ -236,7 +236,6 @@ def handle_migration() -> Response:
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
-
     # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
 
@@ -257,7 +256,7 @@ def migrate_data() -> Response:
         - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
-        - *process-indexes*: whether to migrate indexes, defaults to 'False'
+        - *process-indexes*: whether to migrate indexes (defaults to 'False')
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
         - *include-views*: optional list of views to migrate ('*' migrates all views)
@@ -265,9 +264,14 @@ def migrate_data() -> Response:
         - *skip-fk-constraints*: list of tables for which to skip foreign-key constraints
         - *skip-named-constraints*: list of constraints to skip
 
-    If *migrate-metadata* is not specified, *process-indexes*, *include-views*,
-    *skip-ck-constraints*, *skip-fk-constraints*, and *skip-named-constraints* are ignored.
-    The parameters *include-tables* and *exclude-tables* are mutually exclusive.
+    These are noteworthy:
+        - if *migrate-metadata* is not set, the following parameters are ignored: *process-indexes*,
+          *include-views*, *skip-ck-constraints*, *skip-fk-constraints*, and *skip-named-constraints*;
+        - the parameters *include-tables* and *exclude-tables* are mutually exclusive;
+        - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
+          or all affected tables in destination schema are empty;
+        - if *migrate-lobdata* is set, it is assumed that plain data are also being,
+          or have already been, migrated.
 
     :return: the operation outcome
     """

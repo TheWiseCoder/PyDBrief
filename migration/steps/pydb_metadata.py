@@ -77,10 +77,18 @@ def migrate_metadata(errors: list[str],
 
         # proceed, if the source schema exists
         if from_schema:
+            # clear parameters not needed if not creating/transforming the target schema
+            if not step_metadata:
+                process_indexes = False
+                include_views.clear()
+                skip_ck_constraints.clear()
+                skip_fk_constraints.clear()
+                skip_named_constraints.clear()
+
             # obtain the list of plain and materialized views in source schema
             plain_views: list[str] = source_inspector.get_view_names() if include_views else []
             mat_views: list[str] = source_inspector.get_materialized_view_names() if include_views else []
-            if len(include_views) == 1 and include_views[0] == "*":
+            if include_views == ["*"]:
                 include_views = plain_views + mat_views
 
             # obtain the source schema metadata
@@ -159,18 +167,24 @@ def migrate_metadata(errors: list[str],
                                                             plain_views=plain_views,
                                                             mat_views=mat_views,
                                                             logger=logger)
+                            if not to_schema:
+                                # 102: Unexpected error: {}
+                                errors.append(validate_format_error(
+                                    102, f"unable to migrate schema to RDBMS {target_rdbms}"))
                         else:
                             to_schema = target_schema
 
-                        # is there is a target schema to work with ?
-                        if to_schema:
-                            # yes, migrate the tables
+                        # any errors ?
+                        if not errors:
+                            # no, migrate tables' metadata (not applicable for views)
+                            real_tables: list[Table] = [table for table in sorted_tables
+                                                        if table.name not in plain_views + mat_views]
                             result = migrate_tables(errors=errors,
                                                     source_rdbms=source_rdbms,
                                                     target_rdbms=target_rdbms,
                                                     source_schema=from_schema,
                                                     target_schema=to_schema,
-                                                    target_tables=sorted_tables,
+                                                    target_tables=real_tables,
                                                     skip_ck_constraints=skip_ck_constraints,
                                                     skip_fk_constraints=skip_fk_constraints,
                                                     skip_named_constraints=skip_named_constraints,
@@ -180,37 +194,30 @@ def migrate_metadata(errors: list[str],
                             # proceed, if migrating the metadata was indicated
                             if step_metadata:
                                 # migrate the schema, one table at a time
-                                for sorted_table in sorted_tables:
-                                    if sorted_table.name not in plain_views and \
-                                       sorted_table.name not in mat_views:
-                                        try:
-                                            source_metadata.create_all(bind=target_engine,
-                                                                       tables=[sorted_table],
-                                                                       checkfirst=False)
-                                        except Exception as e:
-                                            # unable to fully compile the schema with a single table
-                                            exc_err = str_sanitize(exc_format(exc=e,
-                                                                              exc_info=sys.exc_info()))
-                                            # 104: The operation {} returned the error {}
-                                            errors.append(validate_format_error(104, "schema-construction", exc_err))
+                                for real_table in real_tables:
+                                    try:
+                                        source_metadata.create_all(bind=target_engine,
+                                                                   tables=[real_table],
+                                                                   checkfirst=False)
+                                    except Exception as e:
+                                        # unable to fully compile the schema with a single table
+                                        exc_err = str_sanitize(exc_format(exc=e,
+                                                                          exc_info=sys.exc_info()))
+                                        # 104: The operation {} returned the error {}
+                                        errors.append(validate_format_error(104, "schema-construction", exc_err))
 
                                 # migrate the schema, one view at a time
-                                for sorted_table in sorted_tables:
-                                    if sorted_table.name in plain_views or \
-                                       sorted_table.name in mat_views:
-                                        migrate_view(errors=errors,
-                                                     view_name=sorted_table.name,
-                                                     view_type="M" if sorted_table.name in mat_views else "P",
-                                                     source_rdbms=source_rdbms,
-                                                     target_rdbms=target_rdbms,
-                                                     source_schema=from_schema,
-                                                     target_schema=to_schema,
-                                                     logger=logger)
-                        else:
-                            # 102: Unexpected error: {}
-                            errors.append(validate_format_error(102,
-                                                                f"unable to create schema in RDBMS {target_rdbms}",
-                                                                "@to-schema"))
+                                real_views: list[Table] = [table for table in sorted_tables
+                                                           if table.name not in real_tables]
+                                for real_view in real_views:
+                                    migrate_view(errors=errors,
+                                                 view_name=real_view.name,
+                                                 view_type="M" if real_view.name in mat_views else "P",
+                                                 source_rdbms=source_rdbms,
+                                                 target_rdbms=target_rdbms,
+                                                 source_schema=from_schema,
+                                                 target_schema=to_schema,
+                                                 logger=logger)
         else:
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142, source_schema,
