@@ -537,6 +537,7 @@ def migrate_table_column(source_rdbms: str,
                    len(source_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(source_column, "identity") and
                          source_column.identity) or False
+    is_lob: bool = str(col_type_obj) in LOBS
     is_number: bool = (col_type_class in
                        [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC])
     is_number_int: bool = (is_number and
@@ -593,6 +594,12 @@ def migrate_table_column(source_rdbms: str,
         # use the source type
         type_equiv = col_type_class
 
+    # assert the nullability of the target column
+    if is_lob:
+        type_equiv.nullable = True
+    elif hasattr(source_column, "nullable") and hasattr(type_equiv, "nullable"):
+        type_equiv.nullable = source_column.nullable
+
     # fine-tune the type equivalence
     if is_number_int:
         if is_identity:
@@ -622,7 +629,7 @@ def migrate_table_column(source_rdbms: str,
 
     # wrap-up the type migration
     if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):
-        result.nullable = True if is_lob(str(result)) else col_type_obj.nullable
+        result.nullable = True if is_lob else col_type_obj.nullable
     if hasattr(col_type_obj, "length") and hasattr(result, "length"):
         result.length = col_type_obj.length
     if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
