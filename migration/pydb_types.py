@@ -398,24 +398,7 @@ COLUMN_TYPES: dict[str, Type] = {
 }
 
 # Reference - MySQL - Oracle - PostgreSQL - SQLServer
-REF_EQUIVALENCES: Final[list[tuple]] = [
-    (Ref_BigInteger, MSQL_BIGINT, ORCL_NUMBER, REF_BIGINT, REF_BIGINT),
-    (Ref_Boolean, REF_BOOLEAN, None, REF_BOOLEAN, None),
-    (Ref_Date, REF_DATE, ORCL_DATE, REF_DATE, REF_DATE),
-    (Ref_DateTime, REF_DATETIME, ORCL_DATE, PG_TIMESTAMP, REF_DATETIME),
-    (Ref_Double, MSQL_DOUBLE, ORCL_BINARY_DOUBLE, REF_DOUBLE_PRECISION, SQLS_DOUBLE_PRECISION),
-    (Ref_Enum, MSQL_ENUM, None, PG_ENUM, None),
-    (Ref_Float, MSQL_FLOAT, ORCL_BINARY_FLOAT, REF_FLOAT),
-    (Ref_Integer, ORCL_NUMBER, MSQL_INTEGER, REF_INTEGER, REF_INTEGER),
-    (Ref_Interval, None, ORCL_INTERVAL, PG_INTERVAL, None),
-    (Ref_LargeBinary, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA, SQLS_VARBINARY),
-    (Ref_NullType, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
-    (Ref_Numeric, MSQL_NUMERIC, ORCL_NUMBER, REF_NUMERIC, REF_NUMERIC),
-    (Ref_SmallInteger, MSQL_SMALLINT, ORCL_NUMBER, REF_SMALLINT, REF_INTEGER),
-    (Ref_String, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
-    (Ref_Text, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
-    (Ref_Time, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_TIMESTAMP),
-    (Ref_Uuid, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER),
+REF_EQUIVALENCES_STRICT: Final[list[tuple]] = [
     (REF_BIGINT, MSQL_BIGINT, ORCL_NUMBER, REF_BIGINT, REF_BIGINT),
     (REF_BINARY, REF_BINARY, ORCL_RAW, PG_BYTEA, REF_BINARY),
     (REF_BLOB, MSQL_LONGBLOB, REF_CLOB, PG_BYTEA, SQLS_VARBINARY),
@@ -442,6 +425,27 @@ REF_EQUIVALENCES: Final[list[tuple]] = [
     (REF_UUID, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER),
     (REF_VARBINARY, REF_VARBINARY, REF_BLOB, PG_BYTEA, SQLS_VARBINARY),
     (REF_VARCHAR, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
+]
+
+# Reference - MySQL - Oracle - PostgreSQL - SQLServer
+REF_EQUIVALENCES_LENIENT: Final[list[tuple]] = [
+    (Ref_BigInteger, MSQL_BIGINT, ORCL_NUMBER, REF_BIGINT, REF_BIGINT),
+    (Ref_Boolean, REF_BOOLEAN, None, REF_BOOLEAN, None),
+    (Ref_Date, REF_DATE, ORCL_DATE, REF_DATE, REF_DATE),
+    (Ref_DateTime, REF_DATETIME, ORCL_DATE, PG_TIMESTAMP, REF_DATETIME),
+    (Ref_Double, MSQL_DOUBLE, ORCL_BINARY_DOUBLE, REF_DOUBLE_PRECISION, SQLS_DOUBLE_PRECISION),
+    (Ref_Enum, MSQL_ENUM, None, PG_ENUM, None),
+    (Ref_Float, MSQL_FLOAT, ORCL_BINARY_FLOAT, REF_FLOAT),
+    (Ref_Integer, ORCL_NUMBER, MSQL_INTEGER, REF_INTEGER, REF_INTEGER),
+    (Ref_Interval, None, ORCL_INTERVAL, PG_INTERVAL, None),
+    (Ref_LargeBinary, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA, SQLS_VARBINARY),
+    (Ref_NullType, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
+    (Ref_Numeric, MSQL_NUMERIC, ORCL_NUMBER, REF_NUMERIC, REF_NUMERIC),
+    (Ref_SmallInteger, MSQL_SMALLINT, ORCL_NUMBER, REF_SMALLINT, REF_INTEGER),
+    (Ref_String, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
+    (Ref_Text, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
+    (Ref_Time, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_TIMESTAMP),
+    (Ref_Uuid, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER),
 ]
 
 # MySQL - Oracle - PostgreSQL - SLServer (TO BE COMPLETED)
@@ -564,9 +568,16 @@ def migrate_table_column(source_rdbms: str,
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
-    # if necessary, inspect the reference equivalences next
+    # if necessary, inspect the strict reference equivalences next
     if type_equiv is None:
-        for ref_equivalence in REF_EQUIVALENCES:
+        for ref_equivalence in REF_EQUIVALENCES_STRICT:
+            if isinstance(col_type_obj, ref_equivalence[0]):
+                type_equiv = ref_equivalence[reference_ordinal]
+                break
+
+    # if necessary, inspect the lenient reference equivalences next
+    if type_equiv is None:
+        for ref_equivalence in REF_EQUIVALENCES_LENIENT:
             if isinstance(col_type_obj, ref_equivalence[0]):
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
