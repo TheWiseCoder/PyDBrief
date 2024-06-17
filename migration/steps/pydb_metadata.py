@@ -209,7 +209,7 @@ def migrate_metadata(errors: list[str],
 
                                 # migrate the schema, one view at a time
                                 real_views: list[Table] = [table for table in sorted_tables
-                                                           if table.name not in real_tables]
+                                                           if table.name in plain_views + mat_views]
                                 for real_view in real_views:
                                     migrate_view(errors=errors,
                                                  view_name=real_view.name,
