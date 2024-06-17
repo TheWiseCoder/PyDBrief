@@ -86,14 +86,15 @@ def migrate_metadata(errors: list[str],
                 skip_named_constraints.clear()
 
             # obtain the list of plain and materialized views in source schema
-            plain_views: list[str] = source_inspector.get_view_names() if include_views else []
-            mat_views: list[str] = source_inspector.get_materialized_view_names() if include_views else []
+            plain_views: list[str] = source_inspector.get_view_names()
+            mat_views: list[str] = source_inspector.get_materialized_view_names()
             if include_views == ["*"]:
                 include_views = plain_views + mat_views
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
+                # HAZARD: material views might be included, regarless of the 'views' parameter
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         views=len(include_views) > 0)

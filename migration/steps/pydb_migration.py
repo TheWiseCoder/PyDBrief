@@ -275,6 +275,6 @@ def migrate_view(errors: list[str],
         # 102: Unexpected error: {}
         op_errors.append(validate_format_error(102,
                                                "unable to retrieve creation script "
-                                               f"for view '{target_rdbms}.{target_schema}.{view_name}'"))
+                                               f"for view '{source_rdbms}.{source_schema}.{view_name}'"))
     # register local errors
     errors.extend(op_errors)
