@@ -207,8 +207,8 @@ def migrate_metadata(errors: list[str],
                                         columns_props: dict = result.get(real_table.name).get("columns")
                                         for name, props in columns_props.items():
                                             if is_lob(col_type=props.get("source-type")) and \
-                                               "nullable" not in (props.get("features") or []):
-                                                props["features"] = props.get("features") or []
+                                               "nullable" not in props.get("features", []):
+                                                props["features"] = props.get("features", [])
                                                 props["features"].append("nullable")
                                                 set_nullable(errors=errors,
                                                              rdbms=target_rdbms,

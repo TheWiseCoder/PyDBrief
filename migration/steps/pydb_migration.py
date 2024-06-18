@@ -178,7 +178,7 @@ def migrate_tables(errors: list[str],
         # issue warning if no primary key was found for table
         no_pk: bool = True
         for column_data in table_columns.values():
-            if "primary-key" in (column_data.get("features") or []):
+            if "primary-key" in column_data.get("features", []):
                 no_pk = False
                 break
         if no_pk:

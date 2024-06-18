@@ -35,7 +35,7 @@ def migrate_lobs(errors: list[str],
             if "primary-key" in features:
                 table_pks.append(column_name)
 
-        # can only migrate LOBs if table has primary keys
+        # can only migrate LOBs if table has primary key
         op_errors: list[str] = []
         count: int = 0
         if table_pks:
