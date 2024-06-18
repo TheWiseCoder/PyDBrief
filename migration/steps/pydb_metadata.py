@@ -203,7 +203,7 @@ def migrate_metadata(errors: list[str],
                                                                    tables=[real_table],
                                                                    checkfirst=False)
                                         # make sure LOB columns are nullable
-                                        # (SQLAlchemy fails to set this up, in certain sitations)
+                                        # (SQLAlchemy fails at that, in certain sitations)
                                         columns_props: dict = result.get(real_table.name).get("columns")
                                         for name, props in columns_props.items():
                                             if is_lob(col_type=props.get("source-type")) and \
