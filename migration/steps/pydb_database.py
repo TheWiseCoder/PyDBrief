@@ -70,3 +70,28 @@ def restore_session_restrictions(errors: list[str],
     pydb_common.log(logger=logger,
                     level=DEBUG,
                     msg=f"RDBMS {rdbms}, restored session restrictions delaying bulk copying")
+
+
+def set_nullable(errors: list[str],
+                 rdbms: str,
+                 table: str,
+                 column: str,
+                 logger: Logger) -> None:
+
+    # build the statement
+    alter_stmt: str | None = None
+    match rdbms:
+        case "mysql":
+            pass
+        case "oracle":
+            alter_stmt = (f"ALTER TABLE {table} "
+                          f"MODIFY ({column} NULL)")
+        case "postgres" | "sqlserver":
+            alter_stmt = (f"ALTER TABLE {table} "
+                          f"ALTER COLUMN {column} DROP NOT NULL")
+
+    # execute it
+    db_execute(errors=errors,
+               exc_stmt=alter_stmt,
+               engine=rdbms,
+               logger=logger)

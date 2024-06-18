@@ -5,8 +5,10 @@ from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
+from .pydb_database import set_nullable
 from .pydb_migration import migrate_schema, migrate_tables, migrate_view
 from .pydb_engine import build_engine
+from ..pydb_types import is_lob
 
 
 # structure of the migration data returned:
@@ -200,6 +202,19 @@ def migrate_metadata(errors: list[str],
                                         source_metadata.create_all(bind=target_engine,
                                                                    tables=[real_table],
                                                                    checkfirst=False)
+                                        # make sure LOB columns are nullable
+                                        columns_props: list[dict] = result.get(real_table.name).get("columns")
+                                        for column_props in columns_props:
+                                            for name, props in column_props.items():
+                                                if is_lob(col_type=props.get("source_type")) and \
+                                                   "nullable" not in props.get("features") or []:
+                                                    props["features"] = props.get("features") or []
+                                                    props["features"].append("nullable")
+                                                    set_nullable(errors=errors,
+                                                                 rdbms=target_rdbms,
+                                                                 table=f"{target_schema}.{real_table.name}",
+                                                                 column=name,
+                                                                 logger=logger)
                                     except Exception as e:
                                         # unable to fully compile the schema with a single table
                                         exc_err = str_sanitize(exc_format(exc=e,

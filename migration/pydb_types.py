@@ -585,10 +585,8 @@ def migrate_table_column(source_rdbms: str,
         type_equiv = col_type_class
 
     # assert the nullability of the target column
-    if is_lob:
-        type_equiv.nullable = True
-    elif hasattr(source_column, "nullable") and hasattr(type_equiv, "nullable"):
-        type_equiv.nullable = source_column.nullable
+    if hasattr(source_column, "nullable") and hasattr(type_equiv, "nullable"):
+        type_equiv.nullable = True if is_lob else source_column.nullable
 
     # fine-tune the type equivalence
     if is_number_int:
