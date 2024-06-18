@@ -203,18 +203,18 @@ def migrate_metadata(errors: list[str],
                                                                    tables=[real_table],
                                                                    checkfirst=False)
                                         # make sure LOB columns are nullable
-                                        columns_props: list[dict] = result.get(real_table.name).get("columns")
-                                        for column_props in columns_props:
-                                            for name, props in column_props.items():
-                                                if is_lob(col_type=props.get("source_type")) and \
-                                                   "nullable" not in props.get("features") or []:
-                                                    props["features"] = props.get("features") or []
-                                                    props["features"].append("nullable")
-                                                    set_nullable(errors=errors,
-                                                                 rdbms=target_rdbms,
-                                                                 table=f"{target_schema}.{real_table.name}",
-                                                                 column=name,
-                                                                 logger=logger)
+                                        # (SQLAlchemy fails to set this up, in certain sitations)
+                                        columns_props: dict = result.get(real_table.name).get("columns")
+                                        for name, props in columns_props.items():
+                                            if is_lob(col_type=props.get("source-type")) and \
+                                               "nullable" not in (props.get("features") or []):
+                                                props["features"] = props.get("features") or []
+                                                props["features"].append("nullable")
+                                                set_nullable(errors=errors,
+                                                             rdbms=target_rdbms,
+                                                             table=f"{target_schema}.{real_table.name}",
+                                                             column=name,
+                                                             logger=logger)
                                     except Exception as e:
                                         # unable to fully compile the schema with a single table
                                         exc_err = str_sanitize(exc_format(exc=e,
