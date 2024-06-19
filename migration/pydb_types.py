@@ -551,7 +551,6 @@ def migrate_table_column(source_rdbms: str,
         # attempt to force type conformity
         fk_column: Column = list(source_column.foreign_keys)[0].column
         if fk_column.table.schema in [source_schema, target_schema]:
-            # fk_column.table.schema = target_schema
             # force type conformity
             type_equiv = fk_column.type.__class__
         elif external_columns:

@@ -92,11 +92,11 @@ def migrate(errors: list[str],
     if include_views:
         msg += f", include views {','.join(include_views)}"
     if skip_ck_constraints:
-        msg += f", skip CK constaints {','.join(skip_ck_constraints)}"
+        msg += f", skip CK constraints {','.join(skip_ck_constraints)}"
     if skip_fk_constraints:
-        msg += f", skip FK constaints {','.join(skip_fk_constraints)}"
+        msg += f", skip FK constraints {','.join(skip_fk_constraints)}"
     if skip_named_constraints:
-        msg += f", skip named constaints {','.join(skip_named_constraints)}"
+        msg += f", skip named constraints {','.join(skip_named_constraints)}"
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg=msg)
