@@ -6,7 +6,7 @@ from pypomes_db import (
 )
 from sqlalchemy import (
     Engine, Inspector, Table, Column, Constraint,
-    CheckConstraint, ForeignKeyConstraint, Metadata, inspect
+    CheckConstraint, ForeignKeyConstraint, MetaData, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -19,7 +19,7 @@ from .pydb_database import create_schema
 def prune_metadata(errors: list[str],
                    source_rdbms: str,
                    source_schema: str,
-                   source_metadata: Metadata,
+                   source_metadata: MetaData,
                    plain_views: list[str],
                    mat_views: list[str],
                    include_tables: list[str],
