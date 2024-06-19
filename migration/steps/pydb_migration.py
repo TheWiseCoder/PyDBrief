@@ -6,7 +6,7 @@ from pypomes_db import (
 )
 from sqlalchemy import (
     Engine, Inspector, Table, Column, MetaData, Constraint,
-    CheckConstraint, ForeignKeyConstraint, PrimaryKeyConstraint, inspect
+    CheckConstraint, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -16,9 +16,7 @@ from migration.pydb_types import migrate_table_column, establish_equivalences
 from .pydb_database import create_schema
 
 
-def prune_metadata(errors: list[str],
-                   source_rdbms: str,
-                   source_schema: str,
+def prune_metadata(source_schema: str,
                    source_metadata: MetaData,
                    plain_views: list[str],
                    mat_views: list[str],
@@ -36,67 +34,39 @@ def prune_metadata(errors: list[str],
     include: bool = not include_tables
     for source_table in source_tables:
         table_name: str = source_table.name.lower()
-        if table_name in include_tables:
-            target_tables.append(source_table)
-            include_tables.remove(table_name)
-        elif table_name in exclude_tables:
-            exclude_tables.remove(table_name)
-        elif table_name in include_views:
-            target_tables.append(source_table)
-            include_views.remove(table_name)
-        elif (include and source_table.schema == source_schema and
-              table_name not in plain_views and table_name not in mat_views):
+        if (table_name not in exclude_tables and
+            (table_name in include_tables or
+             table_name in include_views or
+             (include and source_table.schema == source_schema and
+              table_name not in plain_views and table_name not in mat_views))):
             target_tables.append(source_table)
 
-    # were all tables in include and exclude lists accounted for ?
-    schema_name = f"{source_rdbms}.{source_schema}"
-    if include_tables or exclude_tables or include_views:
-        # no, some tables not found, report them
-        bad_tables: str = ",".join(include_tables + exclude_tables + include_views)
-        # 142: Invalid value {}: {}
-        bad: str = "'" + ",".join(bad_tables) + "'"
-        errors.append(validate_format_error(142, bad,
-                                            f"table(s) not found in {schema_name}"))
-    else:
-        # yes, purge the source metadata from tables not selected
-        all_constraints: list[str] = []
-        for source_table in source_tables:
-            if source_table not in target_tables:
-                source_metadata.remove(table=source_table)
-            else:
-                # remove indexes, if applicable
-                if not process_indexes:
-                    source_table.indexes.clear()
+    # purge the source metadata from tables not selected
+    for source_table in source_tables:
+        if source_table not in target_tables:
+            source_metadata.remove(table=source_table)
+        else:
+            # remove indexes, if applicable
+            if not process_indexes:
+                source_table.indexes.clear()
 
-                # 1- make sure table does not have duplicate constraints
-                # 2- drop the targeted CK, FK, and named constraints
-                table_constraints: list[str] = []
-                tainted_constraints: list[Constraint] = []
-                for constraint in source_table.constraints:
-                    if ((constraint.name in table_constraints and
-                         not isinstance(constraint, PrimaryKeyConstraint)) or
-                        constraint.name in skip_named_constraints or
-                        (isinstance(constraint, CheckConstraint) and
-                         source_table.name in skip_ck_constraints) or
-                        (isinstance(constraint, ForeignKeyConstraint) and
-                         source_table.name in skip_fk_constraints)):
-                        tainted_constraints.append(constraint)
-                    else:
-                        table_constraints.append(constraint.name)
-                for tainted_constraint in tainted_constraints:
-                    source_table.constraints.remove(tainted_constraint)
-                all_constraints.extend(table_constraints)
-        
-        # were all constraints in skip lists accounted for ?
-        bad_constraints: list[str] = [constraint for constraint in
-                                      skip_named_constraints + skip_ck_constraints + skip_fk_constraints
-                                      if constraint not in all_constraints]
-        if bad_constraints:
-            # no, some constraints were not found, report them
-            # 142: Invalid value {}: {}
-            bad: str = "'" + ",".join(bad_constraints) + "'"
-            errors.append(validate_format_error(142, bad,
-                                                f"constraint(s) not found in {schema_name}"))
+            # 1- make sure table does not have duplicate CK constraints
+            # 2- drop the targeted CK, FK, and named constraints
+            table_constraints: list[str] = []
+            tainted_constraints: list[Constraint] = []
+            for constraint in source_table.constraints:
+                if ((constraint.name in table_constraints and
+                     isinstance(constraint, CheckConstraint)) or
+                    constraint.name in skip_named_constraints or
+                    (isinstance(constraint, CheckConstraint) and
+                     source_table.name in skip_ck_constraints) or
+                    (isinstance(constraint, ForeignKeyConstraint) and
+                     source_table.name in skip_fk_constraints)):
+                    tainted_constraints.append(constraint)
+                else:
+                    table_constraints.append(constraint.name)
+            for tainted_constraint in tainted_constraints:
+                source_table.constraints.remove(tainted_constraint)
 
 
 def migrate_schema(errors: list[str],

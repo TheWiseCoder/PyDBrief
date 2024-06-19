@@ -113,9 +113,7 @@ def migrate_metadata(errors: list[str],
 
             if not errors:
                 # prepare the source metadata for migration
-                prune_metadata(errors=errors,
-                               source_rdbms=source_rdbms,
-                               source_schema=source_schema,
+                prune_metadata(source_schema=source_schema,
                                source_metadata=source_metadata,
                                plain_views=plain_views,
                                mat_views=mat_views,
@@ -126,96 +124,95 @@ def migrate_metadata(errors: list[str],
                                skip_fk_constraints=skip_fk_constraints,
                                skip_named_constraints=skip_named_constraints,
                                process_indexes=process_indexes)
+
+                # proceed with the appropriate tables
+                sorted_tables: list[Table] = []
+                try:
+                    sorted_tables: list[Table] = source_metadata.sorted_tables
+                except SAWarning as e:
+                    # - unable to organize the tables in the proper sequence:
+                    #   probably, cross-dependencies between tables, caused by mutually dependent FKs
+                    # - this error will cause the migration to be aborted,
+                    #   as SQLAlchemy would not be able to compile the migrated schema
+                    exc_err = str_sanitize(exc_format(exc=e,
+                                                      exc_info=sys.exc_info()))
+                    # 104: The operation {} returned the error {}
+                    errors.append(validate_format_error(104, "schema-migration", exc_err))
+
                 # errors ?
                 if not errors:
-                    # no, proceed with the appropriate tables
-                    sorted_tables: list[Table] = []
-                    try:
-                        sorted_tables: list[Table] = source_metadata.sorted_tables
-                    except SAWarning as e:
-                        # - unable to organize the tables in the proper sequence:
-                        #   probably, cross-dependencies between tables, caused by mutually dependent FKs
-                        # - this error will cause the migration to be aborted,
-                        #   as SQLAlchemy would not be able to compile the migrated schema
-                        exc_err = str_sanitize(exc_format(exc=e,
-                                                          exc_info=sys.exc_info()))
-                        # 104: The operation {} returned the error {}
-                        errors.append(validate_format_error(104, "schema-migration", exc_err))
+                    # no, proceed
+                    if step_metadata:
+                        # migrate the schema
+                        to_schema: str = migrate_schema(errors=errors,
+                                                        target_rdbms=target_rdbms,
+                                                        target_schema=target_schema,
+                                                        target_engine=target_engine,
+                                                        target_tables=sorted_tables,
+                                                        plain_views=plain_views,
+                                                        mat_views=mat_views,
+                                                        logger=logger)
+                        if not to_schema:
+                            # 102: Unexpected error: {}
+                            errors.append(validate_format_error(
+                                102, f"unable to migrate schema to RDBMS {target_rdbms}"))
+                    else:
+                        to_schema = target_schema
 
-                    # any errors ?
+                    # errors ?
                     if not errors:
-                        # no, proceed
+                        # no, migrate tables' metadata (not applicable for views)
+                        real_tables: list[Table] = [table for table in sorted_tables
+                                                    if table.name not in plain_views + mat_views]
+                        result = migrate_tables(errors=errors,
+                                                source_rdbms=source_rdbms,
+                                                target_rdbms=target_rdbms,
+                                                source_schema=from_schema,
+                                                target_schema=to_schema,
+                                                target_tables=real_tables,
+                                                external_columns=external_columns,
+                                                logger=logger)
+
+                        # proceed, if migrating the metadata was indicated
                         if step_metadata:
-                            # migrate the schema
-                            to_schema: str = migrate_schema(errors=errors,
-                                                            target_rdbms=target_rdbms,
-                                                            target_schema=target_schema,
-                                                            target_engine=target_engine,
-                                                            target_tables=sorted_tables,
-                                                            plain_views=plain_views,
-                                                            mat_views=mat_views,
-                                                            logger=logger)
-                            if not to_schema:
-                                # 102: Unexpected error: {}
-                                errors.append(validate_format_error(
-                                    102, f"unable to migrate schema to RDBMS {target_rdbms}"))
-                        else:
-                            to_schema = target_schema
+                            # migrate the schema, one table at a time
+                            for real_table in real_tables:
+                                try:
+                                    source_metadata.create_all(bind=target_engine,
+                                                               tables=[real_table],
+                                                               checkfirst=False)
+                                    # make sure LOB columns are nullable
+                                    # (SQLAlchemy fails at that, in certain sitations)
+                                    columns_props: dict = result.get(real_table.name).get("columns")
+                                    for name, props in columns_props.items():
+                                        if is_lob(col_type=props.get("source-type")) and \
+                                           "nullable" not in props.get("features", []):
+                                            props["features"] = props.get("features", [])
+                                            props["features"].append("nullable")
+                                            set_nullable(errors=errors,
+                                                         rdbms=target_rdbms,
+                                                         table=f"{target_schema}.{real_table.name}",
+                                                         column=name,
+                                                         logger=logger)
+                                except Exception as e:
+                                    # unable to fully compile the schema with a single table
+                                    exc_err = str_sanitize(exc_format(exc=e,
+                                                                      exc_info=sys.exc_info()))
+                                    # 104: The operation {} returned the error {}
+                                    errors.append(validate_format_error(104, "schema-construction", exc_err))
 
-                        # any errors ?
-                        if not errors:
-                            # no, migrate tables' metadata (not applicable for views)
-                            real_tables: list[Table] = [table for table in sorted_tables
-                                                        if table.name not in plain_views + mat_views]
-                            result = migrate_tables(errors=errors,
-                                                    source_rdbms=source_rdbms,
-                                                    target_rdbms=target_rdbms,
-                                                    source_schema=from_schema,
-                                                    target_schema=to_schema,
-                                                    target_tables=real_tables,
-                                                    external_columns=external_columns,
-                                                    logger=logger)
-
-                            # proceed, if migrating the metadata was indicated
-                            if step_metadata:
-                                # migrate the schema, one table at a time
-                                for real_table in real_tables:
-                                    try:
-                                        source_metadata.create_all(bind=target_engine,
-                                                                   tables=[real_table],
-                                                                   checkfirst=False)
-                                        # make sure LOB columns are nullable
-                                        # (SQLAlchemy fails at that, in certain sitations)
-                                        columns_props: dict = result.get(real_table.name).get("columns")
-                                        for name, props in columns_props.items():
-                                            if is_lob(col_type=props.get("source-type")) and \
-                                               "nullable" not in props.get("features", []):
-                                                props["features"] = props.get("features", [])
-                                                props["features"].append("nullable")
-                                                set_nullable(errors=errors,
-                                                             rdbms=target_rdbms,
-                                                             table=f"{target_schema}.{real_table.name}",
-                                                             column=name,
-                                                             logger=logger)
-                                    except Exception as e:
-                                        # unable to fully compile the schema with a single table
-                                        exc_err = str_sanitize(exc_format(exc=e,
-                                                                          exc_info=sys.exc_info()))
-                                        # 104: The operation {} returned the error {}
-                                        errors.append(validate_format_error(104, "schema-construction", exc_err))
-
-                                # migrate the schema, one view at a time
-                                real_views: list[Table] = [table for table in sorted_tables
-                                                           if table.name in plain_views + mat_views]
-                                for real_view in real_views:
-                                    migrate_view(errors=errors,
-                                                 view_name=real_view.name,
-                                                 view_type="M" if real_view.name in mat_views else "P",
-                                                 source_rdbms=source_rdbms,
-                                                 target_rdbms=target_rdbms,
-                                                 source_schema=from_schema,
-                                                 target_schema=to_schema,
-                                                 logger=logger)
+                            # migrate the schema, one view at a time
+                            real_views: list[Table] = [table for table in sorted_tables
+                                                       if table.name in plain_views + mat_views]
+                            for real_view in real_views:
+                                migrate_view(errors=errors,
+                                             view_name=real_view.name,
+                                             view_type="M" if real_view.name in mat_views else "P",
+                                             source_rdbms=source_rdbms,
+                                             target_rdbms=target_rdbms,
+                                             source_schema=from_schema,
+                                             target_schema=to_schema,
+                                             logger=logger)
         else:
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142, source_schema,
