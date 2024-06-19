@@ -301,7 +301,7 @@ def migrate_data() -> Response:
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
         skip_ck_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-ck-constraints"))) or []
-        skip_fk_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-fK-constraints"))) or []
+        skip_fk_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-fk-constraints"))) or []
         skip_named_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-named-constraints"))) or []
         external_columns: dict[str, Type] = \
             pydb_validator.assert_column_types(errors=None,

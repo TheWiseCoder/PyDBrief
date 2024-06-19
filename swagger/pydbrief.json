@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.1.9"
+    "version": "1.2.1"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -316,12 +316,6 @@
           },
           {
             "$ref": "#/components/parameters/IncludeViewsParam"
-          },
-          {
-            "$ref": "#/components/parameters/SkipCkConstraintsParam"
-          },
-          {
-            "$ref": "#/components/parameters/SkipFkConstraintsParam"
           },
           {
             "$ref": "#/components/parameters/SkipNamedConstraintsParam"
