@@ -471,6 +471,7 @@ ORCL_EQUIVALENCES: Final[list[tuple]] = [
     (ORCL_NCLOB, MSQL_LONGTEXT, REF_TEXT, SQLS_NTEXT),
     (ORCL_NUMBER, MSQL_NUMERIC, REF_NUMERIC, REF_NUMERIC),
     (ORCL_RAW, REF_VARBINARY, PG_BYTEA, SQLS_VARBINARY),
+    (ORCL_ROWID, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR),
     (ORCL_TIMESTAMP, REF_DATETIME, PG_TIMESTAMP, REF_DATETIME),
     (ORCL_VARCHAR2, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR),
     # SQLAlchemy reports Oracle's NUMBER(38,0) as REF_INTEGER
@@ -549,9 +550,8 @@ def migrate_table_column(source_rdbms: str,
     if is_fk:
         # attempt to force type conformity
         fk_column: Column = list(source_column.foreign_keys)[0].column
-        # make sure references to source schema are changed to target schema
         if fk_column.table.schema in [source_schema, target_schema]:
-            fk_column.table.schema = target_schema
+            # fk_column.table.schema = target_schema
             # force type conformity
             type_equiv = fk_column.type.__class__
         elif external_columns:

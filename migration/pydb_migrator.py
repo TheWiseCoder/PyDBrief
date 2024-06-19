@@ -74,7 +74,7 @@ def migrate(errors: list[str],
     # log the start of the migration
     msg: str = (f"Migration started, "
                 f"from {source_rdbms}.{source_schema} "
-                f"to {target_rdbms}.{target_schema}")
+                f"to {target_rdbms}.{target_schema} ")
     steps: str = ""
     if step_metadata:
         steps += ", metadata"
@@ -82,7 +82,7 @@ def migrate(errors: list[str],
         steps += ", plaindata"
     if step_lobdata:
         steps += ", lobdata"
-    msg += f"steps {steps}"
+    msg += f"steps {steps[2:]}"
     if process_indexes:
         msg += ", process indexes"
     if include_tables:
