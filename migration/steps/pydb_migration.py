@@ -6,7 +6,7 @@ from pypomes_db import (
 )
 from sqlalchemy import (
     Engine, Inspector, Table, Column, Constraint,
-    CheckConstraint, ForeignKeyConstraint, inspect
+    CheckConstraint, ForeignKeyConstraint, Metadata, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -14,6 +14,73 @@ from typing import Any, Literal
 from migration import pydb_common
 from migration.pydb_types import migrate_table_column, establish_equivalences
 from .pydb_database import create_schema
+
+
+def prune_metadata(errors: list[str],
+                   source_rdbms: str,
+                   source_schema: str,
+                   source_metadata: Metadata,
+                   plain_views: list[str],
+                   mat_views: list[str],
+                   include_tables: list[str],
+                   exclude_tables: list[str],
+                   include_views: list[str],
+                   skip_ck_constraints: list[str],
+                   skip_fk_constraints: list[str],
+                   skip_named_constraints: list[str],
+                   process_indexes: bool) -> None:
+
+    # build list of migration candidates
+    source_tables: list[Table] = list(source_metadata.tables.values())
+    target_tables: list[Table] = []
+    include: bool = not include_tables
+    for source_table in source_tables:
+        table_name: str = source_table.name.lower()
+        if table_name in include_tables:
+            target_tables.append(source_table)
+            include_tables.remove(table_name)
+        elif table_name in exclude_tables:
+            exclude_tables.remove(table_name)
+        elif table_name in include_views:
+            target_tables.append(source_table)
+            include_views.remove(table_name)
+        elif (include and source_table.schema == source_schema and
+              table_name not in plain_views and table_name not in mat_views):
+            target_tables.append(source_table)
+
+    # were all tables in include and exclude lists accounted for ?
+    if include_tables or exclude_tables or include_views:
+        # no, some tables not found, report them
+        bad_tables: str = ",".join(include_tables + exclude_tables + include_views)
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, bad_tables,
+                                            f"table(s) not found in {source_rdbms}.{source_schema}"))
+    else:
+        # yes, purge the source metadata from tables not selected
+        for source_table in source_tables:
+            if source_table not in target_tables:
+                source_metadata.remove(table=source_table)
+            else:
+                # remove indexes, if applicable
+                if not process_indexes:
+                    source_table.indexes.clear()
+
+                # 1- make sure table does not have duplicate constraints
+                # 2- drop the targeted CK, FK, and named constraints
+                constraint_names: list[str] = []
+                tainted_constraints: list[Constraint] = []
+                for constraint in source_table.constraints:
+                    if (constraint.name in constraint_names or
+                        constraint.name in skip_named_constraints or
+                        (isinstance(constraint, CheckConstraint) and
+                         source_table.name in skip_ck_constraints) or
+                        (isinstance(constraint, ForeignKeyConstraint) and
+                         source_table.name in skip_fk_constraints)):
+                        tainted_constraints.append(constraint)
+                    else:
+                        constraint_names.append(constraint.name)
+                for tainted_constraint in tainted_constraints:
+                    source_table.constraints.remove(tainted_constraint)
 
 
 def migrate_schema(errors: list[str],
@@ -87,9 +154,6 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    target_schema: str,
                    target_tables: list[Table],
-                   skip_ck_constraints: list[str],
-                   skip_fk_constraints: list[str],
-                   skip_named_constraints: list[str],
                    external_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
@@ -128,23 +192,6 @@ def migrate_tables(errors: list[str],
                             nat_equivalences=nat_equivalences,
                             external_columns=external_columns,
                             logger=logger)
-
-        # 1- make sure table does not have duplicate constraints
-        # 2- drop CK and FK constraints, if applicable
-        constraint_names: list[str] = []
-        tainted_constraints: list[Constraint] = []
-        for constraint in target_table.constraints:
-            if (constraint.name in constraint_names or
-                constraint.name in skip_named_constraints or
-                (isinstance(constraint, CheckConstraint) and
-                 target_table.name in skip_ck_constraints) or
-                (isinstance(constraint, ForeignKeyConstraint) and
-                 target_table.name in skip_fk_constraints)):
-                tainted_constraints.append(constraint)
-            else:
-                constraint_names.append(constraint.name)
-        for tainted_constraint in tainted_constraints:
-            target_table.constraints.remove(tainted_constraint)
 
         # register the target column properties
         for column in columns:

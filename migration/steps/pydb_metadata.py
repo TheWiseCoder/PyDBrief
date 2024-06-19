@@ -6,7 +6,9 @@ from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 
 from .pydb_database import set_nullable
-from .pydb_migration import migrate_schema, migrate_tables, migrate_view
+from .pydb_migration import (
+    prune_metadata, migrate_schema, migrate_tables, migrate_view
+)
 from .pydb_engine import build_engine
 from ..pydb_types import is_lob
 
@@ -110,40 +112,23 @@ def migrate_metadata(errors: list[str],
                 errors.append(validate_format_error(104, "schema-reflection", exc_err))
 
             if not errors:
-                # build list of migration candidates
-                source_tables: list[Table] = list(source_metadata.tables.values())
-                target_tables: list[Table] = []
-                include: bool = not include_tables
-                for source_table in source_tables:
-                    table_name: str = source_table.name.lower()
-                    if table_name in include_tables:
-                        target_tables.append(source_table)
-                        include_tables.remove(table_name)
-                    elif table_name in exclude_tables:
-                        exclude_tables.remove(table_name)
-                    elif table_name in include_views:
-                        target_tables.append(source_table)
-                        include_views.remove(table_name)
-                    elif (include and source_table.schema == from_schema and
-                          table_name not in plain_views and table_name not in mat_views):
-                        target_tables.append(source_table)
-
-                # proceed, if all tables in include and exclude lists were accounted for
-                if include_tables or exclude_tables or include_views:
-                    # some tables not found, report them
-                    bad_tables: str = ",".join(include_tables + exclude_tables + include_views)
-                    # 142: Invalid value {}: {}
-                    errors.append(validate_format_error(142, bad_tables,
-                                                        f"table(s) not found in {source_rdbms}.{source_schema}"))
-                else:
-                    # purge the source metadata from tables not selected, and from indexes, if applicable
-                    for source_table in source_tables:
-                        if source_table not in target_tables:
-                            source_metadata.remove(table=source_table)
-                        elif step_metadata and not process_indexes:
-                            source_table.indexes.clear()
-
-                    # proceed with the appropriate tables
+                # prepare the source metadata for migration
+                prune_metadata(errors=errors,
+                               source_rdbms=source_rdbms,
+                               source_schema=source_schema,
+                               source_metadata=source_metadata,
+                               plain_views=plain_views,
+                               mat_views=mat_views,
+                               include_tables=include_tables,
+                               exclude_tables=exclude_tables,
+                               include_views=include_views,
+                               skip_ck_constraints=skip_ck_constraints,
+                               skip_fk_constraints=skip_fk_constraints,
+                               skip_named_constraints=skip_named_constraints,
+                               process_indexes=process_indexes)
+                # errors ?
+                if not errors:
+                    # no, proceed with the appropriate tables
                     sorted_tables: list[Table] = []
                     try:
                         sorted_tables: list[Table] = source_metadata.sorted_tables
@@ -188,9 +173,6 @@ def migrate_metadata(errors: list[str],
                                                     source_schema=from_schema,
                                                     target_schema=to_schema,
                                                     target_tables=real_tables,
-                                                    skip_ck_constraints=skip_ck_constraints,
-                                                    skip_fk_constraints=skip_fk_constraints,
-                                                    skip_named_constraints=skip_named_constraints,
                                                     external_columns=external_columns,
                                                     logger=logger)
 
