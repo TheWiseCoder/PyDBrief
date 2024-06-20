@@ -92,15 +92,25 @@ def migrate_metadata(errors: list[str],
             # obtain the list of plain and materialized views in source schema
             plain_views: list[str] = source_inspector.get_view_names()
             mat_views: list[str] = source_inspector.get_materialized_view_names()
+            all_views: list[str] = plain_views + mat_views
             if include_views == ["*"]:
-                include_views = plain_views + mat_views
+                include_views = all_views
+
+            # determine the tables to be included in 'source_metadata'
+            def sel_tb(tb: str, _md: MetaData) -> bool:
+                return ((tb not in all_views and
+                         tb not in exclude_tables and
+                         (include_tables == [] or tb in include_tables)) or
+                        (tb in all_views and tb in include_views))
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
-                # HAZARD: material views might be included, regarless of the 'views' parameter
+                # HAZARD: material views might be included, regardless of the 'only' and 'views' parameter
+                # (this is remedied at 'prune_metadata()')
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
+                                        only=sel_tb,
                                         views=len(include_views) > 0)
             except SAWarning as e:
                 # - unable to fully reflect the source schema
