@@ -112,8 +112,8 @@ def migrate_metadata(errors: list[str],
                 #   will also be included, regardless of parameters 'only' or 'views'
                 #   (this is remedied at 'prune_metadata()')
                 # - SQLAlchemy will raise a 'NoReferencedTableError' exception upon
-                #   'source_metadata.sorted_tables' retrieval, if 'resolve_fks' is set
-                #   to 'False' and a FK-referenced table is prevented from loading
+                #   'source_metadata.sorted_tables' retrieval, if a FK-referenced table
+                #   is prevented from loading (requires 'resolve_fks' to be set to 'False')
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         only=sel_tb,
@@ -146,8 +146,9 @@ def migrate_metadata(errors: list[str],
                 try:
                     sorted_tables: list[Table] = source_metadata.sorted_tables
                 except (Exception, SAWarning) as e:
-                    # - unable to organize the tables in the proper sequence:
-                    #   probably, cross-dependencies between tables, caused by mutually dependent FKs
+                    # - unable to organize the tables in the proper sequence, probably caused by:
+                    #   - cross-dependencies between tables, caused by mutually dependent FKs, or
+                    #   - a table or view referenced by a FK column was not found in the schema
                     # - this error will cause the migration to be aborted,
                     #   as SQLAlchemy would not be able to compile the migrated schema
                     exc_err = str_sanitize(exc_format(exc=e,
