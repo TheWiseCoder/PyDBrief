@@ -96,7 +96,7 @@ def migrate_metadata(errors: list[str],
             if include_views == ["*"]:
                 include_views = all_views
 
-            # determine the tables to be included in 'source_metadata'
+            # determine if table 'tb' is to be included in 'source_metadata'
             def sel_tb(tb: str, _md: MetaData) -> bool:
                 return ((tb not in all_views and
                          tb not in exclude_tables and
@@ -106,13 +106,19 @@ def migrate_metadata(errors: list[str],
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
-                # HAZARD: material views might be included, regardless of the 'only' and 'views' parameter
-                # (this is remedied at 'prune_metadata()')
+                # HAZARD:
+                # - if the parameter 'resolve_fks' is set to 'True' (the default value),
+                #   then tables and views referenced in FK columns of included tables
+                #   will also be included, regardless of parameters 'only' or 'views'
+                #   (this is remedied at 'prune_metadata()')
+                # - SQLAlchemy will raise a 'NoReferencedTableError' exception upon
+                #   'source_metadata.sorted_tables' retrieval, if 'resolve_fks' is set
+                #   to 'False' and a FK-referenced table is prevented from loading
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         only=sel_tb,
                                         views=len(include_views) > 0)
-            except SAWarning as e:
+            except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
@@ -139,7 +145,7 @@ def migrate_metadata(errors: list[str],
                 sorted_tables: list[Table] = []
                 try:
                     sorted_tables: list[Table] = source_metadata.sorted_tables
-                except SAWarning as e:
+                except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence:
                     #   probably, cross-dependencies between tables, caused by mutually dependent FKs
                     # - this error will cause the migration to be aborted,
@@ -204,7 +210,7 @@ def migrate_metadata(errors: list[str],
                                                          table=f"{target_schema}.{real_table.name}",
                                                          column=name,
                                                          logger=logger)
-                                except Exception as e:
+                                except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err = str_sanitize(exc_format(exc=e,
                                                                       exc_info=sys.exc_info()))

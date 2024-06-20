@@ -83,7 +83,6 @@ ignore = [
     "D212",     # multi-line docstring summary to start at the second line
     "DTZ005",   # the use of datetime.datetime.now() without tz argument is not allowed
     "DTZ006",   # usage of 'datetime.datetime.fromtimestamp()' that do not specify a timezone
-    "E731",     # lambda expressions which are assigned to a variable
     "G004",     # logging statement uses 'f-string'
     "N815",     # Variable in class scope should not be mixedCase
     "PGH004",   # use specific rule codes when using 'noqa'
