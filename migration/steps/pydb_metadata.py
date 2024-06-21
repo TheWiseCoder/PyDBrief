@@ -98,10 +98,9 @@ def migrate_metadata(errors: list[str],
 
             # determine if table 'tb' is to be included in 'source_metadata'
             def sel_tb(tb: str, _md: MetaData) -> bool:
-                return ((tb not in all_views and
-                         tb not in exclude_tables and
-                         (include_tables == [] or tb in include_tables)) or
-                        (tb in all_views and tb in include_views))
+                return (tb not in exclude_tables and
+                        ((include_tables == [] or tb in include_tables) or
+                         (tb in all_views and tb in include_views)))
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
