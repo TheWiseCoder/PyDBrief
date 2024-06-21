@@ -526,7 +526,7 @@ def migrate_table_column(source_rdbms: str,
     result: Any
 
     # PostgreSQL does not accept value '0' in 'CACHE' clause, in 'CREATE TABLE' operation
-    if target_schema == "postgres" and \
+    if target_rdbms == "postgres" and \
        hasattr(source_column, "identity") and source_column.identity and \
        hasattr(source_column.identity, "cache") and source_column.identity.cache == 0:
         source_column.identity.cache = 1
