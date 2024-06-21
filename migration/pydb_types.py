@@ -525,12 +525,6 @@ def migrate_table_column(source_rdbms: str,
     # declare the return variable
     result: Any
 
-    # PostgreSQL does not accept value '0' in 'CACHE' clause, in 'CREATE TABLE' operation
-    if target_rdbms == "postgres" and \
-       hasattr(source_column, "identity") and source_column.identity and \
-       hasattr(source_column.identity, "cache") and source_column.identity.cache == 0:
-        source_column.identity.cache = 1
-
     # obtain needed characteristics
     type_equiv: Type | None = None
     col_type_class: Type = source_column.type.__class__
@@ -551,6 +545,11 @@ def migrate_table_column(source_rdbms: str,
                            not col_type_obj.asdecimal)
     col_precision: int = col_type_obj.precision \
         if is_number and hasattr(col_type_obj, "precision") else None
+
+    # PostgreSQL does not accept value '0' in 'CACHE' clause, in 'CREATE TABLE' operation
+    if target_rdbms == "postgres" and is_identity and \
+       hasattr(source_column.identity, "cache") and source_column.identity.cache == 0:
+        source_column.identity.cache = 1
 
     # is the column a foreign key ?
     if is_fk:
