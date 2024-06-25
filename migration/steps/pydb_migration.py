@@ -1,5 +1,5 @@
 import sys
-from logging import Logger, WARNING
+from logging import Logger, INFO, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import (
     db_get_view_script, db_execute, db_drop_table, db_drop_view
@@ -12,7 +12,7 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
 
 from migration import pydb_common
-from migration.pydb_types import migrate_table_column, establish_equivalences
+from migration.pydb_types import migrate_column, establish_equivalences
 from .pydb_database import create_schema
 
 
@@ -23,32 +23,56 @@ def prune_metadata(source_schema: str,
                    include_tables: list[str],
                    exclude_tables: list[str],
                    include_views: list[str],
+                   skip_columns: list[str],
                    skip_ck_constraints: list[str],
                    skip_fk_constraints: list[str],
                    skip_named_constraints: list[str],
-                   process_indexes: bool) -> None:
+                   process_indexes: bool,
+                   logger: Logger) -> None:
+
+    # build list of prunable tables
+    prunable_tables: set[str] = set([column[:(column + ".").index(".")]
+                                     for column in skip_columns])
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
     target_tables: list[Table] = []
     include: bool = not include_tables
+
+    # traverse list of candidate tables
     for source_table in source_tables:
         table_name: str = source_table.name.lower()
+
+        # verify whether 'source_table' is to migrate
         if (table_name not in exclude_tables and
             (table_name in include_tables or
              table_name in include_views or
              (include and source_table.schema == source_schema and
               table_name not in plain_views and table_name not in mat_views))):
+            # yes, proceed
             target_tables.append(source_table)
 
-    # purge the source metadata from tables not selected
-    for source_table in source_tables:
-        if source_table not in target_tables:
-            source_metadata.remove(table=source_table)
-        else:
             # remove indexes, if applicable
             if not process_indexes:
                 source_table.indexes.clear()
+
+            # prune table, if applicable
+            if source_table.name in prunable_tables:
+                skipped_columns: list[Column] = []
+                # noinspection PyProtectedMember
+                # look for columns to skip
+                for column in source_table._columns:
+                    if f"{source_table.name}.{column.name}" in skip_columns:
+                        skipped_columns.append(column)
+                # traverse the list of columns to skip, if any
+                for skipped_column in skipped_columns:
+                    # noinspection PyProtectedMember
+                    # remove the column from table's metadata and log the event
+                    source_table._columns.remove(skipped_column)
+                    pydb_common.log(logger=logger,
+                                    level=INFO,
+                                    msg=(f"Column {skipped_column.name} "
+                                         f"removed from table {source_table.name}"))
 
             # 1- make sure table does not have duplicate CK constraints
             # 2- drop the targeted CK, FK, and named constraints
@@ -67,6 +91,9 @@ def prune_metadata(source_schema: str,
                     table_constraints.append(constraint.name)
             for tainted_constraint in tainted_constraints:
                 source_table.constraints.remove(tainted_constraint)
+        else:
+            # no, remove it from metadata
+            source_metadata.remove(table=source_table)
 
 
 def migrate_schema(errors: list[str],
@@ -146,7 +173,8 @@ def migrate_tables(errors: list[str],
     # iinitialize the return variable
     result: dict = {}
 
-    # immediately: assign the target schema to all migration candidate tables
+    # assign the target schema to all migration candidate tables
+    # (to all tables at once, before their individual transformations)
     for target_table in target_tables:
         target_table.schema = target_schema
 
@@ -160,27 +188,29 @@ def migrate_tables(errors: list[str],
         # build the list of migrated columns for this table
         table_columns: dict = {}
         # noinspection PyProtectedMember
-        columns: list[Column] = target_table.c._all_columns
+        columns: list[Column] = target_table.columns._all_columns
+
         # register the source column types
         for column in columns:
             table_columns[column.name] = {
                 "source-type": str(column.type)
             }
         # migrate the columns
-        setup_table_columns(errors=errors,
-                            table_columns=columns,
-                            source_rdbms=source_rdbms,
-                            target_rdbms=target_rdbms,
-                            source_schema=source_schema,
-                            target_schema=target_schema,
-                            native_ordinal=native_ordinal,
-                            reference_ordinal=reference_ordinal,
-                            nat_equivalences=nat_equivalences,
-                            external_columns=external_columns,
-                            logger=logger)
+        setup_columns(errors=errors,
+                      table_columns=columns,
+                      source_rdbms=source_rdbms,
+                      target_rdbms=target_rdbms,
+                      source_schema=source_schema,
+                      target_schema=target_schema,
+                      native_ordinal=native_ordinal,
+                      reference_ordinal=reference_ordinal,
+                      nat_equivalences=nat_equivalences,
+                      external_columns=external_columns,
+                      logger=logger)
 
         # register the target column properties
         for column in columns:
+            table_columns[column.name]["target-type"] = str(column.type)
             features: list[str] = []
             if hasattr(column, "identity") and column.identity:
                 features.append("identity")
@@ -196,7 +226,6 @@ def migrate_tables(errors: list[str],
                 features.append("nullable")
             if features:
                 table_columns[column.name]["features"] = features
-            table_columns[column.name]["target-type"] = str(column.type)
 
         # register the migrated table
         migrated_table: dict = {
@@ -223,32 +252,32 @@ def migrate_tables(errors: list[str],
     return result
 
 
-def setup_table_columns(errors: list[str],
-                        table_columns: list[Column],
-                        source_rdbms: str,
-                        target_rdbms: str,
-                        source_schema: str,
-                        target_schema: str,
-                        native_ordinal: int,
-                        reference_ordinal: int,
-                        nat_equivalences: list[tuple],
-                        external_columns: dict[str, Type],
-                        logger: Logger) -> None:
+def setup_columns(errors: list[str],
+                  table_columns: list[Column],
+                  source_rdbms: str,
+                  target_rdbms: str,
+                  source_schema: str,
+                  target_schema: str,
+                  native_ordinal: int,
+                  reference_ordinal: int,
+                  nat_equivalences: list[tuple],
+                  external_columns: dict[str, Type],
+                  logger: Logger) -> None:
 
     # set the target columns
     for table_column in table_columns:
         try:
             # convert the type
-            target_type: Any = migrate_table_column(source_rdbms=source_rdbms,
-                                                    target_rdbms=target_rdbms,
-                                                    source_schema=source_schema,
-                                                    target_schema=target_schema,
-                                                    native_ordinal=native_ordinal,
-                                                    reference_ordinal=reference_ordinal,
-                                                    source_column=table_column,
-                                                    nat_equivalences=nat_equivalences,
-                                                    external_columns=external_columns,
-                                                    logger=logger)
+            target_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                              target_rdbms=target_rdbms,
+                                              source_schema=source_schema,
+                                              target_schema=target_schema,
+                                              native_ordinal=native_ordinal,
+                                              reference_ordinal=reference_ordinal,
+                                              source_column=table_column,
+                                              nat_equivalences=nat_equivalences,
+                                              external_columns=external_columns,
+                                              logger=logger)
             # set column's new type
             table_column.type = target_type
 

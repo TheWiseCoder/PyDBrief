@@ -1,6 +1,5 @@
 from logging import Logger
 from typing import Any
-
 from pypomes_core import validate_format_error
 from pypomes_db import db_migrate_data
 

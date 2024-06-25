@@ -47,6 +47,7 @@ def migrate_metadata(errors: list[str],
                      include_tables: list[str],
                      exclude_tables: list[str],
                      include_views: list[str],
+                     skip_columns: list[str],
                      skip_ck_constraints: list[str],
                      skip_fk_constraints: list[str],
                      skip_named_constraints: list[str],
@@ -135,10 +136,12 @@ def migrate_metadata(errors: list[str],
                                include_tables=include_tables,
                                exclude_tables=exclude_tables,
                                include_views=include_views,
+                               skip_columns=skip_columns,
                                skip_ck_constraints=skip_ck_constraints,
                                skip_fk_constraints=skip_fk_constraints,
                                skip_named_constraints=skip_named_constraints,
-                               process_indexes=process_indexes)
+                               process_indexes=process_indexes,
+                               logger=logger)
 
                 # proceed with the appropriate tables
                 sorted_tables: list[Table] = []

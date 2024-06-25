@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.2.1"
+APP_VERSION: Final[str] = "1.2.2"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -300,6 +300,7 @@ def migrate_data() -> Response:
         include_tables: list[str] = str_as_list(str_lower(scheme.get("include-tables"))) or []
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
+        skip_columns: list[str] = str_as_list(str_lower(scheme.get("skip-columns"))) or []
         skip_ck_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-ck-constraints"))) or []
         skip_fk_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-fk-constraints"))) or []
         skip_named_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-named-constraints"))) or []
@@ -319,6 +320,7 @@ def migrate_data() -> Response:
                                       include_tables=include_tables,
                                       exclude_tables=exclude_tables,
                                       include_views=include_views,
+                                      skip_columns=skip_columns,
                                       skip_ck_constraints=skip_ck_constraints,
                                       skip_fk_constraints=skip_fk_constraints,
                                       skip_named_constraints=skip_named_constraints,

@@ -511,16 +511,16 @@ LOBS: Final[list[str]] = [
 ]
 
 
-def migrate_table_column(source_rdbms: str,
-                         target_rdbms: str,
-                         source_schema: str,
-                         target_schema: str,
-                         native_ordinal: int,
-                         reference_ordinal: int,
-                         source_column: Column,
-                         nat_equivalences: list[tuple],
-                         external_columns: dict[str, Type],
-                         logger: Logger) -> Any:
+def migrate_column(source_rdbms: str,
+                   target_rdbms: str,
+                   source_schema: str,
+                   target_schema: str,
+                   native_ordinal: int,
+                   reference_ordinal: int,
+                   source_column: Column,
+                   nat_equivalences: list[tuple],
+                   external_columns: dict[str, Type],
+                   logger: Logger) -> Any:
 
     # declare the return variable
     result: Any
@@ -546,7 +546,8 @@ def migrate_table_column(source_rdbms: str,
     col_precision: int = col_type_obj.precision \
         if is_number and hasattr(col_type_obj, "precision") else None
 
-    # PostgreSQL does not accept value '0' in 'CACHE' clause, in 'CREATE TABLE' operation
+    # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
+    # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
     if target_rdbms == "postgres" and is_identity and \
        hasattr(source_column.identity, "cache") and source_column.identity.cache == 0:
         source_column.identity.cache = 1

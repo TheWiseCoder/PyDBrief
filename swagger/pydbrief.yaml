@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.2.1
+  version: 1.2.2
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -187,6 +187,7 @@ paths:
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
         - $ref: '#/components/parameters/IncludeViewsParam'
+        - $ref: '#/components/parameters/SkipColumnsParam'
 #        - $ref: '#/components/parameters/SkipCkConstraintsParam'
 #        - $ref: '#/components/parameters/SkipFkConstraintsParam'
         - $ref: '#/components/parameters/SkipNamedConstraintsParam'
@@ -474,6 +475,16 @@ components:
       name: include-views
       in: query
       description: Views to migrate (by default, views are not migrated - specify '*' to migrate all views). Ignored if metadata is not being migrated.
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+    SkipColumnsParam:
+      name: skip-columns
+      in: query
+      description: Table columns not to migrate. Column names must be table-qualified (table-name.column-name).
       required: false
       explode: false
       schema:
