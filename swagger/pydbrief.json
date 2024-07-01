@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.2.2"
+    "version": "1.2.3"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -41,52 +41,17 @@
     }
   ],
   "paths": {
-    "/rdbms/{rdbms}": {
-      "get": {
-        "tags": [
-          "rdbms"
-        ],
-        "summary": "Retrieve the RDBMS engine configuration data",
-        "description": "Retrieve the connection parameters for the given RDBMS engine.",
-        "operationId": "get-rdbms-configuration",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/RdbmsParam"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful operation",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OracleConfiguration"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "No data found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RdbmsError"
-                }
-              }
-            }
-          }
-        }
-      },
+    "/rdbms": {
       "post": {
         "tags": [
           "rdbms"
         ],
-        "summary": "Configure the the RDBMS engine",
+        "summary": "Configure the RDBMS engine",
         "description": "Configure the RDBMS engine with the data needed for conection.",
         "operationId": "configure-rdbms-engine",
         "parameters": [
           {
-            "$ref": "#/components/parameters/RdbmsParam"
+            "$ref": "#/components/parameters/DbEngineParam"
           },
           {
             "$ref": "#/components/parameters/DbNameParam"
@@ -123,6 +88,43 @@
           },
           "400": {
             "description": "Unable to update the RDBMS engine's configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RdbmsError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rdbms/{rdbms}": {
+      "get": {
+        "tags": [
+          "rdbms"
+        ],
+        "summary": "Retrieve the RDBMS engine configuration data",
+        "description": "Retrieve the connection parameters for the given RDBMS engine.",
+        "operationId": "get-rdbms-configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RdbmsParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OracleConfiguration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No data found",
             "content": {
               "application/json": {
                 "schema": {
@@ -509,15 +511,15 @@
                   "properties": {
                     "PyDBrief": {
                       "type": "string",
-                      "example": "1.0.8"
+                      "example": "1.2.2"
                     },
                     "PyPomes-Core": {
                       "type": "string",
-                      "example": "1.1.8"
+                      "example": "1.3.2"
                     },
                     "PyPomes-DB": {
                       "type": "string",
-                      "example": "0.9.9"
+                      "example": "1.2.3"
                     },
                     "PyPomes-HTTP": {
                       "type": "string",
@@ -542,9 +544,9 @@
   },
   "components": {
     "parameters": {
-      "RdbmsParam": {
-        "name": "rdbms",
-        "in": "path",
+      "DbEngineParam": {
+        "name": "db-engine",
+        "in": "query",
         "description": "The RDBMS engine to configure",
         "required": true,
         "schema": {
@@ -605,7 +607,7 @@
       "DbClientParam": {
         "name": "db-client",
         "in": "query",
-        "description": "Client software installed in local desktop (Oracle, only)",
+        "description": "Client software installed in local workstation (Oracle, only)",
         "required": false,
         "schema": {
           "type": "string"
@@ -668,6 +670,21 @@
         "required": true,
         "schema": {
           "type": "string"
+        }
+      },
+      "RdbmsParam": {
+        "name": "rdbms",
+        "in": "path",
+        "description": "The reference RDBMS engine",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "mysql",
+            "oracle",
+            "postgres",
+            "sqlserver"
+          ]
         }
       },
       "MigrateMetadataParam": {

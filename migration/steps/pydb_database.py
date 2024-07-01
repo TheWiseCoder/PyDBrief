@@ -44,7 +44,8 @@ def disable_session_restrictions(errors: list[str],
 
     pydb_common.log(logger=logger,
                     level=DEBUG,
-                    msg=f"RDBMS {rdbms}, disabled session restrictions to speed-up bulk copying")
+                    msg=f"RDBMS {rdbms}, disabled session restrictions "
+                        "to speed-up bulk copying")
 
 
 def restore_session_restrictions(errors: list[str],
@@ -69,7 +70,8 @@ def restore_session_restrictions(errors: list[str],
 
     pydb_common.log(logger=logger,
                     level=DEBUG,
-                    msg=f"RDBMS {rdbms}, restored session restrictions delaying bulk copying")
+                    msg=f"RDBMS {rdbms}, restored session restrictions "
+                        "delaying bulk copying")
 
 
 def set_nullable(errors: list[str],
@@ -89,7 +91,6 @@ def set_nullable(errors: list[str],
         case "postgres" | "sqlserver":
             alter_stmt = (f"ALTER TABLE {table} "
                           f"ALTER COLUMN {column} DROP NOT NULL")
-
     # execute it
     db_execute(errors=errors,
                exc_stmt=alter_stmt,

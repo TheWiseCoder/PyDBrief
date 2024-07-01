@@ -6,6 +6,7 @@ from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
+import app_main
 from migration import pydb_common
 from migration.steps.pydb_database import (
     disable_session_restrictions, restore_session_restrictions
@@ -70,6 +71,7 @@ def migrate(errors: list[str],
             skip_fk_constraints: list[str],
             skip_named_constraints: list[str],
             external_columns: dict[str, Type],
+            version: str,
             logger: Logger | None) -> dict:
 
     # log the start of the migration
@@ -114,22 +116,23 @@ def migrate(errors: list[str],
         "target": {
             "rdbms": target_rdbms,
             "schema": target_schema
-        }
+        },
+        "version": version
     }
     if step_metadata:
         result["process-indexes"] = process_indexes
     if include_tables:
-        result["include-tables"]: include_tables
+        result["include-tables"] = include_tables
     if exclude_tables:
-        result["exclude-tables"]: exclude_tables
+        result["exclude-tables"] = exclude_tables
     if include_views:
-        result["include-views"]: include_tables
+        result["include-views"] = include_tables
     if skip_ck_constraints:
-        result["skip-ck-constraints"]: skip_ck_constraints
+        result["skip-ck-constraints"] = skip_ck_constraints
     if skip_fk_constraints:
-        result["skip-fk-constraints"]: skip_fk_constraints
+        result["skip-fk-constraints"] = skip_fk_constraints
     if skip_named_constraints:
-        result["skip-named-constraints"]: skip_ck_constraints
+        result["skip-named-constraints"] = skip_ck_constraints
     if external_columns:
         result["external-columns"] = {col_name: str(col_type())
                                       for (col_name, col_type) in external_columns.items()}

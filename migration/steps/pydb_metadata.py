@@ -64,7 +64,6 @@ def migrate_metadata(errors: list[str],
     target_engine: Engine = build_engine(errors=errors,
                                          rdbms=target_rdbms,
                                          logger=logger)
-
     # were both engines created ?
     if source_engine and target_engine:
         # yes, proceed
@@ -100,7 +99,7 @@ def migrate_metadata(errors: list[str],
             # determine if table 'tb' is to be included in 'source_metadata'
             def sel_tb(tb: str, _md: MetaData) -> bool:
                 return (tb not in exclude_tables and
-                        ((include_tables == [] or tb in include_tables) or
+                        ((not include_tables or tb in include_tables) or
                          (tb in all_views and tb in include_views)))
 
             # obtain the source schema metadata

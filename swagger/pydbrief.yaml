@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.2.2
+  version: 1.2.3
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -26,6 +26,35 @@ tags:
   - name: registry
     description: Operational data on the PyDBrief server
 paths:
+  /rdbms:
+    post:
+      tags:
+        - rdbms
+      summary: Configure the RDBMS engine
+      description: Configure the RDBMS engine with the data needed for conection.
+      operationId: configure-rdbms-engine
+      parameters:
+        - $ref: '#/components/parameters/DbEngineParam'
+        - $ref: '#/components/parameters/DbNameParam'
+        - $ref: '#/components/parameters/DbUserParam'
+        - $ref: '#/components/parameters/DbPwdParam'
+        - $ref: '#/components/parameters/DbHostParam'
+        - $ref: '#/components/parameters/DbPortParam'
+        - $ref: '#/components/parameters/DbClientParam'
+        - $ref: '#/components/parameters/DbDriverParam'
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RdbmsUpdated'
+        '400':
+          description: Unable to update the RDBMS engine's configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RdbmsError'
   /rdbms/{rdbms}:
     get:
       tags:
@@ -44,34 +73,6 @@ paths:
                 $ref: '#/components/schemas/OracleConfiguration'
         '400':
           description: No data found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RdbmsError'
-    post:
-      tags:
-        - rdbms
-      summary: Configure the the RDBMS engine
-      description: Configure the RDBMS engine with the data needed for conection.
-      operationId: configure-rdbms-engine
-      parameters:
-        - $ref: '#/components/parameters/RdbmsParam'
-        - $ref: '#/components/parameters/DbNameParam'
-        - $ref: '#/components/parameters/DbUserParam'
-        - $ref: '#/components/parameters/DbPwdParam'
-        - $ref: '#/components/parameters/DbHostParam'
-        - $ref: '#/components/parameters/DbPortParam'
-        - $ref: '#/components/parameters/DbClientParam'
-        - $ref: '#/components/parameters/DbDriverParam'
-      responses:
-        '200':
-          description: Configuration updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RdbmsUpdated'
-        '400':
-          description: Unable to update the RDBMS engine's configuration
           content:
             application/json:
               schema:
@@ -312,13 +313,13 @@ paths:
                 properties:
                   PyDBrief:
                     type: string
-                    example: 1.0.8
+                    example: 1.2.2
                   PyPomes-Core:
                     type: string
-                    example: 1.1.8
+                    example: 1.3.2
                   PyPomes-DB:
                     type: string
-                    example: 0.9.9
+                    example: 1.2.3
                   PyPomes-HTTP:
                     type: string
                     example: 0.2.3
@@ -330,9 +331,9 @@ paths:
                     example: 0.1.4
 components:
   parameters:
-    RdbmsParam:
-      name: rdbms
-      in: path
+    DbEngineParam:
+      name: db-engine
+      in: query
       description: The RDBMS engine to configure
       required: true
       schema:
@@ -376,7 +377,7 @@ components:
     DbClientParam:
       name: db-client
       in: query
-      description: Client software installed in local desktop (Oracle, only)
+      description: Client software installed in local workstation (Oracle, only)
       required: false
       schema:
         type: string
@@ -419,6 +420,14 @@ components:
       required: true
       schema:
         type: string
+    RdbmsParam:
+      name: rdbms
+      in: path
+      description: The reference RDBMS engine
+      required: true
+      schema:
+        type: string
+        enum: [mysql, oracle, postgres, sqlserver]
     MigrateMetadataParam:
       name: migrate-metadata
       in: query

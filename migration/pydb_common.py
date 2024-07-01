@@ -83,10 +83,10 @@ def get_connection_params(errors: list[str],
 def set_connection_params(errors: list[str],
                           scheme: dict) -> None:
 
-    engine: str = validate_str(errors=errors,
-                               scheme=scheme,
-                               attr="rdbms",
-                               required=True)
+    db_engine: str = validate_str(errors=errors,
+                                  scheme=scheme,
+                                  attr="db-engine",
+                                  required=True)
     db_name: str = validate_str(errors=errors,
                                 scheme=scheme,
                                 attr="db-name",
@@ -115,7 +115,7 @@ def set_connection_params(errors: list[str],
                                   scheme=scheme,
                                   attr="db-driver")
     # noinspection PyTypeChecker
-    if not errors and not db_setup(engine=engine,
+    if not errors and not db_setup(engine=db_engine,
                                    db_name=db_name,
                                    db_host=db_host,
                                    db_port=db_port,

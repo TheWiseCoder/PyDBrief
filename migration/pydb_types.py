@@ -549,7 +549,8 @@ def migrate_column(source_rdbms: str,
     # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
     if target_rdbms == "postgres" and is_identity and \
-       hasattr(source_column.identity, "cache") and source_column.identity.cache == 0:
+       hasattr(source_column.identity, "cache") and \
+       source_column.identity.cache == 0:
         source_column.identity.cache = 1
 
     # is the column a foreign key ?

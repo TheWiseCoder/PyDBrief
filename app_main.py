@@ -31,12 +31,12 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.2.2"
+APP_VERSION: Final[str] = "1.2.3"
 
 # create the Flask application
 app: Flask = Flask(__name__)
 
-# support cross origin resource sharing
+# support cross-origin resource sharing
 CORS(app)
 
 # configure jsonify() with 'ensure_ascii=False'
@@ -133,13 +133,16 @@ def get_log() -> Response:
     return result
 
 
+@app.route(rule="/rdbms",
+           methods=["POST"])
 @app.route(rule="/rdbms/<rdbms>",
-           methods=["GET", "POST"])
-def handle_rdbms(rdbms: str) -> Response:
+           methods=["GET"])
+def handle_rdbms(rdbms: str = None) -> Response:
     """
     Entry point for configuring the RDBMS to use.
 
     The parameters are as follows:
+        - *db-engine*: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
         - *db-name*: name of database
         - *db-user*: the logon user
         - *db-pwd*: the logon password
@@ -148,7 +151,7 @@ def handle_rdbms(rdbms: str) -> Response:
         - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
-    :param rdbms: the RDBMS type (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+    :param rdbms: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -163,17 +166,16 @@ def handle_rdbms(rdbms: str) -> Response:
         reply = pydb_common.get_connection_params(errors=errors,
                                                   rdbms=rdbms)
     else:
-        scheme["rdbms"] = rdbms
         # configure the RDBMS
         pydb_common.set_connection_params(errors=errors,
                                           scheme=scheme)
         if not errors:
+            rdbms: str = scheme.get("db-engine")
             reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
-
     # log the response
     logging_log_info(f"Response {request.path}?{scheme}: {result}")
 
@@ -256,20 +258,21 @@ def migrate_data() -> Response:
         - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
-        - *process-indexes*: whether to migrate indexes (defaults to 'False')
+        - *process-indexes*: whether to migrate indexes (defaults to *False*)
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
         - *include-views*: optional list of views to migrate ('*' migrates all views)
+        - *skip-columns*: optional list of table columns not to migrate
         - *skip-ck-constraints*: list of tables for which to skip check constraints
         - *skip-fk-constraints*: list of tables for which to skip foreign-key constraints
-        - *skip-named-constraints*: list of constraints to skip
+        - *skip-named-constraints*: list of names of constraints to skip
 
     These are noteworthy:
         - if *migrate-metadata* is not set, the following parameters are ignored: *process-indexes*,
           *include-views*, *skip-ck-constraints*, *skip-fk-constraints*, and *skip-named-constraints*;
         - the parameters *include-tables* and *exclude-tables* are mutually exclusive;
         - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
-          or all affected tables in destination schema are empty;
+          or all affected tables in destination schema exist and are empty;
         - if *migrate-lobdata* is set, it is assumed that plain data are also being,
           or have already been, migrated.
 
@@ -284,7 +287,6 @@ def migrate_data() -> Response:
     # assert whether migration is warranted
     pydb_validator.assert_migration(errors=errors,
                                     scheme=scheme)
-
     reply: dict | None = None
     # is migration possible ?
     if not errors:
@@ -325,6 +327,7 @@ def migrate_data() -> Response:
                                       skip_fk_constraints=skip_fk_constraints,
                                       skip_named_constraints=skip_named_constraints,
                                       external_columns=external_columns,
+                                      version=APP_VERSION,
                                       logger=PYPOMES_LOGGER)
     # build the response
     result: Response = _build_response(errors=errors,

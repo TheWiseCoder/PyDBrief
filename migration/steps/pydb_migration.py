@@ -37,7 +37,6 @@ def prune_metadata(source_schema: str,
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
     target_tables: list[Table] = []
-    include: bool = not include_tables
 
     # traverse list of candidate tables
     for source_table in source_tables:
@@ -47,7 +46,7 @@ def prune_metadata(source_schema: str,
         if (table_name not in exclude_tables and
             (table_name in include_tables or
              table_name in include_views or
-             (include and source_table.schema == source_schema and
+             (not include_tables and source_table.schema == source_schema and
               table_name not in plain_views and table_name not in mat_views))):
             # yes, proceed
             target_tables.append(source_table)
