@@ -116,6 +116,8 @@ def migrate(errors: list[str],
         result["exclude-tables"] = exclude_tables
     if include_views:
         result["include-views"] = include_tables
+    if exclude_columns:
+        result["exclude-columns"] = exclude_columns
     if exclude_constraints:
         result["exclude-constraints"] = exclude_constraints
     if external_columns:
