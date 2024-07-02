@@ -47,8 +47,8 @@ def migrate_metadata(errors: list[str],
                      include_tables: list[str],
                      exclude_tables: list[str],
                      include_views: list[str],
-                     skip_columns: list[str],
-                     skip_constraints: list[str],
+                     exclude_columns: list[str],
+                     exclude_constraints: list[str],
                      external_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
@@ -83,7 +83,7 @@ def migrate_metadata(errors: list[str],
             if not step_metadata:
                 process_indexes = False
                 include_views.clear()
-                skip_constraints.clear()
+                exclude_constraints.clear()
 
             # obtain the list of plain and materialized views in source schema
             plain_views: list[str] = source_inspector.get_view_names()
@@ -131,8 +131,8 @@ def migrate_metadata(errors: list[str],
                                include_tables=include_tables,
                                exclude_tables=exclude_tables,
                                include_views=include_views,
-                               skip_columns=skip_columns,
-                               skip_constraints=skip_constraints,
+                               exclude_columns=exclude_columns,
+                               exclude_constraints=exclude_constraints,
                                process_indexes=process_indexes,
                                logger=logger)
 

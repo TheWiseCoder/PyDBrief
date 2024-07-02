@@ -170,7 +170,7 @@ paths:
       description:  Migrate the data from the source to the target RDBMS and schema.
       operationId: migrate-schema
       requestBody:
-        description: Optional list of referenced columns from other schemas. Edit or removed them.
+        description: Optional list of referenced columns from other schemas. Column names must be schema and table-qualified (schema-name.table-name.column-name).
         required: false
         content:
           application/json:
@@ -188,8 +188,8 @@ paths:
         - $ref: '#/components/parameters/IncludeTablesParam'
         - $ref: '#/components/parameters/ExcludeTablesParam'
         - $ref: '#/components/parameters/IncludeViewsParam'
-        - $ref: '#/components/parameters/SkipColumnsParam'
-        - $ref: '#/components/parameters/SkipConstraintsParam'
+        - $ref: '#/components/parameters/ExcludeColumnsParam'
+        - $ref: '#/components/parameters/ExcludeConstraintsParam'
       responses:
         '200':
           description: Successful operation
@@ -429,7 +429,7 @@ components:
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
-      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'include-views', 'skip-ck-constraints', 'skip-fk-constraints', and 'skip-named-constraints' are ignored.
+      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'include-views', 'exclude-ck-constraints', 'exclude-fk-constraints', and 'exclude-named-constraints' are ignored.
       required: true
       schema:
         type: boolean
@@ -488,8 +488,8 @@ components:
         type: array
         items:
           type: string
-    SkipColumnsParam:
-      name: skip-columns
+    ExcludeColumnsParam:
+      name: exclude-columns
       in: query
       description: Table columns not to migrate. Column names must be table-qualified (table-name.column-name).
       required: false
@@ -498,10 +498,10 @@ components:
         type: array
         items:
           type: string
-    SkipConstraintsParam:
-      name: skip-constraints
+    ExcludeConstraintsParam:
+      name: exclude-constraints
       in: query
-      description: Constraints to skip. Ignored if metadata is not being migrated.
+      description: Constraints not to migrate. Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:

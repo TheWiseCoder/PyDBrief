@@ -24,14 +24,14 @@ def prune_metadata(source_schema: str,
                    include_tables: list[str],
                    exclude_tables: list[str],
                    include_views: list[str],
-                   skip_columns: list[str],
-                   skip_constraints: list[str],
+                   exclude_columns: list[str],
+                   exclude_constraints: list[str],
                    process_indexes: bool,
                    logger: Logger) -> None:
 
     # build list of prunable tables
     prunable_tables: set[str] = set([column[:(column + ".").index(".")]
-                                     for column in skip_columns])
+                                     for column in exclude_columns])
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
@@ -56,29 +56,29 @@ def prune_metadata(source_schema: str,
 
             # prune table, if applicable
             if source_table.name in prunable_tables:
-                skipped_columns: list[Column] = []
+                excluded_columns: list[Column] = []
                 # noinspection PyProtectedMember
-                # look for columns to skip
+                # look for columns to exclude
                 for column in source_table._columns:
-                    if f"{source_table.name}.{column.name}" in skip_columns:
-                        skipped_columns.append(column)
-                # traverse the list of columns to skip, if any
-                for skipped_column in skipped_columns:
+                    if f"{source_table.name}.{column.name}" in exclude_columns:
+                        excluded_columns.append(column)
+                # traverse the list of columns to exclude, if any
+                for excluded_column in excluded_columns:
                     # noinspection PyProtectedMember
                     # remove the column from table's metadata and log the event
-                    source_table._columns.remove(skipped_column)
+                    source_table._columns.remove(excluded_column)
                     pydb_common.log(logger=logger,
                                     level=INFO,
-                                    msg=(f"Column {skipped_column.name} "
+                                    msg=(f"Column {excluded_column.name} "
                                          f"removed from table {source_table.name}"))
 
             # mark constraints as tainted:
             #   - duplicate CK constraints in table
-            #   - constraints targeted in 'skip-constraints'
+            #   - constraints targeted in 'exclude-constraints'
             table_constraints: list[str] = []
             tainted_constraints: list[Constraint] = []
             for constraint in source_table.constraints:
-                if constraint.name in skip_constraints or \
+                if constraint.name in exclude_constraints or \
                    constraint.name in table_constraints:
                     tainted_constraints.append(constraint)
                 elif isinstance(constraint, CheckConstraint):

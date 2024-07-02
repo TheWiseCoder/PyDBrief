@@ -262,7 +262,7 @@ def migrate_data() -> Response:
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
         - *include-views*: optional list of views to migrate ('*' migrates all views)
-        - *skip-columns*: optional list of table columns not to migrate
+        - *exclude-columns*: optional list of table columns not to migrate
         - *skip-ck-constraints*: list of tables for which to skip check constraints
         - *skip-fk-constraints*: list of tables for which to skip foreign-key constraints
         - *skip-named-constraints*: list of names of constraints to skip
@@ -302,8 +302,8 @@ def migrate_data() -> Response:
         include_tables: list[str] = str_as_list(str_lower(scheme.get("include-tables"))) or []
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
-        skip_columns: list[str] = str_as_list(str_lower(scheme.get("skip-columns"))) or []
-        skip_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-constraints"))) or []
+        exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
+        exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
         external_columns: dict[str, Type] = \
             pydb_validator.assert_column_types(errors=None,
                                                scheme=scheme)
@@ -320,8 +320,8 @@ def migrate_data() -> Response:
                                       include_tables=include_tables,
                                       exclude_tables=exclude_tables,
                                       include_views=include_views,
-                                      skip_columns=skip_columns,
-                                      skip_constraints=skip_constraints,
+                                      exclude_columns=exclude_columns,
+                                      exclude_constraints=exclude_constraints,
                                       external_columns=external_columns,
                                       version=APP_VERSION,
                                       logger=PYPOMES_LOGGER)

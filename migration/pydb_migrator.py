@@ -6,7 +6,6 @@ from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-import app_main
 from migration import pydb_common
 from migration.steps.pydb_database import (
     disable_session_restrictions, restore_session_restrictions
@@ -23,6 +22,7 @@ warnings.filterwarnings("error")
 # {
 #   "started": <yyyy-mm-dd>,
 #   "finished": <yyyy-mm-dd>,
+#   "version": <i.j.k>,
 #   "source": {
 #     "rdbms": <rdbms>,
 #     "schema": <schema>
@@ -37,21 +37,16 @@ warnings.filterwarnings("error")
 #     "migrate-lobdata"
 #   ],
 #   "process-indexes": true,
-#   "include-tables": <list>,
-#   "exclude-tables": <list>,
-#   "include-views": <list>,
-#   "skip-ck-constraints": list[str],
-#   "skip-fk-constraints": list[str],
-#   "skip-named-constraints": list[str],
+#   "include-tables": <list[str]>,
+#   "exclude-tables": <list[str]>,
+#   "include-views": <list[str]>,
+#   "exclude-columns": <list[str]>,
+#   "exclude-constraints": <list[str]>,
 #   "external-columns": {
-#     "<schema>.<table>.column>": <type>
+#     "<schema>.<table>.<column>": "<type>"
 #   }
 #   "total-plains": nnn,
 #   "total-lobs": nnn,
-#   "notes": [
-#     <note-1>,
-#     <note-n>
-#   ],
 #   "migrated-tables": <migrated-tables-structure>
 # }
 def migrate(errors: list[str],
@@ -66,8 +61,8 @@ def migrate(errors: list[str],
             include_tables: list[str],
             exclude_tables: list[str],
             include_views: list[str],
-            skip_columns: list[str],
-            skip_constraints: list[str],
+            exclude_columns: list[str],
+            exclude_constraints: list[str],
             external_columns: dict[str, Type],
             version: str,
             logger: Logger | None) -> dict:
@@ -92,8 +87,8 @@ def migrate(errors: list[str],
         msg += f", exclude tables {','.join(exclude_tables)}"
     if include_views:
         msg += f", include views {','.join(include_views)}"
-    if skip_constraints:
-        msg += f", skip constraints {','.join(skip_constraints)}"
+    if exclude_constraints:
+        msg += f", exclude constraints {','.join(exclude_constraints)}"
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg=msg)
@@ -121,8 +116,8 @@ def migrate(errors: list[str],
         result["exclude-tables"] = exclude_tables
     if include_views:
         result["include-views"] = include_tables
-    if skip_constraints:
-        result["skip-constraints"] = skip_constraints
+    if exclude_constraints:
+        result["exclude-constraints"] = exclude_constraints
     if external_columns:
         result["external-columns"] = {col_name: str(col_type())
                                       for (col_name, col_type) in external_columns.items()}
@@ -140,8 +135,8 @@ def migrate(errors: list[str],
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
                                              include_views=include_views,
-                                             skip_columns=skip_columns,
-                                             skip_constraints=skip_constraints,
+                                             exclude_columns=exclude_columns,
+                                             exclude_constraints=exclude_constraints,
                                              external_columns=external_columns,
                                              logger=logger)
     pydb_common.log(logger=logger,
