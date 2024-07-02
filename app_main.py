@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.2.3"
+APP_VERSION: Final[str] = "1.2.4"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -170,7 +170,7 @@ def handle_rdbms(rdbms: str = None) -> Response:
         pydb_common.set_connection_params(errors=errors,
                                           scheme=scheme)
         if not errors:
-            rdbms: str = scheme.get("db-engine")
+            rdbms = scheme.get("db-engine")
             reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
 
     # build the response
@@ -303,9 +303,7 @@ def migrate_data() -> Response:
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
         skip_columns: list[str] = str_as_list(str_lower(scheme.get("skip-columns"))) or []
-        skip_ck_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-ck-constraints"))) or []
-        skip_fk_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-fk-constraints"))) or []
-        skip_named_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-named-constraints"))) or []
+        skip_constraints: list[str] = str_as_list(str_lower(scheme.get("skip-constraints"))) or []
         external_columns: dict[str, Type] = \
             pydb_validator.assert_column_types(errors=None,
                                                scheme=scheme)
@@ -323,9 +321,7 @@ def migrate_data() -> Response:
                                       exclude_tables=exclude_tables,
                                       include_views=include_views,
                                       skip_columns=skip_columns,
-                                      skip_ck_constraints=skip_ck_constraints,
-                                      skip_fk_constraints=skip_fk_constraints,
-                                      skip_named_constraints=skip_named_constraints,
+                                      skip_constraints=skip_constraints,
                                       external_columns=external_columns,
                                       version=APP_VERSION,
                                       logger=PYPOMES_LOGGER)

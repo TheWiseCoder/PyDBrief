@@ -1,12 +1,13 @@
 import sys
+from collections.abc import Iterable
 from logging import Logger, INFO, WARNING
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import (
     db_get_view_script, db_execute, db_drop_table, db_drop_view
 )
 from sqlalchemy import (
-    Engine, Inspector, Table, Column, MetaData, Constraint,
-    CheckConstraint, ForeignKeyConstraint, inspect
+    Engine, Inspector, MetaData, Table, Column,
+    Constraint, CheckConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -24,9 +25,7 @@ def prune_metadata(source_schema: str,
                    exclude_tables: list[str],
                    include_views: list[str],
                    skip_columns: list[str],
-                   skip_ck_constraints: list[str],
-                   skip_fk_constraints: list[str],
-                   skip_named_constraints: list[str],
+                   skip_constraints: list[str],
                    process_indexes: bool,
                    logger: Logger) -> None:
 
@@ -73,21 +72,19 @@ def prune_metadata(source_schema: str,
                                     msg=(f"Column {skipped_column.name} "
                                          f"removed from table {source_table.name}"))
 
-            # 1- make sure table does not have duplicate CK constraints
-            # 2- drop the targeted CK, FK, and named constraints
+            # mark constraints as tainted:
+            #   - duplicate CK constraints in table
+            #   - constraints targeted in 'skip-constraints'
             table_constraints: list[str] = []
             tainted_constraints: list[Constraint] = []
             for constraint in source_table.constraints:
-                if ((constraint.name in table_constraints and
-                     isinstance(constraint, CheckConstraint)) or
-                    constraint.name in skip_named_constraints or
-                    (isinstance(constraint, CheckConstraint) and
-                     source_table.name in skip_ck_constraints) or
-                    (isinstance(constraint, ForeignKeyConstraint) and
-                     source_table.name in skip_fk_constraints)):
+                if constraint.name in skip_constraints or \
+                   constraint.name in table_constraints:
                     tainted_constraints.append(constraint)
-                else:
+                elif isinstance(constraint, CheckConstraint):
                     table_constraints.append(constraint.name)
+
+            # drop the tainted constraints
             for tainted_constraint in tainted_constraints:
                 source_table.constraints.remove(tainted_constraint)
         else:
@@ -187,7 +184,7 @@ def migrate_tables(errors: list[str],
         # build the list of migrated columns for this table
         table_columns: dict = {}
         # noinspection PyProtectedMember
-        columns: list[Column] = target_table.columns._all_columns
+        columns: Iterable[Column] = target_table._columns
 
         # register the source column types
         for column in columns:
@@ -252,7 +249,7 @@ def migrate_tables(errors: list[str],
 
 
 def setup_columns(errors: list[str],
-                  table_columns: list[Column],
+                  table_columns: Iterable[Column],
                   source_rdbms: str,
                   target_rdbms: str,
                   source_schema: str,

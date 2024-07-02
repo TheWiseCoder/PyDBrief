@@ -67,9 +67,7 @@ def migrate(errors: list[str],
             exclude_tables: list[str],
             include_views: list[str],
             skip_columns: list[str],
-            skip_ck_constraints: list[str],
-            skip_fk_constraints: list[str],
-            skip_named_constraints: list[str],
+            skip_constraints: list[str],
             external_columns: dict[str, Type],
             version: str,
             logger: Logger | None) -> dict:
@@ -94,12 +92,8 @@ def migrate(errors: list[str],
         msg += f", exclude tables {','.join(exclude_tables)}"
     if include_views:
         msg += f", include views {','.join(include_views)}"
-    if skip_ck_constraints:
-        msg += f", skip CK constraints {','.join(skip_ck_constraints)}"
-    if skip_fk_constraints:
-        msg += f", skip FK constraints {','.join(skip_fk_constraints)}"
-    if skip_named_constraints:
-        msg += f", skip named constraints {','.join(skip_named_constraints)}"
+    if skip_constraints:
+        msg += f", skip constraints {','.join(skip_constraints)}"
     pydb_common.log(logger=logger,
                     level=INFO,
                     msg=msg)
@@ -127,12 +121,8 @@ def migrate(errors: list[str],
         result["exclude-tables"] = exclude_tables
     if include_views:
         result["include-views"] = include_tables
-    if skip_ck_constraints:
-        result["skip-ck-constraints"] = skip_ck_constraints
-    if skip_fk_constraints:
-        result["skip-fk-constraints"] = skip_fk_constraints
-    if skip_named_constraints:
-        result["skip-named-constraints"] = skip_ck_constraints
+    if skip_constraints:
+        result["skip-constraints"] = skip_constraints
     if external_columns:
         result["external-columns"] = {col_name: str(col_type())
                                       for (col_name, col_type) in external_columns.items()}
@@ -151,9 +141,7 @@ def migrate(errors: list[str],
                                              exclude_tables=exclude_tables,
                                              include_views=include_views,
                                              skip_columns=skip_columns,
-                                             skip_ck_constraints=skip_ck_constraints,
-                                             skip_fk_constraints=skip_fk_constraints,
-                                             skip_named_constraints=skip_named_constraints,
+                                             skip_constraints=skip_constraints,
                                              external_columns=external_columns,
                                              logger=logger)
     pydb_common.log(logger=logger,

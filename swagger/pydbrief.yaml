@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.2.3
+  version: 1.2.4
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -189,9 +189,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeTablesParam'
         - $ref: '#/components/parameters/IncludeViewsParam'
         - $ref: '#/components/parameters/SkipColumnsParam'
-#        - $ref: '#/components/parameters/SkipCkConstraintsParam'
-#        - $ref: '#/components/parameters/SkipFkConstraintsParam'
-        - $ref: '#/components/parameters/SkipNamedConstraintsParam'
+        - $ref: '#/components/parameters/SkipConstraintsParam'
       responses:
         '200':
           description: Successful operation
@@ -500,30 +498,10 @@ components:
         type: array
         items:
           type: string
-    SkipCkConstraintsParam:
-      name: skip-ck-constraints
+    SkipConstraintsParam:
+      name: skip-constraints
       in: query
-      description: Tables for which to skip the check constraints. Ignored if metadata is not being migrated.
-      required: false
-      explode: false
-      schema:
-        type: array
-        items:
-          type: string
-    SkipFkConstraintsParam:
-      name: skip-fk-constraints
-      in: query
-      description: Tables for which to skip the foreign-key constraints. Ignored if metadata is not being migrated.
-      required: false
-      explode: false
-      schema:
-        type: array
-        items:
-          type: string
-    SkipNamedConstraintsParam:
-      name: skip-named-constraints
-      in: query
-      description: Constraints to skip by name. Ignored if metadata is not being migrated.
+      description: Constraints to skip. Ignored if metadata is not being migrated.
       required: false
       explode: false
       schema:
