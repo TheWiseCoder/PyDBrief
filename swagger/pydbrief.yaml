@@ -462,7 +462,7 @@ components:
     RelaxReflectionParam:
       name: relax-reflection
       in: query
-      description: Relax requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a referenced table not found error in the schema migration phase, but additional useful information is likely to be provided.
+      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a referenced table not found error in the schema migration phase, but additional useful information is likely to be provided.
       required: false
       schema:
         type: boolean
