@@ -69,8 +69,8 @@ def prune_metadata(source_schema: str,
                     source_table._columns.remove(excluded_column)
                     pydb_common.log(logger=logger,
                                     level=INFO,
-                                    msg=(f"Column {excluded_column.name} "
-                                         f"removed from table {source_table.name}"))
+                                    msg=(f"Column '{excluded_column.name}' "
+                                         f"removed from table '{source_table.name}'"))
 
             # mark constraints as tainted:
             #   - duplicate CK constraints in table
@@ -87,15 +87,12 @@ def prune_metadata(source_schema: str,
             # drop the tainted constraints
             for tainted_constraint in tainted_constraints:
                 source_table.constraints.remove(tainted_constraint)
-                pydb_common.log(logger=logger,
-                                level=INFO,
-                                msg=(f"Constraint {tainted_constraint.name} "
-                                     f"removed from table {source_table.name}"))
                 if isinstance(tainted_constraint, ForeignKeyConstraint):
                     # directly removing a foreign key is not available in SqlAlchemy:
-                    # - nullifying its 'constraint' attribute has a similar effect
+                    # - after being removed from 'source_table.constraints', it reappears
+                    # - nullifying its 'constraint' attribute has the desired effect
                     # - removing it from 'column.foreign_keys' prevents 'column'
-                    #   to be flagged later as having a 'foreign-key' feature
+                    #   from being flagged later as having a 'foreign-key' feature
                     foreign_key: ForeignKey | None = None
                     # noinspection PyProtectedMember
                     for column in source_table._columns:
@@ -107,8 +104,14 @@ def prune_metadata(source_schema: str,
                             foreign_key.constraint = None
                             column.foreign_keys.remove(foreign_key)
                             break
+
+                # log the constraint removal
+                pydb_common.log(logger=logger,
+                                level=INFO,
+                                msg=(f"Constraint '{tainted_constraint.name}' "
+                                     f"removed from table '{source_table.name}'"))
         else:
-            # no, remove it from metadata
+            # 'source_table' is not to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
 
 

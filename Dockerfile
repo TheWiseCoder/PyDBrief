@@ -9,8 +9,8 @@ RUN apk add curl
 RUN apk add make
 RUN apk add gcc
 RUN apk add g++
-RUN curl -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/msodbcsql18_18.2.2.1-1_amd64.apk
-RUN curl -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/mssql-tools18_18.2.1.1-1_amd64.apk
+RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/msodbcsql18_18.2.2.1-1_amd64.apk
+RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/mssql-tools18_18.2.1.1-1_amd64.apk
 RUN apk add --allow-untrusted msodbcsql18_18.2.2.1-1_amd64.apk
 RUN apk add --allow-untrusted mssql-tools18_18.2.1.1-1_amd64.apk
 RUN apk add unixodbc-dev
@@ -19,7 +19,7 @@ ENV PATH="$PATH:/opt/mssql-tools/bin"
 # install Oracle client
 RUN apk --no-cache add libaio libnsl libc6-compat curl
 RUN cd /tmp
-RUN curl -o instantclient-basiclite.zip https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basic-linux.x64-21.14.0.0.0dbru.zip -SL
+RUN curl -k -o instantclient-basiclite.zip https://download.oracle.com/otn_software/linux/instantclient/2114000/instantclient-basic-linux.x64-21.14.0.0.0dbru.zip -SL
 RUN unzip instantclient-basiclite.zip
 RUN mv instantclient*/ /usr/lib/instantclient
 RUN rm instantclient-basiclite.zip
@@ -40,6 +40,7 @@ RUN apk add vim
 RUN pip install --upgrade pip
 
 # intall Python package requirements
+ENV SSL_CERT_DIR=/etc/ssl/certs
 RUN pip install -r requirements.txt
 COPY . .
 

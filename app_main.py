@@ -65,7 +65,8 @@ def swagger() -> Response:
     """
     # define the treatment to be given to the file by the client
     param: str = http_get_parameter(request, "attach")
-    attach: bool = isinstance(param, str) and param.lower() in ["1", "t", "true"]
+    attach: bool = (isinstance(param, str) and
+                    param.lower() in ["1", "t", "true"])
 
     return send_from_directory(directory=Path(Path.cwd(), "swagger"),
                                path="pydbrief.json",
