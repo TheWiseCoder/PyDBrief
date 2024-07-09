@@ -41,7 +41,7 @@ RUN pip install --upgrade pip
 
 # intall Python package requirements
 ENV SSL_CERT_DIR=/etc/ssl/certs
-RUN pip install -r requirements.txt
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 COPY . .
 
 ENV FLASK_APP=app_main.py
