@@ -2,7 +2,7 @@ from logging import Logger, DEBUG
 from pypomes_db import db_get_param, db_execute
 from typing import Any
 
-from migration import pydb_common
+from migration.pydb_common import log
 
 
 def create_schema(errors: list[str],
@@ -42,10 +42,10 @@ def disable_session_restrictions(errors: list[str],
         case "sqlserver":
             pass
 
-    pydb_common.log(logger=logger,
-                    level=DEBUG,
-                    msg=f"RDBMS {rdbms}, disabled session restrictions "
-                        "to speed-up bulk copying")
+    log(logger=logger,
+        level=DEBUG,
+        msg=f"RDBMS {rdbms}, disabled session restrictions "
+            "to speed-up bulk copying")
 
 
 def restore_session_restrictions(errors: list[str],
@@ -68,10 +68,10 @@ def restore_session_restrictions(errors: list[str],
         case "sqlserver":
             pass
 
-    pydb_common.log(logger=logger,
-                    level=DEBUG,
-                    msg=f"RDBMS {rdbms}, restored session restrictions "
-                        "delaying bulk copying")
+    log(logger=logger,
+        level=DEBUG,
+        msg=f"RDBMS {rdbms}, restored session restrictions "
+            "delaying bulk copying")
 
 
 def set_nullable(errors: list[str],

@@ -44,6 +44,7 @@ def migrate_metadata(errors: list[str],
                      target_schema: str,
                      step_metadata: bool,
                      process_indexes: bool,
+                     relax_reflection: bool,
                      include_tables: list[str],
                      exclude_tables: list[str],
                      include_views: list[str],
@@ -112,6 +113,7 @@ def migrate_metadata(errors: list[str],
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         only=sel_tb,
+                                        resolve_fks=not relax_reflection,
                                         views=len(include_views) > 0)
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema

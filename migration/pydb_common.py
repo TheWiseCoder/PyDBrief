@@ -3,6 +3,7 @@ from pypomes_core import (
     str_sanitize, validate_int, validate_format_error, validate_str
 )
 from pypomes_db import db_get_params, db_setup
+from typing import Any
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
@@ -10,7 +11,7 @@ MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_MAX_PROCESSES: int = 1
 
 
-def get_migration_params() -> dict:
+def get_migration_params() -> dict[str, Any]:
 
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
@@ -20,7 +21,7 @@ def get_migration_params() -> dict:
 
 
 def set_migration_params(errors: list[str],
-                         scheme: dict,
+                         scheme: dict[str, Any],
                          logger: Logger) -> None:
 
     # validate the optional 'batch-size' parameter
@@ -67,9 +68,9 @@ def set_migration_params(errors: list[str],
 
 
 def get_connection_params(errors: list[str],
-                          rdbms: str) -> dict:
+                          rdbms: str) -> dict[str, Any]:
 
-    result: dict = db_get_params(engine=rdbms)
+    result: dict[str, Any] = db_get_params(engine=rdbms)
     if isinstance(result, dict):
         result["rdbms"] = rdbms
     else:
@@ -81,7 +82,7 @@ def get_connection_params(errors: list[str],
 
 
 def set_connection_params(errors: list[str],
-                          scheme: dict) -> None:
+                          scheme: dict[str, Any]) -> None:
 
     db_engine: str = validate_str(errors=errors,
                                   scheme=scheme,

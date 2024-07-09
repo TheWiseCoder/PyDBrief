@@ -6,7 +6,7 @@ from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration import pydb_common
+from migration.pydb_common import get_connection_params, log
 from migration.steps.pydb_database import (
     disable_session_restrictions, restore_session_restrictions
 )
@@ -58,6 +58,7 @@ def migrate(errors: list[str],
             step_plaindata: bool,
             step_lobdata: bool,
             process_indexes: bool,
+            relax_reflection: bool,
             include_tables: list[str],
             exclude_tables: list[str],
             include_views: list[str],
@@ -89,23 +90,27 @@ def migrate(errors: list[str],
         msg += f", include views {','.join(include_views)}"
     if exclude_constraints:
         msg += f", exclude constraints {','.join(exclude_constraints)}"
-    pydb_common.log(logger=logger,
-                    level=INFO,
-                    msg=msg)
+    log(logger=logger,
+        level=INFO,
+        msg=msg)
+
+    # errors while obtaining connection parameters will be listed on output, only
+    from_rdbms: dict[str, Any] = get_connection_params(errors=errors,
+                                                       rdbms=source_rdbms)
+    from_rdbms["schema"] = source_schema
+    from_rdbms.pop("pwd")
+    to_rdbms: dict[str, Any] = get_connection_params(errors=errors,
+                                                     rdbms=target_rdbms)
+    to_rdbms["schema"] = target_schema
+    to_rdbms.pop("pwd")
+    started: datetime = datetime.now()
 
     # initialize the return variable
-    started: datetime = datetime.now()
     result: dict = {
         "started": started.strftime(format=DATETIME_FORMAT_INV),
         "steps": steps,
-        "source": {
-            "rdbms": source_rdbms,
-            "schema": source_schema
-        },
-        "target": {
-            "rdbms": target_rdbms,
-            "schema": target_schema
-        },
+        "source": from_rdbms,
+        "target": to_rdbms,
         "version": version
     }
     if step_metadata:
@@ -123,10 +128,9 @@ def migrate(errors: list[str],
     if external_columns:
         result["external-columns"] = {col_name: str(col_type())
                                       for (col_name, col_type) in external_columns.items()}
-
-    pydb_common.log(logger=logger,
-                    level=INFO,
-                    msg="Started discovering the metadata")
+    log(logger=logger,
+        level=INFO,
+        msg="Started discovering the metadata")
     migrated_tables: dict = migrate_metadata(errors=errors,
                                              source_rdbms=source_rdbms,
                                              target_rdbms=target_rdbms,
@@ -134,6 +138,7 @@ def migrate(errors: list[str],
                                              target_schema=target_schema,
                                              step_metadata=step_metadata,
                                              process_indexes=process_indexes,
+                                             relax_reflection=relax_reflection,
                                              include_tables=include_tables,
                                              exclude_tables=exclude_tables,
                                              include_views=include_views,
@@ -141,9 +146,9 @@ def migrate(errors: list[str],
                                              exclude_constraints=exclude_constraints,
                                              external_columns=external_columns,
                                              logger=logger)
-    pydb_common.log(logger=logger,
-                    level=INFO,
-                    msg="Finished discovering the metadata")
+    log(logger=logger,
+        level=INFO,
+        msg="Finished discovering the metadata")
 
     # initialize the counters
     plain_count: int = 0
@@ -172,9 +177,9 @@ def migrate(errors: list[str],
             if not op_errors:
                 # migrate the plain data, if applicable
                 if step_plaindata:
-                    pydb_common.log(logger=logger,
-                                    level=INFO,
-                                    msg="Started migrating the plain data")
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Started migrating the plain data")
                     plain_count = migrate_plain(errors=op_errors,
                                                 source_rdbms=source_rdbms,
                                                 target_rdbms=target_rdbms,
@@ -185,15 +190,15 @@ def migrate(errors: list[str],
                                                 migrated_tables=migrated_tables,
                                                 logger=logger)
                     errors.extend(op_errors)
-                    pydb_common.log(logger=logger,
-                                    level=INFO,
-                                    msg="Finished migrating the plain data")
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Finished migrating the plain data")
 
                 # migrate the LOB data, if applicable
                 if step_lobdata:
-                    pydb_common.log(logger=logger,
-                                    level=INFO,
-                                    msg="Started migrating the LOBs")
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Started migrating the LOBs")
                     op_errors = []
                     lob_count = migrate_lobs(errors=op_errors,
                                              source_rdbms=source_rdbms,
@@ -205,9 +210,9 @@ def migrate(errors: list[str],
                                              migrated_tables=migrated_tables,
                                              logger=logger)
                     errors.extend(op_errors)
-                    pydb_common.log(logger=logger,
-                                    level=INFO,
-                                    msg="Finished migrating the LOBs")
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Finished migrating the LOBs")
 
                 # restore target RDBMS restrictions delaying bulk copying
                 op_errors = []

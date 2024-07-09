@@ -6,7 +6,11 @@ from pypomes_db import (
 )
 from sqlalchemy.sql.elements import Type
 
-from . import pydb_common, pydb_types
+from migration.pydb_common import (
+    MIGRATION_BATCH_SIZE, MIGRATION_CHUNK_SIZE,
+    MIGRATION_MAX_PROCESSES, get_migration_params
+)
+from migration.pydb_types import name_to_class
 
 
 def assert_rdbms_dual(errors: list[str],
@@ -74,22 +78,22 @@ def assert_migration(errors: list[str],
 
 def assert_migration_params(errors: list[str]) -> None:
 
-    if pydb_common.MIGRATION_BATCH_SIZE < 1000 or \
-       pydb_common.MIGRATION_BATCH_SIZE > 10000000:
+    if MIGRATION_BATCH_SIZE < 1000 or \
+       MIGRATION_BATCH_SIZE > 10000000:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, pydb_common.MIGRATION_BATCH_SIZE,
+        errors.append(validate_format_error(151, MIGRATION_BATCH_SIZE,
                                             [1000, 10000000], "@batch-size"))
 
-    if pydb_common.MIGRATION_CHUNK_SIZE < 1024 or \
-       pydb_common.MIGRATION_CHUNK_SIZE > 16777216:
+    if MIGRATION_CHUNK_SIZE < 1024 or \
+       MIGRATION_CHUNK_SIZE > 16777216:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, pydb_common.MIGRATION_CHUNK_SIZE,
+        errors.append(validate_format_error(151, MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216], "@batch-size"))
 
-    if pydb_common.MIGRATION_MAX_PROCESSES < 1 or \
-       pydb_common.MIGRATION_MAX_PROCESSES > 1000:
+    if MIGRATION_MAX_PROCESSES < 1 or \
+       MIGRATION_MAX_PROCESSES > 1000:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, pydb_common.MIGRATION_MAX_PROCESSES,
+        errors.append(validate_format_error(151, MIGRATION_MAX_PROCESSES,
                                             [1, 100], "@max-processes"))
 
 
@@ -133,8 +137,8 @@ def assert_column_types(errors: list[str] | None,
         result = {}
         for foreign_column in foreign_columns:
             type_name: str = foreign_column.get("column-type")
-            column_type: Type = pydb_types.name_to_class(rdbms=rdbms,
-                                                         type_name=type_name)
+            column_type: Type = name_to_class(rdbms=rdbms,
+                                              type_name=type_name)
             if column_type:
                 result[foreign_column.get("column-name").lower()] = column_type
             elif isinstance(errors, list):
@@ -161,7 +165,7 @@ def get_migration_context(scheme: dict) -> dict:
 
     # build the return data
     result: dict = {
-        "configuration": pydb_common.get_migration_params(),
+        "configuration": get_migration_params(),
         "from": from_params,
         "to": to_params
     }

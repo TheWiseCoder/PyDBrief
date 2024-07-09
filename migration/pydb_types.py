@@ -4,7 +4,7 @@ from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
 
-from . import pydb_common
+from migration.pydb_common import log
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
 # noinspection PyUnresolvedReferences
@@ -586,9 +586,9 @@ def migrate_column(source_rdbms: str,
                      f"{source_column.name}")
     msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {col_name}"
     if type_equiv is None:
-        pydb_common.log(logger=logger,
-                        level=WARNING,
-                        msg=f"{msg} - unable to convert")
+        log(logger=logger,
+            level=WARNING,
+            msg=f"{msg} - unable to convert")
         # use the source type
         type_equiv = col_type_class
 
@@ -619,9 +619,9 @@ def migrate_column(source_rdbms: str,
 
     # instantiate the type object
     result = type_equiv()
-    pydb_common.log(logger=logger,
-                    level=DEBUG,
-                    msg=f"{msg} converted to {str(result)}")
+    log(logger=logger,
+        level=DEBUG,
+        msg=f"{msg} converted to {str(result)}")
 
     # wrap-up the type migration
     if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):

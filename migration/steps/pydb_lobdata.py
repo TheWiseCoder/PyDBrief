@@ -2,7 +2,8 @@ from logging import Logger
 from pypomes_db import db_migrate_lobs
 from typing import Any
 
-from migration import pydb_types, pydb_common
+from migration.pydb_types import is_lob
+from migration.pydb_common import MIGRATION_CHUNK_SIZE
 
 
 def migrate_lobs(errors: list[str],
@@ -29,7 +30,7 @@ def migrate_lobs(errors: list[str],
         table_columns = table_data.get("columns", {})
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
-            if pydb_types.is_lob(column_type):
+            if is_lob(column_type):
                 table_lobs.append(column_name)
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
@@ -50,7 +51,7 @@ def migrate_lobs(errors: list[str],
                                          target_table=target_table,
                                          source_conn=source_conn,
                                          target_conn=target_conn,
-                                         chunk_size=pydb_common.MIGRATION_CHUNK_SIZE,
+                                         chunk_size=MIGRATION_CHUNK_SIZE,
                                          logger=logger) or 0
 
         if op_errors:

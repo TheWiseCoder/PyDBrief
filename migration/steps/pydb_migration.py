@@ -1,7 +1,9 @@
 import sys
 from collections.abc import Iterable
 from logging import Logger, INFO, WARNING
-from pypomes_core import exc_format, str_sanitize, validate_format_error
+from pypomes_core import (
+    exc_format, str_sanitize, validate_format_error
+)
 from pypomes_db import (
     db_get_view_script, db_execute, db_drop_table, db_drop_view
 )
@@ -12,7 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
 
-from migration import pydb_common
+from migration.pydb_common import log
 from migration.pydb_types import migrate_column, establish_equivalences
 from .pydb_database import create_schema
 
@@ -39,7 +41,7 @@ def prune_metadata(source_schema: str,
 
     # traverse list of candidate tables
     for source_table in source_tables:
-        table_name: str = source_table.name.lower()
+        table_name: str = source_table.name
 
         # verify whether 'source_table' is to migrate
         if (table_name not in exclude_tables and
@@ -67,10 +69,10 @@ def prune_metadata(source_schema: str,
                     # noinspection PyProtectedMember
                     # remove the column from table's metadata and log the event
                     source_table._columns.remove(excluded_column)
-                    pydb_common.log(logger=logger,
-                                    level=INFO,
-                                    msg=(f"Column '{excluded_column.name}' "
-                                         f"removed from table '{source_table.name}'"))
+                    log(logger=logger,
+                        level=INFO,
+                        msg=(f"Column '{excluded_column.name}' "
+                             f"removed from table '{source_table.name}'"))
 
             # mark constraints as tainted:
             #   - duplicate CK constraints in table
@@ -106,10 +108,10 @@ def prune_metadata(source_schema: str,
                             break
 
                 # log the constraint removal
-                pydb_common.log(logger=logger,
-                                level=INFO,
-                                msg=(f"Constraint '{tainted_constraint.name}' "
-                                     f"removed from table '{source_table.name}'"))
+                log(logger=logger,
+                    level=INFO,
+                    msg=(f"Constraint '{tainted_constraint.name}' "
+                         f"removed from table '{source_table.name}'"))
         else:
             # 'source_table' is not to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
@@ -263,11 +265,11 @@ def migrate_tables(errors: list[str],
                 no_pk = False
                 break
         if no_pk:
-            pydb_common.log(logger=logger,
-                            level=WARNING,
-                            msg=(f"RDBMS {source_rdbms}, "
-                                 f"table {source_schema}.{target_table}, "
-                                 f"no primary key column found"))
+            log(logger=logger,
+                level=WARNING,
+                msg=(f"RDBMS {source_rdbms}, "
+                     f"table {source_schema}.{target_table}, "
+                     f"no primary key column found"))
     return result
 
 
@@ -306,8 +308,7 @@ def setup_columns(errors: list[str],
 
             # convert the default value - TODO: write a decent default value conversion function
             if hasattr(table_column, "default") and \
-               table_column.default is not None and \
-               table_column.lower() in ["sysdate", "systime"]:
+               table_column.default in ["sysdate", "systime"]:
                 table_column.default = None
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,

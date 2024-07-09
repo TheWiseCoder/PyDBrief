@@ -4,7 +4,7 @@ from pypomes_core import str_sanitize, exc_format, validate_format_error
 from pypomes_db import db_get_connection_string
 from sqlalchemy import Engine, create_engine, Result, TextClause, text, RootTransaction
 
-from migration import pydb_common
+from migration.pydb_common import log
 
 
 def build_engine(errors: list[str],
@@ -20,9 +20,9 @@ def build_engine(errors: list[str],
     # build the engine
     try:
         result = create_engine(url=conn_str)
-        pydb_common.log(logger=logger,
-                        level=DEBUG,
-                        msg=f"RDBMS {rdbms}, created migration engine")
+        log(logger=logger,
+            level=DEBUG,
+            msg=f"RDBMS {rdbms}, created migration engine")
     except Exception as e:
         exc_err = str_sanitize(exc_format(exc=e,
                                exc_info=sys.exc_info()))
@@ -45,9 +45,9 @@ def excecute_stmt(errors: list[str],
             trans: RootTransaction = conn.begin()
             result = conn.execute(statement=exc_stmt)
             trans.commit()
-            pydb_common.log(logger=logger,
-                            level=DEBUG,
-                            msg=f"RDBMS {rdbms}, sucessfully executed {stmt}")
+            log(logger=logger,
+                level=DEBUG,
+                msg=f"RDBMS {rdbms}, sucessfully executed {stmt}")
     except Exception as e:
         exc_err = str_sanitize(exc_format(exc=e,
                                           exc_info=sys.exc_info()))

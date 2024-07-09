@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.2.5"
+APP_VERSION: Final[str] = "1.2.6"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -260,6 +260,7 @@ def migrate_data() -> Response:
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
         - *process-indexes*: whether to migrate indexes (defaults to *False*)
+        - *relax-reflection*: whether to relax fiding referenced tables at reflection (defaults to *False*)
         - *include-tables*: optional list of tables to migrate
         - *exclude-tables*: optional list of tables not to migrate
         - *include-views*: optional list of views to migrate ('*' migrates all views)
@@ -298,6 +299,7 @@ def migrate_data() -> Response:
         step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
         step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
         process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
+        relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
         include_tables: list[str] = str_as_list(str_lower(scheme.get("include-tables"))) or []
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []
@@ -316,6 +318,7 @@ def migrate_data() -> Response:
                                       step_plaindata=step_plaindata,
                                       step_lobdata=step_lobdata,
                                       process_indexes=process_indexes,
+                                      relax_reflection=relax_reflection,
                                       include_tables=include_tables,
                                       exclude_tables=exclude_tables,
                                       include_views=include_views,

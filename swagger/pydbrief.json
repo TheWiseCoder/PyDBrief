@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.2.5"
+    "version": "1.2.6"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -309,6 +309,9 @@
           },
           {
             "$ref": "#/components/parameters/ProcessIndexesParam"
+          },
+          {
+            "$ref": "#/components/parameters/RelaxReflectionParam"
           },
           {
             "$ref": "#/components/parameters/IncludeTablesParam"
@@ -721,6 +724,16 @@
         "name": "process-indexes",
         "in": "query",
         "description": "Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "RelaxReflectionParam": {
+        "name": "relax-reflection",
+        "in": "query",
+        "description": "Relax requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a referenced table not found error in the schema migration phase, but additional useful information is likely to be provided.",
         "required": false,
         "schema": {
           "type": "boolean",
