@@ -31,7 +31,7 @@ from migration import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.2.4"
+APP_VERSION: Final[str] = "1.2.5"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -44,7 +44,7 @@ app.config["JSON_AS_ASCII"] = False
 
 # make PyDBrief's API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
-    base_url="/swagger",
+    base_url="/apidocs",
     api_url="/swagger/pydbrief.json",
     config={"defaultModelsExpandDepth": -1}
 )
@@ -263,13 +263,11 @@ def migrate_data() -> Response:
         - *exclude-tables*: optional list of tables not to migrate
         - *include-views*: optional list of views to migrate ('*' migrates all views)
         - *exclude-columns*: optional list of table columns not to migrate
-        - *skip-ck-constraints*: list of tables for which to skip check constraints
-        - *skip-fk-constraints*: list of tables for which to skip foreign-key constraints
-        - *skip-named-constraints*: list of names of constraints to skip
+        - *exclude-constraints*: optional list of constraints not to migrate
 
     These are noteworthy:
         - if *migrate-metadata* is not set, the following parameters are ignored: *process-indexes*,
-          *include-views*, *skip-ck-constraints*, *skip-fk-constraints*, and *skip-named-constraints*;
+          *include-views*, and *exclude-constraints*;
         - the parameters *include-tables* and *exclude-tables* are mutually exclusive;
         - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
           or all affected tables in destination schema exist and are empty;
@@ -298,7 +296,7 @@ def migrate_data() -> Response:
         step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
         step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
         step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
-        process_indexes: bool = step_metadata and str_lower(scheme.get("process-indexes")) in ["t", "true"]
+        process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
         include_tables: list[str] = str_as_list(str_lower(scheme.get("include-tables"))) or []
         exclude_tables: list[str] = str_as_list(str_lower(scheme.get("exclude-tables"))) or []
         include_views: list[str] = str_as_list(str_lower(scheme.get("include-views"))) or []

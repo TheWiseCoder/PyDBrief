@@ -6,8 +6,8 @@ from pypomes_db import (
     db_get_view_script, db_execute, db_drop_table, db_drop_view
 )
 from sqlalchemy import (
-    Engine, Inspector, MetaData, Table, Column,
-    Constraint, CheckConstraint, inspect
+    Engine, Inspector, MetaData, Table, Column, ForeignKey,
+    Constraint, CheckConstraint, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -87,6 +87,26 @@ def prune_metadata(source_schema: str,
             # drop the tainted constraints
             for tainted_constraint in tainted_constraints:
                 source_table.constraints.remove(tainted_constraint)
+                pydb_common.log(logger=logger,
+                                level=INFO,
+                                msg=(f"Constraint {tainted_constraint.name} "
+                                     f"removed from table {source_table.name}"))
+                if isinstance(tainted_constraint, ForeignKeyConstraint):
+                    # directly removing a foreign key is not available in SqlAlchemy:
+                    # - nullifying its 'constraint' attribute has a similar effect
+                    # - removing it from 'column.foreign_keys' prevents 'column'
+                    #   to be flagged later as having a 'foreign-key' feature
+                    foreign_key: ForeignKey | None = None
+                    # noinspection PyProtectedMember
+                    for column in source_table._columns:
+                        for fk in column.foreign_keys:
+                            if fk.name == tainted_constraint.name:
+                                foreign_key = fk
+                                break
+                        if foreign_key:
+                            foreign_key.constraint = None
+                            column.foreign_keys.remove(foreign_key)
+                            break
         else:
             # no, remove it from metadata
             source_metadata.remove(table=source_table)
