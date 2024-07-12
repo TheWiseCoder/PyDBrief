@@ -185,10 +185,10 @@ paths:
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
         - $ref: '#/components/parameters/ProcessIndexesParam'
+        - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
-        - $ref: '#/components/parameters/IncludeTablesParam'
-        - $ref: '#/components/parameters/ExcludeTablesParam'
-        - $ref: '#/components/parameters/IncludeViewsParam'
+        - $ref: '#/components/parameters/IncludeRelationsParam'
+        - $ref: '#/components/parameters/ExcludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/ExcludeConstraintsParam'
       responses:
@@ -217,7 +217,7 @@ paths:
           description: Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.
           required: false
           schema:
-            type: string
+            type: boolean
             default: true
         - name: level
           in: query
@@ -430,7 +430,7 @@ components:
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
-      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'include-views', 'exclude-ck-constraints', 'exclude-fk-constraints', and 'exclude-named-constraints' are ignored.
+      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' are ignored.
       required: true
       schema:
         type: boolean
@@ -459,6 +459,14 @@ components:
       schema:
         type: boolean
         default: false
+    ProcessViewsParam:
+      name: process-views
+      in: query
+      description: Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
+      required: false
+      schema:
+        type: boolean
+        default: false
     RelaxReflectionParam:
       name: relax-reflection
       in: query
@@ -467,30 +475,20 @@ components:
       schema:
         type: boolean
         default: false
-    IncludeTablesParam:
-      name: include-tables
+    IncludeRelationsParam:
+      name: include-relations
       in: query
-      description: Tables to migrate (mutually exclusive with 'exclude-tables')
+      description: Relations (tables, views, and indexes) to migrate (mutually exclusive with 'exclude-relations'). Ignored for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
       required: false
       explode: false
       schema:
         type: array
         items:
           type: string
-    ExcludeTablesParam:
-      name: exclude-tables
+    ExcludeRelationsParam:
+      name: exclude-relations
       in: query
-      description: Tables not to migrate (mutually exclusive with 'include-tables')
-      required: false
-      explode: false
-      schema:
-        type: array
-        items:
-          type: string
-    IncludeViewsParam:
-      name: include-views
-      in: query
-      description: Views to migrate (by default, views are not migrated - specify '*' to migrate all views). Ignored if metadata is not being migrated.
+      description: Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations').
       required: false
       explode: false
       schema:
