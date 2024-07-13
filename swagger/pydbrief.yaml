@@ -680,12 +680,6 @@ components:
             user:
               type: string
               example: postgres
-        total-plains:
-          type: integer
-          example: 1570970
-        total-lobs:
-          type: integer
-          example: 5890575
         migrated-tables:
           type: object
           properties:
@@ -729,6 +723,18 @@ components:
                     target-type:
                       type: string
                       example: FLOAT
+        total-plains:
+          type: integer
+          example: 1570970
+        total-lobs:
+          type: integer
+          example: 5890575
+        total-tables:
+          type: integer
+          example: 15
+        version:
+          type: string
+          example: 1.3.0
     SchemaError:
       type: object
       properties:
