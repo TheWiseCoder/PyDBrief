@@ -119,7 +119,7 @@ def migrate(errors: list[str],
     # initialize the return variable
     result: dict = {
         "started": started.strftime(format=DATETIME_FORMAT_INV),
-        "steps": steps,
+        "steps": steps[2:],
         "source": from_rdbms,
         "target": to_rdbms,
         "version": version
