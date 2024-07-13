@@ -8,8 +8,8 @@ from pypomes_db import (
     db_get_view_script, db_execute, db_drop_table, db_drop_view
 )
 from sqlalchemy import (
-    Engine, Inspector, MetaData, Table, Column, ForeignKey,
-    Constraint, CheckConstraint, ForeignKeyConstraint, inspect
+    Engine, Inspector, MetaData, Table, Column, Index,
+    ForeignKey, Constraint, CheckConstraint, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Literal
@@ -21,14 +21,13 @@ from .pydb_database import create_schema
 
 def prune_metadata(source_schema: str,
                    source_metadata: MetaData,
-                   plain_views: list[str],
-                   mat_views: list[str],
-                   include_tables: list[str],
-                   exclude_tables: list[str],
-                   include_views: list[str],
+                   process_indexes: bool,
+                   process_views: bool,
+                   schema_views: list[str],
+                   include_relations: list[str],
+                   exclude_relations: list[str],
                    exclude_columns: list[str],
                    exclude_constraints: list[str],
-                   process_indexes: bool,
                    logger: Logger) -> None:
 
     # build list of prunable tables
@@ -37,81 +36,99 @@ def prune_metadata(source_schema: str,
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
-    target_tables: list[Table] = []
 
     # traverse list of candidate tables
     for source_table in source_tables:
         table_name: str = source_table.name
 
-        # verify whether 'source_table' is to migrate
-        if (table_name not in exclude_tables and
-            (table_name in include_tables or
-             table_name in include_views or
-             (not include_tables and source_table.schema == source_schema and
-              table_name not in plain_views and table_name not in mat_views))):
-            # yes, proceed
-            target_tables.append(source_table)
+        # verify whether relation 'source_table' complies with these conditions for migration:
+        #   - relation is not be listed in 'excluded-relations' AND
+        #   - views are being processed OR relation is not a view AND
+        #   - relation is listed in 'include-relations' OR ('include-relations' is empty AND schemas agree)
+        if (table_name not in exclude_relations and
+            (process_views or table_name not in schema_views) and
+            (table_name in include_relations or
+             (not include_relations and source_table.schema == source_schema))):
 
-            # remove indexes, if applicable
-            if not process_indexes:
+            # handle indexes for 'source_table'
+            if process_indexes:
+                # build list of tainted indexes
+                tainted_indexes: list[Index] = []
+                for index in source_table.indexes:
+                    # 'index' is tainted if:
+                    #   - 'index' is listed in 'exclude-relations' OR
+                    #   - 'included-relations' is not empty AND 'index' is not listed therein
+                    if index.name in exclude_relations or \
+                       (include_relations and index.name not in include_relations):
+                        tainted_indexes.append(index)
+                # remove tainted indexes
+                if len(tainted_indexes) == len(source_table.indexes):
+                    source_table.indexes.clear()
+                else:
+                    for tainted_index in tainted_indexes:
+                        source_table.indexes.remove(tainted_index)
+            else:
                 source_table.indexes.clear()
 
-            # prune table, if applicable
-            if source_table.name in prunable_tables:
-                excluded_columns: list[Column] = []
-                # noinspection PyProtectedMember
-                # look for columns to exclude
-                for column in source_table._columns:
-                    if f"{source_table.name}.{column.name}" in exclude_columns:
-                        excluded_columns.append(column)
-                # traverse the list of columns to exclude, if any
-                for excluded_column in excluded_columns:
+            # skip views, from now on
+            if table_name not in schema_views:
+                # prune table
+                if source_table.name in prunable_tables:
+                    excluded_columns: list[Column] = []
                     # noinspection PyProtectedMember
-                    # remove the column from table's metadata and log the event
-                    source_table._columns.remove(excluded_column)
+                    # look for columns to exclude
+                    for column in source_table._columns:
+                        if f"{source_table.name}.{column.name}" in exclude_columns:
+                            excluded_columns.append(column)
+                    # traverse the list of columns to exclude
+                    for excluded_column in excluded_columns:
+                        # noinspection PyProtectedMember
+                        # remove the column from table's metadata and log the event
+                        source_table._columns.remove(excluded_column)
+                        log(logger=logger,
+                            level=INFO,
+                            msg=(f"Column '{excluded_column.name}' "
+                                 f"removed from table '{source_table.name}'"))
+
+                # mark these constraints as tainted:
+                #   - duplicate CK constraints in table
+                #   - constraints listed in 'exclude-constraints'
+                table_cks: list[str] = []
+                tainted_constraints: list[Constraint] = []
+                for constraint in source_table.constraints:
+                    if constraint.name in table_cks or \
+                       constraint.name in exclude_constraints:
+                        tainted_constraints.append(constraint)
+                    elif isinstance(constraint, CheckConstraint):
+                        table_cks.append(constraint.name)
+
+                # drop the tainted constraints
+                for tainted_constraint in tainted_constraints:
+                    source_table.constraints.remove(tainted_constraint)
+                    # FK constraints require special handling
+                    if isinstance(tainted_constraint, ForeignKeyConstraint):
+                        # directly removing a foreign key is not available in SqlAlchemy:
+                        # - after being removed from 'source_table.constraints', it reappears
+                        # - nullifying its 'constraint' attribute has the desired effect
+                        # - removing it from 'column.foreign_keys' prevents 'column'
+                        #   from being flagged later as having a 'foreign-key' feature
+                        foreign_key: ForeignKey | None = None
+                        # noinspection PyProtectedMember
+                        for column in source_table._columns:
+                            for fk in column.foreign_keys:
+                                if fk.name == tainted_constraint.name:
+                                    foreign_key = fk
+                                    break
+                            if foreign_key:
+                                foreign_key.constraint = None
+                                column.foreign_keys.remove(foreign_key)
+                                break
+
+                    # log the constraint removal
                     log(logger=logger,
                         level=INFO,
-                        msg=(f"Column '{excluded_column.name}' "
+                        msg=(f"Constraint '{tainted_constraint.name}' "
                              f"removed from table '{source_table.name}'"))
-
-            # mark constraints as tainted:
-            #   - duplicate CK constraints in table
-            #   - constraints listed in 'exclude-constraints'
-            table_constraints: list[str] = []
-            tainted_constraints: list[Constraint] = []
-            for constraint in source_table.constraints:
-                if constraint.name in exclude_constraints or \
-                   constraint.name in table_constraints:
-                    tainted_constraints.append(constraint)
-                elif isinstance(constraint, CheckConstraint):
-                    table_constraints.append(constraint.name)
-
-            # drop the tainted constraints
-            for tainted_constraint in tainted_constraints:
-                source_table.constraints.remove(tainted_constraint)
-                if isinstance(tainted_constraint, ForeignKeyConstraint):
-                    # directly removing a foreign key is not available in SqlAlchemy:
-                    # - after being removed from 'source_table.constraints', it reappears
-                    # - nullifying its 'constraint' attribute has the desired effect
-                    # - removing it from 'column.foreign_keys' prevents 'column'
-                    #   from being flagged later as having a 'foreign-key' feature
-                    foreign_key: ForeignKey | None = None
-                    # noinspection PyProtectedMember
-                    for column in source_table._columns:
-                        for fk in column.foreign_keys:
-                            if fk.name == tainted_constraint.name:
-                                foreign_key = fk
-                                break
-                        if foreign_key:
-                            foreign_key.constraint = None
-                            column.foreign_keys.remove(foreign_key)
-                            break
-
-                # log the constraint removal
-                log(logger=logger,
-                    level=INFO,
-                    msg=(f"Constraint '{tainted_constraint.name}' "
-                         f"removed from table '{source_table.name}'"))
         else:
             # 'source_table' is not to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
@@ -188,7 +205,7 @@ def migrate_tables(errors: list[str],
                    source_schema: str,
                    target_schema: str,
                    target_tables: list[Table],
-                   external_columns: dict[str, Type],
+                   override_columns: dict[str, Type],
                    logger: Logger) -> dict:
 
     # iinitialize the return variable
@@ -204,7 +221,6 @@ def migrate_tables(errors: list[str],
         establish_equivalences(source_rdbms=source_rdbms,
                                target_rdbms=target_rdbms)
     # setup target tables
-    is_view: bool
     for target_table in target_tables:
         # build the list of migrated columns for this table
         table_columns: dict = {}
@@ -226,7 +242,7 @@ def migrate_tables(errors: list[str],
                       native_ordinal=native_ordinal,
                       reference_ordinal=reference_ordinal,
                       nat_equivalences=nat_equivalences,
-                      external_columns=external_columns,
+                      override_columns=override_columns,
                       logger=logger)
 
         # register the target column properties
@@ -282,7 +298,7 @@ def setup_columns(errors: list[str],
                   native_ordinal: int,
                   reference_ordinal: int,
                   nat_equivalences: list[tuple],
-                  external_columns: dict[str, Type],
+                  override_columns: dict[str, Type],
                   logger: Logger) -> None:
 
     # set the target columns
@@ -297,7 +313,7 @@ def setup_columns(errors: list[str],
                                               reference_ordinal=reference_ordinal,
                                               source_column=table_column,
                                               nat_equivalences=nat_equivalences,
-                                              external_columns=external_columns,
+                                              override_columns=override_columns,
                                               logger=logger)
             # set column's new type
             table_column.type = target_type

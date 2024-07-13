@@ -1,10 +1,11 @@
 from pypomes_core import (
-    validate_format_error, validate_bool
+    validate_bool, validate_strs, validate_format_error
 )
 from pypomes_db import (
     db_get_engines, db_get_params, db_assert_connection
 )
 from sqlalchemy.sql.elements import Type
+from typing import Any
 
 from migration.pydb_common import (
     MIGRATION_BATCH_SIZE, MIGRATION_CHUNK_SIZE,
@@ -20,20 +21,25 @@ def assert_rdbms_dual(errors: list[str],
     source_rdbms: str | None = scheme.get("from-rdbms")
     if source_rdbms not in engines:
         # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142, source_rdbms,
-                                            "unknown or unconfigured RDBMS engine", "@from-rdbms"))
+        errors.append(validate_format_error(142,
+                                            source_rdbms,
+                                            "unknown or unconfigured RDBMS engine",
+                                            "@from-rdbms"))
         source_rdbms = None
 
     target_rdbms: str | None = scheme.get("to-rdbms")
     if target_rdbms not in engines:
         # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142, target_rdbms,
-                                            "unknown or unconfigured RDBMS engine", "@to-rdbms"))
+        errors.append(validate_format_error(142,
+                                            target_rdbms,
+                                            "unknown or unconfigured RDBMS engine",
+                                            "@to-rdbms"))
         target_rdbms = None
 
     if source_rdbms and source_rdbms == target_rdbms:
         # 126: {} cannot be assigned for attributes {} at the same time
-        errors.append(validate_format_error(126, source_rdbms,
+        errors.append(validate_format_error(126,
+                                            source_rdbms,
                                             "'from-rdbms' and 'to-rdbms'"))
     if not errors and \
        (source_rdbms != "oracle" or target_rdbms != "postgres"):
@@ -67,9 +73,10 @@ def assert_migration(errors: list[str],
                              engine=target_rdbms)
 
     # validate the include and exclude tables lists
-    if scheme.get("include-tables") and scheme.get("exclude-tables"):
+    if scheme.get("include-relations") and scheme.get("exclude-relations"):
         # 151: "Attributes {} cannot be assigned values at the same time
-        errors.append(validate_format_error(151, "'include-tables', 'exclude-tables'"))
+        errors.append(validate_format_error(151,
+                                            "'include-relations', 'exclude-relations'"))
 
     # validate the external columns list
     assert_column_types(errors=errors,
@@ -81,20 +88,24 @@ def assert_migration_params(errors: list[str]) -> None:
     if MIGRATION_BATCH_SIZE < 1000 or \
        MIGRATION_BATCH_SIZE > 10000000:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, MIGRATION_BATCH_SIZE,
-                                            [1000, 10000000], "@batch-size"))
-
+        errors.append(validate_format_error(151,
+                                            MIGRATION_BATCH_SIZE,
+                                            [1000, 10000000],
+                                            "@batch-size"))
     if MIGRATION_CHUNK_SIZE < 1024 or \
        MIGRATION_CHUNK_SIZE > 16777216:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, MIGRATION_CHUNK_SIZE,
-                                            [1024, 16777216], "@batch-size"))
-
+        errors.append(validate_format_error(151,
+                                            MIGRATION_CHUNK_SIZE,
+                                            [1024, 16777216],
+                                            "@chunk-size"))
     if MIGRATION_MAX_PROCESSES < 1 or \
        MIGRATION_MAX_PROCESSES > 1000:
         # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151, MIGRATION_MAX_PROCESSES,
-                                            [1, 100], "@max-processes"))
+        errors.append(validate_format_error(151,
+                                            MIGRATION_MAX_PROCESSES,
+                                            [1, 100],
+                                            "@max-processes"))
 
 
 def assert_migration_steps(errors: list[str],
@@ -124,28 +135,32 @@ def assert_migration_steps(errors: list[str],
         errors.append(validate_format_error(101, err_msg))
 
 
-def assert_column_types(errors: list[str] | None,
-                        scheme: dict) -> dict[str, Type]:
+def assert_column_types(errors: list[str],
+                        scheme: dict[str, Any]) -> dict[str, Type]:
 
     # initialize the return variable
-    result: dict[str, Type] | None = None
+    result: dict[str, Type] = {}
 
     # process the foreign columns list
-    foreign_columns: list[dict[str, str]] = scheme.get("external-columns")
+    foreign_columns: list[str] = validate_strs(errors=errors,
+                                               scheme=scheme,
+                                               attr="override-columns")
     if foreign_columns:
         rdbms: str = scheme.get("to-rdbms")
-        result = {}
+        result: dict[str, Type] = {}
         for foreign_column in foreign_columns:
-            type_name: str = foreign_column.get("column-type")
+            # format of 'foreign_column' is <column_name>=<column_type>
+            column_name: str = foreign_column[:f"={foreign_column}".rindex('=')]
+            type_name: str = foreign_column.replace(column_name, "", 1)[1:]
             column_type: Type = name_to_class(rdbms=rdbms,
-                                              type_name=type_name)
-            if column_type:
-                result[foreign_column.get("column-name").lower()] = column_type
-            elif isinstance(errors, list):
+                                              type_name=type_name.lower())
+            if column_name and column_type:
+                result[column_name.lower()] = column_type
+            else:
                 # 142: Invalid value {}: {}
-                errors.append(validate_format_error(142, type_name,
+                errors.append(validate_format_error(142,
+                                                    type_name,
                                                     f"not a valid column type for RDBMS {rdbms}"))
-
     return result
 
 

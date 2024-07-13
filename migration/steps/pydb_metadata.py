@@ -44,13 +44,13 @@ def migrate_metadata(errors: list[str],
                      target_schema: str,
                      step_metadata: bool,
                      process_indexes: bool,
+                     process_views: bool,
                      relax_reflection: bool,
-                     include_tables: list[str],
-                     exclude_tables: list[str],
-                     include_views: list[str],
+                     include_relations: list[str],
+                     exclude_relations: list[str],
                      exclude_columns: list[str],
                      exclude_constraints: list[str],
-                     external_columns: dict[str, Type],
+                     override_columns: dict[str, Type],
                      logger: Logger | None) -> dict:
 
     # iinitialize the return variable
@@ -83,38 +83,35 @@ def migrate_metadata(errors: list[str],
             # clear parameters not needed if not creating/transforming the target schema
             if not step_metadata:
                 process_indexes = False
-                include_views.clear()
+                process_views = False
                 exclude_constraints.clear()
 
             # obtain the list of plain and materialized views in source schema
             plain_views: list[str] = source_inspector.get_view_names()
             mat_views: list[str] = source_inspector.get_materialized_view_names()
-            all_views: list[str] = plain_views + mat_views
-            if include_views == ["*"]:
-                include_views = all_views
 
-            # determine if table 'tb' is to be included in 'source_metadata'
-            def sel_tb(tb: str, _md: MetaData) -> bool:
-                return (tb not in exclude_tables and
-                        ((not include_tables or tb in include_tables) or
-                         (tb in all_views and tb in include_views)))
+            # determine if relation 'rel' is to be reflected in 'source_metadata'
+            def sel_rel(rel: str, _md: MetaData) -> bool:
+                return (rel not in exclude_relations and
+                        (not include_relations or rel in include_relations))
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
             try:
                 # HAZARD:
                 # - if the parameter 'resolve_fks' is set to 'True' (the default value),
-                #   then tables and views referenced in FK columns of included tables
+                #   then relations referenced in FK columns of included tables
                 #   will also be included, regardless of parameters 'only' or 'views'
                 #   (this is remedied at 'prune_metadata()')
-                # - SQLAlchemy will raise a 'NoReferencedTableError' exception upon
-                #   'source_metadata.sorted_tables' retrieval, if a FK-referenced table
-                #   is prevented from loading (requires 'resolve_fks' to be set to 'False')
+                # - if it is set to 'False', not finding referenced tables will not
+                #   prevent migration to continue, although SQLAlchemy will nonetheless raise
+                #   a 'NoReferencedTableError' exception upon 'source_metadata.sorted_tables'
+                #   retrieval, if a FK-referenced table is missing from the source schema
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
-                                        only=sel_tb,
+                                        only=sel_rel,
                                         resolve_fks=not relax_reflection,
-                                        views=len(include_views) > 0)
+                                        views=process_views)
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
@@ -128,14 +125,13 @@ def migrate_metadata(errors: list[str],
                 # prepare the source metadata for migration
                 prune_metadata(source_schema=source_schema,
                                source_metadata=source_metadata,
-                               plain_views=plain_views,
-                               mat_views=mat_views,
-                               include_tables=include_tables,
-                               exclude_tables=exclude_tables,
-                               include_views=include_views,
+                               process_indexes=process_indexes,
+                               process_views=process_views,
+                               schema_views=plain_views + mat_views,
+                               include_relations=include_relations,
+                               exclude_relations=exclude_relations,
                                exclude_columns=exclude_columns,
                                exclude_constraints=exclude_constraints,
-                               process_indexes=process_indexes,
                                logger=logger)
 
                 # proceed with the appropriate tables
@@ -144,7 +140,7 @@ def migrate_metadata(errors: list[str],
                     sorted_tables: list[Table] = source_metadata.sorted_tables
                 except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence, probably caused by:
-                    #   - cross-dependencies between tables, caused by mutually dependent FKs, or
+                    #   - cross-dependencies between tables, resulted from mutually dependent FKs, or
                     #   - a table or view referenced by a FK column was not found in the schema
                     # - this error will cause the migration to be aborted,
                     #   as SQLAlchemy would not be able to compile the migrated schema
@@ -184,7 +180,7 @@ def migrate_metadata(errors: list[str],
                                                 source_schema=from_schema,
                                                 target_schema=to_schema,
                                                 target_tables=real_tables,
-                                                external_columns=external_columns,
+                                                override_columns=override_columns,
                                                 logger=logger)
 
                         # proceed, if migrating the metadata was indicated
@@ -216,12 +212,12 @@ def migrate_metadata(errors: list[str],
                                     errors.append(validate_format_error(104, "schema-construction", exc_err))
 
                             # migrate the schema, one view at a time
-                            real_views: list[Table] = [table for table in sorted_tables
-                                                       if table.name in plain_views + mat_views]
-                            for real_view in real_views:
+                            schema_views: list[Table] = [table for table in sorted_tables
+                                                         if table.name in plain_views + mat_views]
+                            for schema_view in schema_views:
                                 migrate_view(errors=errors,
-                                             view_name=real_view.name,
-                                             view_type="M" if real_view.name in mat_views else "P",
+                                             view_name=schema_view.name,
+                                             view_type="M" if schema_view.name in mat_views else "P",
                                              source_rdbms=source_rdbms,
                                              target_rdbms=target_rdbms,
                                              source_schema=from_schema,

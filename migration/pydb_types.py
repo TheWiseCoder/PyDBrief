@@ -519,16 +519,19 @@ def migrate_column(source_rdbms: str,
                    reference_ordinal: int,
                    source_column: Column,
                    nat_equivalences: list[tuple],
-                   external_columns: dict[str, Type],
+                   override_columns: dict[str, Type],
                    logger: Logger) -> Any:
 
     # declare the return variable
     result: Any
 
     # obtain needed characteristics
-    type_equiv: Type | None = None
     col_type_class: Type = source_column.type.__class__
     col_type_obj: Any = source_column.type
+    col_name: str = f"{source_column.table.name}.{source_column.name}"
+
+    # use the optionally provided override type
+    type_equiv: Type = override_columns.get(col_name)
 
     is_pk: bool = (hasattr(source_column, "primary_key") and
                    source_column.primary_key) or False
@@ -553,38 +556,30 @@ def migrate_column(source_rdbms: str,
        source_column.identity.cache == 0:
         source_column.identity.cache = 1
 
-    # is the column a foreign key ?
-    if is_fk:
-        # attempt to force type conformity
-        fk_column: Column = list(source_column.foreign_keys)[0].column
-        if fk_column.table.schema in [source_schema, target_schema]:
-            # force type conformity
-            type_equiv = fk_column.type.__class__
-        elif external_columns:
-            # no, use the externally provided type, if available
-            external_name: str = (f"{fk_column.table.schema}."
-                                  f"{fk_column.table.name}."
-                                  f"{fk_column.name}").lower()
-            type_equiv = external_columns.get(external_name)
-
-    # if necessary, inspect the native equivalences first
+    # inspect the native equivalences first
     if type_equiv is None:
         for nat_equivalence in nat_equivalences:
             if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
-    # if necessary, inspect the reference equivalences next
+    # inspect the reference equivalences next
     if type_equiv is None:
         for ref_equivalence in REF_EQUIVALENCES:
             if isinstance(col_type_obj, ref_equivalence[0]):
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
-    col_name: str = (f"{source_rdbms}."
-                     f"{source_column.table.name}."
-                     f"{source_column.name}")
-    msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {col_name}"
+    # is the column a foreign key, and an override type has not been defined ?
+    if is_fk and not override_columns.get(col_name):
+        # yes, attempt to force type conformity
+        fk_column: Column = list(source_column.foreign_keys)[0].column
+        if type_equiv is None or \
+           fk_column.table.schema in [source_schema, target_schema]:
+            # force type conformity
+            type_equiv = fk_column.type.__class__
+
+    msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {source_rdbms}.{col_name}"
     if type_equiv is None:
         log(logger=logger,
             level=WARNING,
@@ -704,7 +699,7 @@ def name_to_class(rdbms: str,
     prefix: str = str_get_positional(source=rdbms,
                                      list_origin=["mysql", "oracle", "postgres", "sqlserver"],
                                      list_dest=["msql", "orcl", "pg", "sqls"])
-    return COLUMN_TYPES.get(f"{prefix}_{type_name.lower()}")
+    return COLUMN_TYPES.get(f"{prefix}_{type_name}")
 
 
 def is_lob(col_type: str) -> bool:

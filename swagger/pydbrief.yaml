@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.2.6
+  version: 1.3.0
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -169,13 +169,6 @@ paths:
       summary: Migrate the data
       description:  Migrate the data from the source to the target RDBMS and schema.
       operationId: migrate-schema
-      requestBody:
-        description: Optional list of referenced columns from other schemas. Column names must be schema and table-qualified (schema-name.table-name.column-name).
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExternalColumns'
       parameters:
         - $ref: '#/components/parameters/FromRdbmsParam'
         - $ref: '#/components/parameters/FromSchemaParam'
@@ -191,6 +184,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/ExcludeConstraintsParam'
+        - $ref: '#/components/parameters/OverrideColumnsParam'
       responses:
         '200':
           description: Successful operation
@@ -488,7 +482,7 @@ components:
     ExcludeRelationsParam:
       name: exclude-relations
       in: query
-      description: Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations').
+      description: Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations'). Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
       required: false
       explode: false
       schema:
@@ -498,7 +492,7 @@ components:
     ExcludeColumnsParam:
       name: exclude-columns
       in: query
-      description: Table columns not to migrate. Column names must be table-qualified (table-name.column-name).
+      description: Table columns not to migrate. Column names must be table-qualified (<table-name>.<column-name>).
       required: false
       explode: false
       schema:
@@ -515,21 +509,18 @@ components:
         type: array
         items:
           type: string
+    OverrideColumnsParam:
+      name: override-columns
+      in: query
+      description: Optional list of columns with types to be forced upon. These types override the standard type conversion. Useful for referenced, but unreacheable, columns, such as FK columns pointing to absent tables. Column names must be table-qualified (<table-name>.<column-name>=<type-name>). Types must be valid in target RDBMS.
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          example: my_table.my_column=integer
   schemas:
-    ExternalColumns:
-      type: object
-      properties:
-        external-columns:
-          type: array
-          items:
-            type: object
-            properties:
-              column-name:
-                type: string
-                example: other_schema.the_table.the_column
-              column-type:
-                type: string
-                example: varchar
     MigrationConfiguration:
       type: object
       properties:

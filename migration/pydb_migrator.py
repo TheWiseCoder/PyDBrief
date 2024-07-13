@@ -58,15 +58,19 @@ def migrate(errors: list[str],
             step_plaindata: bool,
             step_lobdata: bool,
             process_indexes: bool,
+            process_views: bool,
             relax_reflection: bool,
-            include_tables: list[str],
-            exclude_tables: list[str],
-            include_views: list[str],
+            include_relations: list[str],
+            exclude_relations: list[str],
             exclude_columns: list[str],
             exclude_constraints: list[str],
-            external_columns: dict[str, Type],
+            override_columns: dict[str, Type],
             version: str,
             logger: Logger | None) -> dict:
+
+    # set external columns to displayable list
+    override_cols: list[str] = [f"{col_name}={col_type}"
+                                for (col_name, col_type) in override_columns.items()]
 
     # log the start of the migration
     msg: str = (f"Migration started, "
@@ -82,14 +86,18 @@ def migrate(errors: list[str],
     msg += f"steps {steps[2:]}"
     if process_indexes:
         msg += ", process indexes"
-    if include_tables:
-        msg += f", include tables {','.join(include_tables)}"
-    if exclude_tables:
-        msg += f", exclude tables {','.join(exclude_tables)}"
-    if include_views:
-        msg += f", include views {','.join(include_views)}"
+    if process_views:
+        msg += ", process views"
+    if include_relations:
+        msg += f", include relations {','.join(include_relations)}"
+    if exclude_relations:
+        msg += f", exclude relations {','.join(exclude_relations)}"
+    if exclude_columns:
+        msg += f", exclude columns {','.join(exclude_columns)}"
     if exclude_constraints:
         msg += f", exclude constraints {','.join(exclude_constraints)}"
+    if override_cols:
+        msg += f", override columns {','.join(override_cols)}"
     log(logger=logger,
         level=INFO,
         msg=msg)
@@ -113,21 +121,20 @@ def migrate(errors: list[str],
         "target": to_rdbms,
         "version": version
     }
-    if step_metadata:
-        result["process-indexes"] = process_indexes
-    if include_tables:
-        result["include-tables"] = include_tables
-    if exclude_tables:
-        result["exclude-tables"] = exclude_tables
-    if include_views:
-        result["include-views"] = include_tables
+    if process_indexes:
+        result["process-indexes"] = process_views
+    if process_views:
+        result["process-views"] = process_views
+    if include_relations:
+        result["include-relations"] = include_relations
+    if exclude_relations:
+        result["exclude-relations"] = exclude_relations
     if exclude_columns:
         result["exclude-columns"] = exclude_columns
     if exclude_constraints:
         result["exclude-constraints"] = exclude_constraints
-    if external_columns:
-        result["external-columns"] = {col_name: str(col_type())
-                                      for (col_name, col_type) in external_columns.items()}
+    if override_cols:
+        result["external-columns"] = override_cols
     log(logger=logger,
         level=INFO,
         msg="Started discovering the metadata")
@@ -138,25 +145,25 @@ def migrate(errors: list[str],
                                              target_schema=target_schema,
                                              step_metadata=step_metadata,
                                              process_indexes=process_indexes,
+                                             process_views=process_views,
                                              relax_reflection=relax_reflection,
-                                             include_tables=include_tables,
-                                             exclude_tables=exclude_tables,
-                                             include_views=include_views,
+                                             include_relations=include_relations,
+                                             exclude_relations=exclude_relations,
                                              exclude_columns=exclude_columns,
                                              exclude_constraints=exclude_constraints,
-                                             external_columns=external_columns,
+                                             override_columns=override_columns,
                                              logger=logger)
     log(logger=logger,
         level=INFO,
         msg="Finished discovering the metadata")
 
-    # initialize the counters
-    plain_count: int = 0
-    lob_count: int = 0
-
     # proceed, if migration of plain data and/or LOB data has been indicated
     if migrated_tables and \
        (step_plaindata or step_lobdata):
+
+        # initialize the counters
+        plain_count: int = 0
+        lob_count: int = 0
 
         # obtain source and target connections
         op_errors: list[str] = []
@@ -225,10 +232,12 @@ def migrate(errors: list[str],
             errors.extend(op_errors)
             source_conn.close()
             target_conn.close()
+        
+        result["total-plains"] = plain_count
+        result["total-lobs"] = lob_count
 
     result["finished"] = datetime.now()
     result["migrated-tables"] = migrated_tables
-    result["total-plains"] = plain_count
-    result["total-lobs"] = lob_count
+    result["total-tables"] = len(migrated_tables)
 
     return result
