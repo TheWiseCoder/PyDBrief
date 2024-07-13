@@ -312,10 +312,10 @@
             "$ref": "#/components/parameters/ExcludeRelationsParam"
           },
           {
-            "$ref": "#/components/parameters/ExcludeColumnsParam"
+            "$ref": "#/components/parameters/ExcludeConstraintsParam"
           },
           {
-            "$ref": "#/components/parameters/ExcludeConstraintsParam"
+            "$ref": "#/components/parameters/ExcludeColumnsParam"
           },
           {
             "$ref": "#/components/parameters/OverrideColumnsParam"
@@ -758,7 +758,7 @@
       "ExcludeRelationsParam": {
         "name": "exclude-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations'). Not needed for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
+        "description": "Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations'). Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
         "required": false,
         "explode": false,
         "schema": {
@@ -797,7 +797,7 @@
       "OverrideColumnsParam": {
         "name": "override-columns",
         "in": "query",
-        "description": "Optional list of columns with types to be forced upon. These types override the standard type conversion. Useful for referenced, but unreacheable, columns, such as FK columns pointing to absent tables. Column names must be table-qualified (<table-name>.<column-name>=<type-name>). Types must be valid in target RDBMS.",
+        "description": "Optional list of table columns with types to be forced upon. These types override the standard type conversion. Useful for referenced but unreacheable columns, such as FK columns pointing to absent tables. Column names must be table-qualified (<table-name>.<column-name>=<type-name>). Types must be valid in target RDBMS.",
         "required": false,
         "explode": false,
         "schema": {
@@ -974,9 +974,29 @@
                 "type": "string",
                 "example": "oracle"
               },
+              "client": {
+                "type": "string",
+                "example": "/usr/lib/instantclient"
+              },
+              "name": {
+                "type": "string",
+                "example": "XE"
+              },
+              "host": {
+                "type": "string",
+                "example": "localhost"
+              },
+              "port": {
+                "type": "integer",
+                "example": 1521
+              },
               "schema": {
                 "type": "string",
                 "example": "ora-schema"
+              },
+              "user": {
+                "type": "string",
+                "example": "system"
               }
             }
           },
@@ -987,9 +1007,25 @@
                 "type": "string",
                 "example": "postgres"
               },
+              "name": {
+                "type": "string",
+                "example": "postgres"
+              },
+              "host": {
+                "type": "string",
+                "example": "localhost"
+              },
+              "port": {
+                "type": "integer",
+                "example": 5432
+              },
               "schema": {
                 "type": "string",
                 "example": "pg-schema"
+              },
+              "user": {
+                "type": "string",
+                "example": "postgres"
               }
             }
           },
@@ -1023,7 +1059,7 @@
                     "type": "string",
                     "example": "full"
                   },
-                  "my-column": {
+                  "my-column-1": {
                     "type": "object",
                     "properties": {
                       "source-type": {
@@ -1043,6 +1079,19 @@
                           "identity",
                           "primary-key"
                         ]
+                      }
+                    }
+                  },
+                  "my-column-2": {
+                    "type": "object",
+                    "properties": {
+                      "source-type": {
+                        "type": "string",
+                        "example": "NUMBER(9,2)"
+                      },
+                      "target-type": {
+                        "type": "string",
+                        "example": "FLOAT"
                       }
                     }
                   }
