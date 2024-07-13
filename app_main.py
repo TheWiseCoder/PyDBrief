@@ -272,6 +272,7 @@ def migrate_data() -> Response:
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-columns*: optional list of table columns not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
+        - *override-columns*: optional list of columns with forced migration types
 
     These are noteworthy:
         - if *migrate-metadata* is not set, the following parameters are ignored: *process-indexes*,
@@ -282,7 +283,7 @@ def migrate_data() -> Response:
         - if *migrate-lobdata* is set, it is assumed that plain data are also being,
           or have already been, migrated.
 
-    :return: JSON with the operation outcome
+    :return: the operation outcome
     """
     # initialize the errors list
     errors: list[str] = []
@@ -294,7 +295,7 @@ def migrate_data() -> Response:
     assert_migration(errors=errors,
                      scheme=scheme)
 
-    # assert the external columns parameter
+    # assert and obtain the external columns parameter
     override_columns: dict[str, Type] = assert_column_types(errors=errors,
                                                             scheme=scheme)
     reply: dict | None = None

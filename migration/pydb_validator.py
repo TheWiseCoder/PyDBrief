@@ -11,7 +11,7 @@ from migration.pydb_common import (
     MIGRATION_BATCH_SIZE, MIGRATION_CHUNK_SIZE,
     MIGRATION_MAX_PROCESSES, get_migration_params
 )
-from migration.pydb_types import name_to_class
+from migration.pydb_types import name_to_type
 
 
 def assert_rdbms_dual(errors: list[str],
@@ -77,10 +77,6 @@ def assert_migration(errors: list[str],
         # 151: "Attributes {} cannot be assigned values at the same time
         errors.append(validate_format_error(151,
                                             "'include-relations', 'exclude-relations'"))
-
-    # validate the external columns list
-    assert_column_types(errors=errors,
-                        scheme=scheme)
 
 
 def assert_migration_params(errors: list[str]) -> None:
@@ -150,10 +146,10 @@ def assert_column_types(errors: list[str],
         result: dict[str, Type] = {}
         for foreign_column in foreign_columns:
             # format of 'foreign_column' is <column_name>=<column_type>
-            column_name: str = foreign_column[:f"={foreign_column}".rindex('=')]
+            column_name: str = foreign_column[:f"={foreign_column}".rindex('=')-1]
             type_name: str = foreign_column.replace(column_name, "", 1)[1:]
-            column_type: Type = name_to_class(rdbms=rdbms,
-                                              type_name=type_name.lower())
+            column_type: Type = name_to_type(rdbms=rdbms,
+                                             type_name=type_name.lower())
             if column_name and column_type:
                 result[column_name.lower()] = column_type
             else:

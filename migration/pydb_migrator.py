@@ -7,6 +7,7 @@ from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration.pydb_common import get_connection_params, log
+from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
     disable_session_restrictions, restore_session_restrictions
 )
@@ -69,9 +70,11 @@ def migrate(errors: list[str],
             logger: Logger | None) -> dict:
 
     # set external columns to displayable list
-    override_cols: list[str] = [f"{col_name}={col_type}"
-                                for (col_name, col_type) in override_columns.items()]
-
+    override_cols: list[str] = []
+    for col_name, col_type in override_columns.items():
+        override_cols.append(col_name + "=" +
+                             type_to_name(rdbms=target_rdbms,
+                                          col_type=col_type))
     # log the start of the migration
     msg: str = (f"Migration started, "
                 f"from {source_rdbms}.{source_schema} "
@@ -134,7 +137,7 @@ def migrate(errors: list[str],
     if exclude_constraints:
         result["exclude-constraints"] = exclude_constraints
     if override_cols:
-        result["external-columns"] = override_cols
+        result["override-columns"] = override_cols
     log(logger=logger,
         level=INFO,
         msg="Started discovering the metadata")

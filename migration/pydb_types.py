@@ -1,5 +1,5 @@
 from logging import DEBUG, WARNING, Logger
-from pypomes_core import str_get_positional
+from pypomes_core import dict_get_key, str_get_positional
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -694,12 +694,23 @@ def establish_equivalences(source_rdbms: str,
     return nat_ordinal, ref_ordinal, nat_equivalences
 
 
-def name_to_class(rdbms: str,
-                  type_name: str) -> Type:
+def name_to_type(rdbms: str,
+                 type_name: str) -> Type:
     prefix: str = str_get_positional(source=rdbms,
                                      list_origin=["mysql", "oracle", "postgres", "sqlserver"],
                                      list_dest=["msql", "orcl", "pg", "sqls"])
     return COLUMN_TYPES.get(f"{prefix}_{type_name}")
+
+
+def type_to_name(rdbms: str,
+                 col_type: Type) -> str:
+    prefix: str = str_get_positional(source=rdbms,
+                                     list_origin=["mysql", "oracle", "postgres", "sqlserver"],
+                                     list_dest=["msql", "orcl", "pg", "sqls"]) + "_"
+    key: str = dict_get_key(source={key: value for (key, value)
+                                    in COLUMN_TYPES.items() if key.startswith(prefix)},
+                            value=col_type)
+    return key.replace(prefix, "")
 
 
 def is_lob(col_type: str) -> bool:
