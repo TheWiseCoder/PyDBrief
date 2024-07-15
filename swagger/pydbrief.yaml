@@ -215,12 +215,12 @@ paths:
             default: true
         - name: level
           in: query
-          description: The desired log level
+          description: The desired log level ('D'- debug, 'I'- info, 'W'- Warning, 'E'- error, 'C'- Critical)
           required: false
           schema:
             type: string
-            default: debug
-            enum: [debug, info, warning, error, critical]
+            default: D
+            enum: [D, I, W, E, C]
         - name: from-datetime
           in: query
           description: Timestamp for the start of the interval

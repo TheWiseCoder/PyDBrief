@@ -95,10 +95,10 @@ def migrate(errors: list[str],
         msg += f", include relations {','.join(include_relations)}"
     if exclude_relations:
         msg += f", exclude relations {','.join(exclude_relations)}"
-    if exclude_columns:
-        msg += f", exclude columns {','.join(exclude_columns)}"
     if exclude_constraints:
         msg += f", exclude constraints {','.join(exclude_constraints)}"
+    if exclude_columns:
+        msg += f", exclude columns {','.join(exclude_columns)}"
     if override_cols:
         msg += f", override columns {','.join(override_cols)}"
     log(logger=logger,
@@ -132,30 +132,31 @@ def migrate(errors: list[str],
         result["include-relations"] = include_relations
     if exclude_relations:
         result["exclude-relations"] = exclude_relations
-    if exclude_columns:
-        result["exclude-columns"] = exclude_columns
     if exclude_constraints:
         result["exclude-constraints"] = exclude_constraints
+    if exclude_columns:
+        result["exclude-columns"] = exclude_columns
     if override_cols:
         result["override-columns"] = override_cols
     log(logger=logger,
         level=INFO,
         msg="Started discovering the metadata")
-    migrated_tables: dict = migrate_metadata(errors=errors,
-                                             source_rdbms=source_rdbms,
-                                             target_rdbms=target_rdbms,
-                                             source_schema=source_schema,
-                                             target_schema=target_schema,
-                                             step_metadata=step_metadata,
-                                             process_indexes=process_indexes,
-                                             process_views=process_views,
-                                             relax_reflection=relax_reflection,
-                                             include_relations=include_relations,
-                                             exclude_relations=exclude_relations,
-                                             exclude_columns=exclude_columns,
-                                             exclude_constraints=exclude_constraints,
-                                             override_columns=override_columns,
-                                             logger=logger)
+    migrated_tables: dict[str, Any] = \
+        migrate_metadata(errors=errors,
+                         source_rdbms=source_rdbms,
+                         target_rdbms=target_rdbms,
+                         source_schema=source_schema,
+                         target_schema=target_schema,
+                         step_metadata=step_metadata,
+                         process_indexes=process_indexes,
+                         process_views=process_views,
+                         relax_reflection=relax_reflection,
+                         include_relations=include_relations,
+                         exclude_relations=exclude_relations,
+                         exclude_columns=exclude_columns,
+                         exclude_constraints=exclude_constraints,
+                         override_columns=override_columns,
+                         logger=logger)
     log(logger=logger,
         level=INFO,
         msg="Finished discovering the metadata")

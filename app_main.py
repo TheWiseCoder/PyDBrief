@@ -109,12 +109,12 @@ def get_log() -> Response:
     Entry pointy for obtaining the execution log of the system.
 
     These criteria are specified as imput parameters of the HTTP request, according to the pattern
-    *attach=<[t,true,f,false]>&log-path=<log-path>&level=<log-level>&
+    *attach=<[t,true,f,false]>&log-path=<log-path>&level=<N|D|I|W|E|C>&
      from-datetime=YYYYMMDDhhmmss&to-datetime=YYYYMMDDhhmmss&last-days=<n>&last-hours=<n>>*
 
     The query parameters are optional, and are used to filter the records to be returned:
         - *attach*: whether browser should display or persist file (defaults to True - persist it)
-        - *level*: <log-level>
+        - level=<N|D|I|W|E|C> (NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL - defaults to NOTSET)
         - *from-datetime*: <YYYYMMDDhhmmss>
         - *to-datetime*: <YYYYMMDDhhmmss>
         - *last-days*: <n>
