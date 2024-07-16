@@ -242,6 +242,6 @@ def migrate(errors: list[str],
 
     result["finished"] = datetime.now()
     result["migrated-tables"] = migrated_tables
-    result["total-tables"] = len(migrated_tables)
+    result["total-tables"] = len(migrated_tables or {})
 
     return result
