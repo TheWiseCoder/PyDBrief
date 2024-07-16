@@ -156,7 +156,7 @@ def migrate(errors: list[str],
                          exclude_columns=exclude_columns,
                          exclude_constraints=exclude_constraints,
                          override_columns=override_columns,
-                         logger=logger)
+                         logger=logger) or {}
     log(logger=logger,
         level=INFO,
         msg="Finished discovering the metadata")
@@ -242,6 +242,6 @@ def migrate(errors: list[str],
 
     result["finished"] = datetime.now()
     result["migrated-tables"] = migrated_tables
-    result["total-tables"] = len(migrated_tables or {})
+    result["total-tables"] = len(migrated_tables)
 
     return result
