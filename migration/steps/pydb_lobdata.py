@@ -13,7 +13,7 @@ def migrate_lobs(errors: list[str],
                  target_schema: str,
                  source_conn: Any,
                  target_conn: Any,
-                 migrated_tables: dict,
+                 migrated_tables: dict[str, Any],
                  logger: Logger | None) -> int:
 
     # initialize the return variavble
@@ -61,8 +61,8 @@ def migrate_lobs(errors: list[str],
             status: str = "full"
         table_data["lob-status"] = status
         table_data["lob-count"] = count
-        logger.debug(msg=f"Migrated LOBs from {source_rdbms}.{source_table} "
-                         f"to {target_rdbms}.{target_table}, status {status}")
+        logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
+                          f"to {target_rdbms}.{target_table}, status {status}"))
         result += count
 
     return result

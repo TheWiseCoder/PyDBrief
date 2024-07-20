@@ -8,7 +8,7 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from sqlalchemy.sql.elements import Type
-from typing import Final
+from typing import Any, Final
 
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
 os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
@@ -27,7 +27,8 @@ from pypomes_logging import (
 )  # noqa: PyPep8
 
 from migration.pydb_common import (
-    get_connection_params, set_connection_params,
+    get_s3_params, set_s3_params,
+    get_rdbms_params, set_rdbms_params,
     get_migration_params, set_migration_params
 )  # noqa: PyPep8
 from migration.pydb_migrator import migrate  # noqa: PyPep8
@@ -37,7 +38,7 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.0"
+APP_VERSION: Final[str] = "1.3.1"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -170,15 +171,63 @@ def handle_rdbms(rdbms: str = None) -> Response:
     reply: dict | None = None
     if request.method == "GET":
         # get RDBMS connection params
-        reply = get_connection_params(errors=errors,
-                                      rdbms=rdbms)
+        reply = get_rdbms_params(errors=errors,
+                                 rdbms=rdbms)
     else:
         # configure the RDBMS
-        set_connection_params(errors=errors,
-                              scheme=scheme)
+        set_rdbms_params(errors=errors,
+                         scheme=scheme)
         if not errors:
             rdbms = scheme.get("db-engine")
             reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
+
+    # build the response
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
+    # log the response
+    logging_log_info(f"Response {request.path}?{scheme}: {result}")
+
+    return result
+
+
+@app.route(rule="/s3",
+           methods=["POST"])
+@app.route(rule="/s3/<s3_engine>",
+           methods=["GET"])
+def handle_s3(s3_engine: str = None) -> Response:
+    """
+    Entry point for configuring the S3 service to use.
+
+    The parameters are as follows:
+        - *s3-engine*: the reference S3 engine (*aws*, *ecs*, or *minio*)
+        - *s3-endpoint-url*: the access URL for the service
+        - *s3-bucket-name*: the name of the default bucket
+        - *s3-access-key*: the access key for the service
+        - *s3-secret-key*: the access secret code
+        - *s3-region-name*: the name of the region where the engine is located (AWS only)
+        - *s3-secure-access*: whether or not to use Transport Security Layer (MinIO only)
+
+    :param s3_engine: the reference S3 engine (*aws*, *ecs*, or *minio*)
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve the input parameters
+    scheme: dict = http_get_parameters(request=request)
+
+    reply: dict | None = None
+    if request.method == "GET":
+        # get S3 access params
+        reply = get_s3_params(errors=errors,
+                              s3_engine=s3_engine)
+    else:
+        # configure the S3 service
+        set_s3_params(errors=errors,
+                      scheme=scheme)
+        if not errors:
+            s3_engine = scheme.get("s3-engine")
+            reply = {"status": f"S3 '{s3_engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -213,7 +262,7 @@ def handle_migration() -> Response:
     # retrieve the input parameters
     scheme: dict = http_get_parameters(request=request)
 
-    reply: dict | None = None
+    reply: dict[str, Any] | None = None
     match request.method:
         case "GET":
             # retrieve the migration parameters
@@ -226,21 +275,17 @@ def handle_migration() -> Response:
             if not errors:
                 reply = {"status": "Configuration updated"}
         case "POST":
-            # validate the source and target RDBMS engines
-            assert_rdbms_dual(errors=errors,
-                              scheme=scheme)
+            # assert whether migration is warranted
+            assert_migration(errors=errors,
+                             scheme=scheme)
             # errors ?
-            if not errors:
-                # no, assert the migration parameters
-                assert_migration_params(errors=errors)
-                # errors ?
-                if errors:
-                    # yes, report the problems
-                    reply = {"status": "Migration cannot be launched"}
-                else:
-                    # no, display the migration context
-                    reply = get_migration_context(scheme=scheme)
-                    reply.update({"status": "Migration can be launched"})
+            if errors:
+                # yes, report the problem
+                reply = {"status": "Migration cannot be launched"}
+            else:
+                # no, display the migration context
+                reply = get_migration_context(scheme=scheme)
+                reply["status"] = "Migration can be launched"
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -255,7 +300,7 @@ def handle_migration() -> Response:
            methods=["POST"])
 def migrate_data() -> Response:
     """
-    Migrate the specified schema/tables/views from the source to the target RDBMS.
+    Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
 
     These are the expected parameters:
         - *from-rdbms*: the source RDBMS for the migration
@@ -267,7 +312,7 @@ def migrate_data() -> Response:
         - *migrate-lobdata*: migrate LOBs (large binary objects)
         - *process-indexes*: whether to migrate indexes (defaults to *False*)
         - *process-views*: whether to migrate views (defaults to *False*)
-        - *relax-reflection*: whether to relax fiding referenced tables at reflection (defaults to *False*)
+        - *relax-reflection*: whether to relax finding referenced tables at reflection (defaults to *False*)
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-columns*: optional list of table columns not to migrate
@@ -275,11 +320,9 @@ def migrate_data() -> Response:
         - *override-columns*: optional list of columns with forced migration types
 
     These are noteworthy:
-        - if *migrate-metadata* is not set, the following parameters are ignored: *process-indexes*,
-          *process-views*, and *exclude-constraints*;
         - the parameters *include-relations* and *exclude-relations* are mutually exclusive;
         - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
-          or all affected tables in destination schema exist and are empty;
+          or that all targeted tables in destination schema exist and are empty;
         - if *migrate-lobdata* is set, it is assumed that plain data are also being,
           or have already been, migrated.
 
@@ -301,7 +344,7 @@ def migrate_data() -> Response:
     reply: dict | None = None
     # is migration possible ?
     if not errors:
-        # yes, establish the migration parameters
+        # yes, obtain the migration parameters
         source_rdbms: str = scheme.get("from-rdbms").lower()
         target_rdbms: str = scheme.get("to-rdbms").lower()
         source_schema: str = scheme.get("from-schema").lower()
@@ -316,6 +359,7 @@ def migrate_data() -> Response:
         exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
         exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
         exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
+
         # migrate the data
         reply = migrate(errors=errors,
                         source_rdbms=source_rdbms,
@@ -335,6 +379,7 @@ def migrate_data() -> Response:
                         override_columns=override_columns,
                         version=APP_VERSION,
                         logger=PYPOMES_LOGGER)
+
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
@@ -375,7 +420,6 @@ def handle_exception(exc: Exception) -> Response:
         result = Response(response=json_str,
                           status=500,
                           mimetype="application/json")
-
     return result
 
 

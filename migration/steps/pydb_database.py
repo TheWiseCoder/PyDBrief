@@ -1,11 +1,12 @@
 from logging import Logger, DEBUG
-from pypomes_db import db_get_param, db_execute
-from typing import Any
+from pypomes_core import validate_format_error
+from pypomes_db import db_get_param, db_get_view_ddl, db_execute
+from typing import Any, Literal
 
 from migration.pydb_common import log
 
 
-def create_schema(errors: list[str],
+def schema_create(errors: list[str],
                   schema: str,
                   rdbms: str,
                   logger: Logger) -> None:
@@ -22,7 +23,7 @@ def create_schema(errors: list[str],
                logger=logger)
 
 
-def disable_session_restrictions(errors: list[str],
+def session_disable_restrictions(errors: list[str],
                                  rdbms: str,
                                  conn: Any,
                                  logger: Logger) -> None:
@@ -48,7 +49,7 @@ def disable_session_restrictions(errors: list[str],
             "to speed-up bulk copying")
 
 
-def restore_session_restrictions(errors: list[str],
+def session_restore_restrictions(errors: list[str],
                                  rdbms: str,
                                  conn: Any,
                                  logger: Logger) -> None:
@@ -74,11 +75,11 @@ def restore_session_restrictions(errors: list[str],
             "delaying bulk copying")
 
 
-def set_nullable(errors: list[str],
-                 rdbms: str,
-                 table: str,
-                 column: str,
-                 logger: Logger) -> None:
+def column_set_nullable(errors: list[str],
+                        rdbms: str,
+                        table: str,
+                        column: str,
+                        logger: Logger) -> None:
 
     # build the statement
     alter_stmt: str | None = None
@@ -96,3 +97,35 @@ def set_nullable(errors: list[str],
                exc_stmt=alter_stmt,
                engine=rdbms,
                logger=logger)
+
+
+def view_get_ddl(errors: list[str],
+                 view_name: str,
+                 view_type: Literal["M", "P"],
+                 source_rdbms: str,
+                 source_schema: str,
+                 target_schema: str,
+                 logger: Logger) -> str:
+
+    # obtain the script used to create the view
+    result: str = db_get_view_ddl(errors=errors,
+                                  view_type=view_type,
+                                  view_name=f"{source_schema}.{view_name}",
+                                  engine=source_rdbms,
+                                  logger=logger)
+    # has the script been retrieved ?
+    if result:
+        # yes, create the view in the target schema
+        result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
+                               .replace(f'"{source_schema}".', f'"{target_schema}".')
+        if source_rdbms == "oracle":
+            # purge Oracle-specific clauses
+            result = result.replace("force editionable ", "")
+        # errors ?
+    else:
+        # no, report the problem
+        # 102: Unexpected error: {}
+        errors.append(validate_format_error(102,
+                                            ("unable to retrieve creation script "
+                                             f"for view '{source_rdbms}.{source_schema}.{view_name}'")))
+    return result

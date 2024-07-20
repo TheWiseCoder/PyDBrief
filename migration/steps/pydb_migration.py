@@ -1,28 +1,23 @@
-import sys
 from collections.abc import Iterable
 from logging import Logger, INFO, WARNING
-from pypomes_core import (
-    exc_format, str_sanitize, validate_format_error
-)
-from pypomes_db import (
-    db_get_view_script, db_execute, db_drop_table, db_drop_view
-)
+from pypomes_core import exc_format, str_sanitize, validate_format_error
+from pypomes_db import db_drop_table, db_drop_view
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index,
-    ForeignKey, Constraint, CheckConstraint, ForeignKeyConstraint, inspect
+    Constraint, CheckConstraint, ForeignKey, ForeignKeyConstraint, inspect
 )
 from sqlalchemy.sql.elements import Type
-from typing import Any, Literal
+from sys import exc_info
+from typing import Any
 
 from migration.pydb_common import log
 from migration.pydb_types import migrate_column, establish_equivalences
-from .pydb_database import create_schema
+from .pydb_database import schema_create
 
 
 def prune_metadata(source_schema: str,
                    source_metadata: MetaData,
                    process_indexes: bool,
-                   process_views: bool,
                    schema_views: list[str],
                    include_relations: list[str],
                    exclude_relations: list[str],
@@ -42,11 +37,12 @@ def prune_metadata(source_schema: str,
         table_name: str = source_table.name
 
         # verify whether relation 'source_table' complies with these conditions for migration:
-        #   - relation is not be listed in 'excluded-relations' AND
-        #   - views are being processed OR relation is not a view AND
-        #   - relation is listed in 'include-relations' OR ('include-relations' is empty AND schemas agree)
+        #   - relation is not listed in 'exclude_relations' AND
+        #   - relation is not listed in 'schema_views' AND
+        #   - relation is listed in 'include_relations' OR
+        #     - 'include_relations' is empty AND schemas agree
         if (table_name not in exclude_relations and
-            (process_views or table_name not in schema_views) and
+            table_name not in schema_views and
             (table_name in include_relations or
              (not include_relations and source_table.schema == source_schema))):
 
@@ -70,78 +66,76 @@ def prune_metadata(source_schema: str,
             else:
                 source_table.indexes.clear()
 
-            # skip views, from now on
-            if table_name not in schema_views:
-                # prune table
-                if source_table.name in prunable_tables:
-                    excluded_columns: list[Column] = []
+            # prune table
+            if source_table.name in prunable_tables:
+                excluded_columns: list[Column] = []
+                # noinspection PyProtectedMember
+                # look for columns to exclude
+                for column in source_table._columns:
+                    if f"{source_table.name}.{column.name}" in exclude_columns:
+                        excluded_columns.append(column)
+                # traverse the list of columns to exclude
+                for excluded_column in excluded_columns:
                     # noinspection PyProtectedMember
-                    # look for columns to exclude
-                    for column in source_table._columns:
-                        if f"{source_table.name}.{column.name}" in exclude_columns:
-                            excluded_columns.append(column)
-                    # traverse the list of columns to exclude
-                    for excluded_column in excluded_columns:
-                        # noinspection PyProtectedMember
-                        # remove the column from table's metadata and log the event
-                        source_table._columns.remove(excluded_column)
-                        log(logger=logger,
-                            level=INFO,
-                            msg=(f"Column '{excluded_column.name}' "
-                                 f"removed from table '{source_table.name}'"))
-
-                # mark these constraints as tainted:
-                #   - duplicate CK constraints in table
-                #   - constraints listed in 'exclude-constraints'
-                table_cks: list[str] = []
-                tainted_constraints: list[Constraint] = []
-                for constraint in source_table.constraints:
-                    if constraint.name in table_cks or \
-                       constraint.name in exclude_constraints:
-                        tainted_constraints.append(constraint)
-                    elif isinstance(constraint, CheckConstraint):
-                        table_cks.append(constraint.name)
-
-                # drop the tainted constraints
-                for tainted_constraint in tainted_constraints:
-                    source_table.constraints.remove(tainted_constraint)
-                    # FK constraints require special handling
-                    if isinstance(tainted_constraint, ForeignKeyConstraint):
-                        # directly removing a foreign key is not available in SqlAlchemy:
-                        # - after being removed from 'source_table.constraints', it reappears
-                        # - nullifying its 'constraint' attribute has the desired effect
-                        # - removing it from 'column.foreign_keys' prevents 'column'
-                        #   from being flagged later as having a 'foreign-key' feature
-                        foreign_key: ForeignKey | None = None
-                        # noinspection PyProtectedMember
-                        for column in source_table._columns:
-                            for fk in column.foreign_keys:
-                                if fk.name == tainted_constraint.name:
-                                    foreign_key = fk
-                                    break
-                            if foreign_key:
-                                foreign_key.constraint = None
-                                column.foreign_keys.remove(foreign_key)
-                                break
-
-                    # log the constraint removal
+                    # remove the column from table's metadata and log the event
+                    source_table._columns.remove(excluded_column)
                     log(logger=logger,
                         level=INFO,
-                        msg=(f"Constraint '{tainted_constraint.name}' "
+                        msg=(f"Column '{excluded_column.name}' "
                              f"removed from table '{source_table.name}'"))
+
+            # mark these constraints as tainted:
+            #   - duplicate CK constraints in table
+            #   - constraints listed in 'exclude-constraints'
+            table_cks: list[str] = []
+            tainted_constraints: list[Constraint] = []
+            for constraint in source_table.constraints:
+                if constraint.name in table_cks or \
+                   constraint.name in exclude_constraints:
+                    tainted_constraints.append(constraint)
+                elif isinstance(constraint, CheckConstraint):
+                    table_cks.append(constraint.name)
+
+            # drop the tainted constraints
+            for tainted_constraint in tainted_constraints:
+                source_table.constraints.remove(tainted_constraint)
+                # FK constraints require special handling
+                if isinstance(tainted_constraint, ForeignKeyConstraint):
+                    # directly removing a foreign key is not available in SqlAlchemy:
+                    # - after being removed from 'source_table.constraints', it reappears
+                    # - nullifying its 'constraint' attribute has the desired effect
+                    # - removing it from 'column.foreign_keys' prevents 'column'
+                    #   from being flagged later as having a 'foreign-key' feature
+                    foreign_key: ForeignKey | None = None
+                    # noinspection PyProtectedMember
+                    for column in source_table._columns:
+                        for fk in column.foreign_keys:
+                            if fk.name == tainted_constraint.name:
+                                foreign_key = fk
+                                break
+                        if foreign_key:
+                            foreign_key.constraint = None
+                            column.foreign_keys.remove(foreign_key)
+                            break
+
+                # log the constraint removal
+                log(logger=logger,
+                    level=INFO,
+                    msg=(f"Constraint '{tainted_constraint.name}' "
+                         f"removed from table '{source_table.name}'"))
         else:
-            # 'source_table' is not to migrate, remove it from metadata
+            # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
 
 
-def migrate_schema(errors: list[str],
-                   target_rdbms: str,
-                   target_schema: str,
-                   target_engine: Engine,
-                   target_tables: list[Table],
-                   plain_views: list[str],
-                   mat_views: list[str],
-                   logger: Logger) -> str:
+def setup_schema(errors: list[str],
+                 target_rdbms: str,
+                 target_schema: str,
+                 target_engine: Engine,
+                 target_tables: list[Table],
+                 target_views: list[str],
+                 mat_views: list[str],
+                 logger: Logger) -> str:
 
     # initialize the return variable
     result: str | None = None
@@ -160,25 +154,26 @@ def migrate_schema(errors: list[str],
 
     # does the target schema already exist ?
     if result:
-        # yes, drop existing tables (must be done in reverse order)
+        # yes, drop existing tables and views
+        for target_view in target_views:
+            table_name: str = f"{target_schema}.{target_view}"
+            db_drop_view(errors=errors,
+                         view_name=table_name,
+                         view_type="M" if target_view in mat_views else "P",
+                         engine=target_rdbms,
+                         logger=logger)
+
+        # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
-            full_name: str = f"{target_schema}.{target_table.name}"
-            if target_table.name in plain_views or \
-               target_table.name in mat_views:
-                db_drop_view(errors=errors,
-                             view_name=full_name,
-                             view_type="M" if target_table.name in mat_views else "P",
-                             engine=target_rdbms,
-                             logger=logger)
-            else:
-                db_drop_table(errors=errors,
-                              table_name=full_name,
-                              engine=target_rdbms,
-                              logger=logger)
+            table_name: str = f"{target_schema}.{target_table.name}"
+            db_drop_table(errors=errors,
+                          table_name=table_name,
+                          engine=target_rdbms,
+                          logger=logger)
     else:
         # no, create the target schema
         op_errors: list[str] = []
-        create_schema(errors=op_errors,
+        schema_create(errors=op_errors,
                       schema=target_schema,
                       rdbms=target_rdbms,
                       logger=logger)
@@ -195,21 +190,20 @@ def migrate_schema(errors: list[str],
                     # yes, use the actual name with its case imprint
                     result = schema_name
                     break
-
     return result
 
 
-def migrate_tables(errors: list[str],
-                   source_rdbms: str,
-                   target_rdbms: str,
-                   source_schema: str,
-                   target_schema: str,
-                   target_tables: list[Table],
-                   override_columns: dict[str, Type],
-                   logger: Logger) -> dict:
+def setup_tables(errors: list[str],
+                 source_rdbms: str,
+                 target_rdbms: str,
+                 source_schema: str,
+                 target_schema: str,
+                 target_tables: list[Table],
+                 override_columns: dict[str, Type],
+                 logger: Logger) -> dict[str, Any]:
 
     # iinitialize the return variable
-    result: dict = {}
+    result: dict[str, Any] = {}
 
     # assign the target schema to all migration candidate tables
     # (to all tables at once, before their individual transformations)
@@ -328,51 +322,7 @@ def setup_columns(errors: list[str],
                 table_column.default = None
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
-                                              exc_info=sys.exc_info()))
+                                              exc_info=exc_info()))
             # 102: Unexpected error: {}
-            errors.append(validate_format_error(102, exc_err))
-
-
-def migrate_view(errors: list[str],
-                 view_name: str,
-                 view_type: Literal["M", "P"],
-                 source_rdbms: str,
-                 source_schema: str,
-                 target_rdbms: str,
-                 target_schema: str,
-                 logger: Logger) -> None:
-
-    # initialize the local error messages list
-    op_errors: list[str] = []
-
-    # obtain the script used to create the view
-    view_script: str = db_get_view_script(errors=op_errors,
-                                          view_type=view_type,
-                                          view_name=f"{source_schema}.{view_name}",
-                                          engine=source_rdbms,
-                                          logger=logger)
-    # has the script been retrieved ?
-    if view_script:
-        # yes, create the view in the target schema
-        view_script = view_script.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                                         .replace(f'"{source_schema}".', f'"{target_schema}".')
-        if source_rdbms == "oracle":
-            # purge Oracle-specific clauses
-            view_script = view_script.replace("force editionable ", "")
-        db_execute(errors=op_errors,
-                   exc_stmt=view_script,
-                   engine=target_rdbms)
-        # errors ?
-        if op_errors:
-            # yes, insert a leading explanatory error message
-            err_msg: str = f"FAILED: '{str_sanitize(view_script)}'. REASON: {op_errors[-1]}"
-            # 101: {}
-            op_errors[-1] = validate_format_error(101, err_msg)
-    else:
-        # no, report the problem
-        # 102: Unexpected error: {}
-        op_errors.append(validate_format_error(102,
-                                               "unable to retrieve creation script "
-                                               f"for view '{source_rdbms}.{source_schema}.{view_name}'"))
-    # register local errors
-    errors.extend(op_errors)
+            errors.append(validate_format_error(102,
+                                                exc_err))

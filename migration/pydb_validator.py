@@ -1,15 +1,19 @@
 from pypomes_core import (
-    validate_bool, validate_strs, validate_format_error
+    validate_bool, validate_str,
+    validate_strs, validate_format_error
 )
 from pypomes_db import (
     db_get_engines, db_get_params, db_assert_connection
+)
+from pypomes_s3 import (
+    s3_get_params, s3_assert_access
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration.pydb_common import (
-    MIGRATION_BATCH_SIZE, MIGRATION_CHUNK_SIZE,
-    MIGRATION_MAX_PROCESSES, get_migration_params
+    MIGRATION_BATCH_SIZE,
+    MIGRATION_CHUNK_SIZE, get_migration_params
 )
 from migration.pydb_types import name_to_type
 
@@ -71,8 +75,16 @@ def assert_migration(errors: list[str],
     if target_rdbms:
         db_assert_connection(errors=errors,
                              engine=target_rdbms)
+    # validate S3
+    to_s3: str = validate_str(errors=errors,
+                              scheme=scheme,
+                              attr="lobs-to-s3",
+                              default=["aws", "ecs", "minio"])
+    if to_s3:
+        s3_assert_access(errors=errors,
+                         engine=to_s3)
 
-    # validate the include and exclude tables lists
+    # validate the include and exclude relations lists
     if scheme.get("include-relations") and scheme.get("exclude-relations"):
         # 151: "Attributes {} cannot be assigned values at the same time
         errors.append(validate_format_error(151,
@@ -95,13 +107,6 @@ def assert_migration_params(errors: list[str]) -> None:
                                             MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216],
                                             "@chunk-size"))
-    if MIGRATION_MAX_PROCESSES < 1 or \
-       MIGRATION_MAX_PROCESSES > 1000:
-        # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151,
-                                            MIGRATION_MAX_PROCESSES,
-                                            [1, 100],
-                                            "@max-processes"))
 
 
 def assert_migration_steps(errors: list[str],
@@ -123,9 +128,9 @@ def assert_migration_steps(errors: list[str],
     # validate them
     err_msg: str | None = None
     if not step_metadata and not step_lobdata and not step_plaindata:
-        err_msg = "At least one migration step must be indicated"
+        err_msg = "At least one migration step must be specified"
     elif step_metadata and step_lobdata and not step_plaindata:
-        err_msg = "Migrating the metadata and the LOBs requires migrating the plain data as well"
+        err_msg = "Migrating metadata and LOBs requires migrating plain data as well"
     if err_msg:
         # 101: {}
         errors.append(validate_format_error(101, err_msg))
@@ -160,7 +165,7 @@ def assert_column_types(errors: list[str],
     return result
 
 
-def get_migration_context(scheme: dict) -> dict:
+def get_migration_context(scheme: dict) -> dict[str, Any]:
 
     # obtain the source RDBMS parameters
     from_rdbms: str = scheme.get("from-rdbms")
@@ -175,10 +180,15 @@ def get_migration_context(scheme: dict) -> dict:
         to_params["rdbms"] = to_rdbms
 
     # build the return data
-    result: dict = {
+    result: dict[str, Any] = {
         "configuration": get_migration_params(),
         "from": from_params,
         "to": to_params
     }
+
+    # obtain the target S3 parameters
+    to_s3: str = scheme.get("lobs-to-s3")
+    if to_s3:
+        result["s3"] = s3_get_params(to_s3)
 
     return result

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.3.0
+  version: 1.3.1
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -18,6 +18,11 @@ tags:
     externalDocs:
       description: About RDBMS engines
       url: https://en.wikipedia.org/wiki/Relational_database
+  - name: S3
+    description: Domain related to the S3 engines
+    externalDocs:
+      description: About S3 engines
+      url: https://en.wikipedia.org/wiki/Amazon_S3
   - name: data migration
     description: Data migration at various levels
     externalDocs:
@@ -77,6 +82,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RdbmsError'
+  /s3:
+    post:
+      tags:
+        - S3
+      summary: Configure the S3 engine
+      description: Configure the S3 engine with the data needed for conection.
+      operationId: configure-s3-engine
+      parameters:
+        - $ref: '#/components/parameters/S3EngineParam'
+        - $ref: '#/components/parameters/S3EndpointUrlParam'
+        - $ref: '#/components/parameters/S3BucketNameParam'
+        - $ref: '#/components/parameters/S3AccessKeyParam'
+        - $ref: '#/components/parameters/S3SecretKeyParam'
+        - $ref: '#/components/parameters/S3RegionNameParam'
+        - $ref: '#/components/parameters/S3SecureAccessParam'
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/S3Updated'
+        '400':
+          description: Unable to update the S3 engine's configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/S3Error'
+  /s3/{s3-engine}:
+    get:
+      tags:
+        - S3
+      summary: Retrieve the S3 engine configuration data
+      description: Retrieve the access parameters for the given S3 engine.
+      operationId: get-s3s-configuration
+      parameters:
+        - $ref: '#/components/parameters/S3EnginePathParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EcsConfiguration'
+        '400':
+          description: No data found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/S3Error'
   /migration:configure:
     get:
       tags:
@@ -116,15 +171,6 @@ paths:
             minimum: 1024
             maximum: 16777216
             default: 1048576
-        - name: max-processes
-          in: query
-          description: The number of processes to speed-up the migration with (range is [1-20]).
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 20
-            default: 1
       responses:
         '200':
           description: Migration configured
@@ -137,7 +183,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProcessesError'
+                $ref: '#/components/schemas/BatchSizeError'
   /migration:verify:
     post:
       tags:
@@ -177,6 +223,7 @@ paths:
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
+        - $ref: '#/components/parameters/LobsToS3Param'
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
@@ -306,22 +353,25 @@ paths:
                 properties:
                   PyDBrief:
                     type: string
-                    example: 1.2.2
+                    example: 1.3.1
                   PyPomes-Core:
                     type: string
-                    example: 1.3.2
+                    example: 1.4.0
                   PyPomes-DB:
                     type: string
-                    example: 1.2.3
+                    example: 1.3.1
                   PyPomes-HTTP:
                     type: string
-                    example: 0.2.3
+                    example: 0.2.6
                   PyPomes-Logging:
                     type: string
-                    example: 0.2.0
+                    example: 0.2.'
+                  PyPomes-S3:
+                    type: string
+                    example: 0.4.5
                   PyPomes-Security:
                     type: string
-                    example: 0.1.4
+                    example: 0.2.2
 components:
   parameters:
     DbEngineParam:
@@ -381,6 +431,73 @@ components:
       required: false
       schema:
         type: string
+    S3EngineParam:
+      name: s3-engine
+      in: query
+      description: The S3 engine to configure
+      required: true
+      schema:
+        type: string
+        enum: [aws, ecs, minio]
+    S3EnginePathParam:
+      name: s3-engine
+      in: path
+      description: The S3 engine to configure
+      required: true
+      schema:
+        type: string
+        enum: [aws, ecs, minio]
+    S3EndpointUrlParam:
+      name: s3-endpoint-url
+      in: query
+      description: The URL to access the S3 services
+      required: true
+      schema:
+        type: string
+    S3BucketNameParam:
+      name: s3-bucket-name
+      in: query
+      description: The storage bucket to use
+      required: true
+      schema:
+        type: string
+    S3AccessKeyParam:
+      name: s3-access-key
+      in: query
+      description: The access key to logon to the S3 engine
+      required: true
+      schema:
+        type: string
+    S3SecretKeyParam:
+      name: s3-secret-key
+      in: query
+      description: The secret key to logon to the S3 engine
+      required: true
+      schema:
+        type: string
+    S3RegionNameParam:
+      name: s3-region-name
+      in: query
+      description: The reference region (AWS only)
+      required: false
+      schema:
+        type: string
+    S3SecureAccessParam:
+      name: s3-secure-access
+      in: query
+      description: Whether to use Transport Security Layer (MinIO only)
+      required: false
+      schema:
+        type: string
+    LobsToS3Param:
+      name: lobs-to-s3
+      in: query
+      description: The S3 service flavor to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.
+      required: false
+      schema:
+        type: string
+        enum: [aws, ecs, minio]
+        example: 
     FromRdbmsParam:
       name: from-rdbms
       in: query
@@ -424,7 +541,7 @@ components:
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
-      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' are ignored.
+      description: Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' should not be specified.
       required: true
       schema:
         type: boolean
@@ -432,7 +549,7 @@ components:
     MigratePlainParam:
       name: migrate-plaindata
       in: query
-      description: Whether plain data should be migrated. This assumes that metadata is being migrated, or all affected tables exist in destination schema and are empty.
+      description: Whether plain data should be migrated. This assumes that metadata is also being migrated, or that all affected tables exist in destination schema and are empty.
       required: true
       schema:
         type: boolean
@@ -448,7 +565,7 @@ components:
     ProcessIndexesParam:
       name: process-indexes
       in: query
-      description: Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.
+      description: Whether indexes should be considered. Defaults to false.
       required: false
       schema:
         type: boolean
@@ -456,7 +573,7 @@ components:
     ProcessViewsParam:
       name: process-views
       in: query
-      description: Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.
+      description: Whether views should be considered. Defaults to false.
       required: false
       schema:
         type: boolean
@@ -464,7 +581,7 @@ components:
     RelaxReflectionParam:
       name: relax-reflection
       in: query
-      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a referenced table not found error in the subsequent schema migration phase, but additional useful information is likely to be provided.
+      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.
       required: false
       schema:
         type: boolean
@@ -472,7 +589,7 @@ components:
     IncludeRelationsParam:
       name: include-relations
       in: query
-      description: Relations (tables, views, and indexes) to migrate (mutually exclusive with 'exclude-relations'). Ignored for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
+      description: Relations (tables, views, and indexes) to migrate. Mutually exclusive with 'exclude-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
       required: false
       explode: false
       schema:
@@ -482,7 +599,7 @@ components:
     ExcludeRelationsParam:
       name: exclude-relations
       in: query
-      description: Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations'). Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
+      description: Relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.
       required: false
       explode: false
       schema:
@@ -502,7 +619,7 @@ components:
     ExcludeConstraintsParam:
       name: exclude-constraints
       in: query
-      description: Constraints not to migrate. Ignored if metadata is not being migrated.
+      description: Constraints not to migrate.
       required: false
       explode: false
       schema:
@@ -521,6 +638,27 @@ components:
           type: string
           example: my_table.my_column=integer
   schemas:
+    EcsConfiguration:
+      type: object
+      properties:
+        engine:
+          type: string
+          example: ecs
+        endpoint-url:
+          type: string
+          example: https:/ecs_installation.com/access
+        bucket-name:
+          type: string
+          example: my-bucket
+        temp-folder:
+          type: string
+          example: /usr/tmp
+        access-key: 
+          type: string
+          example: ADFSGTR7765YHTRTD76Y
+        secret-key: 
+          type: string
+          example: fdsfsad37RE6ujIIOUPdfgtsD35U4ebtD21msgsb
     MigrationConfiguration:
       type: object
       properties:
@@ -530,12 +668,6 @@ components:
         chunk-size:
           type: integer
           example: 1024000
-        max-processes:
-          type: integer
-          example: 10
-#        temp-folder:
-#          type: string
-#          exampl: C:\temp
     OracleConfiguration:
       type: object
       properties:
@@ -593,6 +725,12 @@ components:
         status:
           type: string
           example: Rdbms 'oracle' configuration updated
+    S3Updated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: S3 'ecs' configuration updated
     VerificationSuccess:
       type: object
       properties:
@@ -735,6 +873,20 @@ components:
         version:
           type: string
           example: 1.3.0
+    BatchSizeError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              attribute:
+                type: string
+                example: batch-size
+              description:
+                type: string
+                example: Invalid value '50'
     SchemaError:
       type: object
       properties:
@@ -776,8 +928,8 @@ components:
                 example: db-name
               description:
                 type: string
-                example: Invalid value 'my-database'
-    ProcessesError:
+                example: Invalid value 'my-database''
+    S3Error:
       type: object
       properties:
         errors:
@@ -787,7 +939,7 @@ components:
             properties:
               attribute:
                 type: string
-                example: max-processes
+                example: s3-engine
               description:
                 type: string
-                example: Invalid value '0'
+                example: Invalid value 'my-engine'

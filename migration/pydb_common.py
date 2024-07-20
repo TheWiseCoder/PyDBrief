@@ -1,22 +1,22 @@
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, validate_int, validate_format_error, validate_str
+    validate_bool, validate_int,
+    validate_format_error, validate_str
 )
 from pypomes_db import db_get_params, db_setup
+from pypomes_s3 import s3_get_params, s3_setup
 from typing import Any
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
-MIGRATION_MAX_PROCESSES: int = 1
 
 
 def get_migration_params() -> dict[str, Any]:
 
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
-        "chunk-size": MIGRATION_CHUNK_SIZE,
-        "max-processes": MIGRATION_MAX_PROCESSES
+        "chunk-size": MIGRATION_CHUNK_SIZE
     }
 
 
@@ -52,23 +52,9 @@ def set_migration_params(errors: list[str],
         global MIGRATION_CHUNK_SIZE
         MIGRATION_CHUNK_SIZE = chunk_size
 
-    # validate the optional 'processes' parameter
-    processes: int = validate_int(errors=errors,
-                                  scheme=scheme,
-                                  attr="max-processes",
-                                  min_val=1,
-                                  max_val=20,
-                                  default=False,
-                                  logger=logger)
-    # was it obtained ?
-    if processes:
-        # yes, set the corresponding global parameter
-        global MIGRATION_MAX_PROCESSES
-        MIGRATION_MAX_PROCESSES = processes
 
-
-def get_connection_params(errors: list[str],
-                          rdbms: str) -> dict[str, Any]:
+def get_rdbms_params(errors: list[str],
+                     rdbms: str) -> dict[str, Any]:
 
     result: dict[str, Any] = db_get_params(engine=rdbms)
     if isinstance(result, dict):
@@ -81,12 +67,13 @@ def get_connection_params(errors: list[str],
     return result
 
 
-def set_connection_params(errors: list[str],
-                          scheme: dict[str, Any]) -> None:
+def set_rdbms_params(errors: list[str],
+                     scheme: dict[str, Any]) -> None:
 
     db_engine: str = validate_str(errors=errors,
                                   scheme=scheme,
                                   attr="db-engine",
+                                  default=["mysql", "oracle", "postgres", "sqlserver"],
                                   required=True)
     db_name: str = validate_str(errors=errors,
                                 scheme=scheme,
@@ -125,29 +112,64 @@ def set_connection_params(errors: list[str],
                                    db_client=db_client,
                                    db_driver=db_driver):
         # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
-        errors.append(validate_format_error(120))
+        errors.append(validate_format_error(145))
 
 
-def db_build_query_msg(query_stmt: str,
-                       bind_vals: tuple) -> str:
-    """
-    Format and return the message indicative of an empty search.
+def get_s3_params(errors: list[str],
+                  s3_engine: str) -> dict[str, Any]:
 
-    :param query_stmt: the query command
-    :param bind_vals: values associated with the query command
-    :return: message indicative of empty search
-    """
-    result: str = str_sanitize(query_stmt)
-
-    if bind_vals:
-        for val in bind_vals:
-            if isinstance(val, str):
-                sval: str = f"'{val}'"
-            else:
-                sval: str = str(val)
-            result = result.replace("?", sval, 1)
+    result: dict[str, Any] = s3_get_params(engine=s3_engine)
+    if isinstance(result, dict):
+        result["s3-engine"] = s3_engine
+    else:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142, s3_engine,
+                                            "unknown or unconfigured S3 engine", "@s3-engine"))
 
     return result
+
+
+def set_s3_params(errors: list[str],
+                  scheme: dict[str, Any]) -> None:
+
+    engine: str = validate_str(errors=errors,
+                               scheme=scheme,
+                               attr="s3-engine",
+                               default=["aws", "ecs", "minio"],
+                               required=True)
+    endpoint_url: str = validate_str(errors=errors,
+                                     scheme=scheme,
+                                     attr="s3-endpoint-url",
+                                     required=True)
+    bucket_name: str = validate_str(errors=errors,
+                                    scheme=scheme,
+                                    attr="s3-bucket-name",
+                                    required=True)
+    access_key: str = validate_str(errors=errors,
+                                   scheme=scheme,
+                                   attr="s3-access-key",
+                                   required=True)
+    secret_key: str = validate_str(errors=errors,
+                                   scheme=scheme,
+                                   attr="s3-secret-key",
+                                   required=True)
+    region_name: str = validate_str(errors=errors,
+                                    scheme=scheme,
+                                    attr="s3-region-name")
+    secure_access: bool = validate_bool(errors=errors,
+                                        scheme=scheme,
+                                        attr="s3-secure-access")
+    # noinspection PyTypeChecker
+    if not errors and not s3_setup(engine=engine,
+                                   endpoint_url=endpoint_url,
+                                   bucket_name=bucket_name,
+                                   access_key=access_key,
+                                   secret_key=secret_key,
+                                   temp_folder="/",
+                                   region_name=region_name,
+                                   secure_access=secure_access):
+        # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
+        errors.append(validate_format_error(145))
 
 
 def log(logger: Logger,
@@ -166,28 +188,3 @@ def log(logger: Logger,
                 logger.error(msg)
             case 50:    # CRITICAL
                 logger.critical(msg)
-
-
-def db_log(errors: list[str],
-           err_msg: str,
-           logger: Logger,
-           query_stmt: str,
-           bind_vals: tuple = None) -> None:
-    """
-    Log *err_msg* and add it to *errors*, or else log the executed query, whichever is applicable.
-
-    :param errors: incidental errors
-    :param err_msg: the error message
-    :param logger: the logger object
-    :param query_stmt: the query statement
-    :param bind_vals: optional bind values for the query statement
-    """
-    if err_msg:
-        if logger:
-            logger.error(err_msg)
-        if isinstance(errors, list):
-            errors.append(err_msg)
-    elif logger:
-        debug_msg: str = db_build_query_msg(query_stmt=query_stmt,
-                                            bind_vals=bind_vals)
-        logger.debug(msg=debug_msg)

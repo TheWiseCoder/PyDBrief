@@ -6,10 +6,10 @@ from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration.pydb_common import get_connection_params, log
+from migration.pydb_common import get_rdbms_params, log
 from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
-    disable_session_restrictions, restore_session_restrictions
+    session_disable_restrictions, session_restore_restrictions
 )
 from migration.steps.pydb_lobdata import migrate_lobs
 from migration.steps.pydb_metadata import migrate_metadata
@@ -21,16 +21,24 @@ warnings.filterwarnings("error")
 
 # structure of the migration data returned:
 # {
-#   "started": <yyyy-mm-dd>,
-#   "finished": <yyyy-mm-dd>,
+#   "started": <yyyy-mm-ddThh:mm:ss>,
+#   "finished": <yyyy-mm-ddThh:mm:ss>,
 #   "version": <i.j.k>,
 #   "source": {
 #     "rdbms": <rdbms>,
-#     "schema": <schema>
+#     "schema": <schema>,
+#     "name": <db-name>,
+#     "host": <db-host>,
+#     "port": nnnn,
+#     "user": "db-user"
 #   },
 #   "target": {
 #     "rdbms": <rdbms>,
-#     "schema": <schema>
+#     "schema": <schema>,
+#     "name": <db-name>,
+#     "host": <db-host>,
+#     "port": nnnn,
+#     "user": "db-user"
 #   },
 #   "steps": [
 #     "migrate-metadata",
@@ -38,16 +46,17 @@ warnings.filterwarnings("error")
 #     "migrate-lobdata"
 #   ],
 #   "process-indexes": true,
-#   "include-tables": <list[str]>,
-#   "exclude-tables": <list[str]>,
-#   "include-views": <list[str]>,
-#   "exclude-columns": <list[str]>,
+#   "process-views": <bool>,
+#   "include-relations": <list[str]>,
+#   "exclude-relations": <list[str]>,
 #   "exclude-constraints": <list[str]>,
-#   "external-columns": {
-#     "<schema>.<table>.<column>": "<type>"
-#   }
+#   "exclude-columns": <list[str]>,
+#   "override-columns": [
+#     "<schema>.<table>.<column>=<type>"
+#   ],
 #   "total-plains": nnn,
 #   "total-lobs": nnn,
+#   "total-tables": nnn,
 #   "migrated-tables": <migrated-tables-structure>
 # }
 def migrate(errors: list[str],
@@ -106,12 +115,12 @@ def migrate(errors: list[str],
         msg=msg)
 
     # errors while obtaining connection parameters will be listed on output, only
-    from_rdbms: dict[str, Any] = get_connection_params(errors=errors,
-                                                       rdbms=source_rdbms)
+    from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                  rdbms=source_rdbms)
     from_rdbms["schema"] = source_schema
     from_rdbms.pop("pwd")
-    to_rdbms: dict[str, Any] = get_connection_params(errors=errors,
-                                                     rdbms=target_rdbms)
+    to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                rdbms=target_rdbms)
     to_rdbms["schema"] = target_schema
     to_rdbms.pop("pwd")
     started: datetime = datetime.now()
@@ -180,7 +189,7 @@ def migrate(errors: list[str],
 
         if source_conn and target_conn:
             # disable target RDBMS restrictions to speed-up bulk copying
-            disable_session_restrictions(errors=op_errors,
+            session_disable_restrictions(errors=op_errors,
                                          rdbms=target_rdbms,
                                          conn=target_conn,
                                          logger=logger)
@@ -227,7 +236,7 @@ def migrate(errors: list[str],
 
                 # restore target RDBMS restrictions delaying bulk copying
                 op_errors = []
-                restore_session_restrictions(errors=op_errors,
+                session_restore_restrictions(errors=op_errors,
                                              rdbms=target_rdbms,
                                              conn=target_conn,
                                              logger=logger)
