@@ -6,7 +6,7 @@ from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration.pydb_common import get_rdbms_params, log
+from migration.pydb_common import get_rdbms_params, get_s3_params, log
 from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
@@ -64,6 +64,7 @@ def migrate(errors: list[str],
             target_rdbms: str,
             source_schema: str,
             target_schema: str,
+            target_s3: str,
             step_metadata: bool,
             step_plaindata: bool,
             step_lobdata: bool,
@@ -129,10 +130,15 @@ def migrate(errors: list[str],
     result: dict = {
         "started": started.strftime(format=DATETIME_FORMAT_INV),
         "steps": steps[2:],
-        "source": from_rdbms,
-        "target": to_rdbms,
+        "source-rdbms": from_rdbms,
+        "target-rdbms": to_rdbms,
         "version": version
     }
+    if target_s3:
+        to_s3: dict[str, Any] = get_s3_params(errors=errors,
+                                              s3_engine=target_s3)
+        to_s3.pop("secret-key")
+        result["target-s3"] = to_s3
     if process_indexes:
         result["process-indexes"] = process_views
     if process_views:
@@ -156,6 +162,7 @@ def migrate(errors: list[str],
                          target_rdbms=target_rdbms,
                          source_schema=source_schema,
                          target_schema=target_schema,
+                         target_s3=target_s3,
                          step_metadata=step_metadata,
                          process_indexes=process_indexes,
                          process_views=process_views,
@@ -225,6 +232,7 @@ def migrate(errors: list[str],
                                              target_rdbms=target_rdbms,
                                              source_schema=source_schema,
                                              target_schema=target_schema,
+                                             target_s3=target_s3,
                                              source_conn=source_conn,
                                              target_conn=target_conn,
                                              migrated_tables=migrated_tables,

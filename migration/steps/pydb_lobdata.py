@@ -4,6 +4,7 @@ from typing import Any
 
 from migration.pydb_types import is_lob
 from migration.pydb_common import MIGRATION_CHUNK_SIZE
+from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
 def migrate_lobs(errors: list[str],
@@ -11,6 +12,7 @@ def migrate_lobs(errors: list[str],
                  target_rdbms: str,
                  source_schema: str,
                  target_schema: str,
+                 target_s3: str,
                  source_conn: Any,
                  target_conn: Any,
                  migrated_tables: dict[str, Any],
@@ -42,18 +44,29 @@ def migrate_lobs(errors: list[str],
         if table_pks:
             # process the existing LOB columns
             for table_lob in table_lobs:
-                count += db_migrate_lobs(errors=op_errors,
-                                         source_engine=source_rdbms,
-                                         source_table=source_table,
-                                         source_lob_column=table_lob,
-                                         source_pk_columns=table_pks,
-                                         target_engine=target_rdbms,
-                                         target_table=target_table,
-                                         source_conn=source_conn,
-                                         target_conn=target_conn,
-                                         chunk_size=MIGRATION_CHUNK_SIZE,
-                                         logger=logger) or 0
-
+                if target_s3:
+                    count += s3_migrate_lobs(errors=errors,
+                                             target_s3=target_s3,
+                                             target_schema=target_schema,
+                                             source_rdbms=source_rdbms,
+                                             source_schema=source_schema,
+                                             source_table=source_table,
+                                             table_lob=table_lob,
+                                             table_pks=table_pks,
+                                             source_conn=source_conn,
+                                             logger=logger) or 0
+                else:
+                    count += db_migrate_lobs(errors=op_errors,
+                                             source_engine=source_rdbms,
+                                             source_table=source_table,
+                                             source_lob_column=table_lob,
+                                             source_pk_columns=table_pks,
+                                             target_engine=target_rdbms,
+                                             target_table=target_table,
+                                             source_conn=source_conn,
+                                             target_conn=target_conn,
+                                             chunk_size=MIGRATION_CHUNK_SIZE,
+                                             logger=logger) or 0
         if op_errors:
             errors.extend(op_errors)
             status: str = "partial" if count else "none"

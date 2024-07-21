@@ -44,6 +44,7 @@ def migrate_metadata(errors: list[str],
                      target_rdbms: str,
                      source_schema: str,
                      target_schema: str,
+                     target_s3: str,
                      step_metadata: bool,
                      process_indexes: bool,
                      process_views: bool,
@@ -189,6 +190,7 @@ def migrate_metadata(errors: list[str],
                                               target_rdbms=target_rdbms,
                                               source_schema=from_schema,
                                               target_schema=to_schema,
+                                              target_s3=target_s3,
                                               target_tables=target_tables,
                                               override_columns=override_columns,
                                               logger=logger)
@@ -201,19 +203,20 @@ def migrate_metadata(errors: list[str],
                                     source_metadata.create_all(bind=target_engine,
                                                                tables=[target_table],
                                                                checkfirst=False)
-                                    # make sure LOB columns are nullable
-                                    # (SQLAlchemy fails at that, in certain sitations)
-                                    columns_props: dict = result.get(target_table.name).get("columns")
-                                    for name, props in columns_props.items():
-                                        if is_lob(col_type=props.get("source-type")) and \
-                                           "nullable" not in props.get("features", []):
-                                            props["features"] = props.get("features", [])
-                                            props["features"].append("nullable")
-                                            column_set_nullable(errors=errors,
-                                                                rdbms=target_rdbms,
-                                                                table=f"{target_schema}.{target_table.name}",
-                                                                column=name,
-                                                                logger=logger)
+                                    if not target_s3:
+                                        # make sure LOB columns are nullable
+                                        # (SQLAlchemy fails at that, in certain sitations)
+                                        columns_props: dict = result.get(target_table.name).get("columns")
+                                        for name, props in columns_props.items():
+                                            if is_lob(col_type=props.get("source-type")) and \
+                                               "nullable" not in props.get("features", []):
+                                                props["features"] = props.get("features", [])
+                                                props["features"].append("nullable")
+                                                column_set_nullable(errors=errors,
+                                                                    rdbms=target_rdbms,
+                                                                    table=f"{target_schema}.{target_table.name}",
+                                                                    column=name,
+                                                                    logger=logger)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err = str_sanitize(exc_format(exc=e,

@@ -125,31 +125,31 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EcsConfiguration'
+                $ref: '#/components/schemas/S3Configuration'
         '400':
           description: No data found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/S3Error'
-  /migration:configure:
+  /migration:metrics:
     get:
       tags:
         - data migration
-      summary: Retrieve the configuration for data migration
+      summary: Retrieve the metrics for data migration
       description: Retrieve the RDBMS-independent parameters driving the data migration.
-      operationId: get-migration-configuration
+      operationId: get-migration-metrics
       responses:
         '200':
           description: Successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MigrationConfiguration'
+                $ref: '#/components/schemas/MigrationMetrics'
     patch:
       tags:
         - data migration
-      summary: Configure the migration process
+      summary: Configure the metrics for data migration
       description: Set up the RDBMS-independent parameters driving the migration process.
       operationId: configure-migration
       parameters:
@@ -173,13 +173,13 @@ paths:
             default: 1048576
       responses:
         '200':
-          description: Migration configured
+          description: Metrics configured
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConfigurationUpdated'
         '400':
-          description: Unable to configure the migration process
+          description: Unable to configure the migration metrics
           content:
             application/json:
               schema:
@@ -194,6 +194,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/FromRdbmsParam'
         - $ref: '#/components/parameters/ToRdbmsParam'
+        - $ref: '#/components/parameters/ToS3Param'
       responses:
         '200':
           description: Migration can be launched
@@ -220,10 +221,10 @@ paths:
         - $ref: '#/components/parameters/FromSchemaParam'
         - $ref: '#/components/parameters/ToRdbmsParam'
         - $ref: '#/components/parameters/ToSchemaParam'
+        - $ref: '#/components/parameters/ToS3Param'
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
-        - $ref: '#/components/parameters/LobsToS3Param'
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
@@ -489,10 +490,10 @@ components:
       required: false
       schema:
         type: string
-    LobsToS3Param:
-      name: lobs-to-s3
+    ToS3Param:
+      name: to-s3
       in: query
-      description: The S3 service flavor to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.
+      description: The S3 service o migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.
       required: false
       schema:
         type: string
@@ -638,28 +639,7 @@ components:
           type: string
           example: my_table.my_column=integer
   schemas:
-    EcsConfiguration:
-      type: object
-      properties:
-        engine:
-          type: string
-          example: ecs
-        endpoint-url:
-          type: string
-          example: https:/ecs_installation.com/access
-        bucket-name:
-          type: string
-          example: my-bucket
-        temp-folder:
-          type: string
-          example: /usr/tmp
-        access-key: 
-          type: string
-          example: ADFSGTR7765YHTRTD76Y
-        secret-key: 
-          type: string
-          example: fdsfsad37RE6ujIIOUPdfgtsD35U4ebtD21msgsb
-    MigrationConfiguration:
+    MigrationMetrics:
       type: object
       properties:
         batch-size:
@@ -713,6 +693,30 @@ components:
         port:
           type: integer
           example: 5432
+    S3Configuration:
+      type: object
+      properties:
+        engine:
+          type: string
+          example: minio
+        endpoint-url:
+          type: string
+          example: https:/ecs_installation.com/access
+        bucket-name:
+          type: string
+          example: my-bucket
+        temp-folder:
+          type: string
+          example: /usr/tmp
+        access-key: 
+          type: string
+          example: ADFSGTR7765YHTRTD76Y
+        secret-key: 
+          type: string
+          example: fdsfsad37RE6ujIIOUPdfgtsD35U4ebtD21msgsb
+        secure-access:
+          type: boolean
+          example: true
     ConfigurationUpdated:
       type: object
       properties:
@@ -737,12 +741,14 @@ components:
         status:
           type: string
           example: Migration can be launched
-        configuration:
-          $ref: '#/components/schemas/MigrationConfiguration'
-        from:
+        metrics:
+          $ref: '#/components/schemas/MigrationMetrics'
+        from-rdbms:
           $ref: '#/components/schemas/OracleConfiguration'
-        to:
+        to-rdbms:
           $ref: '#/components/schemas/PostgresConfiguration'
+        to-s3:
+          $ref: '#/components/schemas/S3Configuration'
     VerificationFailure:
       type: object
       properties:
@@ -773,51 +779,12 @@ components:
           example:
             - migrate-metadata
             - migrate-plaindata
-        source:
-          type: object
-          properties:
-            rdbms:
-              type: string
-              example: oracle
-            client:
-              type: string
-              example: /usr/lib/instantclient
-            name:
-              type: string
-              example: XE
-            host:
-              type: string
-              example: localhost
-            port:
-              type: integer
-              example: 1521
-            schema:
-              type: string
-              example: ora-schema
-            user:
-              type: string
-              example: system
-        target:
-          type: object
-          properties:
-            rdbms:
-              type: string
-              example: postgres
-            name:
-              type: string
-              example: postgres
-            host:
-              type: string
-              example: localhost
-            port:
-              type: integer
-              example: 5432
-            schema:
-              type: string
-              example: pg-schema
-            user:
-              type: string
-              example: postgres
+        source-rdbms:
+          $ref: '#/components/schemas/OracleConfiguration'
+        target-rdbms:
+          $ref: '#/components/schemas/PostgresConfiguration'
+        target-s3:
+          $ref: '#/components/schemas/S3Configuration'
         migrated-tables:
           type: object
           properties:

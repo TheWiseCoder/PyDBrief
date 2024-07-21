@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.3.0"
+    "version": "1.3.1"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -25,6 +25,14 @@
       "externalDocs": {
         "description": "About RDBMS engines",
         "url": "https://en.wikipedia.org/wiki/Relational_database"
+      }
+    },
+    {
+      "name": "S3",
+      "description": "Domain related to the S3 engines",
+      "externalDocs": {
+        "description": "About S3 engines",
+        "url": "https://en.wikipedia.org/wiki/Amazon_S3"
       }
     },
     {
@@ -136,21 +144,113 @@
         }
       }
     },
-    "/migration:configure": {
+    "/s3": {
+      "post": {
+        "tags": [
+          "S3"
+        ],
+        "summary": "Configure the S3 engine",
+        "description": "Configure the S3 engine with the data needed for conection.",
+        "operationId": "configure-s3-engine",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/S3EngineParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3EndpointUrlParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3BucketNameParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3AccessKeyParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3SecretKeyParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3RegionNameParam"
+          },
+          {
+            "$ref": "#/components/parameters/S3SecureAccessParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configuration updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Updated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to update the S3 engine's configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/s3/{s3-engine}": {
       "get": {
         "tags": [
-          "data migration"
+          "S3"
         ],
-        "summary": "Retrieve the configuration for data migration",
-        "description": "Retrieve the RDBMS-independent parameters driving the data migration.",
-        "operationId": "get-migration-configuration",
+        "summary": "Retrieve the S3 engine configuration data",
+        "description": "Retrieve the access parameters for the given S3 engine.",
+        "operationId": "get-s3s-configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/S3EnginePathParam"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful operation",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MigrationConfiguration"
+                  "$ref": "#/components/schemas/S3Configuration"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No data found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/migration:metrics": {
+      "get": {
+        "tags": [
+          "data migration"
+        ],
+        "summary": "Retrieve the metrics for data migration",
+        "description": "Retrieve the RDBMS-independent parameters driving the data migration.",
+        "operationId": "get-migration-metrics",
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrationMetrics"
                 }
               }
             }
@@ -161,7 +261,7 @@
         "tags": [
           "data migration"
         ],
-        "summary": "Configure the migration process",
+        "summary": "Configure the metrics for data migration",
         "description": "Set up the RDBMS-independent parameters driving the migration process.",
         "operationId": "configure-migration",
         "parameters": [
@@ -188,23 +288,11 @@
               "maximum": 16777216,
               "default": 1048576
             }
-          },
-          {
-            "name": "max-processes",
-            "in": "query",
-            "description": "The number of processes to speed-up the migration with (range is [1-20]).",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 20,
-              "default": 1
-            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Migration configured",
+            "description": "Metrics configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -214,11 +302,11 @@
             }
           },
           "400": {
-            "description": "Unable to configure the migration process",
+            "description": "Unable to configure the migration metrics",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProcessesError"
+                  "$ref": "#/components/schemas/BatchSizeError"
                 }
               }
             }
@@ -240,6 +328,9 @@
           },
           {
             "$ref": "#/components/parameters/ToRdbmsParam"
+          },
+          {
+            "$ref": "#/components/parameters/ToS3Param"
           }
         ],
         "responses": {
@@ -286,6 +377,9 @@
           },
           {
             "$ref": "#/components/parameters/ToSchemaParam"
+          },
+          {
+            "$ref": "#/components/parameters/ToS3Param"
           },
           {
             "$ref": "#/components/parameters/MigrateMetadataParam"
@@ -367,17 +461,17 @@
           {
             "name": "level",
             "in": "query",
-            "description": "The desired log level",
+            "description": "The desired log level ('D'- debug, 'I'- info, 'W'- Warning, 'E'- error, 'C'- Critical)",
             "required": false,
             "schema": {
               "type": "string",
-              "default": "debug",
+              "default": "D",
               "enum": [
-                "debug",
-                "info",
-                "warning",
-                "error",
-                "critical"
+                "D",
+                "I",
+                "W",
+                "E",
+                "C"
               ]
             }
           },
@@ -506,27 +600,31 @@
                   "properties": {
                     "PyDBrief": {
                       "type": "string",
-                      "example": "1.2.2"
+                      "example": "1.3.1"
                     },
                     "PyPomes-Core": {
                       "type": "string",
-                      "example": "1.3.2"
+                      "example": "1.4.0"
                     },
                     "PyPomes-DB": {
                       "type": "string",
-                      "example": "1.2.3"
+                      "example": "1.3.1"
                     },
                     "PyPomes-HTTP": {
                       "type": "string",
-                      "example": "0.2.3"
+                      "example": "0.2.6"
                     },
                     "PyPomes-Logging": {
                       "type": "string",
-                      "example": "0.2.0"
+                      "example": "0.2.'"
+                    },
+                    "PyPomes-S3": {
+                      "type": "string",
+                      "example": "0.4.5"
                     },
                     "PyPomes-Security": {
                       "type": "string",
-                      "example": "0.1.4"
+                      "example": "0.2.2"
                     }
                   }
                 }
@@ -617,6 +715,103 @@
           "type": "string"
         }
       },
+      "S3EngineParam": {
+        "name": "s3-engine",
+        "in": "query",
+        "description": "The S3 engine to configure",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "aws",
+            "ecs",
+            "minio"
+          ]
+        }
+      },
+      "S3EnginePathParam": {
+        "name": "s3-engine",
+        "in": "path",
+        "description": "The S3 engine to configure",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "aws",
+            "ecs",
+            "minio"
+          ]
+        }
+      },
+      "S3EndpointUrlParam": {
+        "name": "s3-endpoint-url",
+        "in": "query",
+        "description": "The URL to access the S3 services",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "S3BucketNameParam": {
+        "name": "s3-bucket-name",
+        "in": "query",
+        "description": "The storage bucket to use",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "S3AccessKeyParam": {
+        "name": "s3-access-key",
+        "in": "query",
+        "description": "The access key to logon to the S3 engine",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "S3SecretKeyParam": {
+        "name": "s3-secret-key",
+        "in": "query",
+        "description": "The secret key to logon to the S3 engine",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "S3RegionNameParam": {
+        "name": "s3-region-name",
+        "in": "query",
+        "description": "The reference region (AWS only)",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "S3SecureAccessParam": {
+        "name": "s3-secure-access",
+        "in": "query",
+        "description": "Whether to use Transport Security Layer (MinIO only)",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ToS3Param": {
+        "name": "to-s3",
+        "in": "query",
+        "description": "The S3 service o migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "aws",
+            "ecs",
+            "minio"
+          ],
+          "example": null
+        }
+      },
       "FromRdbmsParam": {
         "name": "from-rdbms",
         "in": "query",
@@ -685,7 +880,7 @@
       "MigrateMetadataParam": {
         "name": "migrate-metadata",
         "in": "query",
-        "description": "Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' are ignored.",
+        "description": "Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' should not be specified.",
         "required": true,
         "schema": {
           "type": "boolean",
@@ -695,7 +890,7 @@
       "MigratePlainParam": {
         "name": "migrate-plaindata",
         "in": "query",
-        "description": "Whether plain data should be migrated. This assumes that metadata is being migrated, or all affected tables exist in destination schema and are empty.",
+        "description": "Whether plain data should be migrated. This assumes that metadata is also being migrated, or that all affected tables exist in destination schema and are empty.",
         "required": true,
         "schema": {
           "type": "boolean",
@@ -715,7 +910,7 @@
       "ProcessIndexesParam": {
         "name": "process-indexes",
         "in": "query",
-        "description": "Whether indexes should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "description": "Whether indexes should be considered. Defaults to false.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -725,7 +920,7 @@
       "ProcessViewsParam": {
         "name": "process-views",
         "in": "query",
-        "description": "Whether views should be migrated. Defaults to false. Ignored if metadata is not being migrated.",
+        "description": "Whether views should be considered. Defaults to false.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -735,7 +930,7 @@
       "RelaxReflectionParam": {
         "name": "relax-reflection",
         "in": "query",
-        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a referenced table not found error in the subsequent schema migration phase, but additional useful information is likely to be provided.",
+        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -745,7 +940,7 @@
       "IncludeRelationsParam": {
         "name": "include-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) to migrate (mutually exclusive with 'exclude-relations'). Ignored for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
+        "description": "Relations (tables, views, and indexes) to migrate. Mutually exclusive with 'exclude-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
         "required": false,
         "explode": false,
         "schema": {
@@ -758,7 +953,7 @@
       "ExcludeRelationsParam": {
         "name": "exclude-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) not to migrate (mutually exclusive with 'include-relations'). Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
+        "description": "Relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
         "required": false,
         "explode": false,
         "schema": {
@@ -784,7 +979,7 @@
       "ExcludeConstraintsParam": {
         "name": "exclude-constraints",
         "in": "query",
-        "description": "Constraints not to migrate. Ignored if metadata is not being migrated.",
+        "description": "Constraints not to migrate.",
         "required": false,
         "explode": false,
         "schema": {
@@ -810,7 +1005,7 @@
       }
     },
     "schemas": {
-      "MigrationConfiguration": {
+      "MigrationMetrics": {
         "type": "object",
         "properties": {
           "batch-size": {
@@ -820,10 +1015,6 @@
           "chunk-size": {
             "type": "integer",
             "example": 1024000
-          },
-          "max-processes": {
-            "type": "integer",
-            "example": 10
           }
         }
       },
@@ -889,6 +1080,39 @@
           }
         }
       },
+      "S3Configuration": {
+        "type": "object",
+        "properties": {
+          "engine": {
+            "type": "string",
+            "example": "minio"
+          },
+          "endpoint-url": {
+            "type": "string",
+            "example": "https:/ecs_installation.com/access"
+          },
+          "bucket-name": {
+            "type": "string",
+            "example": "my-bucket"
+          },
+          "temp-folder": {
+            "type": "string",
+            "example": "/usr/tmp"
+          },
+          "access-key": {
+            "type": "string",
+            "example": "ADFSGTR7765YHTRTD76Y"
+          },
+          "secret-key": {
+            "type": "string",
+            "example": "fdsfsad37RE6ujIIOUPdfgtsD35U4ebtD21msgsb"
+          },
+          "secure-access": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
       "ConfigurationUpdated": {
         "type": "object",
         "properties": {
@@ -907,6 +1131,15 @@
           }
         }
       },
+      "S3Updated": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "S3 'ecs' configuration updated"
+          }
+        }
+      },
       "VerificationSuccess": {
         "type": "object",
         "properties": {
@@ -914,14 +1147,17 @@
             "type": "string",
             "example": "Migration can be launched"
           },
-          "configuration": {
-            "$ref": "#/components/schemas/MigrationConfiguration"
+          "metrics": {
+            "$ref": "#/components/schemas/MigrationMetrics"
           },
-          "from": {
+          "from-rdbms": {
             "$ref": "#/components/schemas/OracleConfiguration"
           },
-          "to": {
+          "to-rdbms": {
             "$ref": "#/components/schemas/PostgresConfiguration"
+          },
+          "to-s3": {
+            "$ref": "#/components/schemas/S3Configuration"
           }
         }
       },
@@ -967,67 +1203,14 @@
               "migrate-plaindata"
             ]
           },
-          "source": {
-            "type": "object",
-            "properties": {
-              "rdbms": {
-                "type": "string",
-                "example": "oracle"
-              },
-              "client": {
-                "type": "string",
-                "example": "/usr/lib/instantclient"
-              },
-              "name": {
-                "type": "string",
-                "example": "XE"
-              },
-              "host": {
-                "type": "string",
-                "example": "localhost"
-              },
-              "port": {
-                "type": "integer",
-                "example": 1521
-              },
-              "schema": {
-                "type": "string",
-                "example": "ora-schema"
-              },
-              "user": {
-                "type": "string",
-                "example": "system"
-              }
-            }
+          "source-rdbms": {
+            "$ref": "#/components/schemas/OracleConfiguration"
           },
-          "target": {
-            "type": "object",
-            "properties": {
-              "rdbms": {
-                "type": "string",
-                "example": "postgres"
-              },
-              "name": {
-                "type": "string",
-                "example": "postgres"
-              },
-              "host": {
-                "type": "string",
-                "example": "localhost"
-              },
-              "port": {
-                "type": "integer",
-                "example": 5432
-              },
-              "schema": {
-                "type": "string",
-                "example": "pg-schema"
-              },
-              "user": {
-                "type": "string",
-                "example": "postgres"
-              }
-            }
+          "target-rdbms": {
+            "$ref": "#/components/schemas/PostgresConfiguration"
+          },
+          "target-s3": {
+            "$ref": "#/components/schemas/S3Configuration"
           },
           "migrated-tables": {
             "type": "object",
@@ -1109,6 +1292,27 @@
           }
         }
       },
+      "BatchSizeError": {
+        "type": "object",
+        "properties": {
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "example": "batch-size"
+                },
+                "description": {
+                  "type": "string",
+                  "example": "Invalid value '50'"
+                }
+              }
+            }
+          }
+        }
+      },
       "SchemaError": {
         "type": "object",
         "properties": {
@@ -1165,14 +1369,14 @@
                 },
                 "description": {
                   "type": "string",
-                  "example": "Invalid value 'my-database'"
+                  "example": "Invalid value 'my-database''"
                 }
               }
             }
           }
         }
       },
-      "ProcessesError": {
+      "S3Error": {
         "type": "object",
         "properties": {
           "errors": {
@@ -1182,11 +1386,11 @@
               "properties": {
                 "attribute": {
                   "type": "string",
-                  "example": "max-processes"
+                  "example": "s3-engine"
                 },
                 "description": {
                   "type": "string",
-                  "example": "Invalid value '0'"
+                  "example": "Invalid value 'my-engine'"
                 }
               }
             }

@@ -11,8 +11,10 @@ from sys import exc_info
 from typing import Any
 
 from migration.pydb_common import log
-from migration.pydb_types import migrate_column, establish_equivalences
-from .pydb_database import schema_create
+from migration.pydb_types import (
+    establish_equivalences, is_lob, migrate_column
+)
+from migration.steps.pydb_database import schema_create
 
 
 def prune_metadata(source_schema: str,
@@ -198,6 +200,7 @@ def setup_tables(errors: list[str],
                  target_rdbms: str,
                  source_schema: str,
                  target_schema: str,
+                 target_s3: str,
                  target_tables: list[Table],
                  override_columns: dict[str, Type],
                  logger: Logger) -> dict[str, Any]:
@@ -221,11 +224,23 @@ def setup_tables(errors: list[str],
         # noinspection PyProtectedMember
         columns: Iterable[Column] = target_table._columns
 
-        # register the source column types
+        # register the source column types and prepare for S3 migration
+        s3_columns: list[Column] = []
         for column in columns:
+            column_type: str = str(column.type)
             table_columns[column.name] = {
-                "source-type": str(column.type)
+                "source-type": column_type
             }
+            # mark LOB column for S3 migration
+            if target_s3 and is_lob(column_type):
+                s3_columns.append(column)
+                table_columns[column.name]["target-type"] = target_s3
+
+        # remove the S3-targeted LOB columns
+        for s3_column in s3_columns:
+            # noinspection PyProtectedMember
+            target_table._columns.remove(s3_column)
+
         # migrate the columns
         setup_columns(errors=errors,
                       table_columns=columns,

@@ -12,7 +12,7 @@ MIGRATION_BATCH_SIZE: int = 1000000
 MIGRATION_CHUNK_SIZE: int = 1048576
 
 
-def get_migration_params() -> dict[str, Any]:
+def get_migration_metrics() -> dict[str, Any]:
 
     return {
         "batch-size": MIGRATION_BATCH_SIZE,
@@ -20,9 +20,9 @@ def get_migration_params() -> dict[str, Any]:
     }
 
 
-def set_migration_params(errors: list[str],
-                         scheme: dict[str, Any],
-                         logger: Logger) -> None:
+def set_migration_metrics(errors: list[str],
+                          scheme: dict[str, Any],
+                          logger: Logger) -> None:
 
     # validate the optional 'batch-size' parameter
     batch_size: int = validate_int(errors=errors,
@@ -120,7 +120,8 @@ def get_s3_params(errors: list[str],
 
     result: dict[str, Any] = s3_get_params(engine=s3_engine)
     if isinstance(result, dict):
-        result["s3-engine"] = s3_engine
+        result["engine"] = s3_engine
+        result.pop("temp-folder", None)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142, s3_engine,
@@ -165,7 +166,6 @@ def set_s3_params(errors: list[str],
                                    bucket_name=bucket_name,
                                    access_key=access_key,
                                    secret_key=secret_key,
-                                   temp_folder="/",
                                    region_name=region_name,
                                    secure_access=secure_access):
         # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)

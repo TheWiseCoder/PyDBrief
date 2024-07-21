@@ -29,12 +29,11 @@ from pypomes_logging import (
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params,
-    get_migration_params, set_migration_params
+    get_migration_metrics, set_migration_metrics
 )  # noqa: PyPep8
 from migration.pydb_migrator import migrate  # noqa: PyPep8
 from migration.pydb_validator import (
-    assert_column_types, assert_rdbms_dual,
-    assert_migration, assert_migration_params, get_migration_context
+    assert_column_types, assert_migration, get_migration_context
 )  # noqa: PyPep8
 
 # establish the current version
@@ -266,26 +265,29 @@ def handle_migration() -> Response:
     match request.method:
         case "GET":
             # retrieve the migration parameters
-            reply = get_migration_params()
+            reply = get_migration_metrics()
         case "PATCH":
             # establish the migration parameters
-            set_migration_params(errors=errors,
-                                 scheme=scheme,
-                                 logger=PYPOMES_LOGGER)
+            set_migration_metrics(errors=errors,
+                                  scheme=scheme,
+                                  logger=PYPOMES_LOGGER)
             if not errors:
                 reply = {"status": "Configuration updated"}
         case "POST":
             # assert whether migration is warranted
             assert_migration(errors=errors,
-                             scheme=scheme)
+                             scheme=scheme,
+                             run_mode=False)
             # errors ?
             if errors:
                 # yes, report the problem
                 reply = {"status": "Migration cannot be launched"}
             else:
                 # no, display the migration context
-                reply = get_migration_context(scheme=scheme)
-                reply["status"] = "Migration can be launched"
+                reply = get_migration_context(errors=errors,
+                                              scheme=scheme)
+                if reply:
+                    reply["status"] = "Migration can be launched"
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -336,7 +338,8 @@ def migrate_data() -> Response:
 
     # assert whether migration is warranted
     assert_migration(errors=errors,
-                     scheme=scheme)
+                     scheme=scheme,
+                     run_mode=True)
 
     # assert and obtain the external columns parameter
     override_columns: dict[str, Type] = assert_column_types(errors=errors,
@@ -349,6 +352,7 @@ def migrate_data() -> Response:
         target_rdbms: str = scheme.get("to-rdbms").lower()
         source_schema: str = scheme.get("from-schema").lower()
         target_schema: str = scheme.get("to-schema").lower()
+        target_s3: str = scheme.get("to-s3").lower()
         step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
         step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
         step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
@@ -366,6 +370,7 @@ def migrate_data() -> Response:
                         target_rdbms=target_rdbms,
                         source_schema=source_schema,
                         target_schema=target_schema,
+                        target_s3=target_s3,
                         step_metadata=step_metadata,
                         step_plaindata=step_plaindata,
                         step_lobdata=step_lobdata,
