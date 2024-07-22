@@ -177,7 +177,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigurationUpdated'
+                $ref: '#/components/schemas/MetricsUpdated'
         '400':
           description: Unable to configure the migration metrics
           content:
@@ -701,13 +701,10 @@ components:
           example: minio
         endpoint-url:
           type: string
-          example: https:/ecs_installation.com/access
+          example: https:/minio_installation.com/access
         bucket-name:
           type: string
           example: my-bucket
-        temp-folder:
-          type: string
-          example: /usr/tmp
         access-key: 
           type: string
           example: ADFSGTR7765YHTRTD76Y
@@ -717,7 +714,7 @@ components:
         secure-access:
           type: boolean
           example: true
-    ConfigurationUpdated:
+    MetricsUpdated:
       type: object
       properties:
         status:
@@ -734,7 +731,7 @@ components:
       properties:
         status:
           type: string
-          example: S3 'ecs' configuration updated
+          example: S3 'minio' configuration updated
     VerificationSuccess:
       type: object
       properties:

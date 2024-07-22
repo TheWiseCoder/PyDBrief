@@ -296,7 +296,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfigurationUpdated"
+                  "$ref": "#/components/schemas/MetricsUpdated"
                 }
               }
             }
@@ -1089,15 +1089,11 @@
           },
           "endpoint-url": {
             "type": "string",
-            "example": "https:/ecs_installation.com/access"
+            "example": "https:/minio_installation.com/access"
           },
           "bucket-name": {
             "type": "string",
             "example": "my-bucket"
-          },
-          "temp-folder": {
-            "type": "string",
-            "example": "/usr/tmp"
           },
           "access-key": {
             "type": "string",
@@ -1113,7 +1109,7 @@
           }
         }
       },
-      "ConfigurationUpdated": {
+      "MetricsUpdated": {
         "type": "object",
         "properties": {
           "status": {
@@ -1136,7 +1132,7 @@
         "properties": {
           "status": {
             "type": "string",
-            "example": "S3 'ecs' configuration updated"
+            "example": "S3 'minio' configuration updated"
           }
         }
       },
