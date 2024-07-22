@@ -121,7 +121,6 @@ def get_s3_params(errors: list[str],
     result: dict[str, Any] = s3_get_params(engine=s3_engine)
     if isinstance(result, dict):
         result["engine"] = s3_engine
-        result.pop("temp-folder", None)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142, s3_engine,

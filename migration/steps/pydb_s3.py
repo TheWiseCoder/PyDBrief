@@ -53,7 +53,7 @@ def s3_migrate_lobs(errors: list[str],
                                        chunk_size=MIGRATION_CHUNK_SIZE,
                                        logger=logger):
             if first:
-                # the initial data is a dict with the values of the row's PKs
+                # the initial data is a dict with the values of the row's PK columns
                 data: list[Any] = list(row_data.values())
                 identifier = __build_identifier(data=data)
                 first = False
