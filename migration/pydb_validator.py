@@ -45,12 +45,6 @@ def assert_rdbms_dual(errors: list[str],
         errors.append(validate_format_error(126,
                                             source_rdbms,
                                             "'from-rdbms' and 'to-rdbms'"))
-    if not errors and \
-       (source_rdbms != "oracle" or target_rdbms != "postgres"):
-        # 101: {}
-        errors.append(validate_format_error(101,
-                                            "This migration path has not been validated yet. "
-                                            "In case of urgency, please email the developer."))
     return source_rdbms, target_rdbms
 
 
@@ -59,7 +53,7 @@ def assert_migration(errors: list[str],
                      run_mode: bool) -> None:
 
     # validate the migration parameters
-    assert_migration_params(errors=errors)
+    assert_metrics_params(errors=errors)
 
     # validate the migration steps
     if run_mode:
@@ -69,21 +63,30 @@ def assert_migration(errors: list[str],
     # validate the source and target RDBMS engines
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
-
-    # assert the connection parameters for both engines
     if source_rdbms:
         db_assert_connection(errors=errors,
                              engine=source_rdbms)
     if target_rdbms:
         db_assert_connection(errors=errors,
                              engine=target_rdbms)
+    if not errors and \
+       (source_rdbms != "oracle" or target_rdbms != "postgres"):
+        # 101: {}
+        errors.append(validate_format_error(101,
+                                            f"The migration path {source_rdbms}->{target_rdbms} has not "
+                                            "been validated yet. For details, please email the developer."))
     # validate S3
     to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr="to-s3",
                               default=["aws", "ecs", "minio"])
     if to_s3:
-        if to_s3 in s3_get_engines():
+        if to_s3 in ["aws", "ecs"]:
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                f"Migrating LOBs to '{to_s3}' S3 storage has not been "
+                                                "validated yet. For details, please email the developer."))
+        elif to_s3 in s3_get_engines():
             s3_assert_access(errors=errors,
                              engine=to_s3)
         else:
@@ -94,7 +97,7 @@ def assert_migration(errors: list[str],
                                                 "@to-s3"))
 
 
-def assert_migration_params(errors: list[str]) -> None:
+def assert_metrics_params(errors: list[str]) -> None:
 
     if MIGRATION_BATCH_SIZE < 1000 or \
        MIGRATION_BATCH_SIZE > 10000000:
