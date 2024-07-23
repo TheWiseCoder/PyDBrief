@@ -257,7 +257,7 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
-    result["finished"] = datetime.now()
+    result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
 
