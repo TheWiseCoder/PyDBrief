@@ -601,7 +601,7 @@ def migrate_column(source_rdbms: str,
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
-            elif col_precision and col_precision > 9:
+            elif not col_precision or col_precision > 9:
                 type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
