@@ -73,7 +73,7 @@ def assert_migration(errors: list[str],
        (source_rdbms != "oracle" or target_rdbms != "postgres"):
         # 101: {}
         errors.append(validate_format_error(101,
-                                            f"The migration path {source_rdbms}->{target_rdbms} has not "
+                                            f"The migration path '{source_rdbms}->{target_rdbms}' has not "
                                             "been validated yet. For details, please email the developer."))
     # validate S3
     to_s3: str = validate_str(errors=errors,
