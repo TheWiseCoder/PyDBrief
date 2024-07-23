@@ -50,6 +50,7 @@ def s3_migrate_lobs(errors: list[str],
                                        pk_columns=table_pks,
                                        engine=source_rdbms,
                                        connection=source_conn,
+                                       committable=True,
                                        chunk_size=MIGRATION_CHUNK_SIZE,
                                        logger=logger):
             if first:

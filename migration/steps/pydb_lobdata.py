@@ -65,6 +65,8 @@ def migrate_lobs(errors: list[str],
                                              target_table=target_table,
                                              source_conn=source_conn,
                                              target_conn=target_conn,
+                                             source_committable=True,
+                                             target_committable=True,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0
         if op_errors:
