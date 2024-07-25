@@ -2,6 +2,7 @@ import hashlib
 import pickle
 from logging import Logger
 from pathlib import Path
+from pypomes_core import str_from_any
 from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
 from pypomes_s3 import s3_get_client, s3_data_store
@@ -37,10 +38,11 @@ def s3_migrate_lobs(errors: list[str],
     # was the S3 client obtained ?
     if client:
         # yes proceed
-        first: bool = True
         identifier: str | None = None
         mimetype: str | None = None
         lob_data: bytes = bytes()
+        metadata: dict[str, str] = {}
+        first: bool = True
 
         # get data from the LOB streamer
         # noinspection PyTypeChecker
@@ -55,7 +57,10 @@ def s3_migrate_lobs(errors: list[str],
                                        logger=logger):
             if first:
                 # the initial data is a dict with the values of the row's PK columns
-                data: list[Any] = list(row_data.values())
+                data: list[Any] = []
+                for key, value in row_data:
+                    data.append(value)
+                    metadata[key] = str_from_any(source=value)
                 identifier = __build_identifier(data=data)
                 first = False
             elif row_data:
@@ -76,12 +81,14 @@ def s3_migrate_lobs(errors: list[str],
                               data=lob_data,
                               length=len(lob_data),
                               mimetype=mimetype,
+                              tags=metadata,
                               engine=target_s3,
                               client=client,
                               logger=logger)
                 identifier = None
                 mimetype = None
                 lob_data = bytes()
+                metadata = {}
                 result += 1
                 first = True
 
