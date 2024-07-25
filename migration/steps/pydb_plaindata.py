@@ -48,6 +48,8 @@ def migrate_plain(errors: list[str],
                                      target_table=target_table,
                                      source_conn=source_conn,
                                      target_conn=target_conn,
+                                     source_committable=True,
+                                     target_committable=True,
                                      identity_column=identity_column,
                                      batch_size=pydb_common.MIGRATION_BATCH_SIZE,
                                      logger=logger) or 0

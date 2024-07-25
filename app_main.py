@@ -37,7 +37,7 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.1"
+APP_VERSION: Final[str] = "1.3.2"
 
 # create the Flask application
 app: Flask = Flask(__name__)
