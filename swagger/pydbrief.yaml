@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.3.1
+  version: 1.3.2
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -582,7 +582,7 @@ components:
     RelaxReflectionParam:
       name: relax-reflection
       in: query
-      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.
+      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided. Defaults to false.
       required: false
       schema:
         type: boolean

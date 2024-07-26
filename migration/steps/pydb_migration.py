@@ -259,7 +259,12 @@ def setup_tables(errors: list[str],
             table_columns[column.name]["target-type"] = str(column.type)
             features: list[str] = []
             if hasattr(column, "identity") and column.identity:
-                features.append("identity")
+                if "identity" in features:
+                    # 102: Unexpected error: {}
+                    errors.append(validate_format_error(
+                        102, f"Table '{target_table}' has more than one identity column"))
+                else:
+                    features.append("identity")
             if hasattr(column, "primary_key") and column.primary_key:
                 features.append("primary-key")
             if (hasattr(column, "foreign_keys") and

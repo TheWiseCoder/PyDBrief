@@ -37,7 +37,7 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.2"
+APP_VERSION: Final[str] = "1.3.3"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -317,8 +317,8 @@ def migrate_data() -> Response:
         - *relax-reflection*: whether to relax finding referenced tables at reflection (defaults to *False*)
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
-        - *exclude-columns*: optional list of table columns not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
+        - *exclude-columns*: optional list of table columns not to migrate
         - *override-columns*: optional list of columns with forced migration types
 
     These are noteworthy:

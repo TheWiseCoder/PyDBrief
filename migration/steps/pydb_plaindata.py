@@ -35,7 +35,7 @@ def migrate_plain(errors: list[str],
                     if identity_column:
                         # 102: Unexpected error: {}
                         errors.append(validate_format_error(
-                            102, f"Table {target_table} has more than one identity column"))
+                            102, f"Table '{target_table}' has more than one identity column"))
                     else:
                         identity_column = column_name
 
