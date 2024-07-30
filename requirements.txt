@@ -13,7 +13,7 @@ pypomes_db==1.4.4
 pypomes_http==0.2.7
 pypomes_logging==0.2.1
 pypomes_security==0.2.2
-pypomes_s3==0.5.2
+pypomes_s3==0.5.3
 python-dateutil==2.9.0
 pytz==2024.1
 ruff==0.5.5
