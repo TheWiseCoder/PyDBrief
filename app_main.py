@@ -37,7 +37,7 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.4"
+APP_VERSION: Final[str] = "1.3.5"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -237,7 +237,7 @@ def handle_s3(s3_engine: str = None) -> Response:
     return result
 
 
-@app.route(rule="/migration:configure",
+@app.route(rule="/migration:metrics",
            methods=["GET", "PATCH"])
 @app.route(rule="/migration:verify",
            methods=["POST"])
@@ -248,7 +248,7 @@ def handle_migration() -> Response:
     Assessing the server's migration readiness means to verify whether its state and data
     are valid and consistent, thus allowing for a migration to be attempted.
 
-    For configuring, these are the expected parameters:
+    For metrics, these are the expected parameters:
         - *batch-size*: maximum number of rows to migrate per batch (defaults to 1000000)
         - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying (defaults to 1048576)
         - *max-processes*: the number of processes to speed-up the migration with (defaults to 1)
@@ -319,6 +319,7 @@ def migrate_data() -> Response:
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
+        - *remove-nulls*: optional list of tables having columns with embedded NULLs in string data
         - *exclude-columns*: optional list of table columns not to migrate
         - *override-columns*: optional list of columns with forced migration types
 
@@ -361,6 +362,7 @@ def migrate_data() -> Response:
         process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
         relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
         skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
+        remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
         include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
         exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
         exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
@@ -380,6 +382,7 @@ def migrate_data() -> Response:
                         process_views=process_views,
                         relax_reflection=relax_reflection,
                         skip_nonempty=skip_nonempty,
+                        remove_nulls=remove_nulls,
                         include_relations=include_relations,
                         exclude_relations=exclude_relations,
                         exclude_columns=exclude_columns,

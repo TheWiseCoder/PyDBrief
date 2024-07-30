@@ -8,7 +8,7 @@ from pypomes_s3 import s3_get_params, s3_setup
 from typing import Any
 
 # migration parameters
-MIGRATION_BATCH_SIZE: int = 1000000
+MIGRATION_BATCH_SIZE: int = 100000
 MIGRATION_CHUNK_SIZE: int = 1048576
 
 

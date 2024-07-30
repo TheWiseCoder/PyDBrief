@@ -72,6 +72,7 @@ def migrate(errors: list[str],
             process_views: bool,
             relax_reflection: bool,
             skip_nonempty: bool,
+            remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
             exclude_columns: list[str],
@@ -106,6 +107,8 @@ def migrate(errors: list[str],
         msg += ", relax reflection"
     if skip_nonempty:
         msg += ", skip nonempty"
+    if remove_nulls:
+        msg += f", remove nulls {','.join(remove_nulls)}"
     if include_relations:
         msg += f", include relations {','.join(include_relations)}"
     if exclude_relations:
@@ -152,6 +155,8 @@ def migrate(errors: list[str],
         result["relax-reflection"] = relax_reflection
     if skip_nonempty:
         result["skip-nonempty"] = skip_nonempty
+    if remove_nulls:
+        result["remove-nulls"] = remove_nulls
     if include_relations:
         result["include-relations"] = include_relations
     if exclude_relations:
@@ -222,6 +227,7 @@ def migrate(errors: list[str],
                                                 source_schema=source_schema,
                                                 target_schema=target_schema,
                                                 skip_nonempty=skip_nonempty,
+                                                remove_nulls=remove_nulls,
                                                 source_conn=source_conn,
                                                 target_conn=target_conn,
                                                 migrated_tables=migrated_tables,

@@ -12,6 +12,7 @@ def migrate_plain(errors: list[str],
                   source_schema: str,
                   target_schema: str,
                   skip_nonempty: bool,
+                  remove_nulls: list[str],
                   source_conn: Any,
                   target_conn: Any,
                   migrated_tables: dict,
@@ -63,10 +64,23 @@ def migrate_plain(errors: list[str],
                                          target_committable=True,
                                          identity_column=identity_column,
                                          batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                         has_nulls=source_table in remove_nulls,
                                          logger=logger) or 0
             if op_errors:
-                errors.extend(op_errors)
-                status: str = "partial" if count else "none"
+                # dit a 'ValueError' exception on NULLs in strings occur ?
+                # ("A string literal cannot contain NUL (0x00) characters.")
+                if target_rdbms == "postgres" and not skip_nonempty \
+                   and "contain NUL" in " ".join(op_errors):
+                    # yes, provide instructions on how to handle the problem
+                    msg: str = (f"Table '{source_table}' has NULLs embedded in string data, "
+                                f"which is not accepted by '{target_rdbms}'. Please add this "
+                                f"table to the 'remove-nulls' migration parameter, and try again")
+                    # 101: {}
+                    errors.append(validate_format_error(101, msg))
+                else:
+                    # no, report the errors
+                    errors.extend(op_errors)
+                status: str = "none"
             else:
                 status: str = "full"
             table_data["plain-status"] = status
