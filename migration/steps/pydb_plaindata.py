@@ -67,10 +67,10 @@ def migrate_plain(errors: list[str],
                                          has_nulls=table_name in remove_nulls,
                                          logger=logger) or 0
             if op_errors:
-                # dit a 'ValueError' exception on NULLs in strings occur ?
+                # did a 'ValueError' exception on NULLs in strings occur ?
                 # ("A string literal cannot contain NUL (0x00) characters.")
-                if target_rdbms == "postgres" and not skip_nonempty \
-                   and "contain NUL" in " ".join(op_errors):
+                if target_rdbms == "postgres" and \
+                   "contain NUL" in " ".join(op_errors):
                     # yes, provide instructions on how to handle the problem
                     msg: str = (f"Table '{source_table}' has NULLs embedded in string data, "
                                 f"which is not accepted by '{target_rdbms}'. Please add this "
