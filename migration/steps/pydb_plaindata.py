@@ -64,7 +64,7 @@ def migrate_plain(errors: list[str],
                                          target_committable=True,
                                          identity_column=identity_column,
                                          batch_size=pydb_common.MIGRATION_BATCH_SIZE,
-                                         has_nulls=source_table in remove_nulls,
+                                         has_nulls=table_name in remove_nulls,
                                          logger=logger) or 0
             if op_errors:
                 # dit a 'ValueError' exception on NULLs in strings occur ?
