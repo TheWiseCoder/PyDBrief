@@ -37,7 +37,7 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.3"
+APP_VERSION: Final[str] = "1.3.4"
 
 # create the Flask application
 app: Flask = Flask(__name__)
@@ -314,7 +314,8 @@ def migrate_data() -> Response:
         - *migrate-lobdata*: migrate LOBs (large binary objects)
         - *process-indexes*: whether to migrate indexes (defaults to *False*)
         - *process-views*: whether to migrate views (defaults to *False*)
-        - *relax-reflection*: whether to relax finding referenced tables at reflection (defaults to *False*)
+        - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
+        - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
@@ -359,6 +360,7 @@ def migrate_data() -> Response:
         process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
         process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
         relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
+        skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
         include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
         exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
         exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
@@ -377,6 +379,7 @@ def migrate_data() -> Response:
                         process_indexes=process_indexes,
                         process_views=process_views,
                         relax_reflection=relax_reflection,
+                        skip_nonempty=skip_nonempty,
                         include_relations=include_relations,
                         exclude_relations=exclude_relations,
                         exclude_columns=exclude_columns,

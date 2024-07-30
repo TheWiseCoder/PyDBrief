@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.3.1"
+    "version": "1.3.4"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -400,6 +400,9 @@
             "$ref": "#/components/parameters/RelaxReflectionParam"
           },
           {
+            "$ref": "#/components/parameters/SkipNonemptyParam"
+          },
+          {
             "$ref": "#/components/parameters/IncludeRelationsParam"
           },
           {
@@ -724,7 +727,6 @@
           "type": "string",
           "enum": [
             "aws",
-            "ecs",
             "minio"
           ]
         }
@@ -738,7 +740,6 @@
           "type": "string",
           "enum": [
             "aws",
-            "ecs",
             "minio"
           ]
         }
@@ -782,7 +783,7 @@
       "S3RegionNameParam": {
         "name": "s3-region-name",
         "in": "query",
-        "description": "The reference region (AWS only)",
+        "description": "The reference region",
         "required": false,
         "schema": {
           "type": "string"
@@ -791,10 +792,11 @@
       "S3SecureAccessParam": {
         "name": "s3-secure-access",
         "in": "query",
-        "description": "Whether to use Transport Security Layer (MinIO only)",
+        "description": "Whether to use Transport Security Layer (MinIO), or Security Socket Layer (AWS)",
         "required": false,
         "schema": {
-          "type": "string"
+          "type": "boolean",
+          "default": false
         }
       },
       "ToS3Param": {
@@ -806,7 +808,6 @@
           "type": "string",
           "enum": [
             "aws",
-            "ecs",
             "minio"
           ],
           "example": null
@@ -880,7 +881,7 @@
       "MigrateMetadataParam": {
         "name": "migrate-metadata",
         "in": "query",
-        "description": "Whether metadata should be migrated. This will create or transform the destination schema. If false, parameters 'process_indexes', 'process-views', and 'exclude-constraints' should not be specified.",
+        "description": "Whether metadata should be migrated. This will create or transform the destination schema.",
         "required": true,
         "schema": {
           "type": "boolean",
@@ -930,8 +931,17 @@
       "RelaxReflectionParam": {
         "name": "relax-reflection",
         "in": "query",
-        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.",
+        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided. Defaults to false.",
         "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "SkipNonemptyParam": {
+        "name": "skip-nonempty",
+        "in": "query",
+        "description": "Prevents plaindata migration for tables in the destination schema that are not empty. Useful for resuming an aborted plaindata migration without having to resort to reorganizing table lists. Ignored in the 'migrate-metadata' and migrate-lobdata' steps.",
         "schema": {
           "type": "boolean",
           "default": false

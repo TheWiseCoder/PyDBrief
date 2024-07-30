@@ -71,6 +71,7 @@ def migrate(errors: list[str],
             process_indexes: bool,
             process_views: bool,
             relax_reflection: bool,
+            skip_nonempty: bool,
             include_relations: list[str],
             exclude_relations: list[str],
             exclude_columns: list[str],
@@ -101,6 +102,10 @@ def migrate(errors: list[str],
         msg += ", process indexes"
     if process_views:
         msg += ", process views"
+    if relax_reflection:
+        msg += ", relax reflection"
+    if skip_nonempty:
+        msg += ", skip nonempty"
     if include_relations:
         msg += f", include relations {','.join(include_relations)}"
     if exclude_relations:
@@ -140,9 +145,13 @@ def migrate(errors: list[str],
         to_s3.pop("secret-key")
         result["target-s3"] = to_s3
     if process_indexes:
-        result["process-indexes"] = process_views
+        result["process-indexes"] = process_indexes
     if process_views:
         result["process-views"] = process_views
+    if process_views:
+        result["relax-reflection"] = relax_reflection
+    if skip_nonempty:
+        result["skip-nonempty"] = skip_nonempty
     if include_relations:
         result["include-relations"] = include_relations
     if exclude_relations:
@@ -212,6 +221,7 @@ def migrate(errors: list[str],
                                                 target_rdbms=target_rdbms,
                                                 source_schema=source_schema,
                                                 target_schema=target_schema,
+                                                skip_nonempty=skip_nonempty,
                                                 source_conn=source_conn,
                                                 target_conn=target_conn,
                                                 migrated_tables=migrated_tables,

@@ -79,7 +79,7 @@ def assert_migration(errors: list[str],
     to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr="to-s3",
-                              default=["aws", "ecs", "minio"])
+                              values=["aws", "ecs", "minio"])
     if to_s3:
         if to_s3 in ["aws", "ecs"]:
             # 101: {}
