@@ -272,7 +272,7 @@ def handle_migration() -> Response:
                                   scheme=scheme,
                                   logger=PYPOMES_LOGGER)
             if not errors:
-                reply = {"status": "Configuration updated"}
+                reply = {"status": "Migration metrics updated"}
         case "POST":
             # assert whether migration is warranted
             assert_migration(errors=errors,
@@ -390,7 +390,6 @@ def migrate_data() -> Response:
                         override_columns=override_columns,
                         version=APP_VERSION,
                         logger=PYPOMES_LOGGER)
-
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)

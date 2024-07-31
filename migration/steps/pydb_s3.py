@@ -26,9 +26,9 @@ def s3_migrate_lobs(errors: list[str],
     result: int = 0
 
     # build the location of the data
-    basepath: Path = Path(target_schema,
-                          source_table.replace(f"{source_schema}.", ""),
-                          table_lob)
+    prefix: Path = Path(target_schema,
+                        source_table.replace(f"{source_schema}.", ""),
+                        table_lob)
 
     # obtain the S3 client
     client: Any = s3_get_client(errors=errors,
@@ -58,7 +58,7 @@ def s3_migrate_lobs(errors: list[str],
             if first:
                 # the initial data is a dict with the values of the row's PK columns
                 data: list[Any] = []
-                for key, value in row_data:
+                for key, value in row_data.items():
                     data.append(value)
                     metadata[key] = str_from_any(source=value)
                 identifier = __build_identifier(data=data)
@@ -76,7 +76,7 @@ def s3_migrate_lobs(errors: list[str],
             else:
                 # end of LOB data, send it to S3
                 s3_data_store(errors=errors,
-                              basepath=basepath,
+                              prefix=prefix,
                               identifier=identifier,
                               data=lob_data,
                               length=len(lob_data),

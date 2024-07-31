@@ -74,7 +74,7 @@ def migrate_plain(errors: list[str],
                     # yes, provide instructions on how to handle the problem
                     msg: str = (f"Table '{source_table}' has NULLs embedded in string data, "
                                 f"which is not accepted by '{target_rdbms}'. Please add this "
-                                f"table to the 'remove-nulls' migration parameter, and try again")
+                                f"table to the 'remove-nulls' migration parameter, and try again.")
                     # 101: {}
                     errors.append(validate_format_error(101, msg))
                 else:

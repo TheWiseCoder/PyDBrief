@@ -6,7 +6,7 @@ from pypomes_db import (
     db_get_engines, db_assert_connection
 )
 from pypomes_s3 import (
-    s3_get_engines, s3_assert_access
+    s3_get_engines, s3_get_param, s3_assert_access, s3_startup
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any
@@ -79,9 +79,9 @@ def assert_migration(errors: list[str],
     to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr="to-s3",
-                              values=["aws", "ecs", "minio"])
+                              values=["aws", "minio"])
     if to_s3:
-        if to_s3 in ["aws", "ecs"]:
+        if to_s3 == "aws":
             # 101: {}
             errors.append(validate_format_error(101,
                                                 f"Migrating LOBs to '{to_s3}' S3 storage has not been "
@@ -89,6 +89,12 @@ def assert_migration(errors: list[str],
         elif to_s3 in s3_get_engines():
             s3_assert_access(errors=errors,
                              engine=to_s3)
+            if not errors:
+                bucket: str = s3_get_param(key="bucket-name",
+                                           engine=to_s3)
+                s3_startup(errors=errors,
+                           engine=to_s3,
+                           bucket=bucket)
         else:
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,

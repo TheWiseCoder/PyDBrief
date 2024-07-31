@@ -740,7 +740,7 @@ components:
       properties:
         status:
           type: string
-          example: Configuration updated
+          example: Migration metrics updated
     RdbmsUpdated:
       type: object
       properties:

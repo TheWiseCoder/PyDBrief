@@ -90,35 +90,35 @@ def migrate(errors: list[str],
     # log the start of the migration
     msg: str = (f"Migration started, "
                 f"from {source_rdbms}.{source_schema} "
-                f"to {target_rdbms}.{target_schema} ")
-    steps: str = ""
+                f"to {target_rdbms}.{target_schema}: ")
+    steps: list[str] = []
     if step_metadata:
-        steps += ", metadata"
+        steps.append("migrate-metadata")
     if step_plaindata:
-        steps += ", plaindata"
+        steps.append("migrate-plaindata")
     if step_lobdata:
-        steps += ", lobdata"
-    msg += f"steps {steps[2:]}"
+        steps.append("migrate-lobdata")
+    msg += f"steps {','.join(steps)}"
     if process_indexes:
-        msg += ", process indexes"
+        msg += "; process indexes"
     if process_views:
-        msg += ", process views"
+        msg += "; process views"
     if relax_reflection:
-        msg += ", relax reflection"
+        msg += "; relax reflection"
     if skip_nonempty:
-        msg += ", skip nonempty"
+        msg += "; skip nonempty"
     if remove_nulls:
-        msg += f", remove nulls {','.join(remove_nulls)}"
+        msg += f"; remove nulls {','.join(remove_nulls)}"
     if include_relations:
-        msg += f", include relations {','.join(include_relations)}"
+        msg += f"; include relations {','.join(include_relations)}"
     if exclude_relations:
-        msg += f", exclude relations {','.join(exclude_relations)}"
+        msg += f"; exclude relations {','.join(exclude_relations)}"
     if exclude_constraints:
-        msg += f", exclude constraints {','.join(exclude_constraints)}"
+        msg += f"; exclude constraints {','.join(exclude_constraints)}"
     if exclude_columns:
-        msg += f", exclude columns {','.join(exclude_columns)}"
+        msg += f"; exclude columns {','.join(exclude_columns)}"
     if override_cols:
-        msg += f", override columns {','.join(override_cols)}"
+        msg += f"; override columns {','.join(override_cols)}"
     log(logger=logger,
         level=INFO,
         msg=msg)
@@ -137,7 +137,7 @@ def migrate(errors: list[str],
     # initialize the return variable
     result: dict = {
         "started": started.strftime(format=DATETIME_FORMAT_INV),
-        "steps": steps[2:],
+        "steps": steps,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms,
         "version": version
