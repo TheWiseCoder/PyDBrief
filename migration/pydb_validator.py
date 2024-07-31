@@ -56,17 +56,16 @@ def assert_migration(errors: list[str],
     assert_metrics_params(errors=errors)
 
     # validate the migration steps
-    if run_mode:
-        assert_migration_steps(errors=errors,
-                               scheme=scheme)
+    assert_migration_steps(errors=errors,
+                           scheme=scheme)
 
     # validate the source and target RDBMS engines
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
-    if source_rdbms:
+    if source_rdbms and run_mode:
         db_assert_connection(errors=errors,
                              engine=source_rdbms)
-    if target_rdbms:
+    if target_rdbms and run_mode:
         db_assert_connection(errors=errors,
                              engine=target_rdbms)
     if not errors and \
@@ -84,7 +83,7 @@ def assert_migration(errors: list[str],
     if to_s3 in s3_get_engines():
         s3_assert_access(errors=errors,
                          engine=to_s3)
-        if not errors:
+        if not errors and run_mode:
             bucket: str = s3_get_param(key="bucket-name",
                                        engine=to_s3)
             s3_startup(errors=errors,
