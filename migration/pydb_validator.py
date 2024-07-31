@@ -80,27 +80,22 @@ def assert_migration(errors: list[str],
                               scheme=scheme,
                               attr="to-s3",
                               values=["aws", "minio"])
-    if to_s3:
-        if to_s3 == "aws":
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Migrating LOBs to '{to_s3}' S3 storage has not been "
-                                                "validated yet. For details, please email the developer."))
-        elif to_s3 in s3_get_engines():
-            s3_assert_access(errors=errors,
-                             engine=to_s3)
-            if not errors:
-                bucket: str = s3_get_param(key="bucket-name",
-                                           engine=to_s3)
-                s3_startup(errors=errors,
-                           engine=to_s3,
-                           bucket=bucket)
-        else:
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                to_s3,
-                                                "unknown or unconfigured S3 engine",
-                                                "@to-s3"))
+    # validate S3
+    if to_s3 in s3_get_engines():
+        s3_assert_access(errors=errors,
+                         engine=to_s3)
+        if not errors:
+            bucket: str = s3_get_param(key="bucket-name",
+                                       engine=to_s3)
+            s3_startup(errors=errors,
+                       engine=to_s3,
+                       bucket=bucket)
+    elif to_s3:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            to_s3,
+                                            "unknown or unconfigured S3 engine",
+                                            "@to-s3"))
 
 
 def assert_metrics_params(errors: list[str]) -> None:
