@@ -23,8 +23,7 @@ from pypomes_http import (
 )  # noqa: PyPep8
 from pypomes_logging import (
     PYPOMES_LOGGER,
-    logging_send_entries, logging_log_info, logging_log_error
-)  # noqa: PyPep8
+    logging_startup, logging_log_info, logging_log_error)  # noqa: PyPep8
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -37,10 +36,13 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.6"
+APP_VERSION: Final[str] = "1.3.7"
 
 # create the Flask application
 app: Flask = Flask(__name__)
+
+# start the logger
+logging_startup(flask_app=app)
 
 # support cross-origin resource sharing
 CORS(app)
@@ -98,44 +100,6 @@ def version() -> Response:
 
     # log the response
     logging_log_info(msg=f"Response {request.path}: {result}")
-
-    return result
-
-
-@app.route(rule="/get-log",
-           methods=["GET"])
-def get_log() -> Response:
-    """
-    Entry pointy for obtaining the execution log of the system.
-
-    These criteria are specified as imput parameters of the HTTP request, according to the pattern
-    *attach=<[t,true,f,false]>&log-path=<log-path>&level=<N|D|I|W|E|C>&
-     from-datetime=YYYYMMDDhhmmss&to-datetime=YYYYMMDDhhmmss&last-days=<n>&last-hours=<n>>*
-
-    The query parameters are optional, and are used to filter the records to be returned:
-        - *attach*: whether browser should display or persist file (defaults to True - persist it)
-        - level=<N|D|I|W|E|C> (NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL - defaults to NOTSET)
-        - *from-datetime*: <YYYYMMDDhhmmss>
-        - *to-datetime*: <YYYYMMDDhhmmss>
-        - *last-days*: <n>
-        - *last-hours*: <n>
-
-    By default, the browser is instructed to save the file, instead of displaying its contents.
-
-    This parameter can optionally be provided to indicate otherwise:
-        - *attach*=<1|t|true|0|f|false> - defaults to 'true'
-
-    :return: the requested log data
-    """
-    # register the request
-    req_query: str = request.query_string.decode()
-    logging_log_info(f"Request {request.path}?{req_query}")
-
-    # run the request
-    result: Response = logging_send_entries(request=request)
-
-    # log the response
-    logging_log_info(f"Response {request.path}?{req_query}: {result}")
 
     return result
 
@@ -251,7 +215,6 @@ def handle_migration() -> Response:
     For metrics, these are the expected parameters:
         - *batch-size*: maximum number of rows to migrate per batch (defaults to 1000000)
         - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying (defaults to 1048576)
-        - *max-processes*: the number of processes to speed-up the migration with (defaults to 1)
 
     :return: the operation outcome
     """

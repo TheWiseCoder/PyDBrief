@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.3.6
+  version: 1.3.7
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -248,55 +248,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SchemaError'
-  /get-log:
+  /logging:
     get:
       tags:
         - registry
       summary: Retrieve the server's operation log
       description: Retrieve a file containing the operation log of the PyDBrief server.
-      operationId: get-app-log
+      operationId: retrieve-log
       parameters:
-        - name: attach
-          in: query
-          description: Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.
-          required: false
-          schema:
-            type: boolean
-            default: true
-        - name: level
-          in: query
-          description: The desired log level ('D'- debug, 'I'- info, 'W'- Warning, 'E'- error, 'C'- Critical)
-          required: false
-          schema:
-            type: string
-            default: D
-            enum: [D, I, W, E, C]
-        - name: from-datetime
-          in: query
-          description: Timestamp for the start of the interval
-          required: false
-          schema:
-            type: string
-            format: YYYYMMDDhhmmss
-        - name: to-datetime
-          in: query
-          description: Timestamp for the end of the interval
-          required: false
-          schema:
-            type: string
-            format: YYYYMMDDhhmmss
-        - name: last-days
-          in: query
-          description: How many days to go back for the start of the interval - ignored if 'from' or 'to' are specified
-          required: false
-          schema:
-            type: integer
-        - name: last-hours
-          in: query
-          description: How many hours to go back for the start of the interval - ignored if 'from' or 'to' are specified
-          required: false
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/LogAttachParam'
+        - $ref: '#/components/parameters/LogLevelParam'
+        - $ref: '#/components/parameters/LogFromDatetimeParam'
+        - $ref: '#/components/parameters/LogToDatetimeParam'
+        - $ref: '#/components/parameters/LogLastDaysParam'
+        - $ref: '#/components/parameters/LogLastHoursParam'
       responses:
         '200':
           description: Successful operation
@@ -317,6 +282,38 @@ paths:
                     items:
                       type: string
                       example: Value '<from>' of 'from' attribute invalid
+    post:
+      tags:
+        - registry
+      summary: Configure the properties and contents of the server's operation log. When invoked, this operation closes the current log file and opens a new one, using the configuration specified herein.
+      description:  Configure the server's operating log
+      operationId: configure-log
+      parameters:
+        - $ref: '#/components/parameters/LogIdParam'
+        - $ref: '#/components/parameters/LogFilePathParam'
+        - $ref: '#/components/parameters/LogFileModeParam'
+        - $ref: '#/components/parameters/LogFormatParam'
+        - $ref: '#/components/parameters/LogLevelParam'
+        - $ref: '#/components/parameters/LogStyleParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoggingRestarted'
+        '400':
+          description: Unsuccessful operation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                      example: Value '<log-level>' of 'log-level' attribute invalid
   /swagger/pydbrief.json:
     get:
       tags:
@@ -431,6 +428,91 @@ components:
       name: db-driver
       in: query
       description: Database access driver (SQLServer, only)
+      required: false
+      schema:
+        type: string
+    LogAttachParam:    
+      name: log-attach
+      in: query
+      description: Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.
+      required: false
+      schema:
+        type: boolean
+        default: true
+    LogFromDatetimeParam:
+      name: log-from-datetime
+      in: query
+      description: Timestamp for the start of the interval
+      required: false
+      schema:
+        type: string
+        format: YYYYMMDDhhmmss
+    LogToDatetimeParam:
+      name: log-to-datetime
+      in: query
+      description: Timestamp for the end of the interval
+      required: false
+      schema:
+        type: string
+        format: YYYYMMDDhhmmss
+    LogLastDaysParam:
+      name: log-last-days
+      in: query
+      description: How many days to go back for the start of the interval - ignored if 'from' or 'to' are specified
+      required: false
+      schema:
+        type: integer
+    LogLastHoursParam:
+      name: log-last-hours
+      in: query
+      description: How many hours to go back for the start of the interval - ignored if 'log-from' or 'log-to' are specified
+      required: false
+      schema:
+        type: integer
+    LogIdParam:
+      name: log-id
+      in: query
+      description: The id of the logger. Relevant only for developers handling multiple loggers.
+      required: false
+      schema:
+        type: string
+    LogFilePathParam:
+      name: log-file-path
+      in: query
+      description: The path for the log file
+      required: false
+      schema:
+        type: string
+        default: /tmp/pydbrief.log
+    LogFileModeParam:
+      name: log-file-mode
+      in: query
+      description: The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents)
+      required: false
+      schema:
+        type: string
+        enum: [a,w]
+        default: a
+    LogFormatParam:
+      name: log-format
+      in: query
+      description: Describes the information to be written to the log, detailing the format for each item. Very technical, requires knowledge of Python's 'logging' package.
+      required: false
+      schema:
+        type: string
+    LogLevelParam:
+      name: log-level
+      in: query
+      description: The logging level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.
+      required: false
+      schema:
+        type: string
+        enum: [debug, info, warning, error, critical]
+        default: info
+    LogStyleParam:
+      name: log-style
+      in: query
+      description: The style used for building the 'log-format' parameter. Very technical, requires knowledge of Python's 'logging' package.
       required: false
       schema:
         type: string
@@ -660,6 +742,12 @@ components:
           type: string
           example: my_table.my_column=integer
   schemas:
+    LoggingRestarted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Log re-started, with the configuration specified
     MigrationMetrics:
       type: object
       properties:
