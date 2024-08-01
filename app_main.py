@@ -23,10 +23,16 @@ from pypomes_http import (
 )  # noqa: PyPep8
 from pypomes_logging import (
     PYPOMES_LOGGER,
-    logging_log_info, logging_log_error)  # noqa: PyPep8
+    logging_startup, logging_log_info, logging_log_error)  # noqa: PyPep8
+
+# create the Flask application
+app: Flask = Flask(__name__)
+
+# support cross-origin resource sharing
+CORS(app)
 
 # start the logger
-# logging_startup()
+logging_startup(flask_app=app)
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -40,12 +46,6 @@ from migration.pydb_validator import (
 
 # establish the current version
 APP_VERSION: Final[str] = "1.3.7"
-
-# create the Flask application
-app: Flask = Flask(__name__)
-
-# support cross-origin resource sharing
-CORS(app)
 
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
@@ -90,7 +90,7 @@ def version() -> Response:
     :return: the versions in execution
     """
     # register the request
-    logging_log_info(f"Request {request.path}")
+    logging_log_info(msg=f"Request {request.path}")
 
     versions: dict = get_versions()
     versions["PyDBrief"] = APP_VERSION

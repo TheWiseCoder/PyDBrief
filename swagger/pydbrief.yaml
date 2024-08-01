@@ -479,11 +479,10 @@ components:
     LogFilePathParam:
       name: log-file-path
       in: query
-      description: The path for the log file
+      description: The path for the log file. Defaults to 'PYDB.log' at the OS standard temporary folder.
       required: false
       schema:
         type: string
-        default: /tmp/pydbrief.log
     LogFileModeParam:
       name: log-file-mode
       in: query
