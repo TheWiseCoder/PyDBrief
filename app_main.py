@@ -23,7 +23,10 @@ from pypomes_http import (
 )  # noqa: PyPep8
 from pypomes_logging import (
     PYPOMES_LOGGER,
-    logging_startup, logging_log_info, logging_log_error)  # noqa: PyPep8
+    logging_log_info, logging_log_error)  # noqa: PyPep8
+
+# start the logger
+# logging_startup()
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -40,9 +43,6 @@ APP_VERSION: Final[str] = "1.3.7"
 
 # create the Flask application
 app: Flask = Flask(__name__)
-
-# start the logger
-logging_startup(flask_app=app)
 
 # support cross-origin resource sharing
 CORS(app)

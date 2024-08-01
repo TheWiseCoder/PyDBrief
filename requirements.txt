@@ -11,7 +11,7 @@ psycopg2-binary==2.9.9
 pypomes_core==1.4.5
 pypomes_db==1.4.5
 pypomes_http==0.2.7
-pypomes_logging==0.2.2
+pypomes_logging==0.2.1
 pypomes_security==0.2.2
 pypomes_s3==0.5.8
 python-dateutil==2.9.0
