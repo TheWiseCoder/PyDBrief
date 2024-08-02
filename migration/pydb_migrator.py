@@ -142,6 +142,7 @@ def migrate(errors: list[str],
         "target-rdbms": to_rdbms,
         "version": version
     }
+
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
@@ -168,11 +169,15 @@ def migrate(errors: list[str],
     if override_cols:
         result["override-columns"] = override_cols
     if logger:
-        result["log-file"] = [handler for handler in logger.handlers
-                              if isinstance(handler, FileHandler)][0].baseFilename
+        for handler in logger.handlers:
+            if isinstance(handler, FileHandler):
+                result["log-file"] = handler.baseFilename
+                break
+
     log(logger=logger,
         level=INFO,
         msg="Started discovering the metadata")
+
     migrated_tables: dict[str, Any] = \
         migrate_metadata(errors=errors,
                          source_rdbms=source_rdbms,
