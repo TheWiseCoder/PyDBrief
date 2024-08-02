@@ -1,6 +1,7 @@
 import warnings
 from datetime import datetime
 from logging import INFO, Logger, FileHandler
+from pathlib import Path
 from pypomes_core import DATETIME_FORMAT_INV
 from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
@@ -168,11 +169,6 @@ def migrate(errors: list[str],
         result["exclude-columns"] = exclude_columns
     if override_cols:
         result["override-columns"] = override_cols
-    if logger:
-        for handler in logger.handlers:
-            if isinstance(handler, FileHandler):
-                result["log-file"] = handler.baseFilename
-                break
 
     log(logger=logger,
         level=INFO,
@@ -281,6 +277,11 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    if logger and logger.root:
+        for handler in logger.root.handlers:
+            if isinstance(handler, FileHandler):
+                result["log-file"] = Path(handler.baseFilename).as_posix()
+                break
     result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
