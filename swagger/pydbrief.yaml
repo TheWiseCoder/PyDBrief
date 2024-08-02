@@ -748,7 +748,7 @@ components:
       properties:
         status:
           type: string
-          example: Log re-started, with the configuration specified
+          example: Log restarted, with the configuration specified
     MigrationMetrics:
       type: object
       properties:
@@ -944,6 +944,9 @@ components:
         total-tables:
           type: integer
           example: 15
+        log-file:
+          type: string
+          example: /tmp/pydbrief.log
         version:
           type: string
           example: 1.3.0

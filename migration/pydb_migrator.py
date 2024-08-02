@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime
-from logging import INFO, Logger
+from logging import INFO, Logger, FileHandler
 from pypomes_core import DATETIME_FORMAT_INV
 from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
@@ -167,6 +167,9 @@ def migrate(errors: list[str],
         result["exclude-columns"] = exclude_columns
     if override_cols:
         result["override-columns"] = override_cols
+    if logger:
+        result["log-file"] = [handler for handler in logger.handlers
+                              if isinstance(handler, FileHandler)][0].baseFilename
     log(logger=logger,
         level=INFO,
         msg="Started discovering the metadata")

@@ -45,18 +45,18 @@ app.add_url_rule(rule="/logging",
                  view_func=logging_service,
                  methods=["GET", "POST"])
 
-# establish the current version
-APP_VERSION: Final[str] = "1.3.7"
-# configure jsonify() with 'ensure_ascii=False'
-app.config["JSON_AS_ASCII"] = False
-
 # make PyDBrief's API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
     base_url="/apidocs",
     api_url="/swagger/pydbrief.json",
     config={"defaultModelsExpandDepth": -1}
 )
-app.register_blueprint(swagger_blueprint)
+app.register_blueprint(blueprint=swagger_blueprint)
+
+# establish the current version
+APP_VERSION: Final[str] = "1.3.7"
+# configure jsonify() with 'ensure_ascii=False'
+app.config["JSON_AS_ASCII"] = False
 
 
 @app.route("/swagger/pydbrief.json")
