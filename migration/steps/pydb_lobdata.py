@@ -26,7 +26,7 @@ def migrate_lobs(errors: list[str],
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
 
-        # organize the information, using LOB (large binary objects) types from the column names list
+        # organize the information, using LOB types from the column names list
         table_pks: list[str] = []
         table_lobs: list[str] = []
         table_columns = table_data.get("columns", {})
