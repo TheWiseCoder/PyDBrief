@@ -27,10 +27,8 @@ from pypomes_logging import (
 
 # create the Flask application
 app: Flask = Flask(__name__)
-
 # support cross-origin resource sharing
 CORS(app)
-
 # start the logger
 logging_startup(flask_app=app)
 

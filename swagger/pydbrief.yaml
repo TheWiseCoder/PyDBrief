@@ -1,5 +1,5 @@
 openapi: 3.0.3
-info:
+info:'
   title: PyDBrief API
   description: |-
     A Workbench for bidirectional data migration between different RDBMS engines
@@ -8,7 +8,7 @@ info:
   version: 1.3.7
 externalDocs:
   description: Known more about PyDBrief
-  url: https://github.com/TheWiseCoder/PyDBrief
+  url: https://github.com/TheWiseCoder/PyDBrief''
 servers:
   - url: http://localhost:5000
     description: Local server for RDBMS migration work
@@ -285,16 +285,17 @@ paths:
     post:
       tags:
         - registry
-      summary: Configure the properties and contents of the server's operation log. When invoked, this operation closes the current log file and opens a new one, using the configuration specified herein.
-      description:  Configure the server's operating log
+      summary: Reconfigure the properties, location, and contents of the server's operation log, using the parameters specified. For omitted parameters, the existing current values are reused.
+      description:  Reconfigure the server's operating log
       operationId: configure-log
       parameters:
-        - $ref: '#/components/parameters/LogIdParam'
+        - $ref: '#/components/parameters/LogLevelParam'
         - $ref: '#/components/parameters/LogFilePathParam'
         - $ref: '#/components/parameters/LogFileModeParam'
         - $ref: '#/components/parameters/LogFormatParam'
-        - $ref: '#/components/parameters/LogLevelParam'
         - $ref: '#/components/parameters/LogStyleParam'
+        - $ref: '#/components/parameters/LogDateFormatParam'
+      responses:
       responses:
         '200':
           description: Successful operation
@@ -469,10 +470,10 @@ components:
       required: false
       schema:
         type: integer
-    LogIdParam:
-      name: log-id
+    LogDateFormatParam:
+      name: log-date-format
       in: query
-      description: The id of the logger. Relevant only for developers handling multiple loggers.
+      description: Format for displaying the date. Defaults to 'YYYY-MM-DD HH:MM:SS'.
       required: false
       schema:
         type: string
