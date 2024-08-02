@@ -10,7 +10,7 @@
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
-    "url": "https://github.com/TheWiseCoder/PyDBrief"
+    "url": "https://github.com/TheWiseCoder/PyDBrief''"
   },
   "servers": [
     {
@@ -510,12 +510,12 @@
         "tags": [
           "registry"
         ],
-        "summary": "Configure the properties and contents of the server's operation log. When invoked, this operation closes the current log file and opens a new one, using the configuration specified herein.",
-        "description": "Configure the server's operating log",
+        "summary": "Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values are reused.",
+        "description": "Reconfigure the server's operating log",
         "operationId": "configure-log",
         "parameters": [
           {
-            "$ref": "#/components/parameters/LogIdParam"
+            "$ref": "#/components/parameters/LogLevelParam"
           },
           {
             "$ref": "#/components/parameters/LogFilePathParam"
@@ -527,10 +527,10 @@
             "$ref": "#/components/parameters/LogFormatParam"
           },
           {
-            "$ref": "#/components/parameters/LogLevelParam"
+            "$ref": "#/components/parameters/LogStyleParam"
           },
           {
-            "$ref": "#/components/parameters/LogStyleParam"
+            "$ref": "#/components/parameters/LogDateFormatParam"
           }
         ],
         "responses": {
@@ -781,23 +781,24 @@
           "type": "integer"
         }
       },
-      "LogIdParam": {
-        "name": "log-id",
+      "LogDateFormatParam": {
+        "name": "log-date-format",
         "in": "query",
-        "description": "The id of the logger. Relevant only for developers handling multiple loggers.",
+        "description": "Format for writing the date and time of the log entries.",
         "required": false,
         "schema": {
-          "type": "string"
+          "type": "string",
+          "format": "datetime",
+          "default": "YYYY-MM-DD HH:MM:SS"
         }
       },
       "LogFilePathParam": {
         "name": "log-file-path",
         "in": "query",
-        "description": "The path for the log file",
+        "description": "The path for the log file. Defaults to 'PYDB.log' at the OS standard temporary folder.",
         "required": false,
         "schema": {
-          "type": "string",
-          "default": "/tmp/pydbrief.log"
+          "type": "string"
         }
       },
       "LogFileModeParam": {

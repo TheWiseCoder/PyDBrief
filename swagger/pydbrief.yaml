@@ -1,5 +1,5 @@
 openapi: 3.0.3
-info:'
+info:
   title: PyDBrief API
   description: |-
     A Workbench for bidirectional data migration between different RDBMS engines
@@ -285,7 +285,7 @@ paths:
     post:
       tags:
         - registry
-      summary: Reconfigure the properties, location, and contents of the server's operation log, using the parameters specified. For omitted parameters, the existing current values are reused.
+      summary: Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values are reused.
       description:  Reconfigure the server's operating log
       operationId: configure-log
       parameters:
@@ -295,7 +295,6 @@ paths:
         - $ref: '#/components/parameters/LogFormatParam'
         - $ref: '#/components/parameters/LogStyleParam'
         - $ref: '#/components/parameters/LogDateFormatParam'
-      responses:
       responses:
         '200':
           description: Successful operation
@@ -473,10 +472,12 @@ components:
     LogDateFormatParam:
       name: log-date-format
       in: query
-      description: Format for displaying the date. Defaults to 'YYYY-MM-DD HH:MM:SS'.
+      description: Format for writing the date and time of the log entries.
       required: false
       schema:
         type: string
+        format: datetime
+        default: YYYY-MM-DD HH:MM:SS
     LogFilePathParam:
       name: log-file-path
       in: query
