@@ -23,14 +23,7 @@ from pypomes_http import (
 )  # noqa: PyPep8
 from pypomes_logging import (
     PYPOMES_LOGGER,
-    logging_startup, logging_log_info, logging_log_error)  # noqa: PyPep8
-
-# create the Flask application
-app: Flask = Flask(__name__)
-# support cross-origin resource sharing
-CORS(app)
-# start the logger
-logging_startup(flask_app=app)
+    logging_service, logging_log_info, logging_log_error)  # noqa: PyPep8
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -42,9 +35,18 @@ from migration.pydb_validator import (
     assert_column_types, assert_migration, get_migration_context
 )  # noqa: PyPep8
 
+# create the Flask application
+app: Flask = Flask(__name__)
+# support cross-origin resource sharing
+CORS(app)
+# set the logging endpoint
+app.add_url_rule(rule="/logging",
+                 endpoint="logging",
+                 view_func=logging_service,
+                 methods=["GET", "POST"])
+
 # establish the current version
 APP_VERSION: Final[str] = "1.3.7"
-
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
 
@@ -307,7 +309,7 @@ def migrate_data() -> Response:
     # assert and obtain the external columns parameter
     override_columns: dict[str, Type] = assert_column_types(errors=errors,
                                                             scheme=scheme)
-    reply: dict | None = None
+    reply: dict[str, Any] | None = None
     # is migration possible ?
     if not errors:
         # yes, obtain the migration parameters
