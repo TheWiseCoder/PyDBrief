@@ -43,7 +43,7 @@ def migrate_lobs(errors: list[str],
         # can only migrate LOBs if table has primary key
         op_errors: list[str] = []
         count: int = 0
-        if pk_columns:
+        if lob_columns and pk_columns:
             # process the existing LOB columns
             for lob_column in lob_columns:
                 if target_s3:
@@ -72,7 +72,7 @@ def migrate_lobs(errors: list[str],
                                              target_committable=True,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0
-        else:
+        elif lob_columns:
             log(logger=logger,
                 level=ERROR,
                 msg=(f"Table {source_rdbms}.{target_table}, "
