@@ -71,7 +71,7 @@ def s3_migrate_lobs(errors: list[str],
                     "rdbms": target_rdbms,
                     "table": target_table
                 }
-                for key, value in row_data.items():
+                for key, value in sorted(row_data.items()):
                     values.append(value)
                     metadata[key] = str_from_any(source=value)
                 # the LOB's identifier is a hex-formatted hash on the contents of the row's PK columns
