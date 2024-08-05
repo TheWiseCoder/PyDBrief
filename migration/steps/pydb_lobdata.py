@@ -1,9 +1,10 @@
-from logging import Logger
+from logging import Logger, ERROR
+from pypomes_core import validate_format_error
 from pypomes_db import db_migrate_lobs
 from typing import Any
 
 from migration.pydb_types import is_lob
-from migration.pydb_common import MIGRATION_CHUNK_SIZE
+from migration.pydb_common import MIGRATION_CHUNK_SIZE, log
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -13,6 +14,7 @@ def migrate_lobs(errors: list[str],
                  source_schema: str,
                  target_schema: str,
                  target_s3: str,
+                 add_extensions: bool,
                  source_conn: Any,
                  target_conn: Any,
                  migrated_tables: dict[str, Any],
@@ -26,41 +28,42 @@ def migrate_lobs(errors: list[str],
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
 
-        # organize the information, using LOB types from the column names list
-        table_pks: list[str] = []
-        table_lobs: list[str] = []
+        # organize the information, using LOB types from the columns list
+        pk_columns: list[str] = []
+        lob_columns: list[str] = []
         table_columns = table_data.get("columns", {})
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
             if is_lob(column_type):
-                table_lobs.append(column_name)
+                lob_columns.append(column_name)
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
-                table_pks.append(column_name)
+                pk_columns.append(column_name)
 
         # can only migrate LOBs if table has primary key
         op_errors: list[str] = []
         count: int = 0
-        if table_pks:
+        if pk_columns:
             # process the existing LOB columns
-            for table_lob in table_lobs:
+            for lob_column in lob_columns:
                 if target_s3:
                     count += s3_migrate_lobs(errors=errors,
                                              target_s3=target_s3,
-                                             target_schema=target_schema,
+                                             target_rdbms=target_rdbms,
+                                             target_table=target_table,
                                              source_rdbms=source_rdbms,
-                                             source_schema=source_schema,
                                              source_table=source_table,
-                                             table_lob=table_lob,
-                                             table_pks=table_pks,
+                                             lob_column=lob_column,
+                                             pk_columns=pk_columns,
+                                             add_extensions=add_extensions,
                                              source_conn=source_conn,
                                              logger=logger) or 0
                 else:
                     count += db_migrate_lobs(errors=op_errors,
                                              source_engine=source_rdbms,
                                              source_table=source_table,
-                                             source_lob_column=table_lob,
-                                             source_pk_columns=table_pks,
+                                             source_lob_column=lob_column,
+                                             source_pk_columns=pk_columns,
                                              target_engine=target_rdbms,
                                              target_table=target_table,
                                              source_conn=source_conn,
@@ -69,15 +72,24 @@ def migrate_lobs(errors: list[str],
                                              target_committable=True,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0
+        else:
+            log(logger=logger,
+                level=ERROR,
+                msg=(f"Table {source_rdbms}.{target_table}, "
+                     f"no primary key column found"))
+            # 101: {}
+            err_msg: str = ("Unable to migrate LOBs. "
+                            f"Table {source_rdbms}.{source_table} has no primary keys")
+            op_errors.append(validate_format_error(101,
+                                                   err_msg))
         if op_errors:
             errors.extend(op_errors)
-            status: str = "partial" if count else "none"
+            status: str = "none"
         else:
             status: str = "full"
+            result += count
         table_data["lob-status"] = status
         table_data["lob-count"] = count
         logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
                           f"to {target_rdbms}.{target_table}, status {status}"))
-        result += count
-
     return result

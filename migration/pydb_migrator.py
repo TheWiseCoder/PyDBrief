@@ -2,7 +2,7 @@ import warnings
 from datetime import datetime
 from logging import INFO, Logger, FileHandler
 from pathlib import Path
-from pypomes_core import DATETIME_FORMAT_INV
+from pypomes_core import DATETIME_FORMAT_INV, dict_jsonify
 from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
@@ -73,6 +73,7 @@ def migrate(errors: list[str],
             process_views: bool,
             relax_reflection: bool,
             skip_nonempty: bool,
+            add_extensions: bool,
             remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
@@ -129,10 +130,12 @@ def migrate(errors: list[str],
                                                   rdbms=source_rdbms)
     from_rdbms["schema"] = source_schema
     from_rdbms.pop("pwd")
+    dict_jsonify(source=from_rdbms)
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                 rdbms=target_rdbms)
     to_rdbms["schema"] = target_schema
     to_rdbms.pop("pwd")
+    dict_jsonify(source=to_rdbms)
     started: datetime = datetime.now()
 
     # initialize the return variable
@@ -157,6 +160,8 @@ def migrate(errors: list[str],
         result["relax-reflection"] = relax_reflection
     if skip_nonempty:
         result["skip-nonempty"] = skip_nonempty
+    if add_extensions:
+        result["add-extensions"] = add_extensions
     if remove_nulls:
         result["remove-nulls"] = remove_nulls
     if include_relations:
@@ -253,6 +258,7 @@ def migrate(errors: list[str],
                                              source_schema=source_schema,
                                              target_schema=target_schema,
                                              target_s3=target_s3,
+                                             add_extensions=add_extensions,
                                              source_conn=source_conn,
                                              target_conn=target_conn,
                                              migrated_tables=migrated_tables,

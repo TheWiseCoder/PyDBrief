@@ -15,7 +15,7 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # ruff: noqa: E402
 from pypomes_core import (
-    get_versions, exc_format,
+    get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
 )  # noqa: PyPep8
 from pypomes_http import (
@@ -54,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.3.7"
+APP_VERSION: Final[str] = "1.3.8"
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
 
@@ -136,6 +136,7 @@ def handle_rdbms(rdbms: str = None) -> Response:
         # get RDBMS connection params
         reply = get_rdbms_params(errors=errors,
                                  rdbms=rdbms)
+        dict_jsonify(source=reply)
     else:
         # configure the RDBMS
         set_rdbms_params(errors=errors,
@@ -325,6 +326,7 @@ def migrate_data() -> Response:
         process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
         relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
         skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
+        add_extensions: bool = str_lower(scheme.get("add-extensions")) in ["1", "t", "true"]
         remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
         include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
         exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
@@ -345,6 +347,7 @@ def migrate_data() -> Response:
                         process_views=process_views,
                         relax_reflection=relax_reflection,
                         skip_nonempty=skip_nonempty,
+                        add_extensions=add_extensions,
                         remove_nulls=remove_nulls,
                         include_relations=include_relations,
                         exclude_relations=exclude_relations,

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.3.7
+  version: 1.3.8
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief''
@@ -229,6 +229,7 @@ paths:
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
         - $ref: '#/components/parameters/SkipNonemptyParam'
+        - $ref: '#/components/parameters/AddExtensionsParam'
         - $ref: '#/components/parameters/RemoveNullsParam'
         - $ref: '#/components/parameters/IncludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeRelationsParam'
@@ -381,7 +382,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [mysql, oracle, postgres, sqlserver]
+        enum: [mysql,oracle,postgres,sqlserver]
     DbNameParam:
       name: db-name
       in: query
@@ -458,25 +459,24 @@ components:
     LogLastDaysParam:
       name: log-last-days
       in: query
-      description: How many days to go back for the start of the interval - ignored if 'from' or 'to' are specified
+      description: How many days to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified
       required: false
       schema:
         type: integer
     LogLastHoursParam:
       name: log-last-hours
       in: query
-      description: How many hours to go back for the start of the interval - ignored if 'log-from' or 'log-to' are specified
+      description: How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified
       required: false
       schema:
         type: integer
     LogDateFormatParam:
       name: log-date-format
       in: query
-      description: Format for writing the date and time of the log entries.
+      description: Format for writing the date and time on the log entries.
       required: false
       schema:
         type: string
-        format: datetime
         default: YYYY-MM-DD HH:MM:SS
     LogFilePathParam:
       name: log-file-path
@@ -508,8 +508,8 @@ components:
       required: false
       schema:
         type: string
-        enum: [debug, info, warning, error, critical]
-        default: info
+        enum: [debug,info,warning,error,critical]
+        default: debug
     LogStyleParam:
       name: log-style
       in: query
@@ -524,15 +524,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [aws, minio]
-    S3EnginePathParam:
-      name: s3-engine
-      in: path
-      description: The S3 engine to configure
-      required: true
-      schema:
-        type: string
-        enum: [aws, minio]
+        enum: [aws,minio]
     S3EndpointUrlParam:
       name: s3-endpoint-url
       in: query
@@ -564,26 +556,34 @@ components:
     S3RegionNameParam:
       name: s3-region-name
       in: query
-      description: The reference region
+      description: The reference region for the service
       required: false
       schema:
         type: string
     S3SecureAccessParam:
       name: s3-secure-access
       in: query
-      description: Whether to use Transport Security Layer (MinIO), or Security Socket Layer (AWS)
+      description: Whether to use TLS (Transport Layer Security - MinIO), or SSL (Security Socket Layer - AWS)
       required: false
       schema:
         type: boolean
         default: false
+    S3EnginePathParam:
+      name: s3-engine
+      in: path
+      description: The S3 engine to configure
+      required: true
+      schema:
+        type: string
+        enum: [aws,minio]
     ToS3Param:
       name: to-s3
       in: query
-      description: The S3 service o migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.
+      description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be not be specified.
       required: false
       schema:
         type: string
-        enum: [aws, minio]
+        enum: [aws,minio]
         example: 
     FromRdbmsParam:
       name: from-rdbms
@@ -592,7 +592,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [mysql, oracle, postgres, sqlserver]
+        enum: [mysql,oracle,postgres,sqlserver]
         example: oracle
     ToRdbmsParam:
       name: to-rdbms
@@ -601,7 +601,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [mysql, oracle, postgres, sqlserver]
+        enum: [mysql,oracle,postgres,sqlserver]
         example: postgres
     FromSchemaParam:
       name: from-schema
@@ -624,7 +624,15 @@ components:
       required: true
       schema:
         type: string
-        enum: [mysql, oracle, postgres, sqlserver]
+        enum: [mysql,oracle,postgres,sqlserver]
+    AddExtensionsParam:
+      name: add-extensions
+      in: query
+      description: Whether file extensions are to be added to the names of objects migrated to S3 storage. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.
+      required: false
+      schema:
+        type: boolean
+        default: false
     MigrateMetadataParam:
       name: migrate-metadata
       in: query
@@ -652,7 +660,7 @@ components:
     ProcessIndexesParam:
       name: process-indexes
       in: query
-      description: Whether indexes should be considered. Defaults to false.
+      description: Whether indexes should be considered.
       required: false
       schema:
         type: boolean
@@ -660,7 +668,7 @@ components:
     ProcessViewsParam:
       name: process-views
       in: query
-      description: Whether views should be considered. Defaults to false.
+      description: Whether views should be considered.
       required: false
       schema:
         type: boolean
@@ -668,7 +676,7 @@ components:
     RelaxReflectionParam:
       name: relax-reflection
       in: query
-      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided. Defaults to false.
+      description: Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.
       required: false
       schema:
         type: boolean

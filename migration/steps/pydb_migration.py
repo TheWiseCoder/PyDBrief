@@ -297,9 +297,8 @@ def setup_tables(errors: list[str],
         if no_pk:
             log(logger=logger,
                 level=WARNING,
-                msg=(f"RDBMS {source_rdbms}, "
-                     f"table {source_schema}.{target_table}, "
-                     f"no primary key column found"))
+                msg=(f"Table {source_rdbms}.{source_schema}.{target_table}, "
+                     "no primary key column found"))
     return result
 
 

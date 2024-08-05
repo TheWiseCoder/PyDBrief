@@ -403,6 +403,9 @@
             "$ref": "#/components/parameters/SkipNonemptyParam"
           },
           {
+            "$ref": "#/components/parameters/AddExtensionsParam"
+          },
+          {
             "$ref": "#/components/parameters/RemoveNullsParam"
           },
           {
@@ -863,19 +866,6 @@
           ]
         }
       },
-      "S3EnginePathParam": {
-        "name": "s3-engine",
-        "in": "path",
-        "description": "The S3 engine to configure",
-        "required": true,
-        "schema": {
-          "type": "string",
-          "enum": [
-            "aws",
-            "minio"
-          ]
-        }
-      },
       "S3EndpointUrlParam": {
         "name": "s3-endpoint-url",
         "in": "query",
@@ -915,7 +905,7 @@
       "S3RegionNameParam": {
         "name": "s3-region-name",
         "in": "query",
-        "description": "The reference region",
+        "description": "The reference region for the service",
         "required": false,
         "schema": {
           "type": "string"
@@ -924,17 +914,30 @@
       "S3SecureAccessParam": {
         "name": "s3-secure-access",
         "in": "query",
-        "description": "Whether to use Transport Security Layer (MinIO), or Security Socket Layer (AWS)",
+        "description": "Whether to use TLS (Transport Layer Security - MinIO), or SSL (Security Socket Layer - AWS)",
         "required": false,
         "schema": {
           "type": "boolean",
           "default": false
         }
       },
+      "S3EnginePathParam": {
+        "name": "s3-engine",
+        "in": "path",
+        "description": "The S3 engine to configure",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "aws",
+            "minio"
+          ]
+        }
+      },
       "ToS3Param": {
         "name": "to-s3",
         "in": "query",
-        "description": "The S3 service o migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be left blank.",
+        "description": "The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be not be specified.",
         "required": false,
         "schema": {
           "type": "string",
@@ -1010,6 +1013,16 @@
           ]
         }
       },
+      "AddExtensionsParam": {
+        "name": "add-extensions",
+        "in": "query",
+        "description": "Whether file extensions are to be added to the names of objects migrated to S3 storage. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
       "MigrateMetadataParam": {
         "name": "migrate-metadata",
         "in": "query",
@@ -1043,7 +1056,7 @@
       "ProcessIndexesParam": {
         "name": "process-indexes",
         "in": "query",
-        "description": "Whether indexes should be considered. Defaults to false.",
+        "description": "Whether indexes should be considered.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -1053,7 +1066,7 @@
       "ProcessViewsParam": {
         "name": "process-views",
         "in": "query",
-        "description": "Whether views should be considered. Defaults to false.",
+        "description": "Whether views should be considered.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -1063,7 +1076,7 @@
       "RelaxReflectionParam": {
         "name": "relax-reflection",
         "in": "query",
-        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided. Defaults to false.",
+        "description": "Relaxes requirement that referenced tables must be found during the schema reflection phase. Will not automatically prevent a 'referenced table not found' error in the subsequent schema migration phase, but additional useful debug information is likely to be provided.",
         "required": false,
         "schema": {
           "type": "boolean",
