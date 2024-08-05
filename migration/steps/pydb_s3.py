@@ -91,26 +91,30 @@ def s3_migrate_lobs(errors: list[str],
                         mimetype = MIMETYPE_TEXT
             # no more data
             else:
-                # determine LOB's mimetype and add a file extension to its identifier
-                with suppress(TypeError):
-                    kind: filetype.Type = filetype.guess(obj=lob_data)
-                    if kind:
-                        mimetype = kind.mime
-                        if add_extensions:
-                            identifier += f".{kind.extension}"
+                # has any LOB data been sent ?
+                if lob_data:
+                    # yes, determine LOB's mimetype and add a file extension to its identifier
+                    with suppress(TypeError):
+                        kind: filetype.Type = filetype.guess(obj=lob_data)
+                        if kind:
+                            mimetype = kind.mime
+                            if add_extensions:
+                                identifier += f".{kind.extension}"
 
-                # send it to S3
-                s3_data_store(errors=errors,
-                              prefix=prefix,
-                              identifier=identifier,
-                              data=lob_data,
-                              length=len(lob_data),
-                              mimetype=mimetype,
-                              tags=metadata,
-                              engine=target_s3,
-                              client=client,
-                              logger=logger)
-                result += 1
+                    # send it to S3
+                    s3_data_store(errors=errors,
+                                  prefix=prefix,
+                                  identifier=identifier,
+                                  data=lob_data,
+                                  length=len(lob_data),
+                                  mimetype=mimetype,
+                                  tags=metadata,
+                                  engine=target_s3,
+                                  client=client,
+                                  logger=logger)
+                    result += 1
+
+                # proceed to the next LOB
                 first_chunk = True
 
     return result
