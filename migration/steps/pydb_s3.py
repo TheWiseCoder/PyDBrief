@@ -67,15 +67,14 @@ def s3_migrate_lobs(errors: list[str],
             if first_chunk:
                 # the initial data is a 'dict' with the values of the row's PK columns
                 values: list[Any] = []
-                metadata = {
-                    "rdbms": target_rdbms,
-                    "table": target_table
-                }
+                metadata = {}
                 for key, value in row_data.items():
                     values.append(value)
                     metadata[key] = str_from_any(source=value)
                 # the LOB's identifier is a hex-formatted hash on the contents of the row's PK columns
                 identifier = __build_identifier(values=values)
+                metadata["rdbms"] = target_rdbms
+                metadata["table"] = target_table
                 lob_data = bytes()
                 mimetype = None
                 first_chunk = False

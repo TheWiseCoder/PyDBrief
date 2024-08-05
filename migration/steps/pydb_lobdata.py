@@ -47,7 +47,7 @@ def migrate_lobs(errors: list[str],
             # process the existing LOB columns
             for lob_column in lob_columns:
                 if target_s3:
-                    count += s3_migrate_lobs(errors=errors,
+                    count += s3_migrate_lobs(errors=op_errors,
                                              target_s3=target_s3,
                                              target_rdbms=target_rdbms,
                                              target_table=target_table,
@@ -72,6 +72,16 @@ def migrate_lobs(errors: list[str],
                                              target_committable=True,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0
+            if op_errors:
+                errors.extend(op_errors)
+                status: str = "none"
+            else:
+                status: str = "full"
+                result += count
+            table_data["lob-status"] = status
+            table_data["lob-count"] = count
+            logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
+                              f"to {target_rdbms}.{target_table}, status {status}"))
         elif lob_columns:
             log(logger=logger,
                 level=ERROR,
@@ -82,14 +92,4 @@ def migrate_lobs(errors: list[str],
                             f"Table {source_rdbms}.{source_table} has no primary keys")
             op_errors.append(validate_format_error(101,
                                                    err_msg))
-        if op_errors:
-            errors.extend(op_errors)
-            status: str = "none"
-        else:
-            status: str = "full"
-            result += count
-        table_data["lob-status"] = status
-        table_data["lob-count"] = count
-        logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
-                          f"to {target_rdbms}.{target_table}, status {status}"))
     return result
