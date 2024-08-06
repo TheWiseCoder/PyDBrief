@@ -2,15 +2,15 @@
   "openapi": "3.0.3",
   "info": {
     "title": "PyDBrief API",
-    "description": "A Workbench for bidirectional data migration between different RDBMS engines",
+    "description": "A Workbench for bidirectional data migration between different RDBMS and S3 engines",
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.3.7"
+    "version": "1.3.9"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
-    "url": "https://github.com/TheWiseCoder/PyDBrief''"
+    "url": "https://github.com/TheWiseCoder/PyDBrief"
   },
   "servers": [
     {
@@ -769,7 +769,7 @@
       "LogLastDaysParam": {
         "name": "log-last-days",
         "in": "query",
-        "description": "How many days to go back for the start of the interval - ignored if 'from' or 'to' are specified",
+        "description": "How many days to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified",
         "required": false,
         "schema": {
           "type": "integer"
@@ -778,7 +778,7 @@
       "LogLastHoursParam": {
         "name": "log-last-hours",
         "in": "query",
-        "description": "How many hours to go back for the start of the interval - ignored if 'log-from' or 'log-to' are specified",
+        "description": "How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified",
         "required": false,
         "schema": {
           "type": "integer"
@@ -787,11 +787,10 @@
       "LogDateFormatParam": {
         "name": "log-date-format",
         "in": "query",
-        "description": "Format for writing the date and time of the log entries.",
+        "description": "Format for writing the date and time on the log entries.",
         "required": false,
         "schema": {
           "type": "string",
-          "format": "datetime",
           "default": "YYYY-MM-DD HH:MM:SS"
         }
       },
@@ -841,7 +840,7 @@
             "error",
             "critical"
           ],
-          "default": "info"
+          "default": "debug"
         }
       },
       "LogStyleParam": {
@@ -1086,7 +1085,7 @@
       "SkipNonemptyParam": {
         "name": "skip-nonempty",
         "in": "query",
-        "description": "Prevents plaindata migration for tables in the destination schema that are not empty. Useful for resuming an aborted plaindata migration without having to resort to reorganizing table lists. Ignored in the 'migrate-metadata' and migrate-lobdata' steps.",
+        "description": "This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination schema that are not empty; 2- to prevent migration of LOBs to S3 storage if their respective destination folders (technically known as the object's 'prefix') are not empty. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. Ignored if 'migrate-plaindata', or 'migrate-lobdata' and 'to-s3', are not specified.",
         "schema": {
           "type": "boolean",
           "default": false
@@ -1095,7 +1094,7 @@
       "IncludeRelationsParam": {
         "name": "include-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) to migrate. Mutually exclusive with 'exclude-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
+        "description": "Relations (tables, views, and indexes) to migrate. Mutually exclusive with 'exclude-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not specified, respectively.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1108,7 +1107,7 @@
       "ExcludeRelationsParam": {
         "name": "exclude-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not defined, respectively.",
+        "description": "Relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not specified, respectively.",
         "required": false,
         "explode": false,
         "schema": {

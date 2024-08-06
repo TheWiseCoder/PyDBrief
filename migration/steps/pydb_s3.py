@@ -3,13 +3,12 @@ import hashlib
 import pickle
 from contextlib import suppress
 from logging import Logger
-from pathlib import Path
 from pypomes_core import str_from_any
-from pypomes_db import db_get_param, db_stream_lobs
+from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
 from pypomes_s3 import s3_get_client, s3_data_store
+from pathlib import Path
 from typing import Any
-from urlobject import URLObject
 
 from migration.pydb_common import MIGRATION_CHUNK_SIZE
 
@@ -20,6 +19,7 @@ def s3_migrate_lobs(errors: list[str],
                     target_table: str,
                     source_rdbms: str,
                     source_table: str,
+                    lob_prefix: Path,
                     lob_column: str,
                     pk_columns: list[str],
                     add_extensions: bool,
@@ -28,16 +28,6 @@ def s3_migrate_lobs(errors: list[str],
 
     # initialize the return variable
     result: int = 0
-
-    # build the location of the data
-    url: URLObject = URLObject(db_get_param(key="host",
-                                            engine=target_rdbms))
-    # 'url.hostname' returns 'None' for 'localhost'
-    host: str = url.hostname or str(url)
-    prefix: Path = Path(f"{target_rdbms}@{host}",
-                        target_table[:target_table.index(".")],
-                        target_table[target_table.index(".")+1:],
-                        lob_column)
 
     # obtain the S3 client
     client: Any = s3_get_client(errors=errors,
@@ -104,7 +94,7 @@ def s3_migrate_lobs(errors: list[str],
 
                     # send it to S3
                     s3_data_store(errors=errors,
-                                  prefix=prefix,
+                                  prefix=lob_prefix,
                                   identifier=identifier,
                                   data=lob_data,
                                   length=len(lob_data),

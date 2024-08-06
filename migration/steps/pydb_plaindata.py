@@ -26,13 +26,13 @@ def migrate_plain(errors: list[str],
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
 
-        # is nonempty target table an issue ?
+        # is a nonempty target table an issue ?
         if skip_nonempty and (db_count(errors=errors,
                                        table=target_table,
                                        engine=target_rdbms,
                                        connection=target_conn) or 0) > 0:
             # yes, skip it
-            logger.debug(msg=f"Skipped nonempty {target_rdbms}.{target_table}")
+            logger.debug(msg=f"Skipped nonempty '{target_rdbms}.{target_table}'")
             table_data["plain-status"] = "skipped"
         else:
             # no, proceed
