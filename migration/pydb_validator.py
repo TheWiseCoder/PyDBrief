@@ -164,7 +164,7 @@ def assert_column_types(errors: list[str],
         result: dict[str, Type] = {}
         for foreign_column in foreign_columns:
             # format of 'foreign_column' is <column_name>=<column_type>
-            column_name: str = foreign_column[:f"={foreign_column}".rindex('=')-1]
+            column_name: str = foreign_column[:f"={foreign_column}".rindex("'=")-1]
             type_name: str = foreign_column.replace(column_name, "", 1)[1:]
             column_type: Type = name_to_type(rdbms=rdbms,
                                              type_name=type_name.lower())

@@ -28,8 +28,8 @@ def prune_metadata(source_schema: str,
                    logger: Logger) -> None:
 
     # build list of prunable tables
-    prunable_tables: set[str] = set([column[:(column + ".").index(".")]
-                                     for column in exclude_columns])
+    prunable_tables: set[str] = {column[:(column + ".").index(".")]
+                                 for column in exclude_columns}
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
@@ -50,15 +50,12 @@ def prune_metadata(source_schema: str,
 
             # handle indexes for 'source_table'
             if process_indexes:
-                # build list of tainted indexes
-                tainted_indexes: list[Index] = []
-                for index in source_table.indexes:
-                    # 'index' is tainted if:
-                    #   - 'index' is listed in 'exclude-relations' OR
-                    #   - 'included-relations' is not empty AND 'index' is not listed therein
-                    if index.name in exclude_relations or \
-                       (include_relations and index.name not in include_relations):
-                        tainted_indexes.append(index)
+                # build list of tainted indexes - 'index' is tainted if:
+                #   - 'index' is listed in 'exclude_relations' OR
+                #   - 'included_relations' is not empty AND 'index' is not listed therein
+                tainted_indexes: list[Index] = [index for index in source_table.indexes
+                                                if index.name in exclude_relations or
+                                                (include_relations and index.name not in include_relations)]
                 # remove tainted indexes
                 if len(tainted_indexes) == len(source_table.indexes):
                     source_table.indexes.clear()
@@ -70,16 +67,16 @@ def prune_metadata(source_schema: str,
 
             # prune table
             if source_table.name in prunable_tables:
-                excluded_columns: list[Column] = []
-                # noinspection PyProtectedMember
                 # look for columns to exclude
-                for column in source_table._columns:
-                    if f"{source_table.name}.{column.name}" in exclude_columns:
-                        excluded_columns.append(column)
+                # noinspection PyProtectedMember
+                # ruff: noqa: SLF001
+                excluded_columns: list[Column] = [column for column in source_table._columns
+                                                  if f"{source_table.name}.{column.name}" in exclude_columns]
                 # traverse the list of columns to exclude
                 for excluded_column in excluded_columns:
-                    # noinspection PyProtectedMember
                     # remove the column from table's metadata and log the event
+                    # noinspection PyProtectedMember
+                    # ruff: noqa: SLF001
                     source_table._columns.remove(excluded_column)
                     log(logger=logger,
                         level=INFO,
@@ -88,7 +85,7 @@ def prune_metadata(source_schema: str,
 
             # mark these constraints as tainted:
             #   - duplicate CK constraints in table
-            #   - constraints listed in 'exclude-constraints'
+            #   - constraints listed in 'exclude_constraints'
             table_cks: list[str] = []
             tainted_constraints: list[Constraint] = []
             for constraint in source_table.constraints:
@@ -104,12 +101,13 @@ def prune_metadata(source_schema: str,
                 # FK constraints require special handling
                 if isinstance(tainted_constraint, ForeignKeyConstraint):
                     # directly removing a foreign key is not available in SqlAlchemy:
-                    # - after being removed from 'source_table.constraints', it reappears
-                    # - nullifying its 'constraint' attribute has the desired effect
-                    # - removing it from 'column.foreign_keys' prevents 'column'
-                    #   from being flagged later as having a 'foreign-key' feature
+                    #   - after being removed from 'source_table.constraints', it reappears
+                    #   - nullifying its 'constraint' attribute has the desired effect
+                    #   - removing it from 'column.foreign_keys' prevents 'column'
+                    #     from being flagged later as having a 'foreign-key' feature
                     foreign_key: ForeignKey | None = None
                     # noinspection PyProtectedMember
+                    # ruff: noqa: SLF001
                     for column in source_table._columns:
                         for fk in column.foreign_keys:
                             if fk.name == tainted_constraint.name:
@@ -222,6 +220,7 @@ def setup_tables(errors: list[str],
         # build the list of migrated columns for this table
         table_columns: dict = {}
         # noinspection PyProtectedMember
+        # ruff: noqa: SLF001
         columns: Iterable[Column] = target_table._columns
 
         # register the source column types and prepare for S3 migration
@@ -239,6 +238,7 @@ def setup_tables(errors: list[str],
         # remove the S3-targeted LOB columns
         for s3_column in s3_columns:
             # noinspection PyProtectedMember
+            # ruff: noqa: SLF001
             target_table._columns.remove(s3_column)
 
         # migrate the columns

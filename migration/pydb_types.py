@@ -573,13 +573,13 @@ def migrate_column(source_rdbms: str,
     # is the column a foreign key, and an override type has not been defined ?
     if is_fk and not override_columns.get(col_name):
         # yes, attempt to force type conformity
-        fk_column: Column = list(source_column.foreign_keys)[0].column
+        fk_column: Column = next(iter(source_column.foreign_keys)).column
         if type_equiv is None or \
            fk_column.table.schema in [source_schema, target_schema]:
             # force type conformity
             type_equiv = fk_column.type.__class__
 
-    msg: str = f"Rdbms {target_rdbms}, type {str(col_type_obj)} in {source_rdbms}.{col_name}"
+    msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
     if type_equiv is None:
         log(logger=logger,
             level=WARNING,
@@ -617,7 +617,7 @@ def migrate_column(source_rdbms: str,
     result = type_equiv()
     log(logger=logger,
         level=DEBUG,
-        msg=f"{msg} converted to {str(result)}")
+        msg=f"{msg} converted to {result}")
 
     # wrap-up the type migration
     if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):

@@ -280,7 +280,7 @@ def migrate(errors: list[str],
             errors.extend(op_errors)
             source_conn.close()
             target_conn.close()
-        
+
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 

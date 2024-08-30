@@ -1,8 +1,8 @@
 # environment
 cache-dir = "~/.cache/ruff"
 force-exclude = true
-required-version = "0.0.282"
-target-version = "py312"
+required-version = "0.6.2"
+target-version = "py310"
 respect-gitignore = true
 task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
 select = [
@@ -85,6 +85,7 @@ ignore = [
     "DTZ006",   # usage of 'datetime.datetime.fromtimestamp()' that do not specify a timezone
     "G004",     # logging statement uses 'f-string'
     "N815",     # Variable in class scope should not be mixedCase
+    "PERF203",  # try-except within a loop incurs performance overhead (not applicable for Python >= 3.11)
     "PGH004",   # use specific rule codes when using 'noqa'
     "PLR2004",  # magic value used in comparison, consider replacing it with a constant variable
     "PLW0603",  # using the global statement to update a variable is discouraged
@@ -118,13 +119,13 @@ inline-quotes = "double"
 multiline-quotes = "double"
 
 [mccabe]
-max-complexity = 20         # upper limit for McCabe code complexity
+max-complexity = 40         # upper limit for McCabe code complexity
 
 [pycodestyle]
 max-doc-length = 120
 
 [pylint]
-max-args = 16
-max-branches = 32
+max-args = 30
+max-branches = 40
 max-returns = 1
-max-statements = 100
+max-statements = 120

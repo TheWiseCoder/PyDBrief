@@ -12,7 +12,7 @@ from .pydb_migration import (
     prune_metadata, setup_schema, setup_tables
 )
 from .pydb_engine import build_engine
-from ..pydb_types import is_lob
+from migration.pydb_types import is_lob
 
 
 # structure of the migration data returned:

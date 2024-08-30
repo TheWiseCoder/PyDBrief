@@ -38,7 +38,7 @@ def s3_migrate_lobs(errors: list[str],
         # yes initialize the properties
         identifier: str | None = None
         mimetype: str | None = None
-        lob_data: bytes = bytes()
+        lob_data: bytes = b""
         metadata: dict[str, str] = {}
         first_chunk: bool = True
 
@@ -66,7 +66,7 @@ def s3_migrate_lobs(errors: list[str],
                     metadata[key] = str_from_any(source=value)
                 # the LOB's identifier is a hex-formatted hash on the contents of the row's PK columns
                 identifier = __build_identifier(values=values)
-                lob_data = bytes()
+                lob_data = b""
                 mimetype = None
                 first_chunk = False
             # data chunks
