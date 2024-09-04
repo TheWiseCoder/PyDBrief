@@ -97,6 +97,8 @@ def s3_migrate_lobs(errors: list[str],
                                 extension = f".{kind.extension}"
                     if add_extensions:
                         identifier += extension
+                    if not mimetype:
+                        mimetype = MIMETYPE_BINARY
 
                     # send it to S3
                     s3_data_store(errors=errors,

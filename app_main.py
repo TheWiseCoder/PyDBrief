@@ -320,7 +320,7 @@ def migrate_data() -> Response:
         target_rdbms: str = scheme.get("to-rdbms").lower()
         source_schema: str = scheme.get("from-schema").lower()
         target_schema: str = scheme.get("to-schema").lower()
-        target_s3: str = scheme.get("to-s3").lower() if scheme.get("to-s3") else None
+        target_s3: str | None = (scheme.get("to-s3") or "").lower() or None
         step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
         step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
         step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]

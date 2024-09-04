@@ -101,7 +101,7 @@ def migrate_lobs(errors: list[str],
                 errors.extend(op_errors)
                 status = "none"
             else:
-                # do not change it if it has already been set
+                # do not change 'status' if it has already been set
                 status = status or "full"
                 result += count
             table_data["lob-status"] = status
@@ -116,8 +116,8 @@ def migrate_lobs(errors: list[str],
             # 101: {}
             err_msg: str = ("Unable to migrate LOBs. "
                             f"Table {source_rdbms}.{source_table} has no primary keys")
-            op_errors.append(validate_format_error(101,
-                                                   err_msg))
+            errors.append(validate_format_error(101,
+                                                err_msg))
     return result
 
 
