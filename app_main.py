@@ -54,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.0"
+APP_VERSION: Final[str] = "1.4.1"
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
 
@@ -280,6 +280,8 @@ def migrate_data() -> Response:
         - *process-views*: whether to migrate views (defaults to *False*)
         - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
         - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
+        - *add-extensions: attempts to add extensions to LOB identifications, on migration to S3 storage
+        - *accept-empty*: accounts for empty LOBs on migration
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
@@ -325,6 +327,7 @@ def migrate_data() -> Response:
         process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
         process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
         relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
+        accept_empty: bool = str_lower(scheme.get("accept-empty")) in ["1", "t", "true"]
         skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
         add_extensions: bool = str_lower(scheme.get("add-extensions")) in ["1", "t", "true"]
         remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
@@ -346,6 +349,7 @@ def migrate_data() -> Response:
                         process_indexes=process_indexes,
                         process_views=process_views,
                         relax_reflection=relax_reflection,
+                        accept_empty=accept_empty,
                         skip_nonempty=skip_nonempty,
                         add_extensions=add_extensions,
                         remove_nulls=remove_nulls,

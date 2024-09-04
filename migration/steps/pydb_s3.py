@@ -23,6 +23,7 @@ def s3_migrate_lobs(errors: list[str],
                     lob_column: str,
                     pk_columns: list[str],
                     add_extensions: bool,
+                    accept_empty: bool,
                     source_conn: Any,
                     logger: Logger) -> int:
 
@@ -51,6 +52,7 @@ def s3_migrate_lobs(errors: list[str],
                                        engine=source_rdbms,
                                        connection=source_conn,
                                        committable=True,
+                                       accept_empty=accept_empty,
                                        chunk_size=MIGRATION_CHUNK_SIZE,
                                        logger=logger):
             # new LOB
@@ -82,15 +84,19 @@ def s3_migrate_lobs(errors: list[str],
                         mimetype = MIMETYPE_TEXT
             # no more data
             else:
-                # has any LOB data been sent ?
-                if lob_data:
-                    # yes, determine LOB's mimetype and add a file extension to its identifier
-                    with suppress(TypeError):
-                        kind: filetype.Type = filetype.guess(obj=lob_data)
-                        if kind:
-                            mimetype = kind.mime
-                            if add_extensions:
-                                identifier += f".{kind.extension}"
+                # send LOB data
+                if accept_empty or lob_data:
+                    extension: str = ".bin"
+                    # has any LOB data been sent ?
+                    if lob_data:
+                        # yes, determine LOB's mimetype and obtain a file extension
+                        with suppress(TypeError):
+                            kind: filetype.Type = filetype.guess(obj=lob_data)
+                            if kind:
+                                mimetype = kind.mime
+                                extension = f".{kind.extension}"
+                    if add_extensions:
+                        identifier += extension
 
                     # send it to S3
                     s3_data_store(errors=errors,

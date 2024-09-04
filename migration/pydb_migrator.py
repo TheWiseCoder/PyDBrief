@@ -72,6 +72,7 @@ def migrate(errors: list[str],
             process_indexes: bool,
             process_views: bool,
             relax_reflection: bool,
+            accept_empty: bool,
             skip_nonempty: bool,
             add_extensions: bool,
             remove_nulls: list[str],
@@ -107,8 +108,12 @@ def migrate(errors: list[str],
         msg += "; process views"
     if relax_reflection:
         msg += "; relax reflection"
+    if accept_empty:
+        msg += "; accept empty"
     if skip_nonempty:
         msg += "; skip nonempty"
+    if add_extensions:
+        msg += "; add extensions"
     if remove_nulls:
         msg += f"; remove nulls {','.join(remove_nulls)}"
     if include_relations:
@@ -259,6 +264,7 @@ def migrate(errors: list[str],
                                              target_schema=target_schema,
                                              target_s3=target_s3,
                                              skip_nonempty=skip_nonempty,
+                                             accept_empty=accept_empty,
                                              add_extensions=add_extensions,
                                              source_conn=source_conn,
                                              target_conn=target_conn,

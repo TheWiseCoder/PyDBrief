@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.4.0
+  version: 1.4.1
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -228,6 +228,7 @@ paths:
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
+        - $ref: '#/components/parameters/AcceptEmptyParam'
         - $ref: '#/components/parameters/SkipNonemptyParam'
         - $ref: '#/components/parameters/AddExtensionsParam'
         - $ref: '#/components/parameters/RemoveNullsParam'
@@ -579,7 +580,7 @@ components:
     ToS3Param:
       name: to-s3
       in: query
-      description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should be not be specified.
+      description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should not be specified.
       required: false
       schema:
         type: string
@@ -625,6 +626,13 @@ components:
       schema:
         type: string
         enum: [mysql,oracle,postgres,sqlserver]
+    AcceptEmptyParam:
+      name: accept-empty
+      in: query
+      description: Accounts for all migrated LOBs, even if they are empty, or if their corresponding column cells have NULL values. If LOBs are being migrated to an S3 storage, this parameter causes empty LOBs to be sent thereto. Ignored if parameter 'migrate-lobdata' is not specified.
+      schema:
+        type: boolean
+        default: false
     AddExtensionsParam:
       name: add-extensions
       in: query
