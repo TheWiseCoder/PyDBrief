@@ -17,7 +17,7 @@ pypomes_security==0.2.2
 pypomes_s3==0.6.2
 python-dateutil==2.9.0
 pytz==2024.1
-SQLAlchemy==2.0.33
+SQLAlchemy==2.0.34
 URLObject==2.4.3
 Werkzeug==3.0.4
 zope.interface==7.0.3
