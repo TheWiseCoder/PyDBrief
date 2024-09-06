@@ -54,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.1"
+APP_VERSION: Final[str] = "1.4.2"
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
 

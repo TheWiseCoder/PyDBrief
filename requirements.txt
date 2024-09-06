@@ -1,4 +1,4 @@
-boto3==1.35.11
+boto3==1.35.13
 DateTime==5.5
 filetype==1.2.0
 Flask==3.0.3
@@ -10,7 +10,7 @@ oracledb==2.4.1
 pyodbc==5.1.0
 psycopg2-binary==2.9.9
 pypomes_core==1.4.6
-pypomes_db==1.4.8
+pypomes_db==1.4.9
 pypomes_http==0.2.7
 pypomes_logging==0.2.8
 pypomes_security==0.2.2

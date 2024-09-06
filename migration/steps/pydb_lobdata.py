@@ -52,6 +52,7 @@ def migrate_lobs(errors: list[str],
             # process the existing LOB columns
             status: str | None = None
             for lob_column in lob_columns:
+                where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
                 if target_s3:
                     url: URLObject = URLObject(db_get_param(key="host",
                                                             engine=target_rdbms))
@@ -78,6 +79,7 @@ def migrate_lobs(errors: list[str],
                                                  lob_prefix=prefix,
                                                  lob_column=lob_column,
                                                  pk_columns=pk_columns,
+                                                 where_clause=where_clause,
                                                  accept_empty=accept_empty,
                                                  add_extensions=add_extensions,
                                                  source_conn=source_conn,
@@ -94,6 +96,7 @@ def migrate_lobs(errors: list[str],
                                              target_conn=target_conn,
                                              source_committable=True,
                                              target_committable=True,
+                                             where_clause=where_clause,
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0

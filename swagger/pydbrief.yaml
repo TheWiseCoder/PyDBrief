@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.4.1
+  version: 1.4.2
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief

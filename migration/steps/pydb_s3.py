@@ -22,8 +22,9 @@ def s3_migrate_lobs(errors: list[str],
                     lob_prefix: Path,
                     lob_column: str,
                     pk_columns: list[str],
-                    add_extensions: bool,
+                    where_clause: str,
                     accept_empty: bool,
+                    add_extensions: bool,
                     source_conn: Any,
                     logger: Logger) -> int:
 
@@ -52,6 +53,7 @@ def s3_migrate_lobs(errors: list[str],
                                        engine=source_rdbms,
                                        connection=source_conn,
                                        committable=True,
+                                       where_clause=where_clause,
                                        accept_empty=accept_empty,
                                        chunk_size=MIGRATION_CHUNK_SIZE,
                                        logger=logger):
