@@ -91,7 +91,7 @@ def s3_migrate_lobs(errors: list[str],
                     extension: str = ".bin"
                     # has any LOB data been sent ?
                     if lob_data:
-                        # yes, determine LOB's mimetype and obtain a file extension
+                        # yes, determine LOB's mimetype and file extension
                         with suppress(TypeError):
                             kind: filetype.Type = filetype.guess(obj=lob_data)
                             if kind:

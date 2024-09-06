@@ -163,6 +163,8 @@ def migrate(errors: list[str],
         result["process-views"] = process_views
     if process_views:
         result["relax-reflection"] = relax_reflection
+    if accept_empty:
+        result["accept-empty"] = accept_empty
     if skip_nonempty:
         result["skip-nonempty"] = skip_nonempty
     if add_extensions:
