@@ -1,7 +1,7 @@
 # environment
 cache-dir = "~/.cache/ruff"
 force-exclude = true
-required-version = "0.6.3"
+required-version = ">=0.6.5"
 target-version = "py310"
 respect-gitignore = true
 task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
@@ -119,13 +119,13 @@ inline-quotes = "double"
 multiline-quotes = "double"
 
 [mccabe]
-max-complexity = 40         # upper limit for McCabe code complexity
+max-complexity = 50         # upper limit for McCabe code complexity
 
 [pycodestyle]
 max-doc-length = 120
 
 [pylint]
 max-args = 30
-max-branches = 40
+max-branches = 50
 max-returns = 1
-max-statements = 120
+max-statements = 150

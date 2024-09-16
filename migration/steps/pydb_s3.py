@@ -1,5 +1,6 @@
 import filetype
 import hashlib
+import mimetypes
 import pickle
 from contextlib import suppress
 from logging import Logger
@@ -24,7 +25,9 @@ def s3_migrate_lobs(errors: list[str],
                     pk_columns: list[str],
                     where_clause: str,
                     accept_empty: bool,
-                    add_extensions: bool,
+                    reflect_filetype: bool,
+                    forced_filetype: str,
+                    named_column: str,
                     source_conn: Any,
                     logger: Logger) -> int:
 
@@ -37,7 +40,10 @@ def s3_migrate_lobs(errors: list[str],
                                 logger=logger)
     # was the S3 client obtained ?
     if client:
-        # yes initialize the properties
+        # yes proceed
+        forced_mimetype: str = mimetypes.types_map.get(forced_filetype) if forced_filetype else None
+
+        # initialize the properties
         identifier: str | None = None
         mimetype: str | None = None
         lob_data: bytes = b""
@@ -50,6 +56,7 @@ def s3_migrate_lobs(errors: list[str],
                                        table=source_table,
                                        lob_column=lob_column,
                                        pk_columns=pk_columns,
+                                       ref_column=named_column,
                                        engine=source_rdbms,
                                        connection=source_conn,
                                        committable=True,
@@ -59,19 +66,26 @@ def s3_migrate_lobs(errors: list[str],
                                        logger=logger):
             # new LOB
             if first_chunk:
-                # the initial data is a 'dict' with the values of the row's PK columns
+                # the initial data is a 'dict' with the values of:
+                #   - the row's PK columns
+                #   - the lobdata's filename (if 'named_column' was specified)
                 values: list[Any] = []
                 metadata = {
                     "rdbms": target_rdbms,
                     "table": target_table
                 }
                 for key, value in sorted(row_data.items()):
-                    values.append(value)
-                    metadata[key] = str_from_any(source=value)
-                # the LOB's identifier is a hex-formatted hash on the contents of the row's PK columns
-                identifier = __build_identifier(values=values)
+                    if key == named_column:
+                        identifier = value
+                    else:
+                        values.append(value)
+                        metadata[key] = str_from_any(source=value)
+                if not identifier:
+                    # hex-formatted hash on the contents of the row's PK columns
+                    identifier = __build_identifier(values=values)
                 lob_data = b""
                 mimetype = None
+                # noinspection PyUnusedLocal
                 first_chunk = False
             # data chunks
             elif row_data:
@@ -88,19 +102,19 @@ def s3_migrate_lobs(errors: list[str],
             else:
                 # send LOB data
                 if accept_empty or lob_data:
-                    extension: str = ".bin"
-                    # has any LOB data been sent ?
-                    if lob_data:
+                    extension: str = forced_filetype
+                    # has filetype reflection been specified ?
+                    if reflect_filetype and lob_data:
                         # yes, determine LOB's mimetype and file extension
                         with suppress(TypeError):
                             kind: filetype.Type = filetype.guess(obj=lob_data)
                             if kind:
                                 mimetype = kind.mime
                                 extension = f".{kind.extension}"
-                        if add_extensions:
-                            identifier += extension
+                    if extension:
+                        identifier += extension
                     if not mimetype:
-                        mimetype = MIMETYPE_BINARY
+                        mimetype = forced_mimetype or MIMETYPE_BINARY
 
                     # send it to S3
                     s3_data_store(errors=errors,

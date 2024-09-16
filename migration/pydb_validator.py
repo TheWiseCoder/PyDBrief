@@ -132,10 +132,18 @@ def assert_migration_steps(errors: list[str],
                                        scheme=scheme,
                                        attr="migrate-lobdata",
                                        required=True)
+    step_synchronize: bool = validate_bool(errors=errors,
+                                           scheme=scheme,
+                                           attr="synchronize-plaindata",
+                                           required=True)
     # validate them
     err_msg: str | None = None
-    if not step_metadata and not step_lobdata and not step_plaindata:
+    if not step_metadata and not step_lobdata and \
+       not step_plaindata and not step_synchronize:
         err_msg = "At least one migration step must be specified"
+    elif (step_synchronize and
+          (step_metadata or step_plaindata or step_lobdata)):
+        err_msg = "Synchronization can not be combined with another operation"
     elif step_metadata and step_lobdata and not step_plaindata:
         err_msg = "Migrating metadata and LOBs requires migrating plain data as well"
     if err_msg:

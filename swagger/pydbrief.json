@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.4.2"
+    "version": "1.4.3"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -406,7 +406,7 @@
             "$ref": "#/components/parameters/SkipNonemptyParam"
           },
           {
-            "$ref": "#/components/parameters/AddExtensionsParam"
+            "$ref": "#/components/parameters/ReflectFiletypeParam"
           },
           {
             "$ref": "#/components/parameters/RemoveNullsParam"
@@ -425,6 +425,9 @@
           },
           {
             "$ref": "#/components/parameters/OverrideColumnsParam"
+          },
+          {
+            "$ref": "#/components/parameters/NamedLobdataParam"
           }
         ],
         "responses": {
@@ -461,7 +464,10 @@
         "operationId": "retrieve-log",
         "parameters": [
           {
-            "$ref": "#/components/parameters/LogAttachParam"
+            "$ref": "#/components/parameters/LogFilenameParam"
+          },
+          {
+            "$ref": "#/components/parameters/LogFilemodeParam"
           },
           {
             "$ref": "#/components/parameters/LogLevelParam"
@@ -516,18 +522,18 @@
         "tags": [
           "registry"
         ],
-        "summary": "Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values are reused.",
-        "description": "Reconfigure the server's operating log",
+        "summary": "Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values, or values obtained from environment variables, are used.",
+        "description": "Reconfigure and restart the server's operating log",
         "operationId": "configure-log",
         "parameters": [
           {
+            "$ref": "#/components/parameters/LogFilepathParam"
+          },
+          {
+            "$ref": "#/components/parameters/LogFilemodeParam"
+          },
+          {
             "$ref": "#/components/parameters/LogLevelParam"
-          },
-          {
-            "$ref": "#/components/parameters/LogFilePathParam"
-          },
-          {
-            "$ref": "#/components/parameters/LogFileModeParam"
           },
           {
             "$ref": "#/components/parameters/LogFormatParam"
@@ -739,16 +745,6 @@
           "type": "string"
         }
       },
-      "LogAttachParam": {
-        "name": "log-attach",
-        "in": "query",
-        "description": "Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.",
-        "required": false,
-        "schema": {
-          "type": "boolean",
-          "default": true
-        }
-      },
       "LogFromDatetimeParam": {
         "name": "log-from-datetime",
         "in": "query",
@@ -797,19 +793,29 @@
           "default": "YYYY-MM-DD HH:MM:SS"
         }
       },
-      "LogFilePathParam": {
-        "name": "log-file-path",
+      "LogFilenameParam": {
+        "name": "log-filename",
         "in": "query",
-        "description": "The path for the log file. Defaults to 'PYDB.log' at the OS standard temporary folder.",
+        "description": "Name of the file to save the downloaded data with. If omitted, the browser is requested to display the data, instead.",
         "required": false,
         "schema": {
           "type": "string"
         }
       },
-      "LogFileModeParam": {
-        "name": "log-file-mode",
+      "LogFilepathParam": {
+        "name": "log-filepath",
         "in": "query",
-        "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents)",
+        "description": "The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS standard temporary folder.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "example": "/tmp/pydb.log"
+        }
+      },
+      "LogFilemodeParam": {
+        "name": "log-filemode",
+        "in": "query",
+        "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents).",
         "required": false,
         "schema": {
           "type": "string",
@@ -1024,10 +1030,10 @@
           "default": false
         }
       },
-      "AddExtensionsParam": {
-        "name": "add-extensions",
+      "ReflectFiletypeParam": {
+        "name": "reflect-filetype",
         "in": "query",
-        "description": "Whether file extensions are to be added to the names of objects migrated to S3 storage. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
+        "description": "Whether the lobdata are reflected for their file types, so as to add the corresponding file extensions to the names of objects migrated to S3 storage. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -1146,6 +1152,19 @@
         "name": "exclude-constraints",
         "in": "query",
         "description": "Constraints not to migrate.",
+        "required": false,
+        "explode": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "NamedLobdataParam": {
+        "name": "named-lobdata",
+        "in": "query",
+        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>.[\\<extension\\>]'. The optional extension is used for lobdata naming, depending on the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1473,7 +1492,7 @@
           },
           "log-file": {
             "type": "string",
-            "example": "/tmp/pydbrief.log"
+            "example": "/tmp/PYDB.log"
           },
           "version": {
             "type": "string",

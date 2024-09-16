@@ -1,4 +1,4 @@
-boto3==1.35.13
+boto3==1.35.20
 DateTime==5.5
 filetype==1.2.0
 Flask==3.0.3
@@ -9,15 +9,15 @@ mysql-connector-python==9.0.0
 oracledb==2.4.1
 pyodbc==5.1.0
 psycopg2-binary==2.9.9
-pypomes_core==1.4.6
-pypomes_db==1.4.9
-pypomes_http==0.2.7
-pypomes_logging==0.2.8
+pypomes_core==1.5.0
+pypomes_db==1.5.1
+pypomes_http==0.3.8
+pypomes_logging==0.3.2
 pypomes_security==0.2.2
 pypomes_s3==0.6.2
 python-dateutil==2.9.0
-pytz==2024.1
-SQLAlchemy==2.0.34
+pytz==2024.2
+SQLAlchemy==2.0.35
 URLObject==2.4.3
 Werkzeug==3.0.4
 zope.interface==7.0.3

@@ -69,20 +69,22 @@ def migrate(errors: list[str],
             step_metadata: bool,
             step_plaindata: bool,
             step_lobdata: bool,
+            step_synchronize: bool,
             process_indexes: bool,
             process_views: bool,
             relax_reflection: bool,
             accept_empty: bool,
             skip_nonempty: bool,
-            add_extensions: bool,
+            reflect_filetype: bool,
             remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
             exclude_columns: list[str],
             exclude_constraints: list[str],
+            named_lobdata: list[str],
             override_columns: dict[str, Type],
             version: str,
-            logger: Logger | None) -> dict:
+            logger: Logger | None) -> dict[str, Any]:
 
     # set external columns to displayable list
     override_cols: list[str] = []
@@ -101,6 +103,8 @@ def migrate(errors: list[str],
         steps.append("migrate-plaindata")
     if step_lobdata:
         steps.append("migrate-lobdata")
+    if step_synchronize:
+        steps.append("synchronize-plaindata")
     msg += f"steps {','.join(steps)}"
     if process_indexes:
         msg += "; process indexes"
@@ -112,8 +116,8 @@ def migrate(errors: list[str],
         msg += "; accept empty"
     if skip_nonempty:
         msg += "; skip nonempty"
-    if add_extensions:
-        msg += "; add extensions"
+    if reflect_filetype:
+        msg += "; reflect filetype"
     if remove_nulls:
         msg += f"; remove nulls {','.join(remove_nulls)}"
     if include_relations:
@@ -126,6 +130,8 @@ def migrate(errors: list[str],
         msg += f"; exclude columns {','.join(exclude_columns)}"
     if override_cols:
         msg += f"; override columns {','.join(override_cols)}"
+    if named_lobdata:
+        msg += f"; exclude columns {','.join(named_lobdata)}"
     log(logger=logger,
         level=INFO,
         msg=msg)
@@ -167,8 +173,8 @@ def migrate(errors: list[str],
         result["accept-empty"] = accept_empty
     if skip_nonempty:
         result["skip-nonempty"] = skip_nonempty
-    if add_extensions:
-        result["add-extensions"] = add_extensions
+    if reflect_filetype:
+        result["reflect-filetype"] = reflect_filetype
     if remove_nulls:
         result["remove-nulls"] = remove_nulls
     if include_relations:
@@ -181,6 +187,8 @@ def migrate(errors: list[str],
         result["exclude-columns"] = exclude_columns
     if override_cols:
         result["override-columns"] = override_cols
+    if named_lobdata:
+        result["named-lobdata"] = named_lobdata
 
     log(logger=logger,
         level=INFO,
@@ -232,7 +240,7 @@ def migrate(errors: list[str],
                                          logger=logger)
             # proceed, if restrictions were disabled
             if not op_errors:
-                # migrate the plain data, if applicable
+                # migrate the plain data
                 if step_plaindata:
                     log(logger=logger,
                         level=INFO,
@@ -253,7 +261,7 @@ def migrate(errors: list[str],
                         level=INFO,
                         msg="Finished migrating the plain data")
 
-                # migrate the LOB data, if applicable
+                # migrate the LOB data
                 if step_lobdata:
                     log(logger=logger,
                         level=INFO,
@@ -267,7 +275,8 @@ def migrate(errors: list[str],
                                              target_s3=target_s3,
                                              skip_nonempty=skip_nonempty,
                                              accept_empty=accept_empty,
-                                             add_extensions=add_extensions,
+                                             reflect_filetype=reflect_filetype,
+                                             named_lobdata=named_lobdata,
                                              source_conn=source_conn,
                                              target_conn=target_conn,
                                              migrated_tables=migrated_tables,
@@ -276,6 +285,18 @@ def migrate(errors: list[str],
                     log(logger=logger,
                         level=INFO,
                         msg="Finished migrating the LOBs")
+
+                # synchronize the plain data
+                if step_synchronize:
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Started synchronizing the plain data")
+                    op_errors = []
+                    # invoke synchronization #
+                    errors.extend(op_errors)
+                    log(logger=logger,
+                        level=INFO,
+                        msg="Finished synchronizing the plain data")
 
                 # restore target RDBMS restrictions delaying bulk copying
                 op_errors = []
