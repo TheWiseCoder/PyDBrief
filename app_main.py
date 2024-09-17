@@ -284,7 +284,7 @@ def migrate_data() -> Response:
         - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
         - *accept-empty*: accounts for empty LOBs on migration
         - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
-        - *add-extensions*: attempts to add extensions to LOB identifications, on migration to S3 storage
+        - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate

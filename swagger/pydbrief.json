@@ -391,6 +391,9 @@
             "$ref": "#/components/parameters/MigrateLobsParam"
           },
           {
+            "$ref": "#/components/parameters/SynchronizePlainParam"
+          },
+          {
             "$ref": "#/components/parameters/ProcessIndexesParam"
           },
           {
@@ -1057,7 +1060,7 @@
         "required": true,
         "schema": {
           "type": "boolean",
-          "default": true
+          "default": false
         }
       },
       "MigrateLobsParam": {
@@ -1067,7 +1070,17 @@
         "required": true,
         "schema": {
           "type": "boolean",
-          "default": true
+          "default": false
+        }
+      },
+      "SynchronizePlainParam": {
+        "name": "synchronize-plaindata",
+        "in": "query",
+        "description": "Synchronize the contents of plaindata columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation cannot be combined with a migration step.",
+        "required": true,
+        "schema": {
+          "type": "boolean",
+          "default": false
         }
       },
       "ProcessIndexesParam": {
@@ -1164,7 +1177,7 @@
       "NamedLobdataParam": {
         "name": "named-lobdata",
         "in": "query",
-        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>.[\\<extension\\>]'. The optional extension is used for lobdata naming, depending on the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
+        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>[.\\<extension\\>]'. The optional extension is used for lobdata naming, depending on the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
         "required": false,
         "explode": false,
         "schema": {
