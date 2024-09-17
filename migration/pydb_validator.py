@@ -135,7 +135,7 @@ def assert_migration_steps(errors: list[str],
     step_synchronize: bool = validate_bool(errors=errors,
                                            scheme=scheme,
                                            attr="synchronize-plaindata",
-                                           required=True)
+                                           required=False)
     # validate them
     err_msg: str | None = None
     if not step_metadata and not step_lobdata and \
