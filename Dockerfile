@@ -51,5 +51,8 @@ COPY . .
 ENV FLASK_APP=app_main.py
 ENV TZ=America/Sao_Paulo
 
+ENV_PYDB_LOGGING_FILEMODE=a
+ENV_PYDB_LOGGING_FILEPATH=/tmp/pydbrief.log
+
 EXPOSE 5000
 CMD ["python", "-m" , "flask", "run", "--host=0.0.0.0", "--port=5000"]

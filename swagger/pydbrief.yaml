@@ -261,7 +261,6 @@ paths:
       operationId: retrieve-log
       parameters:
         - $ref: '#/components/parameters/LogFilenameParam'
-        - $ref: '#/components/parameters/LogFilemodeParam'
         - $ref: '#/components/parameters/LogLevelParam'
         - $ref: '#/components/parameters/LogFromDatetimeParam'
         - $ref: '#/components/parameters/LogToDatetimeParam'
@@ -286,7 +285,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      example: Value '<from>' of 'from' attribute invalid
+                      example: Value '<datetime>' of 'from-datetime' attribute invalid
     post:
       tags:
         - registry
@@ -299,7 +298,7 @@ paths:
         - $ref: '#/components/parameters/LogLevelParam'
         - $ref: '#/components/parameters/LogFormatParam'
         - $ref: '#/components/parameters/LogStyleParam'
-        - $ref: '#/components/parameters/LogDateFormatParam'
+        - $ref: '#/components/parameters/LogDatetimeParam'
       responses:
         '200':
           description: Successful operation
@@ -468,8 +467,8 @@ components:
       required: false
       schema:
         type: integer
-    LogDateFormatParam:
-      name: log-date-format
+    LogDatetimeParam:
+      name: log-datetime
       in: query
       description: Format for writing the date and time on the log entries.
       required: false

@@ -21,9 +21,7 @@ from pypomes_core import (
 from pypomes_http import (
     http_get_parameter, http_get_parameters
 )  # noqa: PyPep8
-from pypomes_logging import (
-    PYPOMES_LOGGER,
-    logging_service, logging_log_info, logging_log_error)  # noqa: PyPep8
+from pypomes_logging import PYPOMES_LOGGER, logging_service  # noqa: PyPep8
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -56,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.3"
+APP_VERSION: Final[str] = "1.4.4"
 
 # configure jsonify() with 'ensure_ascii=False'
 app.config["JSON_AS_ASCII"] = False
@@ -93,7 +91,7 @@ def version() -> Response:
     :return: the versions in execution
     """
     # register the request
-    logging_log_info(msg=f"Request {request.path}")
+    PYPOMES_LOGGER.info(msg=f"URL {request.url}")
 
     versions: dict = get_versions()
     versions["PyDBrief"] = APP_VERSION
@@ -102,7 +100,7 @@ def version() -> Response:
     result: Response = jsonify(versions)
 
     # log the response
-    logging_log_info(msg=f"Response {request.path}: {result}")
+    PYPOMES_LOGGER.info(msg=f"Response {request.path}: {result}")
 
     return result
 
@@ -152,7 +150,7 @@ def handle_rdbms(rdbms: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    logging_log_info(f"Response {request.path}?{scheme}: {result}")
+    PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
 
     return result
 
@@ -200,7 +198,7 @@ def handle_s3(s3_engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    logging_log_info(f"Response {request.path}?{scheme}: {result}")
+    PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
 
     return result
 
@@ -260,7 +258,7 @@ def handle_migration() -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    logging_log_info(f"Response {request.path}?{scheme}: {result}")
+    PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
 
     return result
 
@@ -372,7 +370,7 @@ def migrate_data() -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    logging_log_info(f"Response: {result}")
+    PYPOMES_LOGGER.info(f"Response: {result}")
 
     return result
 
@@ -399,7 +397,7 @@ def handle_exception(exc: Exception) -> Response:
         # no, report the problem
         err_msg: str = exc_format(exc=exc,
                                   exc_info=sys.exc_info())
-        logging_log_error(msg=f"{err_msg}")
+        PYPOMES_LOGGER.error(msg=f"{err_msg}")
         reply: dict = {
             "errors": [err_msg]
         }

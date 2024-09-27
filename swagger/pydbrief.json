@@ -470,9 +470,6 @@
             "$ref": "#/components/parameters/LogFilenameParam"
           },
           {
-            "$ref": "#/components/parameters/LogFilemodeParam"
-          },
-          {
             "$ref": "#/components/parameters/LogLevelParam"
           },
           {
@@ -511,7 +508,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "example": "Value '<from>' of 'from' attribute invalid"
+                        "example": "Value '<datetime>' of 'from-datetime' attribute invalid"
                       }
                     }
                   }
@@ -545,7 +542,7 @@
             "$ref": "#/components/parameters/LogStyleParam"
           },
           {
-            "$ref": "#/components/parameters/LogDateFormatParam"
+            "$ref": "#/components/parameters/LogDatetimeParam"
           }
         ],
         "responses": {
@@ -786,8 +783,8 @@
           "type": "integer"
         }
       },
-      "LogDateFormatParam": {
-        "name": "log-date-format",
+      "LogDatetimeParam": {
+        "name": "log-datetime",
         "in": "query",
         "description": "Format for writing the date and time on the log entries.",
         "required": false,
