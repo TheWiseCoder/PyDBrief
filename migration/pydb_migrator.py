@@ -1,13 +1,13 @@
 import warnings
 from datetime import datetime
-from logging import INFO, Logger, FileHandler
+from logging import Logger, FileHandler
 from pathlib import Path
 from pypomes_core import DATETIME_FORMAT_INV, dict_jsonify
 from pypomes_db import db_connect
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration.pydb_common import get_rdbms_params, get_s3_params, log
+from migration.pydb_common import get_rdbms_params, get_s3_params
 from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
@@ -132,9 +132,7 @@ def migrate(errors: list[str],
         msg += f"; override columns {','.join(override_cols)}"
     if named_lobdata:
         msg += f"; exclude columns {','.join(named_lobdata)}"
-    log(logger=logger,
-        level=INFO,
-        msg=msg)
+    logger.info(msg=msg)
 
     # errors while obtaining connection parameters will be listed on output, only
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
@@ -190,9 +188,7 @@ def migrate(errors: list[str],
     if named_lobdata:
         result["named-lobdata"] = named_lobdata
 
-    log(logger=logger,
-        level=INFO,
-        msg="Started discovering the metadata")
+    logger.info(msg="Started discovering the metadata")
 
     migrated_tables: dict[str, Any] = \
         migrate_metadata(errors=errors,
@@ -211,9 +207,7 @@ def migrate(errors: list[str],
                          exclude_constraints=exclude_constraints,
                          override_columns=override_columns,
                          logger=logger) or {}
-    log(logger=logger,
-        level=INFO,
-        msg="Finished discovering the metadata")
+    logger.info(msg="Finished discovering the metadata")
 
     # proceed, if migration of plain data and/or LOB data has been indicated
     if migrated_tables and \
@@ -242,9 +236,7 @@ def migrate(errors: list[str],
             if not op_errors:
                 # migrate the plain data
                 if step_plaindata:
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Started migrating the plain data")
+                    logger.info("Started migrating the plain data")
                     plain_count = migrate_plain(errors=op_errors,
                                                 source_rdbms=source_rdbms,
                                                 target_rdbms=target_rdbms,
@@ -257,15 +249,11 @@ def migrate(errors: list[str],
                                                 migrated_tables=migrated_tables,
                                                 logger=logger)
                     errors.extend(op_errors)
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Finished migrating the plain data")
+                    logger.info(msg="Finished migrating the plain data")
 
                 # migrate the LOB data
                 if step_lobdata:
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Started migrating the LOBs")
+                    logger.info("Started migrating the LOBs")
                     op_errors = []
                     lob_count = migrate_lobs(errors=op_errors,
                                              source_rdbms=source_rdbms,
@@ -282,21 +270,15 @@ def migrate(errors: list[str],
                                              migrated_tables=migrated_tables,
                                              logger=logger)
                     errors.extend(op_errors)
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Finished migrating the LOBs")
+                    logger.info(msg="Finished migrating the LOBs")
 
                 # synchronize the plain data
                 if step_synchronize:
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Started synchronizing the plain data")
+                    logger.info(msg="Started synchronizing the plain data")
                     op_errors = []
                     # invoke synchronization #
                     errors.extend(op_errors)
-                    log(logger=logger,
-                        level=INFO,
-                        msg="Finished synchronizing the plain data")
+                    logger.info(msg="Finished synchronizing the plain data")
 
                 # restore target RDBMS restrictions delaying bulk copying
                 op_errors = []

@@ -1,10 +1,8 @@
-from logging import DEBUG, WARNING, Logger
+from logging import Logger
 from pypomes_core import dict_get_key, str_positional
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
-
-from migration.pydb_common import log
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
 # noinspection PyUnresolvedReferences
@@ -581,9 +579,7 @@ def migrate_column(source_rdbms: str,
 
     msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
     if type_equiv is None:
-        log(logger=logger,
-            level=WARNING,
-            msg=f"{msg} - unable to convert")
+        logger.warning(msg=f"{msg} - unable to convert")
         # use the source type
         type_equiv = col_type_class
 
@@ -615,9 +611,7 @@ def migrate_column(source_rdbms: str,
 
     # instantiate the type object
     result = type_equiv()
-    log(logger=logger,
-        level=DEBUG,
-        msg=f"{msg} converted to {result}")
+    logger.debug(msg=f"{msg} converted to {result}")
 
     # wrap-up the type migration
     if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):

@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from logging import Logger, INFO, WARNING
+from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
 from pypomes_db import db_drop_table, db_drop_view
 from sqlalchemy import (
@@ -10,7 +10,6 @@ from sqlalchemy.sql.elements import Type
 from sys import exc_info
 from typing import Any
 
-from migration.pydb_common import log
 from migration.pydb_types import (
     establish_equivalences, is_lob, migrate_column
 )
@@ -42,7 +41,7 @@ def prune_metadata(source_schema: str,
         #   - relation is not listed in 'exclude_relations' AND
         #   - relation is not listed in 'schema_views' AND
         #   - relation is listed in 'include_relations' OR
-        #     - 'include_relations' is empty AND schemas agree
+        #   - 'include_relations' is empty AND schemas agree
         if (table_name not in exclude_relations and
             table_name not in schema_views and
             (table_name in include_relations or
@@ -78,10 +77,8 @@ def prune_metadata(source_schema: str,
                     # noinspection PyProtectedMember
                     # ruff: noqa: SLF001
                     source_table._columns.remove(excluded_column)
-                    log(logger=logger,
-                        level=INFO,
-                        msg=(f"Column '{excluded_column.name}' "
-                             f"removed from table '{source_table.name}'"))
+                    logger.info(msg=(f"Column '{excluded_column.name}' "
+                                     f"removed from table '{source_table.name}'"))
 
             # mark these constraints as tainted:
             #   - duplicate CK constraints in table
@@ -119,10 +116,8 @@ def prune_metadata(source_schema: str,
                             break
 
                 # log the constraint removal
-                log(logger=logger,
-                    level=INFO,
-                    msg=(f"Constraint '{tainted_constraint.name}' "
-                         f"removed from table '{source_table.name}'"))
+                logger.info(msg=(f"Constraint '{tainted_constraint.name}' "
+                                 f"removed from table '{source_table.name}'"))
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
@@ -295,10 +290,8 @@ def setup_tables(errors: list[str],
                 no_pk = False
                 break
         if no_pk:
-            log(logger=logger,
-                level=WARNING,
-                msg=(f"Table {source_rdbms}.{source_schema}.{target_table}, "
-                     "no primary key column found"))
+            logger.warning(msg=(f"Table {source_rdbms}.{source_schema}.{target_table}, "
+                                "no primary key column found"))
     return result
 
 

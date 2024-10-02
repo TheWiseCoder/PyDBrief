@@ -1,4 +1,4 @@
-from logging import Logger, ERROR
+from logging import Logger
 from pathlib import Path
 from pypomes_core import validate_format_error
 from pypomes_db import db_get_param, db_migrate_lobs, db_table_exists
@@ -7,7 +7,7 @@ from typing import Any
 from urlobject import URLObject
 
 from migration.pydb_types import is_lob
-from migration.pydb_common import MIGRATION_CHUNK_SIZE, log
+from migration.pydb_common import MIGRATION_CHUNK_SIZE
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -141,10 +141,8 @@ def migrate_lobs(errors: list[str],
                 logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
                                   f"to {target_rdbms}.{target_table}, status {status}"))
             elif lob_columns:
-                log(logger=logger,
-                    level=ERROR,
-                    msg=(f"Table {source_rdbms}.{target_table}, "
-                         f"no primary key column found"))
+                logger.error(msg=(f"Table {source_rdbms}.{target_table}, "
+                                  f"no primary key column found"))
                 # 101: {}
                 err_msg: str = ("Unable to migrate LOBs. "
                                 f"Table {source_rdbms}.{source_table} has no primary keys")

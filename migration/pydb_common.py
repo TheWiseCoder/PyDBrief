@@ -169,21 +169,3 @@ def set_s3_params(errors: list[str],
                                    secure_access=secure_access):
         # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
         errors.append(validate_format_error(145))
-
-
-def log(logger: Logger,
-        level: int,
-        msg: str) -> None:
-
-    if logger:
-        match level:
-            case 10:    # DEBUG
-                logger.debug(msg)
-            case 20:    # INFO
-                logger.info(msg)
-            case 30:    # WARNING
-                logger.warning(msg)
-            case 40:    # ERROR
-                logger.error(msg)
-            case 50:    # CRITICAL
-                logger.critical(msg)
