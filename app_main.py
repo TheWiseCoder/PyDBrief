@@ -34,16 +34,16 @@ from migration.pydb_validator import (
 )  # noqa: PyPep8
 
 # create the Flask application
-app: Flask = Flask(__name__)
+flask_app: Flask = Flask(__name__)
 
 # support cross-origin resource sharing
-CORS(app)
+CORS(flask_app)
 
 # set the logging endpoint
-app.add_url_rule(rule="/logging",
-                 endpoint="logging",
-                 view_func=logging_service,
-                 methods=["GET", "POST"])
+flask_app.add_url_rule(rule="/logging",
+                       endpoint="logging",
+                       view_func=logging_service,
+                       methods=["GET", "POST"])
 
 # make PyDBrief's API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
@@ -51,16 +51,16 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
     api_url="/swagger/pydbrief.json",
     config={"defaultModelsExpandDepth": -1}
 )
-app.register_blueprint(blueprint=swagger_blueprint)
+flask_app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
 APP_VERSION: Final[str] = "1.4.4"
 
 # configure jsonify() with 'ensure_ascii=False'
-app.config["JSON_AS_ASCII"] = False
+flask_app.config["JSON_AS_ASCII"] = False
 
 
-@app.route("/swagger/pydbrief.json")
+@flask_app.route("/swagger/pydbrief.json")
 def swagger() -> Response:
     """
     Entry point for the microservice providing OpenAPI specifications in the Swagger standard.
@@ -82,8 +82,8 @@ def swagger() -> Response:
                                as_attachment=attach)
 
 
-@app.route(rule="/version",
-           methods=["GET"])
+@flask_app.route(rule="/version",
+                 methods=["GET"])
 def version() -> Response:
     """
     Obtain the current version of *PyDBrief*, along with the *PyPomes* modules in use.
@@ -105,10 +105,10 @@ def version() -> Response:
     return result
 
 
-@app.route(rule="/rdbms",
-           methods=["POST"])
-@app.route(rule="/rdbms/<rdbms>",
-           methods=["GET"])
+@flask_app.route(rule="/rdbms",
+                 methods=["POST"])
+@flask_app.route(rule="/rdbms/<rdbms>",
+                 methods=["GET"])
 def handle_rdbms(rdbms: str = None) -> Response:
     """
     Entry point for configuring the RDBMS to use.
@@ -155,10 +155,10 @@ def handle_rdbms(rdbms: str = None) -> Response:
     return result
 
 
-@app.route(rule="/s3",
-           methods=["POST"])
-@app.route(rule="/s3/<s3_engine>",
-           methods=["GET"])
+@flask_app.route(rule="/s3",
+                 methods=["POST"])
+@flask_app.route(rule="/s3/<s3_engine>",
+                 methods=["GET"])
 def handle_s3(s3_engine: str = None) -> Response:
     """
     Entry point for configuring the S3 service to use.
@@ -172,7 +172,7 @@ def handle_s3(s3_engine: str = None) -> Response:
         - *s3-region-name*: the name of the region where the engine is located (AWS only)
         - *s3-secure-access*: whether or not to use Transport Security Layer (MinIO only)
 
-    :param s3_engine: the reference S3 engine (*aws*, *ecs*, or *minio*)
+    :param s3_engine: the reference S3 engine (*aws* or *minio*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -203,10 +203,10 @@ def handle_s3(s3_engine: str = None) -> Response:
     return result
 
 
-@app.route(rule="/migration:metrics",
-           methods=["GET", "PATCH"])
-@app.route(rule="/migration:verify",
-           methods=["POST"])
+@flask_app.route(rule="/migration:metrics",
+                 methods=["GET", "PATCH"])
+@flask_app.route(rule="/migration:verify",
+                 methods=["POST"])
 def handle_migration() -> Response:
     """
     Entry point for configuring the RDBMS-independent parameters, and for assessing migration readiness.
@@ -263,8 +263,8 @@ def handle_migration() -> Response:
     return result
 
 
-@app.route(rule="/migrate",
-           methods=["POST"])
+@flask_app.route(rule="/migrate",
+                 methods=["POST"])
 def migrate_data() -> Response:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
@@ -375,7 +375,7 @@ def migrate_data() -> Response:
     return result
 
 
-@app.errorhandler(code_or_exception=Exception)
+@flask_app.errorhandler(code_or_exception=Exception)
 def handle_exception(exc: Exception) -> Response:
     """
     Handle exceptions raised when responding to requests, but not handled.
@@ -430,6 +430,6 @@ def _build_response(errors: list[str],
 
 if __name__ == "__main__":
 
-    app.run(host="0.0.0.0",
-            port=5000,
-            debug=os.environ.get("ENV") == "dev")
+    flask_app.run(host="0.0.0.0",
+                  port=5000,
+                  debug=os.environ.get("ENV") == "dev")
