@@ -15,6 +15,7 @@ from migration.steps.pydb_database import (
 from migration.steps.pydb_lobdata import migrate_lobs
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
+from migration.steps.pydb_sync import synchronize_plain
 
 # treat warnings as errors
 warnings.filterwarnings("error")
@@ -44,20 +45,33 @@ warnings.filterwarnings("error")
 #   "steps": [
 #     "migrate-metadata",
 #     "migrate-plaindata",
-#     "migrate-lobdata"
+#     "migrate-lobdata",
+#     "synchronize-plaindata"
 #   ],
-#   "process-indexes": true,
+#   "process-indexes": <bool>>,
 #   "process-views": <bool>,
+#   "relax-reflection": <bool>
+#   "accept-empty": <bool>
+#   "skip-nonempty": <bool>,
 #   "include-relations": <list[str]>,
 #   "exclude-relations": <list[str]>,
 #   "exclude-constraints": <list[str]>,
 #   "exclude-columns": <list[str]>,
 #   "override-columns": [
-#     "<schema>.<table>.<column>=<type>"
+#     "<table-name>.<column-name>=<type>"
+#   ],
+#   "remove-nulls": [
+#     "<table-name>"
+#   ]
+#   "named-lobdata": [
+#     "<table-name>.<lob-column>=<names-column>[.<extension>]"
 #   ],
 #   "total-plains": nnn,
 #   "total-lobs": nnn,
 #   "total-tables": nnn,
+#   "sync-deletes": nnn,
+#   "sync-inserts": nnn,
+#   "sync-updates": nnn,
 #   "migrated-tables": <migrated-tables-structure>
 # }
 def migrate(errors: list[str],
@@ -211,7 +225,7 @@ def migrate(errors: list[str],
 
     # proceed, if migration of plain data and/or LOB data has been indicated
     if migrated_tables and \
-       (step_plaindata or step_lobdata):
+       (step_plaindata or step_lobdata or step_synchronize):
 
         # initialize the counters
         plain_count: int = 0
@@ -276,9 +290,22 @@ def migrate(errors: list[str],
                 if step_synchronize:
                     logger.info(msg="Started synchronizing the plain data")
                     op_errors = []
-                    # invoke synchronization #
+                    sync_deletes, sync_inserts, sync_updates = \
+                        synchronize_plain(errors=op_errors,
+                                          source_rdbms=source_rdbms,
+                                          target_rdbms=target_rdbms,
+                                          source_schema=source_schema,
+                                          target_schema=target_schema,
+                                          remove_nulls=remove_nulls,
+                                          source_conn=source_conn,
+                                          target_conn=target_conn,
+                                          migrated_tables=migrated_tables,
+                                          logger=logger)
                     errors.extend(op_errors)
                     logger.info(msg="Finished synchronizing the plain data")
+                    result["sync-deletes"] = sync_deletes
+                    result["sync-inserts"] = sync_inserts
+                    result["sync-updates"] = sync_updates
 
                 # restore target RDBMS restrictions delaying bulk copying
                 op_errors = []

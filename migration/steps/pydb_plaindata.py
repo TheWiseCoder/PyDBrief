@@ -36,36 +36,45 @@ def migrate_plain(errors: list[str],
             table_data["plain-status"] = "skipped"
         else:
             # no, proceed
+            no_pk: bool = True
+            op_errors: list[str] = []
             identity_column: str | None = None
             column_names: list[str] = []
-            # exclude LOB (large binary objects) types from the column names list
+            # exclude LOB (large binary objects) types
             for column_name, column_data in table_data["columns"].items():
                 column_type: str = column_data.get("source-type")
                 if not pydb_types.is_lob(col_type=column_type):
+                    features: list[str] = column_data.get("features", [])
                     column_names.append(column_name)
-                    if "identity" in column_data.get("features", []):
+                    if "primary-key" in features:
+                        no_pk = False
+                    if "identity" in features:
                         if identity_column:
                             # 102: Unexpected error: {}
-                            errors.append(validate_format_error(
+                            op_errors.append(validate_format_error(
                                 102, f"Table '{target_table}' has more than one identity column"))
                         else:
                             identity_column = column_name
+            if no_pk:
+                # 102: Unexpected error: {}
+                op_errors.append(validate_format_error(
+                    102, f"Table '{target_table}' has no primary keys"))
 
-            op_errors: list[str] = []
-            count: int = db_migrate_data(errors=op_errors,
-                                         source_engine=source_rdbms,
-                                         source_table=source_table,
-                                         source_columns=column_names,
-                                         target_engine=target_rdbms,
-                                         target_table=target_table,
-                                         source_conn=source_conn,
-                                         target_conn=target_conn,
-                                         source_committable=True,
-                                         target_committable=True,
-                                         identity_column=identity_column,
-                                         batch_size=pydb_common.MIGRATION_BATCH_SIZE,
-                                         has_nulls=table_name in remove_nulls,
-                                         logger=logger) or 0
+            count: int = 0 if op_errors else \
+                db_migrate_data(errors=op_errors,
+                                source_engine=source_rdbms,
+                                source_table=source_table,
+                                source_columns=column_names,
+                                target_engine=target_rdbms,
+                                target_table=target_table,
+                                source_conn=source_conn,
+                                target_conn=target_conn,
+                                source_committable=True,
+                                target_committable=True,
+                                identity_column=identity_column,
+                                batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                has_nulls=table_name in remove_nulls,
+                                logger=logger) or 0
             if op_errors:
                 # did a 'ValueError' exception on NULLs in strings occur ?
                 # ("A string literal cannot contain NUL (0x00) characters.")
@@ -83,6 +92,7 @@ def migrate_plain(errors: list[str],
                 status: str = "none"
             else:
                 status: str = "full"
+
             table_data["plain-status"] = status
             table_data["plain-count"] = count
             logger.debug(msg=(f"Migrated tuples from {source_rdbms}.{source_table} "
