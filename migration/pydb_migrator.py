@@ -350,7 +350,7 @@ def migrate(errors: list[str],
     if migration_badge:
         try:
             log_migration(errors=errors,
-                          migration_badge=migration_badge,
+                          badge=migration_badge,
                           log_json=result,
                           log_from=started)
         except Exception as e:
@@ -363,7 +363,7 @@ def migrate(errors: list[str],
 
 
 def log_migration(errors: list[str],
-                  migration_badge: str,
+                  badge: str,
                   log_json: dict[str, Any],
                   log_from: datetime) -> None:
 
@@ -374,7 +374,7 @@ def log_migration(errors: list[str],
     log_entries: BytesIO = logging_get_entries(errors=errors,
                                                log_from=log_from)
     log_entries.seek(0)
-    log_file: Path = Path(base_path, f"{migration_badge}.log")
+    log_file: Path = Path(base_path, f"{badge}.log")
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
     with log_file.open("wb") as f:
@@ -387,6 +387,6 @@ def log_migration(errors: list[str],
     json_data = json.dumps(obj=log_json,
                            ensure_ascii=False,
                            indent=4)
-    json_file: Path = Path(base_path, f"{migration_badge}.json")
+    json_file: Path = Path(base_path, f"{badge}.json")
     with json_file.open("w") as f:
         f.write(json_data)
