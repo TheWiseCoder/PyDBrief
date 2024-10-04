@@ -370,17 +370,15 @@ def log_migration(errors: list[str],
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
 
+    log_file: Path = Path(base_path, f"{badge}.log")
+    # create intermediate missing folders
+    log_file.parent.mkdir(parents=True,
+                          exist_ok=True)
     # write the log file
-    op_errors: list[str] = []
-    log_entries: BytesIO = logging_get_entries(errors=op_errors,
+    log_entries: BytesIO = logging_get_entries(errors=errors,
                                                log_from=log_from)
-    errors.extend(op_errors)
     if log_entries:
         log_entries.seek(0)
-        log_file: Path = Path(base_path, f"{badge}.log")
-        # create intermediate missing folders
-        log_file.parent.mkdir(parents=True,
-                              exist_ok=True)
         with log_file.open("wb") as f:
             f.write(log_entries.getvalue())
 
