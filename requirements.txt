@@ -15,7 +15,7 @@ pypomes_crypto==0.3.0
 pypomes_db==1.5.5
 pypomes_http==0.3.9
 pypomes_logging==0.4.2
-pypomes_s3==0.6.2
+pypomes_s3==0.6.3
 python-dateutil==2.9.0
 pytz==2024.2
 SQLAlchemy==2.0.35
