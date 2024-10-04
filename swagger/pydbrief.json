@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.4.4"
+    "version": "1.4.5"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -431,6 +431,9 @@
           },
           {
             "$ref": "#/components/parameters/NamedLobdataParam"
+          },
+          {
+            "$ref": "#/components/parameters/MigrationIdParam"
           }
         ],
         "responses": {
@@ -940,6 +943,15 @@
             "aws",
             "minio"
           ]
+        }
+      },
+      "MigrationIdParam": {
+        "name": "migration-id",
+        "in": "query",
+        "description": "The optional id for the migration session. If specified, it will be used to generate the JSON and log files specific to the current migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_MIGRATION_REGISTER'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.",
+        "required": false,
+        "schema": {
+          "type": "string"
         }
       },
       "ToS3Param": {
