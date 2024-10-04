@@ -108,7 +108,7 @@ def migrate(errors: list[str],
             exclude_constraints: list[str],
             named_lobdata: list[str],
             override_columns: dict[str, Type],
-            migration_id: str,
+            migration_badge: str,
             version: str,
             logger: Logger | None) -> dict[str, Any]:
 
@@ -144,8 +144,8 @@ def migrate(errors: list[str],
         msg += "; skip nonempty"
     if reflect_filetype:
         msg += "; reflect filetype"
-    if migration_id:
-        msg += f"; migration id '{migration_id}'"
+    if migration_badge:
+        msg += f"; migration badge '{migration_badge}'"
     if remove_nulls:
         msg += f"; remove nulls {','.join(remove_nulls)}"
     if include_relations:
@@ -183,8 +183,8 @@ def migrate(errors: list[str],
         "target-rdbms": to_rdbms,
         "version": version
     }
-    if migration_id:
-        result["migration-id"] = migration_id
+    if migration_badge:
+        result["migration-badge"] = migration_badge
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
@@ -347,10 +347,10 @@ def migrate(errors: list[str],
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
 
-    if migration_id:
+    if migration_badge:
         try:
             log_migration(errors=errors,
-                          migration_id=migration_id,
+                          migration_badge=migration_badge,
                           log_json=result,
                           log_from=started)
         except Exception as e:
@@ -363,7 +363,7 @@ def migrate(errors: list[str],
 
 
 def log_migration(errors: list[str],
-                  migration_id: str,
+                  migration_badge: str,
                   log_json: dict[str, Any],
                   log_from: datetime) -> None:
 
@@ -374,7 +374,7 @@ def log_migration(errors: list[str],
     log_entries: BytesIO = logging_get_entries(errors=errors,
                                                log_from=log_from)
     log_entries.seek(0)
-    log_file: Path = Path(base_path, f"{migration_id}.log")
+    log_file: Path = Path(base_path, f"{migration_badge}.log")
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
     with log_file.open("wb") as f:
@@ -387,6 +387,6 @@ def log_migration(errors: list[str],
     json_data = json.dumps(obj=log_json,
                            ensure_ascii=False,
                            indent=4)
-    json_file: Path = Path(base_path, f"{migration_id}.json")
+    json_file: Path = Path(base_path, f"{migration_badge}.json")
     with json_file.open("w") as f:
         f.write(json_data)

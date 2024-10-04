@@ -290,7 +290,7 @@ def migrate_data() -> Response:
         - *exclude-columns*: optional list of table columns not to migrate
         - *override-columns*: optional list of columns with forced migration types
         - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-        - *megration-id*: optional filepath for JSON and log file creation
+        - *migration-badge*: optional name for JSON and log file creation
 
     These are noteworthy:
         - the parameters *include-relations* and *exclude-relations* are mutually exclusive
@@ -340,7 +340,7 @@ def migrate_data() -> Response:
         exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
         exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
         named_lobdata: list[str] = str_as_list(str_lower(scheme.get("named-lobdata"))) or []
-        migration_id: str | None = scheme.get("migration-id")
+        migration_badge: str | None = scheme.get("migration-badge")
 
         # migrate the data
         reply = migrate(errors=errors,
@@ -366,7 +366,7 @@ def migrate_data() -> Response:
                         exclude_constraints=exclude_constraints,
                         named_lobdata=named_lobdata,
                         override_columns=override_columns,
-                        migration_id=migration_id,
+                        migration_badge=migration_badge,
                         version=APP_VERSION,
                         logger=PYPOMES_LOGGER)
     # build the response

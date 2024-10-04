@@ -239,7 +239,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/OverrideColumnsParam'
         - $ref: '#/components/parameters/NamedLobdataParam'
-        - $ref: '#/components/parameters/MigrationIdParam'
+        - $ref: '#/components/parameters/MigrationBadge'
       responses:
         '200':
           description: Successful operation
@@ -584,10 +584,10 @@ components:
         type: string
         enum: [aws,minio]
   # migration identification
-    MigrationIdParam:
-      name: migration-id
+    MigrationBadge:
+      name: migration-badge
       in: query
-      description: The optional id for the migration session. If specified, it will be used to generate the JSON and log files specific to the current migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
+      description: The optional identification for the migration session. If specified, it will be used to generate the JSON and log files specific to the current migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
       required: false
       schema:
         type: string
