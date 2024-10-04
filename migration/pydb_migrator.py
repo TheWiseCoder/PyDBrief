@@ -373,12 +373,13 @@ def log_migration(errors: list[str],
     # write the log file (create intermediate missing folders)
     log_entries: BytesIO = logging_get_entries(errors=errors,
                                                log_from=log_from)
-    log_entries.seek(0)
-    log_file: Path = Path(base_path, f"{badge}.log")
-    log_file.parent.mkdir(parents=True,
-                          exist_ok=True)
-    with log_file.open("wb") as f:
-        f.write(log_entries.getvalue())
+    if log_entries:
+        log_entries.seek(0)
+        log_file: Path = Path(base_path, f"{badge}.log")
+        log_file.parent.mkdir(parents=True,
+                              exist_ok=True)
+        with log_file.open("wb") as f:
+            f.write(log_entries.getvalue())
 
     # write the JSON file
     if errors:
