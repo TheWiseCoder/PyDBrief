@@ -76,7 +76,7 @@ warnings.filterwarnings("error")
 #   "named-lobdata": [
 #     "<table-name>.<lob-column>=<names-column>[.<extension>]"
 #   ],
-#   "migration-id": <migration-id>,
+#   "migration-badge": <migration-badge>,
 #   "total-plains": nnn,
 #   "total-lobs": nnn,
 #   "total-tables": nnn,
@@ -371,7 +371,8 @@ def log_migration(errors: list[str],
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
 
     # write the log file (create intermediate missing folders)
-    log_entries: BytesIO = logging_get_entries(errors=errors,
+    op_errors: list[str] = []
+    log_entries: BytesIO = logging_get_entries(errors=op_errors,
                                                log_from=log_from)
     if log_entries:
         log_entries.seek(0)
@@ -382,6 +383,7 @@ def log_migration(errors: list[str],
             f.write(log_entries.getvalue())
 
     # write the JSON file
+    errors.extend(op_errors)
     if errors:
         log_json = dict(log_json)
         log_json["errors"]: errors
