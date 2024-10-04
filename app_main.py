@@ -54,9 +54,9 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 flask_app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.4"
+APP_VERSION: Final[str] = "1.4.5"
 
-# configure jsonify() with 'ensure_ascii=False'
+# configure 'jsonify()' with 'ensure_ascii=False'
 flask_app.config["JSON_AS_ASCII"] = False
 
 
@@ -290,6 +290,7 @@ def migrate_data() -> Response:
         - *exclude-columns*: optional list of table columns not to migrate
         - *override-columns*: optional list of columns with forced migration types
         - *named-lobdata*: optional list of LOB columns and their associated names and extensions
+        - *megration-id*: optional filepath for JSON and log file creation
 
     These are noteworthy:
         - the parameters *include-relations* and *exclude-relations* are mutually exclusive
@@ -339,6 +340,7 @@ def migrate_data() -> Response:
         exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
         exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
         named_lobdata: list[str] = str_as_list(str_lower(scheme.get("named-lobdata"))) or []
+        migration_id: str | None = scheme.get("migration-id")
 
         # migrate the data
         reply = migrate(errors=errors,
@@ -364,6 +366,7 @@ def migrate_data() -> Response:
                         exclude_constraints=exclude_constraints,
                         named_lobdata=named_lobdata,
                         override_columns=override_columns,
+                        migration_id=migration_id,
                         version=APP_VERSION,
                         logger=PYPOMES_LOGGER)
     # build the response

@@ -1,10 +1,14 @@
+import sys
 from logging import Logger
-from pypomes_core import str_sanitize, exc_format, validate_format_error
+from pypomes_core import (
+    str_sanitize, exc_format, validate_format_error
+)
 from pypomes_db import db_execute
-from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
+from sqlalchemy import (
+    Engine, Inspector, MetaData, Table, inspect
+)
 from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
-from sys import exc_info
 from typing import Any
 
 from .pydb_database import column_set_nullable, view_get_ddl
@@ -118,7 +122,7 @@ def migrate_metadata(errors: list[str],
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
                 exc_err = str_sanitize(exc_format(exc=e,
-                                                  exc_info=exc_info()))
+                                                  exc_info=sys.exc_info()))
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104,
                                                     "schema-reflection",
@@ -155,8 +159,8 @@ def migrate_metadata(errors: list[str],
                     #   - a table or view referenced by a FK column was not found in the schema
                     # - this error will cause the migration to be aborted,
                     #   as SQLAlchemy would not be able to compile the migrated schema
-                    exc_err = str_sanitize(exc_format(exc=e,
-                                                      exc_info=exc_info()))
+                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                           exc_info=sys.exc_info()))
                     # 104: The operation {} returned the error {}
                     errors.append(validate_format_error(104,
                                                         "schema-migration",
@@ -220,7 +224,7 @@ def migrate_metadata(errors: list[str],
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err = str_sanitize(exc_format(exc=e,
-                                                                      exc_info=exc_info()))
+                                                                      exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",

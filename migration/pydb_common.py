@@ -1,11 +1,15 @@
 from logging import Logger
 from pypomes_core import (
+    APP_PREFIX, env_get_str,
     validate_bool, validate_int,
     validate_format_error, validate_str
 )
 from pypomes_db import db_get_params, db_setup
 from pypomes_s3 import s3_get_params, s3_setup
 from typing import Any
+
+REGISTRY_DOCKER = env_get_str(f"{APP_PREFIX}_REGISTRY_DOCKER")
+REGISTRY_HOST = env_get_str(f"{APP_PREFIX}_REGISTRY_HOST")
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 100000

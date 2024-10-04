@@ -1,13 +1,23 @@
+import json
+import sys
 import warnings
 from datetime import datetime
+from io import BytesIO
 from logging import Logger, FileHandler
 from pathlib import Path
-from pypomes_core import DATETIME_FORMAT_INV, dict_jsonify
+from pypomes_core import (
+    DATETIME_FORMAT_INV,
+    env_is_docker, dict_jsonify, str_sanitize, exc_format, validate_format_error
+)
 from pypomes_db import db_connect
+from pypomes_logging import logging_get_entries
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from migration.pydb_common import get_rdbms_params, get_s3_params
+from migration.pydb_common import (
+    REGISTRY_DOCKER, REGISTRY_HOST,
+    get_rdbms_params, get_s3_params
+)
 from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
@@ -66,6 +76,7 @@ warnings.filterwarnings("error")
 #   "named-lobdata": [
 #     "<table-name>.<lob-column>=<names-column>[.<extension>]"
 #   ],
+#   "migration-id": <migration-id>,
 #   "total-plains": nnn,
 #   "total-lobs": nnn,
 #   "total-tables": nnn,
@@ -97,6 +108,7 @@ def migrate(errors: list[str],
             exclude_constraints: list[str],
             named_lobdata: list[str],
             override_columns: dict[str, Type],
+            migration_id: str,
             version: str,
             logger: Logger | None) -> dict[str, Any]:
 
@@ -132,6 +144,8 @@ def migrate(errors: list[str],
         msg += "; skip nonempty"
     if reflect_filetype:
         msg += "; reflect filetype"
+    if migration_id:
+        msg += f"; migration id '{migration_id}'"
     if remove_nulls:
         msg += f"; remove nulls {','.join(remove_nulls)}"
     if include_relations:
@@ -169,7 +183,8 @@ def migrate(errors: list[str],
         "target-rdbms": to_rdbms,
         "version": version
     }
-
+    if migration_id:
+        result["migration-id"] = migration_id
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
@@ -327,8 +342,51 @@ def migrate(errors: list[str],
             if isinstance(handler, FileHandler):
                 result["log-file"] = Path(handler.baseFilename).as_posix()
                 break
-    result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
+    finished: datetime = datetime.now()
+    result["finished"] = finished.strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
 
+    if migration_id:
+        try:
+            log_migration(errors=errors,
+                          migration_id=migration_id,
+                          log_json=result,
+                          log_from=started)
+        except Exception as e:
+            exc_err: str = str_sanitize(exc_format(exc=e,
+                                                   exc_info=sys.exc_info()))
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                exc_err))
     return result
+
+
+def log_migration(errors: list[str],
+                  migration_id: str,
+                  log_json: dict[str, Any],
+                  log_from: datetime) -> None:
+
+    # define the base path
+    base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
+
+    # write the log file (create intermediate missing folders)
+    log_entries: BytesIO = logging_get_entries(errors=errors,
+                                               log_from=log_from)
+    log_entries.seek(0)
+    log_file: Path = Path(base_path, f"{migration_id}.log")
+    log_file.parent.mkdir(parents=True,
+                          exist_ok=True)
+    with log_file.open("wb") as f:
+        f.write(log_entries.getvalue())
+
+    # write the JSON file
+    if errors:
+        log_json = dict(log_json)
+        log_json["errors"]: errors
+    json_file: Path = Path(base_path, f"{migration_id}.json")
+    json_data = json.dumps(obj=log_json,
+                           ensure_ascii=False,
+                           indent=4)
+    with json_file.open("w") as f:
+        f.write(json_data)

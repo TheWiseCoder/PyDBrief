@@ -22,7 +22,7 @@ def synchronize_plain(errors: list[str],
     result_inserts: int = 0
     result_updates: int = 0
 
-    # traverse list of migrated tables to synchronize the plain data
+    # traverse list of migrated tables to synchronize their plain data
     for table_name, table_data in migrated_tables.items():
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
