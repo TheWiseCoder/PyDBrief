@@ -256,7 +256,7 @@ def migrate(errors: list[str],
                                       logger=logger)
 
         if source_conn and target_conn:
-            # disable target RDBMS restrictions to speed-up bulk copying
+            # disable target RDBMS restrictions to speed-up bulk operations
             session_disable_restrictions(errors=op_errors,
                                          rdbms=target_rdbms,
                                          conn=target_conn,
@@ -318,11 +318,11 @@ def migrate(errors: list[str],
                                           logger=logger)
                     errors.extend(op_errors)
                     logger.info(msg="Finished synchronizing the plain data")
-                    result["sync-deletes"] = sync_deletes
-                    result["sync-inserts"] = sync_inserts
-                    result["sync-updates"] = sync_updates
+                    result["total-sync-deletes"] = sync_deletes
+                    result["total-sync-inserts"] = sync_inserts
+                    result["total-sync-updates"] = sync_updates
 
-                # restore target RDBMS restrictions delaying bulk copying
+                # restore target RDBMS restrictions delaying bulk operations
                 op_errors = []
                 session_restore_restrictions(errors=op_errors,
                                              rdbms=target_rdbms,

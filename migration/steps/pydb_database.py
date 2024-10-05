@@ -26,7 +26,7 @@ def session_disable_restrictions(errors: list[str],
                                  conn: Any,
                                  logger: Logger) -> None:
 
-    # disable session restrictions to speed-up bulk copy
+    # disable session restrictions to speed-up bulk operations
     match rdbms:
         case "mysql":
             pass
@@ -42,7 +42,7 @@ def session_disable_restrictions(errors: list[str],
             pass
 
     logger.debug(msg=f"RDBMS {rdbms}, disabled session "
-                 "restrictions to speed-up bulk copying")
+                 "restrictions to speed-up bulk operations")
 
 
 def session_restore_restrictions(errors: list[str],
@@ -50,7 +50,7 @@ def session_restore_restrictions(errors: list[str],
                                  conn: Any,
                                  logger: Logger) -> None:
 
-    # restore session restrictions delaying bulk copy
+    # restore session restrictions delaying bulk operations
     match rdbms:
         case "mysql":
             pass
@@ -66,7 +66,7 @@ def session_restore_restrictions(errors: list[str],
             pass
 
     logger.debug(msg=f"RDBMS {rdbms}, restored session "
-                     "restrictions delaying bulk copying")
+                     "restrictions delaying bulk operations")
 
 
 def column_set_nullable(errors: list[str],
@@ -121,5 +121,20 @@ def view_get_ddl(errors: list[str],
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
                                             ("unable to retrieve creation script "
-                                             f"for view '{source_rdbms}.{source_schema}.{view_name}'")))
+                                             f"for view {source_rdbms}.{source_schema}.{view_name}")))
     return result
+
+
+def check_embedded_nulls(errors: list[str],
+                         rdbms: str,
+                         table: str) -> None:
+
+    # did a 'ValueError' exception on NULLs in strings occur ?
+    # ("A string literal cannot contain NUL (0x00) characters.")
+    if " contain NUL " in " ".join(errors):
+        # yes, provide instructions on how to handle the problem
+        msg: str = (f"Table {rdbms}.{table} has NULLs embedded in string data, "
+                    f"which is not accepted by the database. Please add this "
+                    f"table to the 'remove-nulls' migration parameter, and try again.")
+        # 101: {}
+        errors.append(validate_format_error(101, msg))

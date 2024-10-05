@@ -4,6 +4,7 @@ from pypomes_core import validate_format_error
 from pypomes_db import db_count, db_migrate_data
 
 from migration import pydb_types, pydb_common
+from migration.steps import pydb_database
 
 
 def migrate_plain(errors: list[str],
@@ -52,13 +53,13 @@ def migrate_plain(errors: list[str],
                         if identity_column:
                             # 102: Unexpected error: {}
                             op_errors.append(validate_format_error(
-                                102, f"Table '{target_table}' has more than one identity column"))
+                                102, f"Table {target_rdbms}.{target_table} has more than one identity column"))
                         else:
                             identity_column = column_name
             if no_pk:
                 # 102: Unexpected error: {}
                 op_errors.append(validate_format_error(
-                    102, f"Table '{target_table}' has no primary keys"))
+                    102, f"Table {target_rdbms}.{target_table} has no primary keys"))
 
             count: int = 0 if op_errors else \
                 db_migrate_data(errors=op_errors,
@@ -76,19 +77,10 @@ def migrate_plain(errors: list[str],
                                 has_nulls=table_name in remove_nulls,
                                 logger=logger) or 0
             if op_errors:
-                # did a 'ValueError' exception on NULLs in strings occur ?
-                # ("A string literal cannot contain NUL (0x00) characters.")
-                if target_rdbms == "postgres" and \
-                   "contain NUL" in " ".join(op_errors):
-                    # yes, provide instructions on how to handle the problem
-                    msg: str = (f"Table '{source_table}' has NULLs embedded in string data, "
-                                f"which is not accepted by '{target_rdbms}'. Please add this "
-                                f"table to the 'remove-nulls' migration parameter, and try again.")
-                    # 101: {}
-                    errors.append(validate_format_error(101, msg))
-                else:
-                    # no, report the errors
-                    errors.extend(op_errors)
+                pydb_database.check_embedded_nulls(errors=op_errors,
+                                                   rdbms=target_rdbms,
+                                                   table=target_table)
+                errors.extend(op_errors)
                 status: str = "none"
             else:
                 status: str = "full"
