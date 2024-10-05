@@ -57,8 +57,9 @@ def assert_migration(errors: list[str],
     assert_metrics_params(errors=errors)
 
     # validate the migration steps
-    assert_migration_steps(errors=errors,
-                           scheme=scheme)
+    if run_mode:
+        assert_migration_steps(errors=errors,
+                               scheme=scheme)
 
     # validate the source and target RDBMS engines
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
