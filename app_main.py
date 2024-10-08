@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from flask import (
-    Blueprint, Flask, Response, jsonify, request, send_from_directory
+    Blueprint, Flask, Response, jsonify, request, send_file
 )
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -48,7 +48,7 @@ flask_app.add_url_rule(rule="/logging",
 # make PyDBrief's API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
     base_url="/apidocs",
-    api_url="/swagger/pydbrief.json",
+    api_url="/swagger",
     config={"defaultModelsExpandDepth": -1}
 )
 flask_app.register_blueprint(blueprint=swagger_blueprint)
@@ -60,26 +60,22 @@ APP_VERSION: Final[str] = "1.4.6"
 flask_app.config["JSON_AS_ASCII"] = False
 
 
-@flask_app.route("/swagger/pydbrief.json")
+@flask_app.route("/swagger")
 def swagger() -> Response:
     """
     Entry point for the microservice providing OpenAPI specifications in the Swagger standard.
 
-    By default, the browser is instructed to save the file, instead of displaying its contents.
-
-    This parameter can optionally be provided to indicate otherwise:
-        - attach=<1|t|true|0|f|false>: 'true' if not specified
+   The optional *filename* parameter specifies the name of the file to be written to by the browser.
+   If omitted, the browser is asked to only display the returned content.
 
     :return: the requested OpenAPI specifications
     """
-    # define the treatment to be given to the file by the client
-    param: str = http_get_parameter(request, "attach")
-    attach: bool = (isinstance(param, str) and
-                    param.lower() in ["1", "t", "true"])
+    filename: str = http_get_parameter(request, "filename")
 
-    return send_from_directory(directory=Path(Path.cwd(), "swagger"),
-                               path="pydbrief.json",
-                               as_attachment=attach)
+    return send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
+                     mimetype="application/json",
+                     as_attachment=filename is not None,
+                     download_name=filename)
 
 
 @flask_app.route(rule="/version",
