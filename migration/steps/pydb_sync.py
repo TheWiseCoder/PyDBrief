@@ -30,9 +30,9 @@ def synchronize_plain(errors: list[str],
 
         # identify identity column and build the lists of PK and sync columns
         op_errors: list[str] = []
-        identity_column: str | None = None
         pk_columns: list[str] = []
         sync_columns: list[str] = []
+        identity_column: str | None = None
         for column_name, column_data in table_data["columns"].items():
             # exclude LOB (large binary objects) types
             column_type: str = column_data.get("source-type")
@@ -45,14 +45,16 @@ def synchronize_plain(errors: list[str],
                 if "identity" in features:
                     if identity_column:
                         # 102: Unexpected error: {}
-                        op_errors.append(validate_format_error(
-                            102, f"Table '{target_table}' has more than one identity column"))
+                        op_errors.append(validate_format_error(102,
+                                                               f"Table {target_rdbms}.{target_table} "
+                                                               "has more than one identity column"))
                     else:
                         identity_column = column_name
         if not pk_columns:
             # 102: Unexpected error: {}
-            op_errors.append(validate_format_error(
-                102, f"Table '{target_table}' has no primary keys"))
+            op_errors.append(validate_format_error(102,
+                                                   f"Table {target_rdbms}.{target_table} "
+                                                   "has no primary keys"))
 
         deletes, inserts, updates = (0, 0, 0) if op_errors else \
             db_sync_data(errors=op_errors,

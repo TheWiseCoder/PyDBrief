@@ -70,9 +70,11 @@ def swagger() -> Response:
 
     :return: the requested OpenAPI specifications
     """
-    filename: str = http_get_parameter(request, "filename")
+    filename: str = http_get_parameter(request=request,
+                                       param="filename")
 
-    return send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
+    return send_file(path_or_file=Path(Path.cwd(),
+                                       "swagger/pydbrief.json"),
                      mimetype="application/json",
                      as_attachment=filename is not None,
                      download_name=filename)
@@ -89,7 +91,7 @@ def version() -> Response:
     # register the request
     PYPOMES_LOGGER.info(msg=f"URL {request.url}")
 
-    versions: dict = get_versions()
+    versions: dict[str, str] = get_versions()
     versions["PyDBrief"] = APP_VERSION
 
     # assign to the return variable
@@ -126,7 +128,7 @@ def handle_rdbms(rdbms: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request=request)
+    scheme: dict[str, Any] = http_get_parameters(request=request)
 
     reply: dict | None = None
     if request.method == "GET":
@@ -166,7 +168,7 @@ def handle_s3(s3_engine: str = None) -> Response:
         - *s3-access-key*: the access key for the service
         - *s3-secret-key*: the access secret code
         - *s3-region-name*: the name of the region where the engine is located (AWS only)
-        - *s3-secure-access*: whether or not to use Transport Security Layer (MinIO only)
+        - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
 
     :param s3_engine: the reference S3 engine (*aws* or *minio*)
     :return: the operation outcome
@@ -175,7 +177,7 @@ def handle_s3(s3_engine: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request=request)
+    scheme: dict[str, Any] = http_get_parameters(request=request)
 
     reply: dict | None = None
     if request.method == "GET":
@@ -194,7 +196,7 @@ def handle_s3(s3_engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
+    PYPOMES_LOGGER.info(msg=f"Response {request.path}?{scheme}: {result}")
 
     return result
 
@@ -220,7 +222,7 @@ def handle_migration() -> Response:
     errors: list[str] = []
 
     # retrieve the input parameters
-    scheme: dict = http_get_parameters(request=request)
+    scheme: dict[str, Any] = http_get_parameters(request=request)
 
     reply: dict[str, Any] | None = None
     match request.method:
@@ -270,6 +272,7 @@ def migrate_data() -> Response:
         - *from-schema*: the source schema for the migration
         - *to-rdbms*: the destination RDBMS for the migration
         - *to-schema*: the destination schema for the migration
+        - *to-s3*: the destination cloud storage for the LOBs
         - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
@@ -292,7 +295,7 @@ def migrate_data() -> Response:
         - the parameters *include-relations* and *exclude-relations* are mutually exclusive
         - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
           or that all targeted tables in destination schema exist
-        - if *migrate-lobdata* is set, it is assumed that plain data are also being,
+        - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
           or have already been, migrated.
 
     :return: the operation outcome
