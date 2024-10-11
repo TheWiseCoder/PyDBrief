@@ -58,7 +58,7 @@ def migrate_metadata(errors: list[str],
                      exclude_columns: list[str],
                      exclude_constraints: list[str],
                      override_columns: dict[str, Type],
-                     logger: Logger | None) -> dict[str, Any]:
+                     logger: Logger) -> dict[str, Any]:
 
     # iinitialize the return variable
     result: dict[str, Any] | None = None
@@ -123,6 +123,7 @@ def migrate_metadata(errors: list[str],
                 #   as SQLAlchemy will not be able to find the schema tables
                 exc_err = str_sanitize(exc_format(exc=e,
                                                   exc_info=sys.exc_info()))
+                logger.error(msg=exc_err)
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104,
                                                     "schema-reflection",
@@ -161,6 +162,7 @@ def migrate_metadata(errors: list[str],
                     #   as SQLAlchemy would not be able to compile the migrated schema
                     exc_err: str = str_sanitize(exc_format(exc=e,
                                                            exc_info=sys.exc_info()))
+                    logger.error(msg=exc_err)
                     # 104: The operation {} returned the error {}
                     errors.append(validate_format_error(104,
                                                         "schema-migration",
@@ -179,10 +181,11 @@ def migrate_metadata(errors: list[str],
                                                       mat_views=mat_views,
                                                       logger=logger)
                         if not to_schema:
+                            err_msg: str = f"Unable to migrate schema to RDBMS {target_rdbms}"
+                            logger.error(msg=err_msg)
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,
-                                                                ("unable to migrate schema "
-                                                                 f"to RDBMS {target_rdbms}")))
+                                                                err_msg))
                     else:
                         to_schema = target_schema
 
@@ -247,15 +250,17 @@ def migrate_metadata(errors: list[str],
                                 if op_errors:
                                     # yes, report them
                                     errors.extend(op_errors)
+                                    err_msg: str = f"Unable to create view {target_schema}.{target_view}"
+                                    logger.error(msg=err_msg)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",
-                                                                        ("Unable to create view "
-                                                                         f"{target_schema}.{target_view}")))
+                                                                        err_msg))
         else:
+            err_msg: str = f"schema not found in RDBMS {source_rdbms} @from-schema"
+            logger.error(msg=err_msg)
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,
                                                 source_schema,
-                                                f"schema not found in RDBMS {source_rdbms}",
-                                                "@from-schema"))
+                                                err_msg))
     return result

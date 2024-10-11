@@ -118,23 +118,28 @@ def view_get_ddl(errors: list[str],
         # errors ?
     else:
         # no, report the problem
+        err_msg: str = ("unable to retrieve creation script "
+                        f"for view {source_rdbms}.{source_schema}.{view_name}")
+        logger.error(msg=err_msg)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
-                                            ("unable to retrieve creation script "
-                                             f"for view {source_rdbms}.{source_schema}.{view_name}")))
+                                            err_msg))
     return result
 
 
 def check_embedded_nulls(errors: list[str],
                          rdbms: str,
-                         table: str) -> None:
+                         table: str,
+                         logger: Logger) -> None:
 
     # did a 'ValueError' exception on NULLs in strings occur ?
     # ("A string literal cannot contain NUL (0x00) characters.")
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem
-        msg: str = (f"Table {rdbms}.{table} has NULLs embedded in string data, "
-                    f"which is not accepted by the database. Please add this "
-                    f"table to the 'remove-nulls' migration parameter, and try again.")
+        err_msg: str = (f"Table {rdbms}.{table} has NULLs embedded in string data, "
+                        f"which is not accepted by the database. Please add this "
+                        f"table to the 'remove-nulls' migration parameter, and try again.")
+        logger.error(msg=err_msg)
         # 101: {}
-        errors.append(validate_format_error(101, msg))
+        errors.append(validate_format_error(101,
+                                            err_msg))

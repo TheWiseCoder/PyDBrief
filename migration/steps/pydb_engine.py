@@ -22,6 +22,7 @@ def build_engine(errors: list[str],
     except Exception as e:
         exc_err = str_sanitize(exc_format(exc=e,
                                exc_info=sys.exc_info()))
+        logger.error(msg=exc_err)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102, exc_err))
 
@@ -45,6 +46,7 @@ def excecute_stmt(errors: list[str],
     except Exception as e:
         exc_err = str_sanitize(exc_format(exc=e,
                                           exc_info=sys.exc_info()))
+        logger.error(msg=exc_err)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102, exc_err))
 

@@ -16,7 +16,7 @@ def synchronize_plain(errors: list[str],
                       source_conn: Any,
                       target_conn: Any,
                       migrated_tables: dict,
-                      logger: Logger | None) -> tuple[int, int, int]:
+                      logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
     result_deletes: int = 0
@@ -44,17 +44,20 @@ def synchronize_plain(errors: list[str],
                     sync_columns.append(column_name)
                 if "identity" in features:
                     if identity_column:
-                        # 102: Unexpected error: {}
-                        op_errors.append(validate_format_error(102,
-                                                               f"Table {target_rdbms}.{target_table} "
-                                                               "has more than one identity column"))
+                        err_msg: str = (f"Table {target_rdbms}.{target_table} "
+                                        "has more than one identity column")
+                        logger.error(msg=err_msg)
+                        # 101: {}
+                        op_errors.append(validate_format_error(101,
+                                                               err_msg))
                     else:
                         identity_column = column_name
         if not pk_columns:
-            # 102: Unexpected error: {}
-            op_errors.append(validate_format_error(102,
-                                                   f"Table {target_rdbms}.{target_table} "
-                                                   "has no primary keys"))
+            err_msg: str = f"Table {target_rdbms}.{target_table} has no primary keys"
+            logger.error(msg=err_msg)
+            # 101: {}
+            op_errors.append(validate_format_error(101,
+                                                   err_msg))
 
         deletes, inserts, updates = (0, 0, 0) if op_errors else \
             db_sync_data(errors=op_errors,
@@ -75,7 +78,8 @@ def synchronize_plain(errors: list[str],
         if op_errors:
             pydb_database.check_embedded_nulls(errors=op_errors,
                                                rdbms=target_rdbms,
-                                               table=target_table)
+                                               table=target_table,
+                                               logger=logger)
             errors.extend(op_errors)
             status: str = "none"
         else:

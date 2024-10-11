@@ -24,7 +24,7 @@ def migrate_lobs(errors: list[str],
                  source_conn: Any,
                  target_conn: Any,
                  migrated_tables: dict[str, Any],
-                 logger: Logger | None) -> int:
+                 logger: Logger) -> int:
 
     # initialize the return variavble
     result: int = 0
@@ -130,7 +130,6 @@ def migrate_lobs(errors: list[str],
                                                  chunk_size=MIGRATION_CHUNK_SIZE,
                                                  logger=logger) or 0
                 if op_errors:
-                    errors.extend(op_errors)
                     status = "none"
                 else:
                     # do not change 'status' if it has already been set
@@ -141,23 +140,22 @@ def migrate_lobs(errors: list[str],
                 logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
                                   f"to {target_rdbms}.{target_table}, status {status}"))
             elif lob_columns:
-                logger.error(msg=(f"Table {source_rdbms}.{target_table}, "
-                                  f"no primary key column found"))
-                # 101: {}
                 err_msg: str = ("Unable to migrate LOBs. "
                                 f"Table {source_rdbms}.{source_table} has no primary keys")
-                errors.append(validate_format_error(101,
-                                                    err_msg))
-        elif op_errors:
-            # target table is unreacheable
-            errors.extend(op_errors)
-        else:
+                logger.error(msg=err_msg)
+                # 101: {}
+                op_errors.append(validate_format_error(101,
+                                                       err_msg))
+        elif not op_errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate LOBs. "
                             f"Table {target_rdbms}.{target_table} was not found")
+            logger.error(msg=err_msg)
             # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
+            op_errors.append(validate_format_error(101,
+                                                   err_msg))
+        errors.extend(op_errors)
+
     return result
 
 

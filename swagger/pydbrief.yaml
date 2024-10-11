@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.4.6
+  version: 1.4.7
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -595,7 +595,7 @@ components:
     ToS3Param:
       name: to-s3
       in: query
-      description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to the target RDBMS is not desired. Otherwise, it should not be specified.
+      description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to S3 is desired. Otherwise, it should not be specified.
       required: false
       schema:
         type: string

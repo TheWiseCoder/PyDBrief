@@ -110,7 +110,7 @@ def migrate(errors: list[str],
             override_columns: dict[str, Type],
             migration_badge: str,
             version: str,
-            logger: Logger | None) -> dict[str, Any]:
+            logger: Logger) -> dict[str, Any]:
 
     # set external columns to displayable list
     override_cols: list[str] = []
@@ -247,20 +247,21 @@ def migrate(errors: list[str],
         lob_count: int = 0
 
         # obtain source and target connections
-        op_errors: list[str] = []
-        source_conn: Any = db_connect(errors=op_errors,
+        source_conn: Any = db_connect(errors=errors,
                                       engine=source_rdbms,
                                       logger=logger)
-        target_conn: Any = db_connect(errors=op_errors,
+        target_conn: Any = db_connect(errors=errors,
                                       engine=target_rdbms,
                                       logger=logger)
 
         if source_conn and target_conn:
+            op_errors: list[str] = []
             # disable target RDBMS restrictions to speed-up bulk operations
             session_disable_restrictions(errors=op_errors,
                                          rdbms=target_rdbms,
                                          conn=target_conn,
                                          logger=logger)
+            errors.extend(op_errors)
             # proceed, if restrictions were disabled
             if not op_errors:
                 # migrate the plain data
@@ -356,6 +357,7 @@ def migrate(errors: list[str],
         except Exception as e:
             exc_err: str = str_sanitize(exc_format(exc=e,
                                                    exc_info=sys.exc_info()))
+            logger.error(msg=exc_err)
             # 101: {}
             errors.append(validate_format_error(101,
                                                 exc_err))

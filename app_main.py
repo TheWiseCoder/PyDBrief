@@ -54,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 flask_app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.6"
+APP_VERSION: Final[str] = "1.4.7"
 
 # configure 'jsonify()' with 'ensure_ascii=False'
 flask_app.config["JSON_AS_ASCII"] = False
