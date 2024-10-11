@@ -146,7 +146,13 @@ def assert_migration_steps(errors: list[str],
           (step_metadata or step_plaindata or step_lobdata)):
         err_msg = "Synchronization can not be combined with another operation"
     elif step_metadata and step_lobdata and not step_plaindata:
-        err_msg = "Migrating metadata and LOBs requires migrating plain data as well"
+        target_s3: str = validate_str(errors=errors,
+                                      scheme=scheme,
+                                      attr="to-s3",
+                                      required=False)
+        if not target_s3:
+            err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
+
     if err_msg:
         # 101: {}
         errors.append(validate_format_error(101, err_msg))
