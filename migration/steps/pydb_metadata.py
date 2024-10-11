@@ -203,7 +203,7 @@ def migrate_metadata(errors: list[str],
                                               logger=logger)
 
                         # proceed, if migrating the metadata was indicated
-                        if step_metadata:
+                        if not errors and step_metadata:
                             # migrate the tables, one at a time
                             for target_table in target_tables:
                                 try:

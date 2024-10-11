@@ -239,7 +239,7 @@ def migrate(errors: list[str],
     logger.info(msg="Finished discovering the metadata")
 
     # proceed, if migration of plain data and/or LOB data has been indicated
-    if migrated_tables and \
+    if not errors and migrated_tables and \
        (step_plaindata or step_lobdata or step_synchronize):
 
         # initialize the counters

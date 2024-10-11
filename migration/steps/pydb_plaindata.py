@@ -44,7 +44,6 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed
-                no_pk: bool = True
                 identity_column: str | None = None
                 column_names: list[str] = []
                 # exclude LOB (large binary objects) types
@@ -53,26 +52,10 @@ def migrate_plain(errors: list[str],
                     if not pydb_types.is_lob(col_type=column_type):
                         features: list[str] = column_data.get("features", [])
                         column_names.append(column_name)
-                        if "primary-key" in features:
-                            no_pk = False
                         if "identity" in features:
-                            if identity_column:
-                                err_msg: str = (f"Table {source_rdbms}.{source_table} "
-                                                f"has more than one identity column")
-                                logger.error(msg=err_msg)
-                                # 101: {}
-                                op_errors.append(validate_format_error(101,
-                                                                       err_msg))
-                            else:
-                                identity_column = column_name
-                if no_pk:
-                    err_msg: str = (f"Table {source_rdbms}.{source_table} "
-                                    f"has no primary keys")
-                    logger.error(msg=err_msg)
-                    # 101: {}
-                    op_errors.append(validate_format_error(101,
-                                                           err_msg))
-                count: int = 0 if op_errors else \
+                            identity_column = column_name
+
+                count: int = 0 if op_errors or not column_names else \
                     db_migrate_data(errors=op_errors,
                                     source_engine=source_rdbms,
                                     source_table=source_table,

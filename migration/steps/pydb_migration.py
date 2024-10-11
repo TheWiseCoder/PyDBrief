@@ -273,25 +273,43 @@ def setup_tables(errors: list[str],
             if features:
                 table_columns[column.name]["features"] = features
 
-        # register the migrated table
-        migrated_table: dict = {
-            "columns": table_columns,
-            "plain-count": 0,
-            "plain-status": "none",
-            "lob-count": 0,
-            "lob-status": "none"
-        }
-        result[target_table.name] = migrated_table
-
-        # issue warning if no primary key was found for table
-        no_pk: bool = True
+        # verify if table has PK columns and no more than one identity column
+        err_msg: str = ""
+        has_pk: bool = False
+        has_identity: bool = False
         for column_data in table_columns.values():
-            if "primary-key" in column_data.get("features", []):
-                no_pk = False
-                break
-        if no_pk:
-            logger.warning(msg=(f"Table {source_rdbms}.{source_schema}.{target_table}, "
-                                "no primary key column found"))
+            features: list[str] = column_data.get("features", [])
+            if "primary-key" in features:
+                has_pk = True
+            elif "identity" in features:
+                if has_identity:
+                    err_msg = "more than one identity column"
+                else:
+                    has_identity = True
+        if not has_pk:
+            if err_msg:
+                err_msg += " and "
+            err_msg += "no primary key"
+
+        # problems ?
+        if err_msg:
+            # yes, report it
+            err_msg = f"Table {source_rdbms}.{source_schema}.{target_table} has {err_msg}"
+            logger.error(msg=err_msg)
+            # 101: {}
+            errors.append(validate_format_error(102,
+                                                err_msg))
+        else:
+            # no, register the migrated table
+            migrated_table: dict = {
+                "columns": table_columns,
+                "plain-count": 0,
+                "plain-status": "none",
+                "lob-count": 0,
+                "lob-status": "none"
+            }
+            result[target_table.name] = migrated_table
+
     return result
 
 
