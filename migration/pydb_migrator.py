@@ -391,6 +391,7 @@ def log_migration(errors: list[str],
     json_data = json.dumps(obj=log_json,
                            ensure_ascii=False,
                            indent=4)
-    json_file: Path = Path(base_path, f"{badge}.json")
+    json_file: Path = Path(base_path,
+                           f"{badge}.json")
     with json_file.open("w") as f:
         f.write(json_data)
