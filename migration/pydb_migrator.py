@@ -372,7 +372,8 @@ def log_migration(errors: list[str],
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
 
-    log_file: Path = Path(base_path, f"{badge}.log")
+    log_file: Path = Path(base_path,
+                          f"{badge}.log")
     # create intermediate missing folders
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
