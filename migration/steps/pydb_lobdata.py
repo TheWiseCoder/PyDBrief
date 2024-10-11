@@ -63,8 +63,8 @@ def migrate_lobs(errors: list[str],
                     # determine if lobdata in 'lob_column' is named
                     for item in named_lobdata or []:
                         # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
-                        if item.startswith(f"{table_name}.{lob_column}"):
-                            named_column = item[:item.index("=")+1]
+                        if item.startswith(f"{table_name}.{lob_column}="):
+                            named_column = item[item.index("=")+1:]
                             pos: int = named_column.find(".")
                             if pos > 0:
                                 forced_filetype = named_column[pos:]
