@@ -387,7 +387,7 @@ def log_migration(errors: list[str],
     # write the JSON file
     if errors:
         log_json = dict(log_json)
-        log_json["errors"]: errors
+        log_json["errors"] = errors
     json_data = json.dumps(obj=log_json,
                            ensure_ascii=False,
                            indent=4)
