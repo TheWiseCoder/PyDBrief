@@ -1,6 +1,5 @@
 boto3==1.35.39
 DateTime==5.5
-filetype==1.2.0
 Flask==3.0.3
 Flask-Cors==5.0.0
 flask-swagger-ui==4.11.1
@@ -10,7 +9,7 @@ oracledb==2.4.1
 pyodbc==5.1.0
 psycopg2-binary==2.9.9
 # pycryptodome==3.15.0              # installed from whl file
-pypomes_core==1.5.4
+pypomes_core==1.5.5
 pypomes_crypto==0.3.0
 pypomes_db==1.6.2
 pypomes_http==0.4.0

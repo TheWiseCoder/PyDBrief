@@ -1,10 +1,8 @@
-import filetype
 import hashlib
 import mimetypes
 import pickle
-from contextlib import suppress
 from logging import Logger
-from pypomes_core import str_from_any
+from pypomes_core import file_guess_mimetype, file_is_binary, str_from_any
 from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
 from pypomes_s3 import s3_get_client, s3_data_store
@@ -106,11 +104,10 @@ def s3_migrate_lobs(errors: list[str],
                     # has filetype reflection been specified ?
                     if reflect_filetype and lob_data:
                         # yes, determine LOB's mimetype and file extension
-                        with suppress(TypeError):
-                            kind: filetype.Type = filetype.guess(obj=lob_data)
-                            if kind:
-                                mimetype = kind.mime
-                                extension = f".{kind.extension}"
+                        mimetype = file_guess_mimetype(file_data=lob_data) or \
+                                   MIMETYPE_BINARY if file_is_binary(file_data=lob_data) else MIMETYPE_TEXT
+                        extension = mimetypes.guess_extension(type=mimetype)
+                            
                     if extension:
                         identifier += extension
                     if not mimetype:
