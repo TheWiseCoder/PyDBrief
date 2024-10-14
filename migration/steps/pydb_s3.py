@@ -2,7 +2,7 @@ import hashlib
 import mimetypes
 import pickle
 from logging import Logger
-from pypomes_core import file_guess_mimetype, file_is_binary, str_from_any
+from pypomes_core import file_get_mimetype, file_is_binary, str_from_any
 from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
 from pypomes_s3 import s3_get_client, s3_data_store
@@ -102,25 +102,26 @@ def s3_migrate_lobs(errors: list[str],
                 if accept_empty or lob_data:
                     extension: str = forced_filetype
                     # has filetype reflection been specified ?
-                    if reflect_filetype and lob_data:
+                    if reflect_filetype:
                         # yes, determine LOB's mimetype and file extension
-                        mimetype = file_guess_mimetype(file_data=lob_data) or \
+                        mimetype = file_get_mimetype(file_data=lob_data) or \
                                    MIMETYPE_BINARY if file_is_binary(file_data=lob_data) else MIMETYPE_TEXT
                         extension = mimetypes.guess_extension(type=mimetype)
-                            
+                    # add extension
                     if extension:
                         identifier += extension
+                    # final consideration on mimetype
                     if not mimetype:
                         mimetype = forced_mimetype or MIMETYPE_BINARY
 
                     # send it to S3
                     s3_data_store(errors=errors,
-                                  prefix=lob_prefix,
                                   identifier=identifier,
                                   data=lob_data,
                                   length=len(lob_data),
                                   mimetype=mimetype,
                                   tags=metadata,
+                                  prefix=lob_prefix,
                                   engine=target_s3,
                                   client=client,
                                   logger=logger)

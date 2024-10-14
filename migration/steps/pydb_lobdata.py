@@ -72,17 +72,16 @@ def migrate_lobs(errors: list[str],
                             break
 
                     # obtain a S3 prefix for storing the lobdata
-                    if named_column:
-                        lob_prefix: Path = Path("/")
-                    else:
+                    lob_prefix: Path | None = None
+                    if not named_column:
                         url: URLObject = URLObject(db_get_param(key="host",
                                                                 engine=target_rdbms))
                         # 'url.hostname' returns 'None' for 'localhost'
-                        lob_prefix: Path = __build_prefix(rdbms=target_rdbms,
-                                                          host=url.hostname or str(url),
-                                                          schema=target_table[:target_table.index(".")],
-                                                          table=target_table[target_table.index(".")+1:],
-                                                          column=lob_column)
+                        lob_prefix = __build_prefix(rdbms=target_rdbms,
+                                                    host=url.hostname or str(url),
+                                                    schema=target_table[:target_table.index(".")],
+                                                    table=target_table[target_table.index(".")+1:],
+                                                    column=lob_column)
 
                     # is a nonempty S3 prefix an issue ?
                     if lob_prefix and skip_nonempty and s3_item_exists(errors=op_errors,
