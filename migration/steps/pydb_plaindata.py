@@ -40,7 +40,7 @@ def migrate_plain(errors: list[str],
                                            engine=target_rdbms,
                                            connection=target_conn) or 0) > 0:
                 # yes, skip it
-                logger.debug(msg=f"Skipped nonempty '{target_rdbms}.{target_table}'")
+                logger.debug(msg=f"Skipped nonempty {target_rdbms}.{target_table}")
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed

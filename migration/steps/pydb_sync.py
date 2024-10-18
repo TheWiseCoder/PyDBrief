@@ -43,38 +43,23 @@ def synchronize_plain(errors: list[str],
                 else:
                     sync_columns.append(column_name)
                 if "identity" in features:
-                    if identity_column:
-                        err_msg: str = (f"Table {target_rdbms}.{target_table} "
-                                        "has more than one identity column")
-                        logger.error(msg=err_msg)
-                        # 101: {}
-                        op_errors.append(validate_format_error(101,
-                                                               err_msg))
-                    else:
-                        identity_column = column_name
-        if not pk_columns:
-            err_msg: str = f"Table {target_rdbms}.{target_table} has no primary keys"
-            logger.error(msg=err_msg)
-            # 101: {}
-            op_errors.append(validate_format_error(101,
-                                                   err_msg))
+                    identity_column = column_name
 
-        deletes, inserts, updates = (0, 0, 0) if op_errors else \
-            db_sync_data(errors=op_errors,
-                         source_engine=source_rdbms,
-                         source_table=source_table,
-                         target_engine=target_rdbms,
-                         target_table=target_table,
-                         pk_columns=pk_columns,
-                         sync_columns=sync_columns,
-                         source_conn=source_conn,
-                         target_conn=target_conn,
-                         source_committable=True,
-                         target_committable=True,
-                         identity_column=identity_column,
-                         batch_size=pydb_common.MIGRATION_BATCH_SIZE,
-                         has_nulls=table_name in remove_nulls,
-                         logger=logger) or (0, 0, 0)
+        deletes, inserts, updates = db_sync_data(errors=op_errors,
+                                                 source_engine=source_rdbms,
+                                                 source_table=source_table,
+                                                 target_engine=target_rdbms,
+                                                 target_table=target_table,
+                                                 pk_columns=pk_columns,
+                                                 sync_columns=sync_columns,
+                                                 source_conn=source_conn,
+                                                 target_conn=target_conn,
+                                                 source_committable=True,
+                                                 target_committable=True,
+                                                 identity_column=identity_column,
+                                                 batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                                 has_nulls=table_name in remove_nulls,
+                                                 logger=logger) or (0, 0, 0)
         if op_errors:
             pydb_database.check_embedded_nulls(errors=op_errors,
                                                rdbms=target_rdbms,
