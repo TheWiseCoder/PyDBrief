@@ -101,6 +101,7 @@ def migrate(errors: list[str],
             accept_empty: bool,
             skip_nonempty: bool,
             reflect_filetype: bool,
+            flatten_storage: bool,
             remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
@@ -144,6 +145,8 @@ def migrate(errors: list[str],
         msg += "; skip nonempty"
     if reflect_filetype:
         msg += "; reflect filetype"
+    if flatten_storage:
+        msg += "; flatten storage"
     if migration_badge:
         msg += f"; migration badge '{migration_badge}'"
     if remove_nulls:
@@ -202,6 +205,8 @@ def migrate(errors: list[str],
         result["skip-nonempty"] = skip_nonempty
     if reflect_filetype:
         result["reflect-filetype"] = reflect_filetype
+    if flatten_storage:
+        result["flatten-storage"] = flatten_storage
     if remove_nulls:
         result["remove-nulls"] = remove_nulls
     if include_relations:
@@ -294,6 +299,7 @@ def migrate(errors: list[str],
                                              skip_nonempty=skip_nonempty,
                                              accept_empty=accept_empty,
                                              reflect_filetype=reflect_filetype,
+                                             flatten_storage=flatten_storage,
                                              named_lobdata=named_lobdata,
                                              source_conn=source_conn,
                                              target_conn=target_conn,

@@ -54,7 +54,7 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
 flask_app.register_blueprint(blueprint=swagger_blueprint)
 
 # establish the current version
-APP_VERSION: Final[str] = "1.4.8"
+APP_VERSION: Final[str] = "1.4.9"
 
 # configure 'jsonify()' with 'ensure_ascii=False'
 flask_app.config["JSON_AS_ASCII"] = False
@@ -282,6 +282,7 @@ def migrate_data() -> Response:
         - *accept-empty*: accounts for empty LOBs on migration
         - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
         - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
+        - *flatten-storage*: whether to omit path on LOB migration to S3 storage
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
@@ -333,6 +334,7 @@ def migrate_data() -> Response:
         accept_empty: bool = str_lower(scheme.get("accept-empty")) in ["1", "t", "true"]
         skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
         reflect_filetype: bool = str_lower(scheme.get("reflect-filetype")) in ["1", "t", "true"]
+        flatten_storage: bool = str_lower(scheme.get("flatten-storage")) in ["1", "t", "true"]
         remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
         include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
         exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
@@ -358,6 +360,7 @@ def migrate_data() -> Response:
                         accept_empty=accept_empty,
                         skip_nonempty=skip_nonempty,
                         reflect_filetype=reflect_filetype,
+                        flatten_storage=flatten_storage,
                         remove_nulls=remove_nulls,
                         include_relations=include_relations,
                         exclude_relations=exclude_relations,

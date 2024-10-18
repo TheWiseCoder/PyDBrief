@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.4.7"
+    "version": "1.4.9"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -410,6 +410,9 @@
           },
           {
             "$ref": "#/components/parameters/ReflectFiletypeParam"
+          },
+          {
+            "$ref": "#/components/parameters/FlattenStorageParam"
           },
           {
             "$ref": "#/components/parameters/RemoveNullsParam"
@@ -1052,6 +1055,16 @@
           "default": false
         }
       },
+      "FlattenStorageParam": {
+        "name": "flatten-storage",
+        "in": "query",
+        "description": "Whether the LOBs are to be flatly stored on the S3 bucket, instead of being organized in a tree structure. This organization is effected by associating the migration to paths having the structure '/<target-rdbms>/<target-db-host>/<target-schema>/<target-table>/<lob-column-in-source>/'. Ignored if parameter 'to-s3' is not specified.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
       "MigrateMetadataParam": {
         "name": "migrate-metadata",
         "in": "query",
@@ -1199,7 +1212,7 @@
       "RemoveNullsParam": {
         "name": "remove-nulls",
         "in": "query",
-        "description": "Optional list of source tables having columns with NULLs embedded in their string content. This is accepted by RDBMS servers like Oracle, but rejected by others like PostgreSQL. This parameter instructs PyDBrief to search for, and remove, the NULLs when migrating plaindata. Ignored in the 'migrate-metadata' and migrate-lobdata' steps.",
+        "description": "Optional list of source tables having columns with NULLs embedded in their string content. This is accepted by RDBMS servers like Oracle, but rejected by others like PostgreSQL. This parameter instructs PyDBrief to search for, and remove, the NULLs embedded in string contents when migrating plaindata. Ignored in the 'migrate-metadata' and migrate-lobdata' steps.",
         "required": false,
         "explode": false,
         "schema": {

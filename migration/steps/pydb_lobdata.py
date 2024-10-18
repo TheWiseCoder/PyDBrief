@@ -20,6 +20,7 @@ def migrate_lobs(errors: list[str],
                  accept_empty: bool,
                  skip_nonempty: bool,
                  reflect_filetype: bool,
+                 flatten_storage: bool,
                  named_lobdata: list[str],
                  source_conn: Any,
                  target_conn: Any,
@@ -73,7 +74,7 @@ def migrate_lobs(errors: list[str],
 
                     # obtain a S3 prefix for storing the lobdata
                     lob_prefix: Path | None = None
-                    if not named_column:
+                    if not flatten_storage:
                         url: URLObject = URLObject(db_get_param(key="host",
                                                                 engine=target_rdbms))
                         # 'url.hostname' returns 'None' for 'localhost'
