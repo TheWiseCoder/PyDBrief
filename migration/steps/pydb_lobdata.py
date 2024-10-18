@@ -27,7 +27,7 @@ def migrate_lobs(errors: list[str],
                  migrated_tables: dict[str, Any],
                  logger: Logger) -> int:
 
-    # initialize the return variavble
+    # initialize the return variable
     result: int = 0
 
     # traverse list of migrated tables to copy the plain data
@@ -82,7 +82,7 @@ def migrate_lobs(errors: list[str],
                                                     host=url.hostname or str(url),
                                                     schema=target_table[:target_table.index(".")],
                                                     table=target_table[target_table.index(".")+1:],
-                                                    column=lob_column)
+                                                    column=named_column or lob_column)
 
                     # is a nonempty S3 prefix an issue ?
                     if lob_prefix and skip_nonempty and s3_item_exists(errors=op_errors,
