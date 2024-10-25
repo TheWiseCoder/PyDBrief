@@ -45,7 +45,7 @@ def migrate_plain(errors: list[str],
             elif not op_errors:
                 # no, proceed
                 identity_column: str | None = None
-                orderby_columns: list(str) = []
+                orderby_columns: list[str] = []
                 column_names: list[str] = []
                 # exclude LOB (large binary objects) types
                 for column_name, column_data in table_data["columns"].items():
