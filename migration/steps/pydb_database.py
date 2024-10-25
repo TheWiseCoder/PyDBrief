@@ -1,18 +1,21 @@
 from logging import Logger
 from pypomes_core import validate_format_error
-from pypomes_db import db_get_param, db_get_view_ddl, db_execute
+from pypomes_db import (
+    DbEngine, DbParam,
+    db_get_param, db_get_view_ddl, db_execute
+)
 from typing import Any, Literal
 
 
 def schema_create(errors: list[str],
                   schema: str,
-                  rdbms: str,
+                  rdbms: DbEngine,
                   logger: Logger) -> None:
 
     if rdbms == "oracle":
         stmt: str = f"CREATE USER {schema} IDENTIFIED BY {schema}"
     else:
-        user: str = db_get_param(key="user",
+        user: str = db_get_param(key=DbParam.USER,
                                  engine=rdbms)
         stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
     db_execute(errors=errors,
@@ -22,23 +25,23 @@ def schema_create(errors: list[str],
 
 
 def session_disable_restrictions(errors: list[str],
-                                 rdbms: str,
+                                 rdbms: DbEngine,
                                  conn: Any,
                                  logger: Logger) -> None:
 
     # disable session restrictions to speed-up bulk operations
     match rdbms:
-        case "mysql":
+        case DbEngine.MYSQL:
             pass
-        case "oracle":
+        case DbEngine.ORACLE:
             pass
-        case "postgres":
+        case DbEngine.POSTGRES:
             db_execute(errors=errors,
                        exc_stmt="SET SESSION_REPLICATION_ROLE TO REPLICA",
-                       engine="postgres",
+                       engine=rdbms,
                        connection=conn,
                        logger=logger)
-        case "sqlserver":
+        case DbEngine.SQLSERVER:
             pass
 
     logger.debug(msg=f"RDBMS {rdbms}, disabled session "
@@ -46,20 +49,20 @@ def session_disable_restrictions(errors: list[str],
 
 
 def session_restore_restrictions(errors: list[str],
-                                 rdbms: str,
+                                 rdbms: DbEngine,
                                  conn: Any,
                                  logger: Logger) -> None:
 
     # restore session restrictions delaying bulk operations
     match rdbms:
-        case "mysql":
+        case DbEngine.MYSQL:
             pass
-        case "oracle":
+        case DbEngine.ORACLE:
             pass
-        case "postgres":
+        case DbEngine.POSTGRES:
             db_execute(errors=errors,
                        exc_stmt="SET SESSION_REPLICATION_ROLE TO DEFAULT",
-                       engine="postgres",
+                       engine=rdbms,
                        connection=conn,
                        logger=logger)
         case "sqlserver":
@@ -70,7 +73,7 @@ def session_restore_restrictions(errors: list[str],
 
 
 def column_set_nullable(errors: list[str],
-                        rdbms: str,
+                        rdbms: DbEngine,
                         table: str,
                         column: str,
                         logger: Logger) -> None:
@@ -78,12 +81,12 @@ def column_set_nullable(errors: list[str],
     # build the statement
     alter_stmt: str | None = None
     match rdbms:
-        case "mysql":
+        case DbEngine.MYSQL:
             pass
-        case "oracle":
+        case DbEngine.ORACLE:
             alter_stmt = (f"ALTER TABLE {table} "
                           f"MODIFY ({column} NULL)")
-        case "postgres" | "sqlserver":
+        case DbEngine.POSTGRES | DbEngine.SQLSERVER:
             alter_stmt = (f"ALTER TABLE {table} "
                           f"ALTER COLUMN {column} DROP NOT NULL")
     # execute it
@@ -96,7 +99,7 @@ def column_set_nullable(errors: list[str],
 def view_get_ddl(errors: list[str],
                  view_name: str,
                  view_type: Literal["M", "P"],
-                 source_rdbms: str,
+                 source_rdbms: DbEngine,
                  source_schema: str,
                  target_schema: str,
                  logger: Logger) -> str:
@@ -128,7 +131,7 @@ def view_get_ddl(errors: list[str],
 
 
 def check_embedded_nulls(errors: list[str],
-                         rdbms: str,
+                         rdbms: DbEngine,
                          table: str,
                          logger: Logger) -> None:
 

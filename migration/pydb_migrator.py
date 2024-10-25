@@ -1,16 +1,22 @@
 import json
+import threading
 import sys
 import warnings
 from datetime import datetime
 from io import BytesIO
-from logging import Logger, FileHandler
+from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV,
     env_is_docker, dict_jsonify, str_sanitize, exc_format, validate_format_error
 )
-from pypomes_db import db_connect
-from pypomes_logging import logging_get_entries
+from pypomes_db import (
+    DbEngine, DbParam, db_connect
+)
+from pypomes_logging import (
+    LogParam, logging_get_entries, logging_get_params
+)
+from pypomes_s3 import S3Engine
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
@@ -86,11 +92,11 @@ warnings.filterwarnings("error")
 #   "migrated-tables": <migrated-tables-structure>
 # }
 def migrate(errors: list[str],
-            source_rdbms: str,
-            target_rdbms: str,
+            source_rdbms: DbEngine,
+            target_rdbms: DbEngine,
             source_schema: str,
             target_schema: str,
-            target_s3: str,
+            target_s3: S3Engine,
             step_metadata: bool,
             step_plaindata: bool,
             step_lobdata: bool,
@@ -169,12 +175,12 @@ def migrate(errors: list[str],
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   rdbms=source_rdbms)
     from_rdbms["schema"] = source_schema
-    from_rdbms.pop("pwd")
+    from_rdbms.pop(str(DbParam.PWD))
     dict_jsonify(source=from_rdbms)
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                 rdbms=target_rdbms)
     to_rdbms["schema"] = target_schema
-    to_rdbms.pop("pwd")
+    to_rdbms.pop(str(DbParam.PWD))
     dict_jsonify(source=to_rdbms)
     started: datetime = datetime.now()
 
@@ -191,7 +197,7 @@ def migrate(errors: list[str],
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
-        to_s3.pop("secret-key")
+        to_s3.pop("secret_key")
         result["target-s3"] = to_s3
     if process_indexes:
         result["process-indexes"] = process_indexes
@@ -344,11 +350,16 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
-    if logger and logger.root:
-        for handler in logger.root.handlers:
-            if isinstance(handler, FileHandler):
-                result["log-file"] = Path(handler.baseFilename).as_posix()
-                break
+    if logger:
+        result["logging"] = logging_get_params()
+        filepath: Path = result.get("logging").get(str(LogParam.LOG_FILEPATH))
+        if isinstance(filepath, Path):
+            result["logging"][str(LogParam.LOG_FILEPATH)] = filepath.as_posix()
+        # if logger.root:
+        #     for handler in logger.root.handlers:
+        #         if isinstance(handler, FileHandler):
+        #             result["logging"]["log_file"] = Path(handler.baseFilename).as_posix()
+        #             break
     finished: datetime = datetime.now()
     result["finished"] = finished.strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
@@ -358,8 +369,7 @@ def migrate(errors: list[str],
         try:
             log_migration(errors=errors,
                           badge=migration_badge,
-                          log_json=result,
-                          log_from=started)
+                          log_json=result)
         except Exception as e:
             exc_err: str = str_sanitize(exc_format(exc=e,
                                                    exc_info=sys.exc_info()))
@@ -372,8 +382,7 @@ def migrate(errors: list[str],
 
 def log_migration(errors: list[str],
                   badge: str,
-                  log_json: dict[str, Any],
-                  log_from: datetime) -> None:
+                  log_json: dict[str, Any]) -> None:
 
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
@@ -384,8 +393,9 @@ def log_migration(errors: list[str],
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
     # write the log file
+    log_thread: str = str(threading.get_ident())
     log_entries: BytesIO = logging_get_entries(errors=errors,
-                                               log_from=log_from)
+                                               log_thread=log_thread)
     if log_entries:
         log_entries.seek(0)
         with log_file.open("wb") as f:

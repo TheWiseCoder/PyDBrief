@@ -5,7 +5,7 @@ from logging import Logger
 from pypomes_core import file_get_mimetype, file_is_binary, str_from_any
 from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
-from pypomes_s3 import s3_get_client, s3_data_store
+from pypomes_s3 import S3Engine, s3_get_client, s3_data_store
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +13,7 @@ from migration.pydb_common import MIGRATION_CHUNK_SIZE
 
 
 def s3_migrate_lobs(errors: list[str],
-                    target_s3: str,
+                    target_s3: S3Engine,
                     target_rdbms: str,
                     target_table: str,
                     source_rdbms: str,

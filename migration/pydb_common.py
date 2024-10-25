@@ -4,12 +4,16 @@ from pypomes_core import (
     validate_bool, validate_int,
     validate_format_error, validate_str
 )
-from pypomes_db import db_get_params, db_setup
-from pypomes_s3 import s3_get_params, s3_setup
+from pypomes_db import (
+    DbEngine, db_get_params, db_setup
+)
+from pypomes_s3 import (
+    S3Engine, s3_get_params, s3_setup
+)
 from typing import Any
 
-REGISTRY_DOCKER = env_get_str(f"{APP_PREFIX}_REGISTRY_DOCKER")
-REGISTRY_HOST = env_get_str(f"{APP_PREFIX}_REGISTRY_HOST")
+REGISTRY_DOCKER = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
+REGISTRY_HOST = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 # migration parameters
 MIGRATION_BATCH_SIZE: int = 100000
@@ -60,7 +64,9 @@ def set_migration_metrics(errors: list[str],
 def get_rdbms_params(errors: list[str],
                      rdbms: str) -> dict[str, Any]:
 
-    result: dict[str, Any] = db_get_params(engine=rdbms)
+    db_engine: DbEngine = DbEngine(rdbms) \
+                          if rdbms in DbEngine else None
+    result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
         result["rdbms"] = rdbms
     else:
@@ -77,7 +83,7 @@ def set_rdbms_params(errors: list[str],
     db_engine: str = validate_str(errors=errors,
                                   scheme=scheme,
                                   attr="db-engine",
-                                  values=["mysql", "oracle", "postgres", "sqlserver"],
+                                  values=list(map(str, DbEngine)),
                                   required=True)
     db_name: str = validate_str(errors=errors,
                                 scheme=scheme,
@@ -107,7 +113,7 @@ def set_rdbms_params(errors: list[str],
                                   scheme=scheme,
                                   attr="db-driver")
     # noinspection PyTypeChecker
-    if not errors and not db_setup(engine=db_engine,
+    if not errors and not db_setup(engine=DbEngine(db_engine),
                                    db_name=db_name,
                                    db_host=db_host,
                                    db_port=db_port,
@@ -115,19 +121,21 @@ def set_rdbms_params(errors: list[str],
                                    db_pwd=db_pwd,
                                    db_client=db_client,
                                    db_driver=db_driver):
-        # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
-        errors.append(validate_format_error(145))
+        # 145: Invalid, inconsistent, or missing arguments
+        errors.append(validate_format_error(error_id=145))
 
 
 def get_s3_params(errors: list[str],
                   s3_engine: str) -> dict[str, Any]:
 
-    result: dict[str, Any] = s3_get_params(engine=s3_engine)
-    if isinstance(result, dict):
+    result: dict[str, Any] = s3_get_params(engine=S3Engine(s3_engine)) \
+                             if s3_engine in S3Engine else None
+    if result:
         result["engine"] = s3_engine
     else:
         # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142, s3_engine,
+        errors.append(validate_format_error(142,
+                                            s3_engine,
                                             "unknown or unconfigured S3 engine", "@s3-engine"))
 
     return result
@@ -139,7 +147,7 @@ def set_s3_params(errors: list[str],
     engine: str = validate_str(errors=errors,
                                scheme=scheme,
                                attr="s3-engine",
-                               values=["aws", "ecs", "minio"],
+                               values=list(map(str, S3Engine)),
                                required=True)
     endpoint_url: str = validate_str(errors=errors,
                                      scheme=scheme,
@@ -164,7 +172,7 @@ def set_s3_params(errors: list[str],
                                         scheme=scheme,
                                         attr="s3-secure-access")
     # noinspection PyTypeChecker
-    if not errors and not s3_setup(engine=engine,
+    if not errors and not s3_setup(engine=S3Engine(engine),
                                    endpoint_url=endpoint_url,
                                    bucket_name=bucket_name,
                                    access_key=access_key,

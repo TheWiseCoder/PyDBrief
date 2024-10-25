@@ -3,7 +3,8 @@ from logging import Logger
 from pypomes_core import (
     str_sanitize, exc_format, validate_format_error
 )
-from pypomes_db import db_execute
+from pypomes_db import DbEngine, db_execute
+from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
 )
@@ -44,11 +45,11 @@ from migration.pydb_types import is_lob
 #   }
 # ]
 def migrate_metadata(errors: list[str],
-                     source_rdbms: str,
-                     target_rdbms: str,
+                     source_rdbms: DbEngine,
+                     target_rdbms: DbEngine,
                      source_schema: str,
                      target_schema: str,
-                     target_s3: str,
+                     target_s3: S3Engine,
                      step_metadata: bool,
                      process_indexes: bool,
                      process_views: bool,

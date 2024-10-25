@@ -4,9 +4,10 @@ from pypomes_core import (
     validate_strs, validate_format_error
 )
 from pypomes_db import (
-    db_get_engines, db_assert_connection
+    DbEngine, db_get_engines, db_assert_connection
 )
 from pypomes_s3 import (
+    S3Engine, S3Param,
     s3_get_engines, s3_get_param, s3_assert_access, s3_startup
 )
 from sqlalchemy.sql.elements import Type
@@ -20,33 +21,35 @@ from migration.pydb_types import name_to_type
 
 
 def assert_rdbms_dual(errors: list[str],
-                      scheme: dict) -> tuple[str, str]:
+                      scheme: dict) -> tuple[DbEngine, DbEngine]:
 
-    engines: list[str] = db_get_engines()
+    engines: list[DbEngine] = db_get_engines()
+
     source_rdbms: str | None = scheme.get("from-rdbms")
-    if source_rdbms not in engines:
+    result_source_rdbms: DbEngine = DbEngine(source_rdbms) if source_rdbms in DbEngine else None
+    if result_source_rdbms not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             source_rdbms,
                                             "unknown or unconfigured RDBMS engine",
                                             "@from-rdbms"))
-        source_rdbms = None
 
     target_rdbms: str | None = scheme.get("to-rdbms")
-    if target_rdbms not in engines:
+    result_target_rdbms: DbEngine = DbEngine(target_rdbms) if target_rdbms in DbEngine else None
+    if result_target_rdbms not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             target_rdbms,
                                             "unknown or unconfigured RDBMS engine",
                                             "@to-rdbms"))
-        target_rdbms = None
-
-    if source_rdbms and source_rdbms == target_rdbms:
+    if result_source_rdbms and \
+       result_source_rdbms == result_target_rdbms:
         # 126: {} cannot be assigned for attributes {} at the same time
         errors.append(validate_format_error(126,
                                             source_rdbms,
                                             "'from-rdbms' and 'to-rdbms'"))
-    return source_rdbms, target_rdbms
+
+    return result_source_rdbms, result_target_rdbms
 
 
 def assert_migration(errors: list[str],
@@ -80,23 +83,25 @@ def assert_migration(errors: list[str],
     to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr="to-s3",
-                              values=["aws", "minio"])
+                              values=list(map(str, S3Engine)))
     # validate S3
-    if to_s3 in s3_get_engines():
-        s3_assert_access(errors=errors,
-                         engine=to_s3)
-        if not errors and run_mode:
-            bucket: str = s3_get_param(key="bucket-name",
-                                       engine=to_s3)
-            s3_startup(errors=errors,
-                       engine=to_s3,
-                       bucket=bucket)
-    elif to_s3:
-        # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142,
-                                            to_s3,
-                                            "unknown or unconfigured S3 engine",
-                                            "@to-s3"))
+    if to_s3:
+        s3_engine = S3Engine(to_s3)
+        if s3_engine in s3_get_engines():
+            s3_assert_access(errors=errors,
+                             engine=to_s3)
+            if not errors and run_mode:
+                bucket: str = s3_get_param(key=S3Param.BUCKET_NAME,
+                                           engine=s3_engine)
+                s3_startup(errors=errors,
+                           engine=S3Engine(to_s3),
+                           bucket=bucket)
+        else:
+            # 142: Invalid value {}: {}
+            errors.append(validate_format_error(142,
+                                                to_s3,
+                                                "unknown or unconfigured S3 engine",
+                                                "@to-s3"))
 
 
 def assert_metrics_params(errors: list[str]) -> None:

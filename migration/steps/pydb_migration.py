@@ -1,7 +1,8 @@
 from collections.abc import Iterable
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import db_drop_table, db_drop_view
+from pypomes_db import DbEngine, db_drop_table, db_drop_view
+from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index,
     Constraint, CheckConstraint, ForeignKey, ForeignKeyConstraint, inspect
@@ -124,7 +125,7 @@ def prune_metadata(source_schema: str,
 
 
 def setup_schema(errors: list[str],
-                 target_rdbms: str,
+                 target_rdbms: DbEngine,
                  target_schema: str,
                  target_engine: Engine,
                  target_tables: list[Table],
@@ -193,7 +194,7 @@ def setup_tables(errors: list[str],
                  target_rdbms: str,
                  source_schema: str,
                  target_schema: str,
-                 target_s3: str,
+                 target_s3: S3Engine,
                  target_tables: list[Table],
                  override_columns: dict[str, Type],
                  logger: Logger) -> dict[str, Any]:
@@ -228,7 +229,7 @@ def setup_tables(errors: list[str],
             # mark LOB column for S3 migration
             if target_s3 and is_lob(column_type):
                 s3_columns.append(column)
-                table_columns[column.name]["target-type"] = target_s3
+                table_columns[column.name]["target-type"] = str(target_s3)
 
         # remove the S3-targeted LOB columns
         for s3_column in s3_columns:

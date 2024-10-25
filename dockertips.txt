@@ -6,7 +6,7 @@ RELEVANT DOCKER OPERATIONS
 
 # remove an image:
   docker rmi -f <image-id>
-  
+
 # remove all idle containers:
   docker container prune -f
 

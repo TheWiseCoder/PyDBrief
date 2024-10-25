@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.4.9"
+    "version": "1.5.0"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -479,6 +479,9 @@
             "$ref": "#/components/parameters/LogLevelParam"
           },
           {
+            "$ref": "#/components/parameters/LogThreadParam"
+          },
+          {
             "$ref": "#/components/parameters/LogFromDatetimeParam"
           },
           {
@@ -573,7 +576,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "example": "Value '<log-level>' of 'log-level' attribute invalid"
+                        "example": "Value '<log_level>' of 'log_level' attribute invalid"
                       }
                     }
                   }
@@ -752,7 +755,7 @@
         }
       },
       "LogFromDatetimeParam": {
-        "name": "log-from-datetime",
+        "name": "log_from_datetime",
         "in": "query",
         "description": "Timestamp for the start of the interval",
         "required": false,
@@ -762,7 +765,7 @@
         }
       },
       "LogToDatetimeParam": {
-        "name": "log-to-datetime",
+        "name": "log_to_datetime",
         "in": "query",
         "description": "Timestamp for the end of the interval",
         "required": false,
@@ -772,25 +775,25 @@
         }
       },
       "LogLastDaysParam": {
-        "name": "log-last-days",
+        "name": "log_last_days",
         "in": "query",
-        "description": "How many days to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified",
+        "description": "How many days to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified",
         "required": false,
         "schema": {
           "type": "integer"
         }
       },
       "LogLastHoursParam": {
-        "name": "log-last-hours",
+        "name": "log_last_hours",
         "in": "query",
-        "description": "How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified",
+        "description": "How many hours to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified",
         "required": false,
         "schema": {
           "type": "integer"
         }
       },
       "LogDatetimeParam": {
-        "name": "log-datetime",
+        "name": "log_datetime",
         "in": "query",
         "description": "Format for writing the date and time on the log entries.",
         "required": false,
@@ -800,7 +803,7 @@
         }
       },
       "LogFilenameParam": {
-        "name": "log-filename",
+        "name": "log_filename",
         "in": "query",
         "description": "Name of the file to save the downloaded data with. If omitted, the browser is requested to display the data, instead.",
         "required": false,
@@ -809,7 +812,7 @@
         }
       },
       "LogFilepathParam": {
-        "name": "log-filepath",
+        "name": "log_filepath",
         "in": "query",
         "description": "The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS standard temporary folder.",
         "required": false,
@@ -819,7 +822,7 @@
         }
       },
       "LogFilemodeParam": {
-        "name": "log-filemode",
+        "name": "log_filemode",
         "in": "query",
         "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents).",
         "required": false,
@@ -833,7 +836,7 @@
         }
       },
       "LogFormatParam": {
-        "name": "log-format",
+        "name": "log_format",
         "in": "query",
         "description": "Describes the information to be written to the log, detailing the format for each item. Very technical, requires knowledge of Python's 'logging' package.",
         "required": false,
@@ -842,9 +845,9 @@
         }
       },
       "LogLevelParam": {
-        "name": "log-level",
+        "name": "log_level",
         "in": "query",
-        "description": "The logging level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.",
+        "description": "The log level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.",
         "required": false,
         "schema": {
           "type": "string",
@@ -858,10 +861,19 @@
           "default": "debug"
         }
       },
-      "LogStyleParam": {
-        "name": "log-style",
+      "LogThreadParam": {
+        "name": "log_thread",
         "in": "query",
-        "description": "The style used for building the 'log-format' parameter. Very technical, requires knowledge of Python's 'logging' package.",
+        "description": "The thread originating the log entries. Defaults to all threads.",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "LogStyleParam": {
+        "name": "log_style",
+        "in": "query",
+        "description": "The style used for building the 'log_format' parameter. Very technical, requires knowledge of Python's 'logging' package.",
         "required": false,
         "schema": {
           "type": "string"
@@ -1058,7 +1070,7 @@
       "FlattenStorageParam": {
         "name": "flatten-storage",
         "in": "query",
-        "description": "Whether the LOBs are to be flatly stored on the S3 bucket, instead of being organized in a tree structure. This organization is effected by associating the migration to paths having the structure '/<target-rdbms>/<target-db-host>/<target-schema>/<target-table>/<lob-column-in-source>/'. Ignored if parameter 'to-s3' is not specified.",
+        "description": "Whether the LOBs are to be flatly stored on the S3 bucket, instead of being organized in a tree structure. This organization is effected by associating the migration to paths having the structure '/<target-rdbms>@<target-db-host>/<target-schema>/<target-table>/<lob-column>/'. Ignored if parameter 'to-s3' is not specified.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -1160,7 +1172,7 @@
       "ExcludeRelationsParam": {
         "name": "exclude-relations",
         "in": "query",
-        "description": "Relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not specified, respectively.",
+        "description": "Optional list of relations (tables, views, and indexes) not to migrate. Mutually exclusive with 'include-relations'. Irrelevant for views and indexes, if 'process-views' and 'process-indexes' were not specified, respectively.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1173,7 +1185,7 @@
       "ExcludeColumnsParam": {
         "name": "exclude-columns",
         "in": "query",
-        "description": "Table columns not to migrate. Column names must be table-qualified (<table-name>.<column-name>).",
+        "description": "Optional list of table columns not to migrate. Column names must be table-qualified (<table-name>.<column-name>).",
         "required": false,
         "explode": false,
         "schema": {
@@ -1186,7 +1198,7 @@
       "ExcludeConstraintsParam": {
         "name": "exclude-constraints",
         "in": "query",
-        "description": "Constraints not to migrate.",
+        "description": "Optional list of constraints not to migrate.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1199,7 +1211,7 @@
       "NamedLobdataParam": {
         "name": "named-lobdata",
         "in": "query",
-        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>[.\\<extension\\>]'. The optional extension is used for lobdata naming, depending on the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
+        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>[.\\<extension\\>]'. The optional extension is used for lobdata naming, subject to the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1524,10 +1536,6 @@
           "total-tables": {
             "type": "integer",
             "example": 15
-          },
-          "log-file": {
-            "type": "string",
-            "example": "/tmp/PYDB.log"
           },
           "version": {
             "type": "string",

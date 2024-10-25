@@ -8,20 +8,19 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from sqlalchemy.sql.elements import Type
-from typing import Any, Final
+from typing import Any
 
-os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
-os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
-
-# ruff: noqa: E402
+from app_init import APP_VERSION        # must be imported before local and PyPomes modules
 from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
-)  # noqa: PyPep8
+)
+from pypomes_db import DbEngine  # noqa: PyPep8
 from pypomes_http import (
     http_get_parameter, http_get_parameters
-)  # noqa: PyPep8
+)
 from pypomes_logging import PYPOMES_LOGGER, logging_service  # noqa: PyPep8
+from pypomes_s3 import S3Engine
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
@@ -52,9 +51,6 @@ swagger_blueprint: Blueprint = get_swaggerui_blueprint(
     config={"defaultModelsExpandDepth": -1}
 )
 flask_app.register_blueprint(blueprint=swagger_blueprint)
-
-# establish the current version
-APP_VERSION: Final[str] = "1.4.9"
 
 # configure 'jsonify()' with 'ensure_ascii=False'
 flask_app.config["JSON_AS_ASCII"] = False
@@ -345,11 +341,11 @@ def migrate_data() -> Response:
 
         # migrate the data
         reply = migrate(errors=errors,
-                        source_rdbms=source_rdbms,
-                        target_rdbms=target_rdbms,
+                        source_rdbms=DbEngine(source_rdbms),
+                        target_rdbms=DbEngine(target_rdbms),
                         source_schema=source_schema,
                         target_schema=target_schema,
-                        target_s3=target_s3,
+                        target_s3=S3Engine(target_s3) if target_s3 else None,
                         step_metadata=step_metadata,
                         step_plaindata=step_plaindata,
                         step_lobdata=step_lobdata,

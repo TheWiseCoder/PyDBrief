@@ -1,12 +1,12 @@
 import sys
 from logging import Logger
 from pypomes_core import str_sanitize, exc_format, validate_format_error
-from pypomes_db import db_get_connection_string
+from pypomes_db import DbEngine, db_get_connection_string
 from sqlalchemy import Engine, create_engine, Result, TextClause, text, RootTransaction
 
 
 def build_engine(errors: list[str],
-                 rdbms: str,
+                 rdbms: DbEngine,
                  logger: Logger) -> Engine:
 
     # initialize the return variable
@@ -30,7 +30,7 @@ def build_engine(errors: list[str],
 
 
 def excecute_stmt(errors: list[str],
-                  rdbms: str,
+                  rdbms: DbEngine,
                   engine: Engine,
                   stmt: str,
                   logger: Logger) -> Result:

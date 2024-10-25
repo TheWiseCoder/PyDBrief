@@ -1,8 +1,11 @@
 from logging import Logger
 from pathlib import Path
 from pypomes_core import validate_format_error
-from pypomes_db import db_get_param, db_migrate_lobs, db_table_exists
-from pypomes_s3 import s3_item_exists
+from pypomes_db import (
+    DbEngine, DbParam,
+    db_get_param, db_migrate_lobs, db_table_exists
+)
+from pypomes_s3 import S3Engine, s3_item_exists
 from typing import Any
 from urlobject import URLObject
 
@@ -12,11 +15,11 @@ from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
 def migrate_lobs(errors: list[str],
-                 source_rdbms: str,
-                 target_rdbms: str,
+                 source_rdbms: DbEngine,
+                 target_rdbms: DbEngine,
                  source_schema: str,
                  target_schema: str,
-                 target_s3: str,
+                 target_s3: S3Engine,
                  accept_empty: bool,
                  skip_nonempty: bool,
                  reflect_filetype: bool,
@@ -75,7 +78,7 @@ def migrate_lobs(errors: list[str],
                     # obtain a S3 prefix for storing the lobdata
                     lob_prefix: Path | None = None
                     if not flatten_storage:
-                        url: URLObject = URLObject(db_get_param(key="host",
+                        url: URLObject = URLObject(db_get_param(key=DbParam.HOST,
                                                                 engine=target_rdbms))
                         # 'url.hostname' returns 'None' for 'localhost'
                         lob_prefix = __build_prefix(rdbms=target_rdbms,

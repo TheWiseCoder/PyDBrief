@@ -1,15 +1,15 @@
 from logging import Logger
-from typing import Any
 from pypomes_core import validate_format_error
-from pypomes_db import db_count, db_table_exists, db_migrate_data
+from pypomes_db import db_count, db_table_exists, db_migrate_data, DbEngine
+from typing import Any
 
 from migration import pydb_types, pydb_common
 from migration.steps import pydb_database
 
 
 def migrate_plain(errors: list[str],
-                  source_rdbms: str,
-                  target_rdbms: str,
+                  source_rdbms: DbEngine,
+                  target_rdbms: DbEngine,
                   source_schema: str,
                   target_schema: str,
                   skip_nonempty: bool,

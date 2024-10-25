@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.4.9
+  version: 1.5.0
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -264,6 +264,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LogFilenameParam'
         - $ref: '#/components/parameters/LogLevelParam'
+        - $ref: '#/components/parameters/LogThreadParam'
         - $ref: '#/components/parameters/LogFromDatetimeParam'
         - $ref: '#/components/parameters/LogToDatetimeParam'
         - $ref: '#/components/parameters/LogLastDaysParam'
@@ -287,7 +288,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      example: Value '<datetime>' of 'from-datetime' attribute invalid
+                      example: Value '<datetime>' of 'log_from_datetime' attribute invalid
     post:
       tags:
         - registry
@@ -319,7 +320,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      example: Value '<log-level>' of 'log-level' attribute invalid
+                      example: Value '<log_level>' of 'log_level' attribute invalid
   /swagger/pydbrief.json:
     get:
       tags:
@@ -440,7 +441,7 @@ components:
         type: string
   # log group
     LogFromDatetimeParam:
-      name: log-from-datetime
+      name: log_from_datetime
       in: query
       description: Timestamp for the start of the interval
       required: false
@@ -448,7 +449,7 @@ components:
         type: string
         format: YYYYMMDDhhmmss
     LogToDatetimeParam:
-      name: log-to-datetime
+      name: log_to_datetime
       in: query
       description: Timestamp for the end of the interval
       required: false
@@ -456,21 +457,21 @@ components:
         type: string
         format: YYYYMMDDhhmmss
     LogLastDaysParam:
-      name: log-last-days
+      name: log_last_days
       in: query
-      description: How many days to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified
+      description: How many days to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified
       required: false
       schema:
         type: integer
     LogLastHoursParam:
-      name: log-last-hours
+      name: log_last_hours
       in: query
-      description: How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' are specified
+      description: How many hours to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified
       required: false
       schema:
         type: integer
     LogDatetimeParam:
-      name: log-datetime
+      name: log_datetime
       in: query
       description: Format for writing the date and time on the log entries.
       required: false
@@ -478,14 +479,14 @@ components:
         type: string
         default: YYYY-MM-DD HH:MM:SS
     LogFilenameParam:    
-      name: log-filename
+      name: log_filename
       in: query
       description: Name of the file to save the downloaded data with. If omitted, the browser is requested to display the data, instead.
       required: false
       schema:
         type: string
     LogFilepathParam:
-      name: log-filepath
+      name: log_filepath
       in: query
       description: The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS standard temporary folder.
       required: false
@@ -493,7 +494,7 @@ components:
         type: string
         example: /tmp/pydb.log
     LogFilemodeParam:
-      name: log-filemode
+      name: log_filemode
       in: query
       description: The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents).
       required: false
@@ -502,25 +503,32 @@ components:
         enum: [a,w]
         default: w
     LogFormatParam:
-      name: log-format
+      name: log_format
       in: query
       description: Describes the information to be written to the log, detailing the format for each item. Very technical, requires knowledge of Python's 'logging' package.
       required: false
       schema:
         type: string
     LogLevelParam:
-      name: log-level
+      name: log_level
       in: query
-      description: The logging level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.
+      description: The log level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.
       required: false
       schema:
         type: string
         enum: [debug,info,warning,error,critical]
         default: debug
-    LogStyleParam:
-      name: log-style
+    LogThreadParam:
+      name: log_thread
       in: query
-      description: The style used for building the 'log-format' parameter. Very technical, requires knowledge of Python's 'logging' package.
+      description: The thread originating the log entries. Defaults to all threads.
+      required: false
+      schema:
+        type: string
+    LogStyleParam:
+      name: log_style
+      in: query
+      description: The style used for building the 'log_format' parameter. Very technical, requires knowledge of Python's 'logging' package.
       required: false
       schema:
         type: string
@@ -1003,9 +1011,6 @@ components:
         total-tables:
           type: integer
           example: 15
-        log-file:
-          type: string
-          example: /tmp/PYDB.log
         version:
           type: string
           example: 1.3.0
