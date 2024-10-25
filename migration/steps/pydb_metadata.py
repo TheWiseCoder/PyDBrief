@@ -95,9 +95,11 @@ def migrate_metadata(errors: list[str],
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
             def assert_relation(rel: str, _md: MetaData) -> bool:
-                return (rel not in exclude_relations and
-                        rel not in schema_views and
-                        (not include_relations or rel in include_relations))
+                result: bool = (rel not in exclude_relations and
+                                rel not in schema_views and
+                                (not include_relations or rel in include_relations))
+                logger.debug(msg=f"Relation '{rel}' asserted on reflection as '{result}'")
+                return result
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)

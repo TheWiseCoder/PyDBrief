@@ -15,22 +15,22 @@ from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
 )
-from pypomes_db import DbEngine  # noqa: PyPep8
+from pypomes_db import DbEngine
 from pypomes_http import (
     http_get_parameter, http_get_parameters
 )
-from pypomes_logging import PYPOMES_LOGGER, logging_service  # noqa: PyPep8
+from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
 
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params,
     get_migration_metrics, set_migration_metrics
-)  # noqa: PyPep8
-from migration.pydb_migrator import migrate  # noqa: PyPep8
+)
+from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
     assert_column_types, assert_migration, get_migration_context
-)  # noqa: PyPep8
+)
 
 # create the Flask application
 flask_app: Flask = Flask(__name__)
@@ -44,7 +44,7 @@ flask_app.add_url_rule(rule="/logging",
                        view_func=logging_service,
                        methods=["GET", "POST"])
 
-# make PyDBrief's API available as a Swagger app
+# make PyDBrief's REST API available as a Swagger app
 swagger_blueprint: Blueprint = get_swaggerui_blueprint(
     base_url="/apidocs",
     api_url="/swagger",
