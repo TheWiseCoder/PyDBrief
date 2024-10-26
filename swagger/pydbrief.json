@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.5.0"
+    "version": "1.5.1"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -268,19 +268,19 @@
           {
             "name": "batch-size",
             "in": "query",
-            "description": "Maximum number of rows to migrate per batch (range is [1000-1000000]).",
+            "description": "Maximum number of rows to migrate per batch. Range is [1000-1000000], initial value is 100000. A batch size of 0 means all rows in table are retrieved in one query.",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1000,
               "maximum": 1000000,
-              "default": 200000
+              "default": 100000
             }
           },
           {
             "name": "chunk-size",
             "in": "query",
-            "description": "Maximum size, in bytes, of data chunks in LOB data copying (range is [1024-16777216]).",
+            "description": "Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes). A chunk size of 0 means a LOb is migrated in just one operation.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -517,7 +517,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "example": "Value '<datetime>' of 'from-datetime' attribute invalid"
+                        "example": "Value '<datetime>' of 'log_from_datetime' attribute invalid"
                       }
                     }
                   }
@@ -1265,11 +1265,11 @@
         "properties": {
           "batch-size": {
             "type": "integer",
-            "example": 200000
+            "example": 100000
           },
           "chunk-size": {
             "type": "integer",
-            "example": 1024000
+            "example": 1048576
           }
         }
       },

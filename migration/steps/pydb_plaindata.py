@@ -58,22 +58,21 @@ def migrate_plain(errors: list[str],
                         elif "primary-key" in features and pydb_common.MIGRATION_BATCH_SIZE > 0:
                             orderby_columns.append(column_name)
 
-                count: int = 0 if op_errors or not column_names else \
-                    db_migrate_data(errors=op_errors,
-                                    source_engine=source_rdbms,
-                                    source_table=source_table,
-                                    source_columns=column_names,
-                                    target_engine=target_rdbms,
-                                    target_table=target_table,
-                                    source_conn=source_conn,
-                                    target_conn=target_conn,
-                                    source_committable=True,
-                                    target_committable=True,
-                                    orderby_clause=", ".join(orderby_columns),
-                                    identity_column=identity_column,
-                                    batch_size=pydb_common.MIGRATION_BATCH_SIZE,
-                                    has_nulls=table_name in remove_nulls,
-                                    logger=logger) or 0
+                count: int = db_migrate_data(errors=op_errors,
+                                             source_engine=source_rdbms,
+                                             source_table=source_table,
+                                             source_columns=column_names,
+                                             target_engine=target_rdbms,
+                                             target_table=target_table,
+                                             source_conn=source_conn,
+                                             target_conn=target_conn,
+                                             source_committable=True,
+                                             target_committable=True,
+                                             orderby_clause=", ".join(orderby_columns),
+                                             identity_column=identity_column,
+                                             batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                             has_nulls=table_name in remove_nulls,
+                                             logger=logger) or 0
                 if op_errors:
                     pydb_database.check_embedded_nulls(errors=op_errors,
                                                        rdbms=target_rdbms,

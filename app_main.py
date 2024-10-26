@@ -10,7 +10,7 @@ from pathlib import Path
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from app_init import APP_VERSION        # must be imported before local and PyPomes modules
+from app_init import APP_VERSION        # must be imported before local and PyPomes packages
 from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
