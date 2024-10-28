@@ -10,8 +10,7 @@ pyodbc==5.2.0
 psycopg2-binary==2.9.10
 # pycryptodome==3.15.0              # installed from whl file
 pypomes_core==1.5.9
-pypomes_crypto==0.3.0
-pypomes_db==1.6.6
+pypomes_db==1.6.8
 pypomes_http==0.4.1
 pypomes_logging==0.4.5
 pypomes_s3==0.6.9

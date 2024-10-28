@@ -22,7 +22,7 @@ from typing import Any
 
 from migration.pydb_common import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    get_rdbms_params, get_s3_params
+    get_rdbms_params, get_s3_params, get_migration_metrics
 )
 from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
@@ -169,6 +169,7 @@ def migrate(errors: list[str],
         msg += f"; override columns {','.join(override_cols)}"
     if named_lobdata:
         msg += f"; exclude columns {','.join(named_lobdata)}"
+    msg += f"; metrics: {get_migration_metrics()}"
     logger.info(msg=msg)
 
     # errors while obtaining connection parameters will be listed on output, only
@@ -187,6 +188,7 @@ def migrate(errors: list[str],
     # initialize the return variable
     result: dict = {
         "started": started.strftime(format=DATETIME_FORMAT_INV),
+        "migration-metrics": get_migration_metrics(),
         "steps": steps,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms,
