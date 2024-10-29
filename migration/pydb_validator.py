@@ -14,7 +14,7 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from migration.pydb_common import (
-    MIGRATION_BATCH_SIZE_IN, MIGRATION_CHUNK_SIZE,
+    MIGRATION_BATCH_SIZE_IN, MIGRATION_BATCH_SIZE_OUT, MIGRATION_CHUNK_SIZE,
     get_migration_metrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
@@ -140,7 +140,14 @@ def assert_metrics_params(errors: list[str]) -> None:
         errors.append(validate_format_error(151,
                                             MIGRATION_BATCH_SIZE_IN,
                                             [1000, 10000000],
-                                            "@batch-size"))
+                                            "@batch-size-in"))
+    if MIGRATION_BATCH_SIZE_OUT < 1000 or \
+       MIGRATION_BATCH_SIZE_OUT > 10000000:
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            MIGRATION_BATCH_SIZE_OUT,
+                                            [1000, 10000000],
+                                            "@batch-size-out"))
     if MIGRATION_CHUNK_SIZE < 1024 or \
        MIGRATION_CHUNK_SIZE > 16777216:
         # 151: Invalid value {}: must be in the range {}

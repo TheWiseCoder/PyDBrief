@@ -60,7 +60,7 @@ def set_migration_metrics(errors: list[str],
     if batch_size_out:
         # yes, set the corresponding global parameter
         global MIGRATION_BATCH_SIZE_OUT
-        MIGRATION_BATCH_SIZE_IN = batch_size_out
+        MIGRATION_BATCH_SIZE_OUT = batch_size_out
 
     # validate the optional 'chunk-size' parameter
     chunk_size: int = validate_int(errors=errors,
