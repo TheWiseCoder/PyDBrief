@@ -128,7 +128,7 @@ def migrate(errors: list[str],
     # log the start of the migration
     msg: str = (f"Migration started, "
                 f"from {source_rdbms}.{source_schema} "
-                f"to {target_rdbms}.{target_schema}: ")
+                f"to {target_rdbms}.{target_schema}: version {version}")
     steps: list[str] = []
     if step_metadata:
         steps.append("migrate-metadata")
