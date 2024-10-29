@@ -11,13 +11,41 @@ from pypomes_s3 import (
     s3_get_engines, s3_get_param, s3_assert_access, s3_startup
 )
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, Final
 
 from migration.pydb_common import (
-    MIGRATION_BATCH_SIZE, MIGRATION_CHUNK_SIZE,
+    MIGRATION_BATCH_SIZE_IN, MIGRATION_CHUNK_SIZE,
     get_migration_metrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
+
+VALID_PARAMS: Final[dict[str, list[str]]] = {
+    "/migration:metrics:PATCH": ["batch-size", "chunk-size"],
+    "/migration:verify:POST": ["from-rdbms", "to-rdbms", "to-s3"],
+    "/migrate:POST": ["from-rdbms", "from-schema", "to-rdbms", "to-schema", "to-s3",
+                      "migrate-metadata", "migrate-plaindata", "migrate-lobdata", "synchronize-plaindata",
+                      "process-indexes", "process-views", "relax-reflection", "accept-empty",
+                      "skip-nonempty", "reflect-filetype", "flatten-storage", "remove-nulls",
+                      "include-relations", "exclude-relations", "exclude-constraints",
+                      "exclude-columns", "override-columns", "named-lobdata", "migration-badge"],
+    "/rdbms:POST": ["db-engine", "db-name", "db-user", "db-pwd",
+                    "db-host", "db-port", "db-client", "db-driver"],
+    "/s3:POST": ["s3-engine", "s3-endpoint-url", "s3-bucket-name",
+                 "s3-access-key", "s3-secret-key", "s3-region-name", "s3-secure-access"]
+}
+
+
+def assert_params(errors: list[str],
+                  service: str,
+                  method: str,
+                  scheme: dict) -> None:
+
+    params: list[str] = VALID_PARAMS.get(f"{service}:{method}") or []
+    for key in scheme.keys():
+        if key not in params:
+            # 122: Attribute is unknown or invalid in this context
+            errors.append(validate_format_error(122,
+                                                f"@{key}"))
 
 
 def assert_rdbms_dual(errors: list[str],
@@ -77,7 +105,7 @@ def assert_migration(errors: list[str],
        (source_rdbms != "oracle" or target_rdbms != "postgres"):
         # 101: {}
         errors.append(validate_format_error(101,
-                                            f"The migration path '{source_rdbms}->{target_rdbms}' has not "
+                                            f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
                                             "been validated yet. For details, please email the developer."))
     # validate S3
     to_s3: str = validate_str(errors=errors,
@@ -106,11 +134,11 @@ def assert_migration(errors: list[str],
 
 def assert_metrics_params(errors: list[str]) -> None:
 
-    if MIGRATION_BATCH_SIZE < 1000 or \
-       MIGRATION_BATCH_SIZE > 10000000:
+    if MIGRATION_BATCH_SIZE_IN < 1000 or \
+       MIGRATION_BATCH_SIZE_IN > 10000000:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
-                                            MIGRATION_BATCH_SIZE,
+                                            MIGRATION_BATCH_SIZE_IN,
                                             [1000, 10000000],
                                             "@batch-size"))
     if MIGRATION_CHUNK_SIZE < 1024 or \

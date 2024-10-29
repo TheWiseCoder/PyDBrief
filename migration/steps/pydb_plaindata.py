@@ -55,7 +55,7 @@ def migrate_plain(errors: list[str],
                         column_names.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
-                        elif "primary-key" in features and pydb_common.MIGRATION_BATCH_SIZE > 0:
+                        elif "primary-key" in features and pydb_common.MIGRATION_BATCH_SIZE_IN > 0:
                             orderby_columns.append(column_name)
 
                 count: int = db_migrate_data(errors=op_errors,
@@ -70,7 +70,8 @@ def migrate_plain(errors: list[str],
                                              target_committable=True,
                                              orderby_clause=", ".join(orderby_columns),
                                              identity_column=identity_column,
-                                             batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                             batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
+                                             batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
                                              has_nulls=table_name in remove_nulls,
                                              logger=logger) or 0
                 if op_errors:

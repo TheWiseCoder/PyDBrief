@@ -16,14 +16,16 @@ REGISTRY_DOCKER = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 # migration parameters
-MIGRATION_BATCH_SIZE: int = 100000
+MIGRATION_BATCH_SIZE_IN: int = 100000
+MIGRATION_BATCH_SIZE_OUT: int = 100000
 MIGRATION_CHUNK_SIZE: int = 1048576
 
 
 def get_migration_metrics() -> dict[str, Any]:
 
     return {
-        "batch-size": MIGRATION_BATCH_SIZE,
+        "batch-size_in": MIGRATION_BATCH_SIZE_IN,
+        "batch-size_out": MIGRATION_BATCH_SIZE_OUT,
         "chunk-size": MIGRATION_CHUNK_SIZE
     }
 
@@ -32,19 +34,33 @@ def set_migration_metrics(errors: list[str],
                           scheme: dict[str, Any],
                           logger: Logger) -> None:
 
-    # validate the optional 'batch-size' parameter
-    batch_size: int = validate_int(errors=errors,
-                                   scheme=scheme,
-                                   attr="batch-size",
-                                   min_val=1000,
-                                   max_val=10000000,
-                                   default=False,
-                                   logger=logger)
+    # validate the optional 'batch-size-in' parameter
+    batch_size_in: int = validate_int(errors=errors,
+                                      scheme=scheme,
+                                      attr="batch-size-in",
+                                      min_val=1000,
+                                      max_val=10000000,
+                                      default=False,
+                                      logger=logger)
     # was it obtained ?
-    if batch_size:
+    if batch_size_in:
         # yes, set the corresponding global parameter
-        global MIGRATION_BATCH_SIZE
-        MIGRATION_BATCH_SIZE = batch_size
+        global MIGRATION_BATCH_SIZE_IN
+        MIGRATION_BATCH_SIZE_IN = batch_size_in
+
+    # validate the optional 'batch-size-out' parameter
+    batch_size_out = validate_int(errors=errors,
+                                  scheme=scheme,
+                                  attr="batch-size-out",
+                                  min_val=1000,
+                                  max_val=10000000,
+                                  default=False,
+                                  logger=logger)
+    # was it obtained ?
+    if batch_size_out:
+        # yes, set the corresponding global parameter
+        global MIGRATION_BATCH_SIZE_OUT
+        MIGRATION_BATCH_SIZE_IN = batch_size_out
 
     # validate the optional 'chunk-size' parameter
     chunk_size: int = validate_int(errors=errors,

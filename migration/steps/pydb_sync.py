@@ -56,7 +56,7 @@ def synchronize_plain(errors: list[str],
                                                  source_committable=True,
                                                  target_committable=True,
                                                  identity_column=identity_column,
-                                                 batch_size=pydb_common.MIGRATION_BATCH_SIZE,
+                                                 batch_size=pydb_common.MIGRATION_BATCH_SIZE_IN,
                                                  has_nulls=table_name in remove_nulls,
                                                  logger=logger) or (0, 0, 0)
         if op_errors:

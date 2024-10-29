@@ -29,7 +29,8 @@ from migration.pydb_common import (
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
-    assert_column_types, assert_migration, get_migration_context
+    assert_params, assert_column_types,
+    assert_migration, get_migration_context
 )
 
 # create the Flask application
@@ -123,22 +124,27 @@ def handle_rdbms(rdbms: str = None) -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the input parameters
+    # retrieve and validate the input parameters
     scheme: dict[str, Any] = http_get_parameters(request=request)
+    assert_params(errors=errors,
+                  service="/rdbms",
+                  method=request.method,
+                  scheme=scheme)
 
     reply: dict | None = None
-    if request.method == "GET":
-        # get RDBMS connection params
-        reply = get_rdbms_params(errors=errors,
-                                 rdbms=rdbms)
-        dict_jsonify(source=reply)
-    else:
-        # configure the RDBMS
-        set_rdbms_params(errors=errors,
-                         scheme=scheme)
-        if not errors:
-            rdbms = scheme.get("db-engine")
-            reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
+    if not errors:
+        if request.method == "GET":
+            # get RDBMS connection params
+            reply = get_rdbms_params(errors=errors,
+                                     rdbms=rdbms)
+            dict_jsonify(source=reply)
+        else:
+            # configure the RDBMS
+            set_rdbms_params(errors=errors,
+                             scheme=scheme)
+            if not errors:
+                rdbms = scheme.get("db-engine")
+                reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -172,21 +178,26 @@ def handle_s3(s3_engine: str = None) -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the input parameters
+    # retrieve and validate the input parameters
     scheme: dict[str, Any] = http_get_parameters(request=request)
+    assert_params(errors=errors,
+                  service="/s3",
+                  method=request.method,
+                  scheme=scheme)
 
     reply: dict | None = None
-    if request.method == "GET":
-        # get S3 access params
-        reply = get_s3_params(errors=errors,
-                              s3_engine=s3_engine)
-    else:
-        # configure the S3 service
-        set_s3_params(errors=errors,
-                      scheme=scheme)
-        if not errors:
-            s3_engine = scheme.get("s3-engine")
-            reply = {"status": f"S3 '{s3_engine}' configuration updated"}
+    if not errors:
+        if request.method == "GET":
+            # get S3 access params
+            reply = get_s3_params(errors=errors,
+                                  s3_engine=s3_engine)
+        else:
+            # configure the S3 service
+            set_s3_params(errors=errors,
+                          scheme=scheme)
+            if not errors:
+                s3_engine = scheme.get("s3-engine")
+                reply = {"status": f"S3 '{s3_engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -217,36 +228,41 @@ def handle_migration() -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the input parameters
+    # retrieve and validate the input parameters
     scheme: dict[str, Any] = http_get_parameters(request=request)
+    assert_params(errors=errors,
+                  service=request.path,
+                  method=request.method,
+                  scheme=scheme)
 
     reply: dict[str, Any] | None = None
-    match request.method:
-        case "GET":
-            # retrieve the migration parameters
-            reply = get_migration_metrics()
-        case "PATCH":
-            # establish the migration parameters
-            set_migration_metrics(errors=errors,
-                                  scheme=scheme,
-                                  logger=PYPOMES_LOGGER)
-            if not errors:
-                reply = {"status": "Migration metrics updated"}
-        case "POST":
-            # assert whether migration is warranted
-            assert_migration(errors=errors,
-                             scheme=scheme,
-                             run_mode=False)
-            # errors ?
-            if errors:
-                # yes, report the problem
-                reply = {"status": "Migration cannot be launched"}
-            else:
-                # no, display the migration context
-                reply = get_migration_context(errors=errors,
-                                              scheme=scheme)
-                if reply:
-                    reply["status"] = "Migration can be launched"
+    if not errors:
+        match request.method:
+            case "GET":
+                # retrieve the migration parameters
+                reply = get_migration_metrics()
+            case "PATCH":
+                # establish the migration parameters
+                set_migration_metrics(errors=errors,
+                                      scheme=scheme,
+                                      logger=PYPOMES_LOGGER)
+                if not errors:
+                    reply = {"status": "Migration metrics updated"}
+            case "POST":
+                # assert whether migration is warranted
+                assert_migration(errors=errors,
+                                 scheme=scheme,
+                                 run_mode=False)
+                # errors ?
+                if errors:
+                    # yes, report the problem
+                    reply = {"status": "Migration cannot be launched"}
+                else:
+                    # no, display the migration context
+                    reply = get_migration_context(errors=errors,
+                                                  scheme=scheme)
+                    if reply:
+                        reply["status"] = "Migration can be launched"
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -300,73 +316,78 @@ def migrate_data() -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    # retrieve the input parameters
+    # retrieve and validate the input parameters
     scheme: dict = http_get_parameters(request=request)
+    assert_params(errors=errors,
+                  service="/migrate",
+                  method=request.method,
+                  scheme=scheme)
 
-    # assert whether migration is warranted
-    assert_migration(errors=errors,
-                     scheme=scheme,
-                     run_mode=True)
-
-    # assert and obtain the external columns parameter
-    override_columns: dict[str, Type] = assert_column_types(errors=errors,
-                                                            scheme=scheme)
     reply: dict[str, Any] | None = None
-    # is migration possible ?
     if not errors:
-        # yes, obtain the migration parameters
-        source_rdbms: str = scheme.get("from-rdbms").lower()
-        target_rdbms: str = scheme.get("to-rdbms").lower()
-        source_schema: str = scheme.get("from-schema").lower()
-        target_schema: str = scheme.get("to-schema").lower()
-        target_s3: str | None = (scheme.get("to-s3") or "").lower() or None
-        step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
-        step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
-        step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
-        step_synchronize: bool = str_lower(scheme.get("synchronize-plaindata")) in ["1", "t", "true"]
-        process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
-        process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
-        relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
-        accept_empty: bool = str_lower(scheme.get("accept-empty")) in ["1", "t", "true"]
-        skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
-        reflect_filetype: bool = str_lower(scheme.get("reflect-filetype")) in ["1", "t", "true"]
-        flatten_storage: bool = str_lower(scheme.get("flatten-storage")) in ["1", "t", "true"]
-        remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
-        include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
-        exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
-        exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
-        exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
-        named_lobdata: list[str] = str_as_list(str_lower(scheme.get("named-lobdata"))) or []
-        migration_badge: str | None = scheme.get("migration-badge")
+        # assert whether migration is warranted
+        assert_migration(errors=errors,
+                         scheme=scheme,
+                         run_mode=True)
 
-        # migrate the data
-        reply = migrate(errors=errors,
-                        source_rdbms=DbEngine(source_rdbms),
-                        target_rdbms=DbEngine(target_rdbms),
-                        source_schema=source_schema,
-                        target_schema=target_schema,
-                        target_s3=S3Engine(target_s3) if target_s3 else None,
-                        step_metadata=step_metadata,
-                        step_plaindata=step_plaindata,
-                        step_lobdata=step_lobdata,
-                        step_synchronize=step_synchronize,
-                        process_indexes=process_indexes,
-                        process_views=process_views,
-                        relax_reflection=relax_reflection,
-                        accept_empty=accept_empty,
-                        skip_nonempty=skip_nonempty,
-                        reflect_filetype=reflect_filetype,
-                        flatten_storage=flatten_storage,
-                        remove_nulls=remove_nulls,
-                        include_relations=include_relations,
-                        exclude_relations=exclude_relations,
-                        exclude_columns=exclude_columns,
-                        exclude_constraints=exclude_constraints,
-                        named_lobdata=named_lobdata,
-                        override_columns=override_columns,
-                        migration_badge=migration_badge,
-                        version=APP_VERSION,
-                        logger=PYPOMES_LOGGER)
+        # assert and obtain the external columns parameter
+        override_columns: dict[str, Type] = assert_column_types(errors=errors,
+                                                                scheme=scheme)
+        # is migration possible ?
+        if not errors:
+            # yes, obtain the migration parameters
+            source_rdbms: str = scheme.get("from-rdbms").lower()
+            target_rdbms: str = scheme.get("to-rdbms").lower()
+            source_schema: str = scheme.get("from-schema").lower()
+            target_schema: str = scheme.get("to-schema").lower()
+            target_s3: str | None = (scheme.get("to-s3") or "").lower() or None
+            step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
+            step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
+            step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
+            step_synchronize: bool = str_lower(scheme.get("synchronize-plaindata")) in ["1", "t", "true"]
+            process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
+            process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
+            relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
+            accept_empty: bool = str_lower(scheme.get("accept-empty")) in ["1", "t", "true"]
+            skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
+            reflect_filetype: bool = str_lower(scheme.get("reflect-filetype")) in ["1", "t", "true"]
+            flatten_storage: bool = str_lower(scheme.get("flatten-storage")) in ["1", "t", "true"]
+            remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
+            include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
+            exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
+            exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
+            exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
+            named_lobdata: list[str] = str_as_list(str_lower(scheme.get("named-lobdata"))) or []
+            migration_badge: str | None = scheme.get("migration-badge")
+
+            # migrate the data
+            reply = migrate(errors=errors,
+                            source_rdbms=DbEngine(source_rdbms),
+                            target_rdbms=DbEngine(target_rdbms),
+                            source_schema=source_schema,
+                            target_schema=target_schema,
+                            target_s3=S3Engine(target_s3) if target_s3 else None,
+                            step_metadata=step_metadata,
+                            step_plaindata=step_plaindata,
+                            step_lobdata=step_lobdata,
+                            step_synchronize=step_synchronize,
+                            process_indexes=process_indexes,
+                            process_views=process_views,
+                            relax_reflection=relax_reflection,
+                            accept_empty=accept_empty,
+                            skip_nonempty=skip_nonempty,
+                            reflect_filetype=reflect_filetype,
+                            flatten_storage=flatten_storage,
+                            remove_nulls=remove_nulls,
+                            include_relations=include_relations,
+                            exclude_relations=exclude_relations,
+                            exclude_columns=exclude_columns,
+                            exclude_constraints=exclude_constraints,
+                            named_lobdata=named_lobdata,
+                            override_columns=override_columns,
+                            migration_badge=migration_badge,
+                            version=APP_VERSION,
+                            logger=PYPOMES_LOGGER)
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)

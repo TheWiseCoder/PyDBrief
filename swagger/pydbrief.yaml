@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.5.3
+  version: 1.5.4
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -153,14 +153,23 @@ paths:
       description: Set up the RDBMS-independent parameters driving the migration process.
       operationId: configure-migration
       parameters:
-        - name: batch-size
+        - name: batch-size-in
           in: query
-          description: Maximum number of rows to migrate per batch. Range is [1000-1000000], initial value is 100000. A batch size of 0 means all rows in table are retrieved in one query.
+          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in table are retrieved at once.
           required: false
           schema:
             type: integer
             minimum: 1000
-            maximum: 1000000
+            maximum: 10000000
+            default: 100000
+        - name: batch-size-out
+          in: query
+          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in table are outputted at once.
+          required: false
+          schema:
+            type: integer
+            minimum: 1000
+            maximum: 10000000
             default: 100000
         - name: chunk-size
           in: query
@@ -183,7 +192,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BatchSizeError'
+                $ref: '#/components/schemas/ChunkSizeError'
   /migration:verify:
     post:
       tags:
@@ -301,7 +310,7 @@ paths:
         - $ref: '#/components/parameters/LogLevelParam'
         - $ref: '#/components/parameters/LogFormatParam'
         - $ref: '#/components/parameters/LogStyleParam'
-        - $ref: '#/components/parameters/LogDatetimeParam'
+        - $ref: '#/components/parameters/LogTimestampParam'
       responses:
         '200':
           description: Successful operation
@@ -470,14 +479,14 @@ components:
       required: false
       schema:
         type: integer
-    LogDatetimeParam:
-      name: log_datetime
+    LogTimestampParam:
+      name: log_timestamp
       in: query
-      description: Format for writing the date and time on the log entries.
+      description: Format for writing the date and time on the log entries. Must comply with Python's syntax for timestamp formatting.
       required: false
       schema:
         type: string
-        default: YYYY-MM-DD HH:MM:SS
+        default: "%Y-%m-%d %H:%M:%S"
     LogFilenameParam:    
       name: log_filename
       in: query
@@ -1014,7 +1023,7 @@ components:
         version:
           type: string
           example: 1.3.0
-    BatchSizeError:
+    ChunkSizeError:
       type: object
       properties:
         errors:
@@ -1024,7 +1033,7 @@ components:
             properties:
               attribute:
                 type: string
-                example: batch-size
+                example: chunk-size
               description:
                 type: string
                 example: Invalid value '50'
