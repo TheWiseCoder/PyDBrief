@@ -20,7 +20,7 @@ from migration.pydb_common import (
 from migration.pydb_types import name_to_type
 
 VALID_PARAMS: Final[dict[str, list[str]]] = {
-    "/migration:metrics:PATCH": ["batch-size", "chunk-size"],
+    "/migration:metrics:PATCH": ["batch-size-in", "batch-size-out", "chunk-size"],
     "/migration:verify:POST": ["from-rdbms", "to-rdbms", "to-s3"],
     "/migrate:POST": ["from-rdbms", "from-schema", "to-rdbms", "to-schema", "to-s3",
                       "migrate-metadata", "migrate-plaindata", "migrate-lobdata", "synchronize-plaindata",
