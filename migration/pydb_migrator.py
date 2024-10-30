@@ -34,7 +34,7 @@ from migration.steps.pydb_plaindata import migrate_plain
 from migration.steps.pydb_sync import synchronize_plain
 
 # treat warnings as errors
-warnings.filterwarnings("error")
+# warnings.filterwarnings("error")
 
 
 # structure of the migration data returned:
