@@ -1,6 +1,7 @@
 import json
-import threading
 import sys
+import threading
+import warnings
 from datetime import datetime
 from io import BytesIO
 from logging import Logger
@@ -115,11 +116,9 @@ def migrate(errors: list[str],
             version: str,
             logger: Logger) -> dict[str, Any]:
 
-    # treat warnings as errors
+    # handle warnings
     # (boto3 and minio packages generate the warning "datetime.datetime.utcnow() is deprecated...")
-    if not target_s3:
-        import warnings
-        warnings.filterwarnings(action="error")
+    warnings.filterwarnings(action="ignore" if target_s3 else "error")
 
     # set external columns to displayable list
     override_cols: list[str] = []
