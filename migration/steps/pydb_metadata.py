@@ -98,7 +98,7 @@ def migrate_metadata(errors: list[str],
                 result: bool = (rel not in exclude_relations and
                                 rel not in schema_views and
                                 (not include_relations or rel in include_relations))
-                logger.debug(msg=f"Relation '{rel}' asserted on reflection as '{result}'")
+                logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
                 return result
 
             # obtain the source schema metadata
