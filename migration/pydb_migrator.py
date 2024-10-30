@@ -1,7 +1,6 @@
 import json
 import threading
 import sys
-import warnings
 from datetime import datetime
 from io import BytesIO
 from logging import Logger
@@ -32,9 +31,6 @@ from migration.steps.pydb_lobdata import migrate_lobs
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
 from migration.steps.pydb_sync import synchronize_plain
-
-# treat warnings as errors
-# warnings.filterwarnings("error")
 
 
 # structure of the migration data returned:
@@ -118,6 +114,12 @@ def migrate(errors: list[str],
             migration_badge: str,
             version: str,
             logger: Logger) -> dict[str, Any]:
+
+    # treat warnings as errors
+    # (boto3 and minio packages generate the warning "datetime.datetime.utcnow() is deprecated...")
+    if not target_s3:
+        import warnings
+        warnings.filterwarnings("error")
 
     # set external columns to displayable list
     override_cols: list[str] = []
