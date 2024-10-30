@@ -112,7 +112,6 @@ def assert_migration(errors: list[str],
                               scheme=scheme,
                               attr="to-s3",
                               values=list(map(str, S3Engine)))
-    # validate S3
     if to_s3:
         s3_engine = S3Engine(to_s3)
         if s3_engine in s3_get_engines():

@@ -118,7 +118,7 @@ def migrate(errors: list[str],
 
     # handle warnings
     # (boto3 and minio packages generate the warning "datetime.datetime.utcnow() is deprecated...")
-    warnings.filterwarnings(action="ignore" if target_s3 else "error")
+    warnings.filterwarnings(action="ignore" if target_s3 and step_lobdata else "error")
 
     # set external columns to displayable list
     override_cols: list[str] = []

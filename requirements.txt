@@ -13,7 +13,7 @@ pypomes_core==1.5.9
 pypomes_db==1.6.9
 pypomes_http==0.4.1
 pypomes_logging==0.4.8
-pypomes_s3==0.7.0
+pypomes_s3==0.7.1
 python-dateutil==2.9.0
 pytz==2024.2
 SQLAlchemy==2.0.36
