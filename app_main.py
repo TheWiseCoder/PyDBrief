@@ -10,7 +10,7 @@ from pathlib import Path
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from app_init import APP_VERSION        # must be imported before local and PyPomes packages
+from app_version import APP_VERSION        # must be imported before local and PyPomes packages
 from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
@@ -29,8 +29,8 @@ from migration.pydb_common import (
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
-    assert_params, assert_column_types,
-    assert_migration, get_migration_context
+    assert_override_columns, assert_incremental_migration,
+    assert_params, assert_migration, get_migration_context
 )
 
 # create the Flask application
@@ -298,6 +298,7 @@ def migrate_data() -> Response:
         - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
         - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
         - *exclude-constraints*: optional list of constraints not to migrate
+        - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
         - *remove-nulls*: optional list of tables having columns with embedded NULLs in string data
         - *exclude-columns*: optional list of table columns not to migrate
         - *override-columns*: optional list of columns with forced migration types
@@ -331,8 +332,11 @@ def migrate_data() -> Response:
                          run_mode=True)
 
         # assert and obtain the external columns parameter
-        override_columns: dict[str, Type] = assert_column_types(errors=errors,
-                                                                scheme=scheme)
+        override_columns: dict[str, Type] = assert_override_columns(errors=errors,
+                                                                    scheme=scheme)
+        # assert and obtain the external columns parameter
+        incremental_migration: dict[str, dict[str, int]] = assert_incremental_migration(errors=errors,
+                                                                                        scheme=scheme)
         # is migration possible ?
         if not errors:
             # yes, obtain the migration parameters
@@ -378,6 +382,7 @@ def migrate_data() -> Response:
                             skip_nonempty=skip_nonempty,
                             reflect_filetype=reflect_filetype,
                             flatten_storage=flatten_storage,
+                            incremental_migration=incremental_migration,
                             remove_nulls=remove_nulls,
                             include_relations=include_relations,
                             exclude_relations=exclude_relations,

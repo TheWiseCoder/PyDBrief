@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between different RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.5.4
+  version: 1.5.5
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -155,16 +155,16 @@ paths:
       parameters:
         - name: batch-size-in
           in: query
-          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in table are retrieved at once.
+          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A batch size of 0 means all rows in table are retrieved at once.
           required: false
           schema:
             type: integer
             minimum: 1000
             maximum: 10000000
-            default: 100000
+            default: 1000000
         - name: batch-size-out
           in: query
-          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in table are outputted at once.
+          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in result set are outputted at once.
           required: false
           schema:
             type: integer
@@ -242,6 +242,7 @@ paths:
         - $ref: '#/components/parameters/SkipNonemptyParam'
         - $ref: '#/components/parameters/ReflectFiletypeParam'
         - $ref: '#/components/parameters/FlattenStorageParam'
+        - $ref: '#/components/parameters/IncrementalMigrationParam'
         - $ref: '#/components/parameters/RemoveNullsParam'
         - $ref: '#/components/parameters/IncludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeRelationsParam'
@@ -796,6 +797,17 @@ components:
         type: array
         items:
           type: string
+    IncrementalMigrationParam:
+      name: incremental-migration
+      in: query
+      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax 'table-name=offset:size', where 'offset' is the number of rows to skip (mandatory, specify '0' for migration to start at the beginning), and 'size' is the maximum number of rows to migrate (optional, ommit it for migration to happen from 'offset' to the end of the table).
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          example: my_table_1=0:100000
     RemoveNullsParam:
       name: remove-nulls
       in: query

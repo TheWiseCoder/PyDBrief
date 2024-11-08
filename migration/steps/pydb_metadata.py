@@ -124,8 +124,8 @@ def migrate_metadata(errors: list[str],
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
-                exc_err = str_sanitize(exc_format(exc=e,
-                                                  exc_info=sys.exc_info()))
+                exc_err: str = str_sanitize(exc_format(exc=e,
+                                                       exc_info=sys.exc_info()))
                 logger.error(msg=exc_err)
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104,

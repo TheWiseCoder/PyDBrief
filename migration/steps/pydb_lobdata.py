@@ -86,14 +86,14 @@ def migrate_lobs(errors: list[str],
                                                     schema=target_table[:target_table.index(".")],
                                                     table=target_table[target_table.index(".")+1:],
                                                     column=named_column or lob_column)
-
-                    # is a nonempty S3 prefix an issue ?
-                    if lob_prefix and skip_nonempty and s3_item_exists(errors=op_errors,
-                                                                       prefix=lob_prefix):
-                        # yes, skip it
-                        logger.debug(msg=f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}")
-                        status = "skipped"
-                    elif not op_errors:
+                        # is a nonempty S3 prefix an issue ?
+                        if skip_nonempty and s3_item_exists(errors=op_errors,
+                                                            prefix=lob_prefix):
+                            # yes, skip it
+                            logger.debug(msg=f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}")
+                            status = "skipped"
+                    # errors ?
+                    if not op_errors:
                         # no, migrate the column's LOBs
                         count += s3_migrate_lobs(errors=op_errors,
                                                  target_s3=target_s3,

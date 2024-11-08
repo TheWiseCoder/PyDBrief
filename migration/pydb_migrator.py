@@ -24,7 +24,6 @@ from migration.pydb_common import (
     REGISTRY_DOCKER, REGISTRY_HOST,
     get_rdbms_params, get_s3_params, get_migration_metrics
 )
-from migration.pydb_types import type_to_name
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
 )
@@ -105,6 +104,7 @@ def migrate(errors: list[str],
             skip_nonempty: bool,
             reflect_filetype: bool,
             flatten_storage: bool,
+            incremental_migration: dict[str, dict[str, int]],
             remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
@@ -120,16 +120,6 @@ def migrate(errors: list[str],
     # (boto3 and minio packages generate the warning "datetime.datetime.utcnow() is deprecated...")
     warnings.filterwarnings(action="ignore" if target_s3 and step_lobdata else "error")
 
-    # set external columns to displayable list
-    override_cols: list[str] = []
-    for col_name, col_type in override_columns.items():
-        override_cols.append(col_name + "=" +
-                             type_to_name(rdbms=target_rdbms,
-                                          col_type=col_type))
-    # log the start of the migration
-    msg: str = (f"Migration started, "
-                f"from {source_rdbms}.{source_schema} "
-                f"to {target_rdbms}.{target_schema}: version {version}")
     steps: list[str] = []
     if step_metadata:
         steps.append("migrate-metadata")
@@ -139,56 +129,23 @@ def migrate(errors: list[str],
         steps.append("migrate-lobdata")
     if step_synchronize:
         steps.append("synchronize-plaindata")
-    msg += f"steps {','.join(steps)}"
-    if process_indexes:
-        msg += "; process indexes"
-    if process_views:
-        msg += "; process views"
-    if relax_reflection:
-        msg += "; relax reflection"
-    if accept_empty:
-        msg += "; accept empty"
-    if skip_nonempty:
-        msg += "; skip nonempty"
-    if reflect_filetype:
-        msg += "; reflect filetype"
-    if flatten_storage:
-        msg += "; flatten storage"
-    if migration_badge:
-        msg += f"; migration badge '{migration_badge}'"
-    if remove_nulls:
-        msg += f"; remove nulls {','.join(remove_nulls)}"
-    if include_relations:
-        msg += f"; include relations {','.join(include_relations)}"
-    if exclude_relations:
-        msg += f"; exclude relations {','.join(exclude_relations)}"
-    if exclude_constraints:
-        msg += f"; exclude constraints {','.join(exclude_constraints)}"
-    if exclude_columns:
-        msg += f"; exclude columns {','.join(exclude_columns)}"
-    if override_cols:
-        msg += f"; override columns {','.join(override_cols)}"
-    if named_lobdata:
-        msg += f"; exclude columns {','.join(named_lobdata)}"
-    msg += f"; metrics: {get_migration_metrics()}"
-    logger.info(msg=msg)
 
-    # errors while obtaining connection parameters will be listed on output, only
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   rdbms=source_rdbms)
     from_rdbms["schema"] = source_schema
+    # avoid displaying the password
     from_rdbms.pop(str(DbParam.PWD))
     dict_jsonify(source=from_rdbms)
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                 rdbms=target_rdbms)
     to_rdbms["schema"] = target_schema
+    # avoid displaying the password
     to_rdbms.pop(str(DbParam.PWD))
     dict_jsonify(source=to_rdbms)
-    started: datetime = datetime.now()
 
     # initialize the return variable
     result: dict = {
-        "started": started.strftime(format=DATETIME_FORMAT_INV),
+        "started": datetime.now().strftime(format=DATETIME_FORMAT_INV),
         "migration-metrics": get_migration_metrics(),
         "steps": steps,
         "source-rdbms": from_rdbms,
@@ -200,6 +157,7 @@ def migrate(errors: list[str],
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
+        # avoid displaying the secret key
         to_s3.pop("secret_key")
         result["target-s3"] = to_s3
     if process_indexes:
@@ -218,6 +176,8 @@ def migrate(errors: list[str],
         result["flatten-storage"] = flatten_storage
     if remove_nulls:
         result["remove-nulls"] = remove_nulls
+    if incremental_migration:
+        result["incremental-migration"] = incremental_migration
     if include_relations:
         result["include-relations"] = include_relations
     if exclude_relations:
@@ -226,11 +186,12 @@ def migrate(errors: list[str],
         result["exclude-constraints"] = exclude_constraints
     if exclude_columns:
         result["exclude-columns"] = exclude_columns
-    if override_cols:
-        result["override-columns"] = override_cols
+    if override_columns:
+        result["override-columns"] = override_columns
     if named_lobdata:
         result["named-lobdata"] = named_lobdata
 
+    logger.info(result)
     logger.info(msg="Started discovering the metadata")
 
     migrated_tables: dict[str, Any] = \
@@ -288,6 +249,7 @@ def migrate(errors: list[str],
                                                 target_schema=target_schema,
                                                 skip_nonempty=skip_nonempty,
                                                 remove_nulls=remove_nulls,
+                                                incremental_migration=incremental_migration,
                                                 source_conn=source_conn,
                                                 target_conn=target_conn,
                                                 migrated_tables=migrated_tables,

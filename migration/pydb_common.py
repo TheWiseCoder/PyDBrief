@@ -10,13 +10,13 @@ from pypomes_db import (
 from pypomes_s3 import (
     S3Engine, s3_get_params, s3_setup
 )
-from typing import Any
+from typing import Any, Final
 
-REGISTRY_DOCKER = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
-REGISTRY_HOST = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
+REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
+REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 # migration parameters
-MIGRATION_BATCH_SIZE_IN: int = 100000
+MIGRATION_BATCH_SIZE_IN: int = 1000000
 MIGRATION_BATCH_SIZE_OUT: int = 100000
 MIGRATION_CHUNK_SIZE: int = 1048576
 
@@ -24,8 +24,8 @@ MIGRATION_CHUNK_SIZE: int = 1048576
 def get_migration_metrics() -> dict[str, Any]:
 
     return {
-        "batch-size_in": MIGRATION_BATCH_SIZE_IN,
-        "batch-size_out": MIGRATION_BATCH_SIZE_OUT,
+        "batch-size-in": MIGRATION_BATCH_SIZE_IN,
+        "batch-size-out": MIGRATION_BATCH_SIZE_OUT,
         "chunk-size": MIGRATION_CHUNK_SIZE
     }
 
