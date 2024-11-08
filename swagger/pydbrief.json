@@ -1097,7 +1097,7 @@
       "FlattenStorageParam": {
         "name": "flatten-storage",
         "in": "query",
-        "description": "Whether the LOBs are to be flatly stored on the S3 bucket, instead of being organized in a tree structure. This organization is effected by associating the migration to paths having the structure '/<target-rdbms>@<target-db-host>/<target-schema>/<target-table>/<lob-column>/'. Ignored if parameter 'to-s3' is not specified.",
+        "description": "Whether the LOBs are to be flatly stored on the S3 bucket, instead of being organized in a tree structure. This organization is effected by associating the migration to paths having the structure '\\<target-rdbms\\>@\\<target-db-host\\>\\<target-schema\\>\\<target-table\\>\\<lob-column\\>'. Ignored if parameter 'to-s3' is not specified.",
         "required": false,
         "schema": {
           "type": "boolean",
@@ -1212,7 +1212,7 @@
       "ExcludeColumnsParam": {
         "name": "exclude-columns",
         "in": "query",
-        "description": "Optional list of table columns not to migrate. Column names must be table-qualified (<table-name>.<column-name>).",
+        "description": "Optional list of table columns not to migrate. Column names must be table-qualified (\\<table-name\\>.\\<column-name\\>).",
         "required": false,
         "explode": false,
         "schema": {
@@ -1225,7 +1225,7 @@
       "ExcludeConstraintsParam": {
         "name": "exclude-constraints",
         "in": "query",
-        "description": "Optional list of constraints not to migrate.",
+        "description": "Optional list of constraints not to migrate. Constraint names should be the names used in the source database.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1238,7 +1238,7 @@
       "NamedLobdataParam": {
         "name": "named-lobdata",
         "in": "query",
-        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '<table-name>.<lob-column>=<names-column>[.\\<extension\\>]'. The optional extension is used for lobdata naming, subject to the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
+        "description": "Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '\\<table-name\\>.\\<lob-column\\>=\\<names-column\\>[.\\<extension\\>]'. The optional extension is used for lobdata naming, subject to the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1251,7 +1251,7 @@
       "IncrementalMigrationParam": {
         "name": "incremental-migration",
         "in": "query",
-        "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax 'table-name=size', where 'size' is the maximum number of rows to migrate. If ommited, its value is set to the migration metrics parameter 'incremental-size'. If set to -1, migration is to happen to the end of the table.",
+        "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\\<table-name\\>=\\<size\\>', where '\\<size\\>' is the maximum number of rows to migrate. If ommited, its value is set to the migration metrics parameter 'incremental-size'. If set to -1, migration is to include all rows to the end of the table.",
         "required": false,
         "explode": false,
         "schema": {
@@ -1279,7 +1279,7 @@
       "OverrideColumnsParam": {
         "name": "override-columns",
         "in": "query",
-        "description": "Optional list of table columns with types to be forced upon. These types override the standard type conversion. Useful for referenced but unreacheable columns, such as FK columns pointing to absent tables. Column names must be table-qualified (<table-name>.<column-name>=<type-name>). Types must be valid in target RDBMS.",
+        "description": "Optional list of table columns with types to be forced upon. These types override the standard type conversion. Useful for referenced but unreacheable columns, such as FK columns pointing to absent tables. Column names must be table-qualified (\\<table-name\\>.\\<column-name\\>=\\<type-name\\>). Types must be valid in target RDBMS.",
         "required": false,
         "explode": false,
         "schema": {
