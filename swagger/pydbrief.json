@@ -268,7 +268,7 @@
           {
             "name": "batch-size-in",
             "in": "query",
-            "description": "Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A batch size of 0 means all rows in table are retrieved at once.",
+            "description": "Default maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A batch size of 0 means all rows in table are retrieved at once.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -280,7 +280,7 @@
           {
             "name": "batch-size-out",
             "in": "query",
-            "description": "Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000. A batch size of 0 means all rows in result set are outputted at once.",
+            "description": "Default maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000.",
             "required": false,
             "schema": {
               "type": "integer",
@@ -292,13 +292,25 @@
           {
             "name": "chunk-size",
             "in": "query",
-            "description": "Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes). A chunk size of 0 means a LOb is migrated in just one operation.",
+            "description": "Default maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1024,
               "maximum": 16777216,
               "default": 1048576
+            }
+          },
+          {
+            "name": "incremental-size",
+            "in": "query",
+            "description": "Default maximum number of rows to migrate, for tables flagged for incremental migration. Range is [1000-10000000], initial value is 100000.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 10000000,
+              "default": 100000
             }
           }
         ],
@@ -427,10 +439,10 @@
             "$ref": "#/components/parameters/FlattenStorageParam"
           },
           {
-            "$ref": "#/components/parameters/RemoveNullsParam"
+            "$ref": "#/components/parameters/IncrementalMigrationParam"
           },
           {
-            "$ref": "#/components/parameters/IncrementalMigrationParam"
+            "$ref": "#/components/parameters/RemoveNullsParam"
           },
           {
             "$ref": "#/components/parameters/IncludeRelationsParam"
@@ -1239,14 +1251,14 @@
       "IncrementalMigrationParam": {
         "name": "incremental-migration",
         "in": "query",
-        "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax 'table-name=offset:size', where 'offset' is the number of rows to skip (mandatory, specify '0' for migration to start at the beginning), and 'size' is the maximum number of rows to migrate (optional, ommit it for migration to happen from 'offset' to the end of the table).",
+        "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax 'table-name=size', where 'size' is the maximum number of rows to migrate. If ommited, its value is set to the migration metrics parameter 'incremental-size'. If set to -1, migration is to happen to the end of the table.",
         "required": false,
         "explode": false,
         "schema": {
           "type": "array",
           "items": {
             "type": "string",
-            "example": "my_table_1=0:100000"
+            "example": "my_table_1=100000"
           }
         }
       },

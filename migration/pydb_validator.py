@@ -15,19 +15,20 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from migration.pydb_common import (
-    MIGRATION_BATCH_SIZE_IN, MIGRATION_BATCH_SIZE_OUT, MIGRATION_CHUNK_SIZE,
+    MIGRATION_BATCH_SIZE_IN, MIGRATION_BATCH_SIZE_OUT,
+    MIGRATION_CHUNK_SIZE, MIGRATION_INCREMENTAL_SIZE,
     get_migration_metrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
 
 VALID_PARAMS: Final[dict[str, list[str]]] = {
-    "/migration:metrics:PATCH": ["batch-size-in", "batch-size-out", "chunk-size"],
+    "/migration:metrics:PATCH": ["batch-size-in", "batch-size-out", "chunk-size", "incremental-size"],
     "/migration:verify:POST": ["from-rdbms", "to-rdbms", "to-s3"],
     "/migrate:POST": ["from-rdbms", "from-schema", "to-rdbms", "to-schema", "to-s3",
                       "migrate-metadata", "migrate-plaindata", "migrate-lobdata", "synchronize-plaindata",
                       "process-indexes", "process-views", "relax-reflection", "accept-empty",
                       "skip-nonempty", "reflect-filetype", "flatten-storage", "remove-nulls",
-                      "include-relations", "exclude-relations", "exclude-constraints",
+                      "incremental-migration", "include-relations", "exclude-relations", "exclude-constraints",
                       "exclude-columns", "override-columns", "named-lobdata", "migration-badge"],
     "/rdbms:POST": ["db-engine", "db-name", "db-user", "db-pwd",
                     "db-host", "db-port", "db-client", "db-driver"],
@@ -241,10 +242,10 @@ def assert_override_columns(errors: list[str],
 
 
 def assert_incremental_migration(errors: list[str],
-                                 scheme: dict[str, Any]) -> dict[str, dict[str, int]]:
+                                 scheme: dict[str, Any]) -> dict[str, int]:
 
     # initialize the return variable
-    result: dict[str, dict[str, int]] = {}
+    result: dict[str, int] = {}
 
     # process the foreign columns list
     incremental_tables: list[str] = validate_strs(errors=errors,
@@ -253,16 +254,18 @@ def assert_incremental_migration(errors: list[str],
     if incremental_tables:
         try:
             for incremental_table in incremental_tables:
-                # format of 'incremental_table' is <table_name>=<offset>[:<size>]
-                table_name: str = incremental_table[:f"={incremental_table.rindex('=')-1}"]
-                result[table_name] = {}
-                params: str = incremental_table.replace(table_name, "", 1)[1:]
-                pos: int = params.find(":")
+                # format of 'incremental_table' is <table_name>[=<offset>]
+                pos: int = incremental_table.find("=")
                 if pos > 0:
-                    result[table_name]["offset"] = int(params[:pos])
-                    result[table_name]["size"] = int(params[pos+1:])
+                    table_name: str = incremental_table[:{pos}]
+                    size: int = int(incremental_table[:pos+1])
+                    if size == -1:
+                        result[table_name] = 0
+                    else:
+                        result[table_name] = size
+
                 else:
-                    result[table_name]["offset"] = int(params)
+                    result[incremental_table] = MIGRATION_INCREMENTAL_SIZE
         except Exception as e:
             exc_err: str = str_sanitize(exc_format(exc=e,
                                                    exc_info=sys.exc_info()))

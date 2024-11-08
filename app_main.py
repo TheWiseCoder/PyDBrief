@@ -335,8 +335,8 @@ def migrate_data() -> Response:
         override_columns: dict[str, Type] = assert_override_columns(errors=errors,
                                                                     scheme=scheme)
         # assert and obtain the external columns parameter
-        incremental_migration: dict[str, dict[str, int]] = assert_incremental_migration(errors=errors,
-                                                                                        scheme=scheme)
+        incremental_migration: dict[str, int] = assert_incremental_migration(errors=errors,
+                                                                             scheme=scheme)
         # is migration possible ?
         if not errors:
             # yes, obtain the migration parameters

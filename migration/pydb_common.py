@@ -19,6 +19,7 @@ REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 MIGRATION_BATCH_SIZE_IN: int = 1000000
 MIGRATION_BATCH_SIZE_OUT: int = 100000
 MIGRATION_CHUNK_SIZE: int = 1048576
+MIGRATION_INCREMENTAL_SIZE: int = 100000
 
 
 def get_migration_metrics() -> dict[str, Any]:
@@ -26,7 +27,8 @@ def get_migration_metrics() -> dict[str, Any]:
     return {
         "batch-size-in": MIGRATION_BATCH_SIZE_IN,
         "batch-size-out": MIGRATION_BATCH_SIZE_OUT,
-        "chunk-size": MIGRATION_CHUNK_SIZE
+        "chunk-size": MIGRATION_CHUNK_SIZE,
+        "incremental-size": MIGRATION_INCREMENTAL_SIZE
     }
 
 
@@ -75,6 +77,20 @@ def set_migration_metrics(errors: list[str],
         # yes, set the corresponding global parameter
         global MIGRATION_CHUNK_SIZE
         MIGRATION_CHUNK_SIZE = chunk_size
+
+    # validate the optional 'incremental-size' parameter
+    incremental_size: int = validate_int(errors=errors,
+                                         scheme=scheme,
+                                         attr="incremental-size",
+                                         min_val=1000,
+                                         max_val=10000000,
+                                         default=False,
+                                         logger=logger)
+    # was it obtained ?
+    if incremental_size:
+        # yes, set the corresponding global parameter
+        global MIGRATION_INCREMENTAL_SIZE
+        MIGRATION_INCREMENTAL_SIZE = incremental_size
 
 
 def get_rdbms_params(errors: list[str],
