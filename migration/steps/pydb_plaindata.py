@@ -45,13 +45,12 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed
-                # noinspection PyTypeChecker
-                limit_rows: int = incremental_migration.get(table_name),
+                limit_rows: int = incremental_migration.get(table_name)
                 skip_rows: int = -1 if limit_rows else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
                 column_names: list[str] = []
-                # exclude LOB (large binary objects) types
+                # exclude LOB types
                 for column_name, column_data in table_data["columns"].items():
                     column_type: str = column_data.get("source-type")
                     if not pydb_types.is_lob(col_type=column_type):

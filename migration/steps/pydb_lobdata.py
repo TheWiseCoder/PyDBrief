@@ -59,8 +59,7 @@ def migrate_lobs(errors: list[str],
                                            connection=target_conn,
                                            logger=logger):
             status: str | None = None
-            # noinspection PyTypeChecker
-            limit_rows: int = incremental_migration.get(table_name),
+            limit_rows: int = incremental_migration.get(table_name)
             skip_rows: int = -1 if limit_rows else None
             # process the existing LOB columns
             for lob_column in lob_columns:
