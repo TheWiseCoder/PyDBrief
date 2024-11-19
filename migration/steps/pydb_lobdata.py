@@ -22,6 +22,7 @@ def migrate_lobs(errors: list[str],
                  target_s3: S3Engine,
                  accept_empty: bool,
                  skip_nonempty: bool,
+                 incremental_migration: dict[str, int],
                  reflect_filetype: bool,
                  flatten_storage: bool,
                  named_lobdata: list[str],
@@ -57,8 +58,11 @@ def migrate_lobs(errors: list[str],
                                            engine=target_rdbms,
                                            connection=target_conn,
                                            logger=logger):
-            # process the existing LOB columns
             status: str | None = None
+            # noinspection PyTypeChecker
+            limit_rows: int = incremental_migration.get(table_name),
+            skip_rows: int = -1 if limit_rows else None
+            # process the existing LOB columns
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
                 if target_s3:
@@ -106,6 +110,8 @@ def migrate_lobs(errors: list[str],
                                                  pk_columns=pk_columns,
                                                  where_clause=where_clause,
                                                  accept_empty=accept_empty,
+                                                 skip_rows=skip_rows,
+                                                 limit_rows=limit_rows,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
                                                  named_column=named_column,
@@ -124,6 +130,8 @@ def migrate_lobs(errors: list[str],
                                              source_committable=True,
                                              target_committable=True,
                                              where_clause=where_clause,
+                                             skip_rows=skip_rows,
+                                             limit_rows=limit_rows,
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0

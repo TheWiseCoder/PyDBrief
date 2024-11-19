@@ -45,6 +45,9 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed
+                # noinspection PyTypeChecker
+                limit_rows: int = incremental_migration.get(table_name),
+                skip_rows: int = -1 if limit_rows else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
                 column_names: list[str] = []
@@ -70,8 +73,8 @@ def migrate_plain(errors: list[str],
                                              source_committable=True,
                                              target_committable=True,
                                              orderby_clause=", ".join(orderby_columns),
-                                             skip_rows=-1,
-                                             limit_rows=incremental_migration.get("table_name"),
+                                             skip_rows=skip_rows,
+                                             limit_rows=limit_rows,
                                              identity_column=identity_column,
                                              batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
                                              batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
