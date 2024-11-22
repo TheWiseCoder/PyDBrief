@@ -51,13 +51,20 @@ def migrate_lobs(errors: list[str],
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
                 pk_columns.append(column_name)
+        if not pk_columns:
+            err_msg: str = (f"Table {source_rdbms}.{source_table} "
+                            f"is not eligible for LOB migration (no PKs)")
+            logger.error(msg=err_msg)
+            # 101: {}
+            op_errors.append(validate_format_error(101,
+                                                   err_msg))
 
         count: int = 0
-        if lob_columns and db_table_exists(errors=op_errors,
-                                           table_name=target_table,
-                                           engine=target_rdbms,
-                                           connection=target_conn,
-                                           logger=logger):
+        if not op_errors and lob_columns and db_table_exists(errors=op_errors,
+                                                             table_name=target_table,
+                                                             engine=target_rdbms,
+                                                             connection=target_conn,
+                                                             logger=logger):
             status: str | None = None
             limit_rows: int = incremental_migration.get(table_name)
             skip_rows: int = -1 if limit_rows else None

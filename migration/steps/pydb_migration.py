@@ -213,6 +213,9 @@ def setup_tables(errors: list[str],
                                target_rdbms=target_rdbms)
     # setup target tables
     for target_table in target_tables:
+
+        # initialize the local errors list
+        op_errors: list[str] = []
         # build the list of migrated columns for this table
         table_columns: dict = {}
         # noinspection PyProtectedMember
@@ -238,7 +241,7 @@ def setup_tables(errors: list[str],
             target_table._columns.remove(s3_column)
 
         # migrate the columns
-        setup_columns(errors=errors,
+        setup_columns(errors=op_errors,
                       table_columns=columns,
                       source_rdbms=source_rdbms,
                       target_rdbms=target_rdbms,
@@ -249,6 +252,7 @@ def setup_tables(errors: list[str],
                       nat_equivalences=nat_equivalences,
                       override_columns=override_columns,
                       logger=logger)
+        errors.extend(op_errors)
 
         # register the target column properties
         for column in columns:
@@ -256,9 +260,12 @@ def setup_tables(errors: list[str],
             features: list[str] = []
             if hasattr(column, "identity") and column.identity:
                 if "identity" in features:
+                    err_msg: str = (f"Table {source_rdbms}.{source_schema}.{target_table.name} "
+                                    "has more than one identity column")
+                    logger.error(msg=err_msg)
                     # 102: Unexpected error: {}
-                    errors.append(validate_format_error(
-                        102, f"Table '{target_table}' has more than one identity column"))
+                    op_errors.append(validate_format_error(102,
+                                                           err_msg))
                 else:
                     features.append("identity")
             if hasattr(column, "primary_key") and column.primary_key:
@@ -274,33 +281,8 @@ def setup_tables(errors: list[str],
             if features:
                 table_columns[column.name]["features"] = features
 
-        # verify if table has PK columns and no more than one identity column
-        err_msg: str = ""
-        has_pk: bool = False
-        has_identity: bool = False
-        for column_data in table_columns.values():
-            features: list[str] = column_data.get("features", [])
-            if "primary-key" in features:
-                has_pk = True
-            elif "identity" in features:
-                if has_identity:
-                    err_msg = "more than one identity column"
-                else:
-                    has_identity = True
-        if not has_pk:
-            if err_msg:
-                err_msg += " and "
-            err_msg += "no primary key"
-
-        # problems ?
-        if err_msg:
-            # yes, report it
-            err_msg = f"Table {source_rdbms}.{source_schema}.{target_table} has {err_msg}"
-            logger.error(msg=err_msg)
-            # 101: {}
-            errors.append(validate_format_error(102,
-                                                err_msg))
-        else:
+        # errors ?
+        if not op_errors:
             # no, register the migrated table
             migrated_table: dict = {
                 "columns": table_columns,

@@ -1,7 +1,7 @@
 # environment
 cache-dir = "~/.cache/ruff"
 force-exclude = true
-required-version = ">=0.7.1"
+required-version = ">=0.8.0"
 target-version = "py312"
 respect-gitignore = true
 task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]

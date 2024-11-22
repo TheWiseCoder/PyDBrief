@@ -58,45 +58,53 @@ def migrate_plain(errors: list[str],
                         column_names.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
-                        elif "primary-key" in features and pydb_common.MIGRATION_BATCH_SIZE_IN > 0:
+                        elif "primary-key" in features and \
+                                (limit_rows > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
                             orderby_columns.append(column_name)
+                if limit_rows > 0 and not orderby_columns:
+                    err_msg: str = (f"Table {source_rdbms}.{source_table} "
+                                    f"is not eligible for incremental migration (no PKs)")
+                    logger.error(msg=err_msg)
+                    # 101: {}
+                    op_errors.append(validate_format_error(101,
+                                                           err_msg))
 
-                count: int = db_migrate_data(errors=op_errors,
-                                             source_engine=source_rdbms,
-                                             source_table=source_table,
-                                             source_columns=column_names,
-                                             target_engine=target_rdbms,
-                                             target_table=target_table,
-                                             source_conn=source_conn,
-                                             target_conn=target_conn,
-                                             source_committable=True,
-                                             target_committable=True,
-                                             orderby_clause=", ".join(orderby_columns),
-                                             skip_rows=skip_rows,
-                                             limit_rows=limit_rows,
-                                             identity_column=identity_column,
-                                             batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
-                                             batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
-                                             has_nulls=table_name in remove_nulls,
-                                             logger=logger) or 0
+                count: int = (db_migrate_data(errors=op_errors,
+                                              source_engine=source_rdbms,
+                                              source_table=source_table,
+                                              source_columns=column_names,
+                                              target_engine=target_rdbms,
+                                              target_table=target_table,
+                                              source_conn=source_conn,
+                                              target_conn=target_conn,
+                                              source_committable=True,
+                                              target_committable=True,
+                                              orderby_clause=", ".join(orderby_columns),
+                                              skip_rows=skip_rows,
+                                              limit_rows=limit_rows,
+                                              identity_column=identity_column,
+                                              batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
+                                              batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
+                                              has_nulls=table_name in remove_nulls,
+                                              logger=logger) or 0) if not op_errors else 0
                 if op_errors:
                     pydb_database.check_embedded_nulls(errors=op_errors,
                                                        rdbms=target_rdbms,
                                                        table=target_table,
                                                        logger=logger)
-                    status: str = "none"
+                    status: str = "error"
                 else:
-                    status: str = "full"
+                    status: str = "ok"
 
                 table_data["plain-status"] = status
                 table_data["plain-count"] = count
-                logger.debug(msg=(f"Migrated tuples from {source_rdbms}.{source_table} "
+                logger.debug(msg=(f"Attempted plaindata migration from {source_rdbms}.{source_table} "
                                   f"to {target_rdbms}.{target_table}, status {status}"))
                 result += count
 
         elif not op_errors:
             # target table does not exist
-            err_msg: str = ("Unable to migrate plaindata. "
+            err_msg: str = ("Unable to migrate plaindata, "
                             f"Table {target_rdbms}.{target_table} was not found")
             logger.error(msg=err_msg)
             # 101: {}
