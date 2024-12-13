@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 from flask import (
     Blueprint, Flask, Response, jsonify, request, send_file
@@ -8,9 +7,9 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, Final
 
-from app_version import APP_VERSION        # must be imported before local and PyPomes packages
+from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
     str_lower, str_as_list, validate_format_errors
@@ -34,7 +33,7 @@ from migration.pydb_validator import (
 )
 
 # create the Flask application
-flask_app: Flask = Flask(__name__)
+flask_app: Final[Flask] = Flask(__name__)
 
 # support cross-origin resource sharing
 CORS(flask_app)
@@ -89,7 +88,7 @@ def version() -> Response:
     PYPOMES_LOGGER.info(msg=f"URL {request.url}")
 
     versions: dict[str, str] = get_versions()
-    versions["PyDBrief"] = APP_VERSION
+    versions[APP_NAME] = APP_VERSION
 
     # assign to the return variable
     result: Response = jsonify(versions)
@@ -459,4 +458,4 @@ if __name__ == "__main__":
 
     flask_app.run(host="0.0.0.0",
                   port=5000,
-                  debug=os.environ.get("ENV") == "dev")
+                  debug=False)

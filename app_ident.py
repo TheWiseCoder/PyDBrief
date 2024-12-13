@@ -5,5 +5,6 @@ from typing import Final
 os.environ["PYPOMES_APP_PREFIX"] = "PYDB"
 os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
-# establish the current version
+# establish the app's name and current version
+APP_NAME: str = "PyDBrief"
 APP_VERSION: Final[str] = "1.5.7"

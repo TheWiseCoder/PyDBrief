@@ -5,7 +5,9 @@ from logging import Logger
 from pypomes_core import file_get_mimetype, file_is_binary, str_from_any
 from pypomes_db import db_stream_lobs
 from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
-from pypomes_s3 import S3Engine, s3_get_client, s3_data_store
+from pypomes_s3 import (
+    S3Engine, s3_data_store, s3_startup, s3_get_client
+)
 from pathlib import Path
 from typing import Any
 
@@ -34,14 +36,19 @@ def s3_migrate_lobs(errors: list[str],
     # initialize the return variable
     result: int = 0
 
-    # obtain the S3 client
-    client: Any = s3_get_client(errors=errors,
-                                engine=target_s3,
-                                logger=logger)
+    # start the S3 module and obtain the S3 client
+    client: Any = None
+    if s3_startup(errors=errors,
+                  engine=target_s3,
+                  logger=logger):
+        client = s3_get_client(errors=errors,
+                               engine=target_s3,
+                               logger=logger)
+
     # was the S3 client obtained ?
     if client:
-        # yes proceed
-        forced_mimetype: str = mimetypes.types_map.get(forced_filetype) if forced_filetype else None
+        # yes, proceed
+        forced_mimetype: str = mimetypes.types_map.get(forced_filetype)
 
         # initialize the properties
         identifier: str | None = None

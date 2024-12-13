@@ -5,11 +5,10 @@ from pypomes_core import (
     validate_strs, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, db_get_engines, db_assert_connection
+    DbEngine, db_get_engines, db_assert_access
 )
 from pypomes_s3 import (
-    S3Engine, S3Param,
-    s3_get_engines, s3_get_param, s3_assert_access, s3_startup
+    S3Engine, s3_get_engines, s3_assert_access
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
@@ -21,7 +20,7 @@ from migration.pydb_common import (
 )
 from migration.pydb_types import name_to_type
 
-VALID_PARAMS: Final[dict[str, list[str]]] = {
+SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     "/migration:metrics:PATCH": ["batch-size-in", "batch-size-out", "chunk-size", "incremental-size"],
     "/migration:verify:POST": ["from-rdbms", "to-rdbms", "to-s3"],
     "/migrate:POST": ["from-rdbms", "from-schema", "to-rdbms", "to-schema", "to-s3",
@@ -42,7 +41,7 @@ def assert_params(errors: list[str],
                   method: str,
                   scheme: dict) -> None:
 
-    params: list[str] = VALID_PARAMS.get(f"{service}:{method}") or []
+    params: list[str] = SERVICE_PARAMS.get(f"{service}:{method}") or []
     for key in scheme.keys():
         if key not in params:
             # 122: Attribute is unknown or invalid in this context
@@ -98,11 +97,11 @@ def assert_migration(errors: list[str],
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
     if source_rdbms and run_mode:
-        db_assert_connection(errors=errors,
-                             engine=source_rdbms)
+        db_assert_access(errors=errors,
+                         engine=source_rdbms)
     if target_rdbms and run_mode:
-        db_assert_connection(errors=errors,
-                             engine=target_rdbms)
+        db_assert_access(errors=errors,
+                         engine=target_rdbms)
     if not errors and \
        (source_rdbms != "oracle" or target_rdbms != "postgres"):
         # 101: {}
@@ -114,23 +113,15 @@ def assert_migration(errors: list[str],
                               scheme=scheme,
                               attr="to-s3",
                               values=list(map(str, S3Engine)))
-    if to_s3:
-        s3_engine = S3Engine(to_s3)
-        if s3_engine in s3_get_engines():
-            s3_assert_access(errors=errors,
-                             engine=to_s3)
-            if not errors and run_mode:
-                bucket: str = s3_get_param(key=S3Param.BUCKET_NAME,
-                                           engine=s3_engine)
-                s3_startup(errors=errors,
-                           engine=S3Engine(to_s3),
-                           bucket=bucket)
-        else:
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                to_s3,
-                                                "unknown or unconfigured S3 engine",
-                                                "@to-s3"))
+    if to_s3 and \
+            (S3Engine(to_s3) not in s3_get_engines() or
+             (run_mode and not s3_assert_access(errors=errors,
+                                                engine=to_s3))):
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            to_s3,
+                                            "unknown or unconfigured S3 engine",
+                                            "@to-s3"))
 
 
 def assert_metrics_params(errors: list[str]) -> None:
