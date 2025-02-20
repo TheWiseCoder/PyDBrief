@@ -66,8 +66,8 @@ def migrate_lobs(errors: list[str],
                                                              connection=target_conn,
                                                              logger=logger):
             status: str | None = None
-            limit_rows: int = incremental_migration.get(table_name)
-            skip_rows: int = -1 if limit_rows else None
+            limit_count: int = incremental_migration.get(table_name)
+            offset_count: int = -1 if limit_count else None
             # process the existing LOB columns
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
@@ -116,8 +116,8 @@ def migrate_lobs(errors: list[str],
                                                  pk_columns=pk_columns,
                                                  where_clause=where_clause,
                                                  accept_empty=accept_empty,
-                                                 skip_rows=skip_rows,
-                                                 limit_rows=limit_rows,
+                                                 offset_count=offset_count,
+                                                 limit_count=limit_count,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
                                                  named_column=named_column,
@@ -136,8 +136,8 @@ def migrate_lobs(errors: list[str],
                                              source_committable=True,
                                              target_committable=True,
                                              where_clause=where_clause,
-                                             skip_rows=skip_rows,
-                                             limit_rows=limit_rows,
+                                             offset_count=offset_count,
+                                             limit_count=limit_count,
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0

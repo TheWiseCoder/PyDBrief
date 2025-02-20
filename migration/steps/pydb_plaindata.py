@@ -45,8 +45,8 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed
-                limit_rows: int = incremental_migration.get(table_name)
-                skip_rows: int = -1 if limit_rows else None
+                limit_count: int = incremental_migration.get(table_name)
+                offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
                 column_names: list[str] = []
@@ -59,9 +59,9 @@ def migrate_plain(errors: list[str],
                         if "identity" in features:
                             identity_column = column_name
                         elif "primary-key" in features and \
-                                (limit_rows > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
+                                (limit_count > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
                             orderby_columns.append(column_name)
-                if limit_rows > 0 and not orderby_columns:
+                if limit_count > 0 and not orderby_columns:
                     err_msg: str = (f"Table {source_rdbms}.{source_table} "
                                     f"is not eligible for incremental migration (no PKs)")
                     logger.error(msg=err_msg)
@@ -80,8 +80,8 @@ def migrate_plain(errors: list[str],
                                               source_committable=True,
                                               target_committable=True,
                                               orderby_clause=", ".join(orderby_columns),
-                                              skip_rows=skip_rows,
-                                              limit_rows=limit_rows,
+                                              offset_count=offset_count,
+                                              limit_count=limit_count,
                                               identity_column=identity_column,
                                               batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
                                               batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,

@@ -2,10 +2,10 @@ openapi: 3.0.3
 info:
   title: PyDBrief API
   description: |-
-    A Workbench for bidirectional data migration between different RDBMS and S3 engines
+    A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.5.7
+  version: 1.5.8
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -379,25 +379,22 @@ paths:
                 properties:
                   PyDBrief:
                     type: string
-                    example: 1.3.1
+                    example: 1.5.7
                   PyPomes-Core:
                     type: string
-                    example: 1.4.0
+                    example: 1.6.5
                   PyPomes-DB:
                     type: string
-                    example: 1.3.1
+                    example: 1.7.6
                   PyPomes-HTTP:
                     type: string
-                    example: 0.2.6
+                    example: 0.4.8
                   PyPomes-Logging:
                     type: string
-                    example: 0.2.'
+                    example: 0.4.8
                   PyPomes-S3:
                     type: string
-                    example: 0.4.5
-                  PyPomes-Security:
-                    type: string
-                    example: 0.2.2
+                    example: 0.7.2
 components:
   parameters:
   # database group
@@ -458,7 +455,7 @@ components:
       required: false
       schema:
         type: string
-  # log group
+  # logging group
     LogFromDatetimeParam:
       name: log_from_datetime
       in: query
@@ -799,7 +796,7 @@ components:
     NamedLobdataParam:
       name: named-lobdata
       in: query
-      description: Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '\<table-name\>.\<lob-column\>=\<names-column\>[.\<extension\>]'. The optional extension is used for lobdata naming, subject to the parameter 'reflect-filetype'; if specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.
+      description: Optional list of LOB columns whose contents are to be stored with names obtained from the contents of the given columns in the same touple. The format of the elements is '\<table-name\>.\<lob-column\>=\<names-column\>[.\<extension\>]'. The optional extension is used for lobdata naming, subject to the parameter 'reflect-filetype'. If the latter is specifed, the extension is used only if the reflection fails, otherwise the extension is always used. Ignored if parameters 'migrate-lobdata' and 'to-s3' are not specified.
       required: false
       explode: false
       schema:
@@ -915,9 +912,6 @@ components:
         access-key: 
           type: string
           example: ADFSGTR7765YHTRTD76Y
-        secret-key: 
-          type: string
-          example: fdsfsad37RE6ujIIOUPdfgtsD35U4ebtD21msgsb
         secure-access:
           type: boolean
           example: true

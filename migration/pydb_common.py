@@ -103,7 +103,8 @@ def get_rdbms_params(errors: list[str],
         result["rdbms"] = rdbms
     else:
         # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142, rdbms,
+        errors.append(validate_format_error(142,
+                                            rdbms,
                                             "unknown or unconfigured RDBMS engine", "@rdbms"))
 
     return result

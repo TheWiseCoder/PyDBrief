@@ -12,7 +12,7 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
     get_versions, dict_jsonify, exc_format,
-    str_lower, str_as_list, validate_format_errors
+    str_to_lower, str_as_list, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
@@ -61,8 +61,8 @@ def swagger() -> Response:
     """
     Entry point for the microservice providing OpenAPI specifications in the Swagger standard.
 
-   The optional *filename* parameter specifies the name of the file to be written to by the browser.
-   If omitted, the browser is asked to only display the returned content.
+    The optional *filename* parameter specifies the name of the file to be written to by the browser.
+    If omitted, the browser is asked to only display the returned content.
 
     :return: the requested OpenAPI specifications
     """
@@ -344,23 +344,28 @@ def migrate_data() -> Response:
             source_schema: str = scheme.get("from-schema").lower()
             target_schema: str = scheme.get("to-schema").lower()
             target_s3: str | None = (scheme.get("to-s3") or "").lower() or None
-            step_metadata: bool = str_lower(scheme.get("migrate-metadata")) in ["1", "t", "true"]
-            step_plaindata: bool = str_lower(scheme.get("migrate-plaindata")) in ["1", "t", "true"]
-            step_lobdata: bool = str_lower(scheme.get("migrate-lobdata")) in ["1", "t", "true"]
-            step_synchronize: bool = str_lower(scheme.get("synchronize-plaindata")) in ["1", "t", "true"]
-            process_indexes: bool = str_lower(scheme.get("process-indexes")) in ["1", "t", "true"]
-            process_views: bool = str_lower(scheme.get("process-views")) in ["1", "t", "true"]
-            relax_reflection: bool = str_lower(scheme.get("relax-reflection")) in ["1", "t", "true"]
-            accept_empty: bool = str_lower(scheme.get("accept-empty")) in ["1", "t", "true"]
-            skip_nonempty: bool = str_lower(scheme.get("skip-nonempty")) in ["1", "t", "true"]
-            reflect_filetype: bool = str_lower(scheme.get("reflect-filetype")) in ["1", "t", "true"]
-            flatten_storage: bool = str_lower(scheme.get("flatten-storage")) in ["1", "t", "true"]
-            remove_nulls: list[str] = str_as_list(str_lower(scheme.get("remove-nulls"))) or []
-            include_relations: list[str] = str_as_list(str_lower(scheme.get("include-relations"))) or []
-            exclude_relations: list[str] = str_as_list(str_lower(scheme.get("exclude-relations"))) or []
-            exclude_columns: list[str] = str_as_list(str_lower(scheme.get("exclude-columns"))) or []
-            exclude_constraints: list[str] = str_as_list(str_lower(scheme.get("exclude-constraints"))) or []
-            named_lobdata: list[str] = str_as_list(str_lower(scheme.get("named-lobdata"))) or []
+            step_metadata: bool = str_to_lower(source=scheme.get("migrate-metadata")) in ["1", "t", "true"]
+            step_plaindata: bool = str_to_lower(source=scheme.get("migrate-plaindata")) in ["1", "t", "true"]
+            step_lobdata: bool = str_to_lower(source=scheme.get("migrate-lobdata")) in ["1", "t", "true"]
+            step_synchronize: bool = str_to_lower(source=scheme.get("synchronize-plaindata")) in ["1", "t", "true"]
+            process_indexes: bool = str_to_lower(source=scheme.get("process-indexes")) in ["1", "t", "true"]
+            process_views: bool = str_to_lower(source=scheme.get("process-views")) in ["1", "t", "true"]
+            relax_reflection: bool = str_to_lower(source=scheme.get("relax-reflection")) in ["1", "t", "true"]
+            accept_empty: bool = str_to_lower(source=scheme.get("accept-empty")) in ["1", "t", "true"]
+            skip_nonempty: bool = str_to_lower(source=scheme.get("skip-nonempty")) in ["1", "t", "true"]
+            reflect_filetype: bool = str_to_lower(source=scheme.get("reflect-filetype")) in ["1", "t", "true"]
+            flatten_storage: bool = str_to_lower(source=scheme.get("flatten-storage")) in ["1", "t", "true"]
+            remove_nulls: list[str] = str_as_list(str_to_lower(source=scheme.get("remove-nulls"))) or []
+            include_relations: list[str] = \
+                str_as_list(source=str_to_lower(source=scheme.get("include-relations"))) or []
+            exclude_relations: list[str] = \
+                str_as_list(source=str_to_lower(source=scheme.get("exclude-relations"))) or []
+            exclude_columns: list[str] = \
+                str_as_list(source=str_to_lower(source=scheme.get("exclude-columns"))) or []
+            exclude_constraints: list[str] = \
+                str_as_list(source=str_to_lower(source=scheme.get("exclude-constraints"))) or []
+            named_lobdata: list[str] = \
+                str_as_list(source=str_to_lower(source=scheme.get("named-lobdata"))) or []
             migration_badge: str | None = scheme.get("migration-badge")
 
             # migrate the data

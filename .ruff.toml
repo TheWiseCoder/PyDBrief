@@ -1,7 +1,7 @@
 # environment
 cache-dir = "~/.cache/ruff"
 force-exclude = true
-required-version = ">=0.8.0"
+required-version = ">=0.9.6"
 target-version = "py312"
 respect-gitignore = true
 task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
@@ -75,8 +75,9 @@ ignore = [
     "ANN401",   # dynamically typed expressions (typing.Any) are disallowed
     "COM812",   # checks for the absence of trailing commas
     "COM819",   # prohibited trailing commas
-    "D101",     # Missing docstring in public class    <------------- temporary
-    "D103",     # Missing docstring in public function <------------- temporary
+    "D100",     # missing docstring in public module
+    "D101",     # missing docstring in public class    <------------- temporary
+    "D103",     # missing docstring in public function <------------- temporary
     "D200",     # one-line docstring should fit on one line
     "D204",     # 1 blank line required after class docstring
     "D210",     # whitespaces surrounding docstring text
@@ -91,6 +92,7 @@ ignore = [
     "PLW0603",  # using the global statement to update a variable is discouraged
     "PTH118",   # os.{module}.join() should be replaced by Path with / operator
     "RUF013",   # implicit Optional in type annotations when the default parameter value is None
+    "RUFF022",  # __all__ is not sorted
     "S104",     # possible binding to all interfaces
     "S113",     # probable use of requests call without timeout
     "S301",     # 'pickle' and modules that wrap it can be unsafe when used to deserialize untrusted data

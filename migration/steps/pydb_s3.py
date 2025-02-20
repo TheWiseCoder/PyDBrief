@@ -2,11 +2,14 @@ import hashlib
 import mimetypes
 import pickle
 from logging import Logger
-from pypomes_core import file_get_mimetype, file_is_binary, str_from_any
+from pypomes_core import (
+    Mimetype,
+    file_get_mimetype, file_is_binary, str_from_any
+)
 from pypomes_db import db_stream_lobs
-from pypomes_http import MIMETYPE_BINARY, MIMETYPE_TEXT
 from pypomes_s3 import (
-    S3Engine, s3_data_store, s3_startup, s3_get_client
+    S3Engine,
+    s3_data_store, s3_startup, s3_get_client
 )
 from pathlib import Path
 from typing import Any
@@ -25,8 +28,8 @@ def s3_migrate_lobs(errors: list[str],
                     pk_columns: list[str],
                     where_clause: str,
                     accept_empty: bool,
-                    skip_rows: int,
-                    limit_rows: int,
+                    offset_count: int,
+                    limit_count: int,
                     reflect_filetype: bool,
                     forced_filetype: str,
                     named_column: str,
@@ -52,7 +55,7 @@ def s3_migrate_lobs(errors: list[str],
 
         # initialize the properties
         identifier: str | None = None
-        mimetype: str | None = None
+        mimetype: Mimetype | str | None = None
         lob_data: bytes = b""
         metadata: dict[str, str] = {}
         first_chunk: bool = True
@@ -68,8 +71,8 @@ def s3_migrate_lobs(errors: list[str],
                                        connection=source_conn,
                                        committable=True,
                                        where_clause=where_clause,
-                                       skip_rows=skip_rows,
-                                       limit_rows=limit_rows,
+                                       offset_count=offset_count,
+                                       limit_count=limit_count,
                                        accept_empty=accept_empty,
                                        chunk_size=MIGRATION_CHUNK_SIZE,
                                        logger=logger):
@@ -102,11 +105,11 @@ def s3_migrate_lobs(errors: list[str],
                 if isinstance(row_data, bytes):
                     lob_data += row_data
                     if not mimetype:
-                        mimetype = MIMETYPE_BINARY
+                        mimetype = Mimetype.BINARY
                 else:
                     lob_data += bytes(row_data, "utf-8")
                     if not mimetype:
-                        mimetype = MIMETYPE_TEXT
+                        mimetype = Mimetype.TEXT
             # no more data
             else:
                 # send LOB data
@@ -116,14 +119,14 @@ def s3_migrate_lobs(errors: list[str],
                     if reflect_filetype:
                         # yes, determine LOB's mimetype and file extension
                         mimetype = file_get_mimetype(file_data=lob_data) or \
-                                   MIMETYPE_BINARY if file_is_binary(file_data=lob_data) else MIMETYPE_TEXT
+                                   Mimetype.BINARY if file_is_binary(file_data=lob_data) else Mimetype.TEXT
                         extension = mimetypes.guess_extension(type=mimetype)
                     # add extension
                     if extension:
                         identifier += extension
                     # final consideration on mimetype
                     if not mimetype:
-                        mimetype = forced_mimetype or MIMETYPE_BINARY
+                        mimetype = forced_mimetype or Mimetype.BINARY
 
                     # send it to S3
                     s3_data_store(errors=errors,

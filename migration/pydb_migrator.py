@@ -38,7 +38,7 @@ from migration.steps.pydb_sync import synchronize_plain
 #   "started": <yyyy-mm-ddThh:mm:ss>,
 #   "finished": <yyyy-mm-ddThh:mm:ss>,
 #   "version": <i.j.k>,
-#   "source": {
+#   "source-rdbms": {
 #     "rdbms": <rdbms>,
 #     "schema": <schema>,
 #     "name": <db-name>,
@@ -46,7 +46,7 @@ from migration.steps.pydb_sync import synchronize_plain
 #     "port": nnnn,
 #     "user": "db-user"
 #   },
-#   "target": {
+#   "target-rdbms": {
 #     "rdbms": <rdbms>,
 #     "schema": <schema>,
 #     "name": <db-name>,

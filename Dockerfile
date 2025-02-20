@@ -23,13 +23,13 @@ RUN curl -k -o instantclient-basiclite.zip https://download.oracle.com/otn_softw
 RUN unzip instantclient-basiclite.zip
 RUN mv instantclient*/ /usr/lib/instantclient
 RUN rm instantclient-basiclite.zip
-RUN ln -s /usr/lib/instantclient/libclntsh.so.21.1 /usr/lib/libclntsh.so
-RUN ln -s /usr/lib/instantclient/libocci.so.21.1 /usr/lib/libocci.so
-RUN ln -s /usr/lib/instantclient/libociicus.so /usr/lib/libociicus.so
-RUN ln -s /usr/lib/instantclient/libnnz21.so /usr/lib/libnnz21.so
-RUN ln -s /usr/lib/libnsl.so.2 /usr/lib/libnsl.so.1
-RUN ln -s /lib/libc.so.6 /usr/lib/libresolv.so.2
-RUN ln -s /lib64/ld-linux-x86-64.so.2 /usr/lib/ld-linux-x86-64.so.2
+RUN ln -s /usr/lib/instantclient/libclntsh.so.21.1 /usr/lib/libclntsh.so && \
+    ln -s /usr/lib/instantclient/libocci.so.21.1 /usr/lib/libocci.so && \
+    ln -s /usr/lib/instantclient/libociicus.so /usr/lib/libociicus.so && \
+    ln -s /usr/lib/instantclient/libnnz21.so /usr/lib/libnnz21.so && \
+    ln -s /usr/lib/libnsl.so.2 /usr/lib/libnsl.so.1 && \
+    ln -s /lib/libc.so.6 /usr/lib/libresolv.so.2 && \
+    ln -s /lib64/ld-linux-x86-64.so.2 /usr/lib/ld-linux-x86-64.so.2
 ENV LD_LIBRARY_PATH /usr/lib/instantclient
 
 # install the Vim editor
@@ -40,8 +40,10 @@ RUN apk add vim
 RUN pip install --upgrade pip
 
 # temporary hack: install wheel file for 'pycryptodome'
-COPY pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl .
-RUN pip install pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl
+# COPY pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl .
+# RUN pip install pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl
+COPY pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl .
+RUN pip install pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl
 
 # intall Python package requirements
 ENV SSL_CERT_DIR=/etc/ssl/certs
