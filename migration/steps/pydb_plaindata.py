@@ -62,7 +62,7 @@ def migrate_plain(errors: list[str],
                               ((isinstance(limit_count, int) and limit_count > 0) or
                                pydb_common.MIGRATION_BATCH_SIZE_IN > 0)):
                             orderby_columns.append(column_name)
-                if limit_count > 0 and not orderby_columns:
+                if isinstance(limit_count, int) and limit_count > 0 and not orderby_columns:
                     err_msg: str = (f"Table {source_rdbms}.{source_table} "
                                     f"is not eligible for incremental migration (no PKs)")
                     logger.error(msg=err_msg)
