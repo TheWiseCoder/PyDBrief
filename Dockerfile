@@ -40,8 +40,6 @@ RUN apk add vim
 RUN pip install --upgrade pip
 
 # temporary hack: install wheel file for 'pycryptodome'
-# COPY pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl .
-# RUN pip install pycryptodome-3.15.0-cp35-abi3-linux_x86_64.whl
 COPY pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl .
 RUN pip install pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl
 

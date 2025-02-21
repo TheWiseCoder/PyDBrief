@@ -58,8 +58,9 @@ def migrate_plain(errors: list[str],
                         column_names.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
-                        elif "primary-key" in features and \
-                                (limit_count > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
+                        elif ("primary-key" in features and
+                              ((isinstance(limit_count, int) and limit_count > 0) or
+                               pydb_common.MIGRATION_BATCH_SIZE_IN > 0)):
                             orderby_columns.append(column_name)
                 if limit_count > 0 and not orderby_columns:
                     err_msg: str = (f"Table {source_rdbms}.{source_table} "
