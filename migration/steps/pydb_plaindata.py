@@ -45,7 +45,7 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not op_errors:
                 # no, proceed
-                limit_count: int = incremental_migration.get(table_name)
+                limit_count: int = incremental_migration.get(table_name) or 0
                 offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
@@ -58,11 +58,10 @@ def migrate_plain(errors: list[str],
                         column_names.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
-                        elif ("primary-key" in features and
-                              ((isinstance(limit_count, int) and limit_count > 0) or
-                               pydb_common.MIGRATION_BATCH_SIZE_IN > 0)):
+                        elif "primary-key" in features and \
+                                (limit_count > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
                             orderby_columns.append(column_name)
-                if isinstance(limit_count, int) and limit_count > 0 and not orderby_columns:
+                if limit_count > 0 and not orderby_columns:
                     err_msg: str = (f"Table {source_rdbms}.{source_table} "
                                     f"is not eligible for incremental migration (no PKs)")
                     logger.error(msg=err_msg)
