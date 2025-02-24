@@ -30,7 +30,7 @@ RUN ln -s /usr/lib/instantclient/libclntsh.so.21.1 /usr/lib/libclntsh.so && \
     ln -s /usr/lib/libnsl.so.2 /usr/lib/libnsl.so.1 && \
     ln -s /lib/libc.so.6 /usr/lib/libresolv.so.2 && \
     ln -s /lib64/ld-linux-x86-64.so.2 /usr/lib/ld-linux-x86-64.so.2
-ENV LD_LIBRARY_PATH /usr/lib/instantclient
+ENV LD_LIBRARY_PATH=/usr/lib/instantclient
 
 # install the Vim editor
 RUN apk update
