@@ -5,7 +5,7 @@ from pypomes_core import (
     validate_format_error, validate_str
 )
 from pypomes_db import (
-    DbEngine, db_get_params, db_setup
+    DbEngine, db_get_params, db_get_version, db_setup
 )
 from pypomes_s3 import (
     S3Engine, s3_get_params, s3_setup
@@ -16,8 +16,8 @@ REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 # migration parameters
-MIGRATION_BATCH_SIZE_IN: int = 1000000
-MIGRATION_BATCH_SIZE_OUT: int = 100000
+MIGRATION_BATCH_SIZE_IN: int = 0
+MIGRATION_BATCH_SIZE_OUT: int = 0
 MIGRATION_CHUNK_SIZE: int = 1048576
 MIGRATION_INCREMENTAL_SIZE: int = 100000
 
@@ -100,7 +100,8 @@ def get_rdbms_params(errors: list[str],
                           if rdbms in DbEngine else None
     result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
-        result["rdbms"] = rdbms
+        result["engine"] = rdbms
+        result["version"] = db_get_version(engine=db_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,

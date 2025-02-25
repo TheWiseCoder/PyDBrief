@@ -83,8 +83,8 @@ def migrate_plain(errors: list[str],
                                               offset_count=offset_count,
                                               limit_count=limit_count or None,
                                               identity_column=identity_column,
-                                              # batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
-                                              # batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
+                                              batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
+                                              batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
                                               has_nulls=table_name in remove_nulls,
                                               logger=logger) or 0) if not op_errors else 0
                 if op_errors:

@@ -2,11 +2,11 @@
   "openapi": "3.0.3",
   "info": {
     "title": "PyDBrief API",
-    "description": "A Workbench for bidirectional data migration between different RDBMS and S3 engines",
+    "description": "A Workbench for bidirectional data migration between various RDBMS and S3 engines",
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.5.8"
+    "version": "1.6.0"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -268,25 +268,25 @@
           {
             "name": "batch-size-in",
             "in": "query",
-            "description": "Default maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A batch size of 0 means all rows in table are retrieved at once.",
+            "description": "Default maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows in table are retrieved at once.",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1000,
               "maximum": 10000000,
-              "default": 1000000
+              "default": 0
             }
           },
           {
             "name": "batch-size-out",
             "in": "query",
-            "description": "Default maximum number of rows to output per batch. Range is [1000-10000000], initial value is 100000.",
+            "description": "Default maximum number of rows to output per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows retrieved at output at once.",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 1000,
               "maximum": 10000000,
-              "default": 100000
+              "default": 0
             }
           },
           {
@@ -1300,22 +1300,34 @@
       "MigrationMetrics": {
         "type": "object",
         "properties": {
-          "batch-size": {
+          "batch-size-in": {
+            "type": "integer",
+            "example": 100000
+          },
+          "batch-size-out": {
             "type": "integer",
             "example": 100000
           },
           "chunk-size": {
             "type": "integer",
             "example": 1048576
+          },
+          "incremental-size": {
+            "type": "integer",
+            "example": 100000
           }
         }
       },
       "OracleConfiguration": {
         "type": "object",
         "properties": {
-          "rdbms": {
+          "engine": {
             "type": "string",
             "example": "oracle"
+          },
+          "version": {
+            "type": "string",
+            "example": "Oracle Database 21c Express Edition Release 21.0.0.0.0 - Production"
           },
           "name": {
             "type": "string",
@@ -1346,9 +1358,13 @@
       "PostgresConfiguration": {
         "type": "object",
         "properties": {
-          "rdbms": {
+          "engine": {
             "type": "string",
             "example": "postgres"
+          },
+          "version": {
+            "type": "string",
+            "example": "PostgreSQL 17.4 (Debian 17.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit"
           },
           "name": {
             "type": "string",
