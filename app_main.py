@@ -219,8 +219,10 @@ def handle_migration() -> Response:
     are valid and consistent, thus allowing for a migration to be attempted.
 
     For metrics, these are the expected parameters:
-        - *batch-size*: maximum number of rows to migrate per batch (defaults to 1000000)
+        - *batch-size-in*: maximum number of rows to retrieve per batch (defaults to no maximum)
+        - *batch-size-out*: maximum number of rows to output per batch (defaults to no maximum)
         - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying (defaults to 1048576)
+        - *incremental-size*: maximum number of rows to migrate, for tables flagged for incremental migration
 
     :return: the operation outcome
     """
