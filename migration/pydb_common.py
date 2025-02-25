@@ -103,7 +103,6 @@ def get_rdbms_params(errors: list[str],
         errors.append(validate_format_error(142,
                                             rdbms,
                                             "unknown or unconfigured RDBMS engine", "@rdbms"))
-
     return result
 
 
@@ -167,7 +166,6 @@ def get_s3_params(errors: list[str],
         errors.append(validate_format_error(142,
                                             s3_engine,
                                             "unknown or unconfigured S3 engine", "@s3-engine"))
-
     return result
 
 

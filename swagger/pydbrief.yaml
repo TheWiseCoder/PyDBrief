@@ -873,9 +873,6 @@ components:
         user:
           type: string
           example: admin
-        pwd:
-          type: string
-          example: admin
         host:
           type: string
           example: https://my-oracle.com
@@ -898,9 +895,6 @@ components:
           type: string
           example: MyPostgres
         user:
-          type: string
-          example: admin
-        password:
           type: string
           example: admin
         host:
