@@ -42,7 +42,6 @@ def set_migration_metrics(errors: list[str],
                                       attr="batch-size-in",
                                       min_val=1000,
                                       max_val=10000000,
-                                      default=False,
                                       logger=logger)
     # was it obtained ?
     if batch_size_in:
@@ -56,7 +55,6 @@ def set_migration_metrics(errors: list[str],
                                   attr="batch-size-out",
                                   min_val=1000,
                                   max_val=10000000,
-                                  default=False,
                                   logger=logger)
     # was it obtained ?
     if batch_size_out:
@@ -70,7 +68,6 @@ def set_migration_metrics(errors: list[str],
                                    attr="chunk-size",
                                    min_val=1024,
                                    max_val=16777216,
-                                   default=False,
                                    logger=logger)
     # was it obtained ?
     if chunk_size:
@@ -84,7 +81,6 @@ def set_migration_metrics(errors: list[str],
                                          attr="incremental-size",
                                          min_val=1000,
                                          max_val=10000000,
-                                         default=False,
                                          logger=logger)
     # was it obtained ?
     if incremental_size:
@@ -213,5 +209,5 @@ def set_s3_params(errors: list[str],
                                    secret_key=secret_key,
                                    region_name=region_name,
                                    secure_access=secure_access):
-        # 145: Argumento(s) inválido(s), inconsistente(s) ou não fornecido(s)
-        errors.append(validate_format_error(145))
+        # 145: Invalid, inconsistent, or missing arguments
+        errors.append(validate_format_error(error_id=145))
