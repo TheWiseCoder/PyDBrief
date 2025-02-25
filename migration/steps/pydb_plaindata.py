@@ -98,8 +98,8 @@ def migrate_plain(errors: list[str],
 
                 table_data["plain-status"] = status
                 table_data["plain-count"] = count
-                logger.debug(msg=(f"Attempted plaindata migration from {source_rdbms}.{source_table} "
-                                  f"to {target_rdbms}.{target_table}, status {status}"))
+                logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
+                                 f"to {target_rdbms}.{target_table}, status {status}")
                 result += count
 
         elif not op_errors:

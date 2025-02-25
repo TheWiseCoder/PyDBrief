@@ -78,8 +78,8 @@ def prune_metadata(source_schema: str,
                     # noinspection PyProtectedMember
                     # ruff: noqa: SLF001
                     source_table._columns.remove(excluded_column)
-                    logger.info(msg=(f"Column '{excluded_column.name}' "
-                                     f"removed from table '{source_table.name}'"))
+                    logger.info(msg=f"Column '{excluded_column.name}' "
+                                    f"removed from table '{source_table.name}'")
 
             # mark these constraints as tainted:
             #   - duplicate CK constraints in table
@@ -117,8 +117,8 @@ def prune_metadata(source_schema: str,
                             break
 
                 # log the constraint removal
-                logger.info(msg=(f"Constraint '{tainted_constraint.name}' "
-                                 f"removed from table '{source_table.name}'"))
+                logger.info(msg=f"Constraint '{tainted_constraint.name}' "
+                                f"removed from table '{source_table.name}'")
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)

@@ -155,7 +155,7 @@ paths:
       parameters:
         - name: batch-size-in
           in: query
-          description: Default maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows in table are retrieved at once.
+          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows satisfying the query are retrieved at once.
           required: false
           schema:
             type: integer
@@ -164,7 +164,7 @@ paths:
             default: 0
         - name: batch-size-out
           in: query
-          description: Default maximum number of rows to output per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows retrieved at output at once.
+          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows retrieved are output at once.
           required: false
           schema:
             type: integer
@@ -173,7 +173,7 @@ paths:
             default: 0
         - name: chunk-size
           in: query
-          description: Default maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).
+          description: Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).
           required: false
           schema:
             type: integer
@@ -182,7 +182,7 @@ paths:
             default: 1048576
         - name: incremental-size
           in: query
-          description: Default maximum number of rows to migrate, for tables flagged for incremental migration. Range is [1000-10000000], initial value is 100000.
+          description: Maximum number of rows to migrate, for tables flagged for incremental migration. Range is [1000-10000000], initial value is 100000.
           required: false
           schema:
             type: integer

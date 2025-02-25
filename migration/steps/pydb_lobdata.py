@@ -149,8 +149,8 @@ def migrate_lobs(errors: list[str],
                 result += count
             table_data["lob-status"] = status
             table_data["lob-count"] = count
-            logger.debug(msg=(f"Migrated LOBs from {source_rdbms}.{source_table} "
-                              f"to {target_rdbms}.{target_table}, status {status}"))
+            logger.debug(msg=f"Migrated LOBs from {source_rdbms}.{source_table} "
+                             f"to {target_rdbms}.{target_table}, status {status}")
         elif not op_errors and lob_columns:
             # target table does not exist
             err_msg: str = ("Unable to migrate LOBs. "
