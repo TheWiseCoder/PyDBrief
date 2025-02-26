@@ -126,15 +126,15 @@ def assert_migration(errors: list[str],
 
 def assert_metrics_params(errors: list[str]) -> None:
 
-    if MIGRATION_BATCH_SIZE_IN < 1000 or \
-       MIGRATION_BATCH_SIZE_IN > 10000000:
+    if MIGRATION_BATCH_SIZE_IN != 0 and \
+            (MIGRATION_BATCH_SIZE_IN < 1000 or MIGRATION_BATCH_SIZE_IN > 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_BATCH_SIZE_IN,
                                             [1000, 10000000],
                                             "@batch-size-in"))
-    if MIGRATION_BATCH_SIZE_OUT < 1000 or \
-       MIGRATION_BATCH_SIZE_OUT > 10000000:
+    if MIGRATION_BATCH_SIZE_OUT != 0 and \
+            (MIGRATION_BATCH_SIZE_OUT < 1000 or MIGRATION_BATCH_SIZE_OUT > 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_BATCH_SIZE_OUT,
@@ -147,6 +147,13 @@ def assert_metrics_params(errors: list[str]) -> None:
                                             MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216],
                                             "@chunk-size"))
+    if MIGRATION_INCREMENTAL_SIZE < 1000 or \
+       MIGRATION_INCREMENTAL_SIZE > 10000000:
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            MIGRATION_INCREMENTAL_SIZE,
+                                            [1000, 10000000],
+                                            "@incremental-size"))
 
 
 def assert_migration_steps(errors: list[str],
