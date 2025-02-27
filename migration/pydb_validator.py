@@ -126,29 +126,27 @@ def assert_migration(errors: list[str],
 
 def assert_metrics_params(errors: list[str]) -> None:
 
-    if MIGRATION_BATCH_SIZE_IN != 0 and \
-            (MIGRATION_BATCH_SIZE_IN < 1000 or MIGRATION_BATCH_SIZE_IN > 10000000):
+    if not (MIGRATION_BATCH_SIZE_IN == 0 or
+            1000 <= MIGRATION_BATCH_SIZE_IN <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_BATCH_SIZE_IN,
                                             [1000, 10000000],
                                             "@batch-size-in"))
-    if MIGRATION_BATCH_SIZE_OUT != 0 and \
-            (MIGRATION_BATCH_SIZE_OUT < 1000 or MIGRATION_BATCH_SIZE_OUT > 10000000):
+    if not (MIGRATION_BATCH_SIZE_OUT == 0 or
+            1000 <= MIGRATION_BATCH_SIZE_OUT <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_BATCH_SIZE_OUT,
                                             [1000, 10000000],
                                             "@batch-size-out"))
-    if MIGRATION_CHUNK_SIZE < 1024 or \
-       MIGRATION_CHUNK_SIZE > 16777216:
+    if not 1024 <= MIGRATION_CHUNK_SIZE <= 16777216:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_CHUNK_SIZE,
                                             [1024, 16777216],
                                             "@chunk-size"))
-    if MIGRATION_INCREMENTAL_SIZE < 1000 or \
-       MIGRATION_INCREMENTAL_SIZE > 10000000:
+    if not 1000 <= MIGRATION_INCREMENTAL_SIZE <= 10000000:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             MIGRATION_INCREMENTAL_SIZE,
@@ -255,7 +253,7 @@ def assert_incremental_migration(errors: list[str],
                 # format of 'incremental_table' is <table_name>[=<offset>]
                 pos: int = incremental_table.find("=")
                 if pos > 0:
-                    table_name: str = incremental_table[:{pos}]
+                    table_name: str = incremental_table[:pos]
                     size: int = int(incremental_table[:pos+1])
                     if size == -1:
                         result[table_name] = 0
@@ -265,8 +263,8 @@ def assert_incremental_migration(errors: list[str],
                 else:
                     result[incremental_table] = MIGRATION_INCREMENTAL_SIZE
         except Exception as e:
-            exc_err: str = str_sanitize(exc_format(exc=e,
-                                                   exc_info=sys.exc_info()))
+            exc_err: str = str_sanitize(target_str=exc_format(exc=e,
+                                                              exc_info=sys.exc_info()))
             # 101: {}
             errors.append(validate_format_error(101,
                                                 f"Syntax error: {exc_err}",
@@ -283,7 +281,7 @@ def get_migration_context(errors: list[str],
     # obtain the source RDBMS parameters
     from_rdbms: str = scheme.get("from-rdbms")
     from_params: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                   rdbms=from_rdbms)
+                                                   db_engine=from_rdbms)
     if from_params:
         dict_jsonify(source=from_params)
         from_params["rdbms"] = from_rdbms
@@ -291,7 +289,7 @@ def get_migration_context(errors: list[str],
     # obtain the target RDBMS parameters
     to_rdbms: str = scheme.get("to-rdbms")
     to_params: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                 rdbms=to_rdbms)
+                                                 db_engine=to_rdbms)
     if to_params:
         dict_jsonify(source=to_params)
         to_params["rdbms"] = to_rdbms

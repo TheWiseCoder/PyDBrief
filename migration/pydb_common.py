@@ -90,18 +90,18 @@ def set_migration_metrics(errors: list[str],
 
 
 def get_rdbms_params(errors: list[str],
-                     rdbms: str) -> dict[str, Any]:
+                     db_engine: str) -> dict[str, Any]:
 
-    db_engine: DbEngine = DbEngine(rdbms) \
-                          if rdbms in DbEngine else None
+    db_engine: DbEngine = DbEngine(db_engine) \
+                          if db_engine in DbEngine else None
     result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
-        result["engine"] = rdbms
+        result["engine"] = db_engine
         result["version"] = db_get_version(engine=db_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            rdbms,
+                                            db_engine,
                                             "unknown or unconfigured RDBMS engine", "@rdbms"))
     return result
 

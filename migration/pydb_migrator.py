@@ -131,13 +131,13 @@ def migrate(errors: list[str],
         steps.append("synchronize-plaindata")
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                  rdbms=source_rdbms)
+                                                  db_engine=source_rdbms)
     from_rdbms["schema"] = source_schema
     # avoid displaying the password
     from_rdbms.pop(str(DbParam.PWD))
     dict_jsonify(source=from_rdbms)
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                rdbms=target_rdbms)
+                                                db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
     to_rdbms.pop(str(DbParam.PWD))

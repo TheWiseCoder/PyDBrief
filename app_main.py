@@ -11,7 +11,7 @@ from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
-    get_versions, dict_jsonify, exc_format,
+    pypomes_versions, dict_jsonify, exc_format,
     str_to_lower, str_as_list, validate_format_errors
 )
 from pypomes_db import DbEngine
@@ -80,15 +80,18 @@ def swagger() -> Response:
                  methods=["GET"])
 def version() -> Response:
     """
-    Obtain the current version of *PyDBrief*, along with the *PyPomes* modules in use.
+    Obtain the current version of *PyDBrief*, along with the foundation modules in use.
 
     :return: the versions in execution
     """
     # register the request
     PYPOMES_LOGGER.info(msg=f"URL {request.url}")
 
-    versions: dict[str, str] = get_versions()
-    versions[APP_NAME] = APP_VERSION
+    # retrieve the versions
+    versions: dict[str, Any] = {
+        APP_NAME: APP_VERSION,
+        "Foundations": pypomes_versions()
+    }
 
     # assign to the return variable
     result: Response = jsonify(versions)
@@ -101,9 +104,9 @@ def version() -> Response:
 
 @flask_app.route(rule="/rdbms",
                  methods=["POST"])
-@flask_app.route(rule="/rdbms/<rdbms>",
+@flask_app.route(rule="/rdbms/<db_engine>",
                  methods=["GET"])
-def handle_rdbms(rdbms: str = None) -> Response:
+def handle_rdbms(db_engine: str = None) -> Response:
     """
     Entry point for configuring the RDBMS to use.
 
@@ -117,7 +120,7 @@ def handle_rdbms(rdbms: str = None) -> Response:
         - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
-    :param rdbms: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+    :param db_engine: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -135,15 +138,15 @@ def handle_rdbms(rdbms: str = None) -> Response:
         if request.method == "GET":
             # get RDBMS connection params
             reply = get_rdbms_params(errors=errors,
-                                     rdbms=rdbms)
+                                     db_engine=db_engine)
             dict_jsonify(source=reply)
         else:
             # configure the RDBMS
             set_rdbms_params(errors=errors,
                              scheme=scheme)
             if not errors:
-                rdbms = scheme.get("db-engine")
-                reply = {"status": f"RDBMS '{rdbms}' configuration updated"}
+                db_engine = scheme.get("db-engine")
+                reply = {"status": f"RDBMS '{db_engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
