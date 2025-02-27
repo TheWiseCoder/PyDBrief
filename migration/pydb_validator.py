@@ -210,30 +210,29 @@ def assert_override_columns(errors: list[str],
     # process the foreign columns list
     override_columns: list[str] = validate_strs(errors=errors,
                                                 scheme=scheme,
-                                                attr="override-columns")
-    if override_columns:
+                                                attr="override-columns") or []
+    try:
         rdbms: str = scheme.get("to-rdbms")
-        try:
-            for override_column in override_columns:
-                # format of 'override_column' is <column_name>=<column_type>
-                column_name: str = override_column[:f"={override_column.rindex('=')-1}"]
-                type_name: str = override_column.replace(column_name, "", 1)[1:]
-                column_type: Type = name_to_type(rdbms=rdbms,
-                                                 type_name=type_name.lower())
-                if column_name and column_type:
-                    result[column_name.lower()] = column_type
-                else:
-                    # 142: Invalid value {}: {}
-                    errors.append(validate_format_error(142,
-                                                        type_name,
-                                                        f"not a valid column type for RDBMS {rdbms}"))
-        except Exception as e:
-            exc_err: str = str_sanitize(exc_format(exc=e,
-                                                   exc_info=sys.exc_info()))
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Syntax error: {exc_err}",
-                                                "@override-columns"))
+        for override_column in override_columns:
+            # format of 'override_column' is <column_name>=<column_type>
+            column_name: str = override_column[:f"={override_column.rindex('=')-1}"]
+            type_name: str = override_column.replace(column_name, "", 1)[1:]
+            column_type: Type = name_to_type(rdbms=rdbms,
+                                             type_name=type_name.lower())
+            if column_name and column_type:
+                result[column_name.lower()] = column_type
+            else:
+                # 142: Invalid value {}: {}
+                errors.append(validate_format_error(142,
+                                                    type_name,
+                                                    f"not a valid column type for RDBMS {rdbms}"))
+    except Exception as e:
+        exc_err: str = str_sanitize(exc_format(exc=e,
+                                               exc_info=sys.exc_info()))
+        # 101: {}
+        errors.append(validate_format_error(101,
+                                            f"Syntax error: {exc_err}",
+                                            "@override-columns"))
     return result
 
 
@@ -246,29 +245,27 @@ def assert_incremental_migration(errors: list[str],
     # process the foreign columns list
     incremental_tables: list[str] = validate_strs(errors=errors,
                                                   scheme=scheme,
-                                                  attr="incremental-migration")
-    if incremental_tables:
-        try:
-            for incremental_table in incremental_tables:
-                # format of 'incremental_table' is <table_name>[=<offset>]
-                pos: int = incremental_table.find("=")
-                if pos > 0:
-                    table_name: str = incremental_table[:pos]
-                    size: int = int(incremental_table[:pos+1])
-                    if size == -1:
-                        result[table_name] = 0
-                    else:
-                        result[table_name] = size
-
+                                                  attr="incremental-migration") or []
+    try:
+        for incremental_table in incremental_tables:
+            # format of 'incremental_table' is <table_name>[=<offset>]
+            pos: int = incremental_table.find("=")
+            if pos > 0:
+                table_name: str = incremental_table[:pos]
+                size: int = int(incremental_table[pos+1:])
+                if size == -1:
+                    result[table_name] = 0
                 else:
-                    result[incremental_table] = MIGRATION_INCREMENTAL_SIZE
-        except Exception as e:
-            exc_err: str = str_sanitize(target_str=exc_format(exc=e,
-                                                              exc_info=sys.exc_info()))
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Syntax error: {exc_err}",
-                                                "@incremental-migration"))
+                    result[table_name] = size
+            else:
+                result[incremental_table] = MIGRATION_INCREMENTAL_SIZE
+    except Exception as e:
+        exc_err: str = str_sanitize(target_str=exc_format(exc=e,
+                                                          exc_info=sys.exc_info()))
+        # 101: {}
+        errors.append(validate_format_error(101,
+                                            f"Syntax error: {exc_err}",
+                                            "@incremental-migration"))
     return result
 
 
