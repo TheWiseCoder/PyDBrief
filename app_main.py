@@ -400,7 +400,8 @@ def migrate_data() -> Response:
                             named_lobdata=named_lobdata,
                             override_columns=override_columns,
                             migration_badge=migration_badge,
-                            version=APP_VERSION,
+                            app_name=APP_NAME,
+                            app_version=APP_VERSION,
                             logger=PYPOMES_LOGGER)
     # build the response
     result: Response = _build_response(errors=errors,

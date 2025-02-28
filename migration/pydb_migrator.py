@@ -8,7 +8,8 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV,
-    env_is_docker, dict_jsonify, str_sanitize, exc_format, validate_format_error
+    pypomes_versions, env_is_docker, dict_jsonify,
+    str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
     DbEngine, DbParam, db_connect
@@ -113,7 +114,8 @@ def migrate(errors: list[str],
             named_lobdata: list[str],
             override_columns: dict[str, Type],
             migration_badge: str,
-            version: str,
+            app_name: str,
+            app_version: str,
             logger: Logger) -> dict[str, Any]:
 
     # handle warnings
@@ -150,7 +152,10 @@ def migrate(errors: list[str],
         "steps": steps,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms,
-        "version": version
+        "versions": {
+            app_name: app_version,
+            "Foundations": pypomes_versions()
+        }
     }
     if migration_badge:
         result["migration-badge"] = migration_badge
