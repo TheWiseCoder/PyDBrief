@@ -143,15 +143,15 @@ def migrate(errors: list[str],
 
     # initialize the return variable
     result: dict = {
+        "colophon": {
+            app_name: app_version,
+            "Foundations": pypomes_versions()
+        },
         "started": datetime.now().strftime(format=DATETIME_FORMAT_INV),
         "migration-metrics": get_migration_metrics(),
         "steps": steps,
         "source-rdbms": from_rdbms,
-        "target-rdbms": to_rdbms,
-        "versions": {
-            app_name: app_version,
-            "Foundations": pypomes_versions()
-        }
+        "target-rdbms": to_rdbms
     }
     if migration_badge:
         result["migration-badge"] = migration_badge
