@@ -118,10 +118,6 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    # handle warnings
-    # (boto3 and minio packages generate the warning "datetime.datetime.utcnow() is deprecated...")
-    warnings.filterwarnings(action="ignore" if target_s3 and step_lobdata else "error")
-
     steps: list[str] = []
     if step_metadata:
         steps.append("migrate-metadata")
@@ -196,6 +192,9 @@ def migrate(errors: list[str],
     if named_lobdata:
         result["named-lobdata"] = named_lobdata
 
+    # handle warnings as errors
+    warnings.filterwarnings(action="error")
+
     logger.info(result)
     logger.info(msg="Started discovering the metadata")
 
@@ -264,6 +263,11 @@ def migrate(errors: list[str],
 
                 # migrate the LOB data
                 if step_lobdata:
+                    # ignore warnings from 'boto3' and 'minio' packages
+                    # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+                    if target_s3:
+                        warnings.filterwarnings(action="ignore")
+
                     logger.info("Started migrating the LOBs")
                     op_errors = []
                     lob_count = migrate_lobs(errors=op_errors,
