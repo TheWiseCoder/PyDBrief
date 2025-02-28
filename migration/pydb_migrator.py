@@ -8,7 +8,7 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV,
-    pypomes_versions, env_is_docker, dict_jsonify,
+    pypomes_versions, env_is_docker,
     str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
@@ -133,13 +133,12 @@ def migrate(errors: list[str],
     from_rdbms["schema"] = source_schema
     # avoid displaying the password
     from_rdbms.pop(str(DbParam.PWD))
-    dict_jsonify(source=from_rdbms)
+
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                 db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
     to_rdbms.pop(str(DbParam.PWD))
-    dict_jsonify(source=to_rdbms)
 
     # initialize the return variable
     result: dict = {
@@ -147,8 +146,8 @@ def migrate(errors: list[str],
             app_name: app_version,
             "Foundations": pypomes_versions()
         },
-        "started": datetime.now().strftime(format=DATETIME_FORMAT_INV),
         "migration-metrics": get_migration_metrics(),
+        "started": datetime.now().strftime(format=DATETIME_FORMAT_INV),
         "steps": steps,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
