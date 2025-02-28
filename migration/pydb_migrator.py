@@ -164,7 +164,7 @@ def migrate(errors: list[str],
         result["process-indexes"] = process_indexes
     if process_views:
         result["process-views"] = process_views
-    if process_views:
+    if relax_reflection:
         result["relax-reflection"] = relax_reflection
     if accept_empty:
         result["accept-empty"] = accept_empty
