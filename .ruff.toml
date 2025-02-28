@@ -4,8 +4,8 @@ force-exclude = true
 required-version = ">=0.9.7"
 target-version = "py312"
 respect-gitignore = true
-task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
-select = [
+lint.task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
+lint.select = [
     # flake8 group
     "A",     # flake8-builtins - prevent shadowing of python builtins
     "ANN",   # flake8-annotations - enforce PEP 3107-style function
@@ -69,9 +69,8 @@ select = [
 #   "T10",   # flake8-debugger - check for 'pdb;idbp' imports and set traces
 #   "T20",   # flake8-print - check for 'print' and 'pprint' statements in python files
 ]
-ignore = [
+lint.ignore = [
     "ANN002",   # missing type annotation for *kargs
-    "ANN101",   # missing type annotation for 'self' in method
     "ANN401",   # dynamically typed expressions (typing.Any) are disallowed
     "COM812",   # checks for the absence of trailing commas
     "COM819",   # prohibited trailing commas
@@ -92,41 +91,41 @@ ignore = [
     "PLW0603",  # using the global statement to update a variable is discouraged
     "PTH118",   # os.{module}.join() should be replaced by Path with / operator
     "RUF013",   # implicit Optional in type annotations when the default parameter value is None
-    "RUFF022",  # __all__ is not sorted
+    "RUF022",   # __all__ is not sorted
     "S104",     # possible binding to all interfaces
     "S113",     # probable use of requests call without timeout
     "S301",     # 'pickle' and modules that wrap it can be unsafe when used to deserialize untrusted data
     "S608",     # possible SQL injection vector through string-based query construction
     "SIM108",   # use ternary operator instead of if-else-block
-    "TCH001",   # move application import into a type-checking block
-    "TCH002",   # Move third-party import into a type-checking block
-    "TCH003",   # move standard library import into a type-checking block
+    "TC001",    # move application import into a type-checking block
+    "TC002",    # Move third-party import into a type-checking block
+    "TC003",    # move standard library import into a type-checking block
     "TRY003",   # avoid specifying long messages outside the exception class
     "TRY400",   # use 'logging.exception' instead of 'logging.error'
 ]
 
 # rules
 line-length = 120
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-[flake8-bandit]
+[lint.flake8-bandit]
 hardcoded-tmp-directory = ["/tmp"]
 
-[flake8-errmsg]
+[lint.flake8-errmsg]
 max-string-length = 60      # maximum string length for string literals in exception messages
 
-[flake8-quotes]
+[lint.flake8-quotes]
 docstring-quotes = "double"
 inline-quotes = "double"
 multiline-quotes = "double"
 
-[mccabe]
+[lint.mccabe]
 max-complexity = 50         # upper limit for McCabe code complexity
 
-[pycodestyle]
+[lint.pycodestyle]
 max-doc-length = 120
 
-[pylint]
+[lint.pylint]
 max-args = 30
 max-branches = 50
 max-returns = 1

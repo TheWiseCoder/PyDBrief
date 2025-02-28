@@ -42,10 +42,10 @@ def assert_params(errors: list[str],
                   scheme: dict) -> None:
 
     params: list[str] = SERVICE_PARAMS.get(f"{service}:{method}") or []
-    for key in scheme.keys():
+    for key in scheme:
         if key not in params:
             # 122: Attribute is unknown or invalid in this context
-            errors.append(validate_format_error(122,
+            errors.append(validate_format_error(122,  # noqa: PERF401
                                                 f"@{key}"))
 
 
@@ -227,8 +227,8 @@ def assert_override_columns(errors: list[str],
                                                     type_name,
                                                     f"not a valid column type for RDBMS {rdbms}"))
     except Exception as e:
-        exc_err: str = str_sanitize(exc_format(exc=e,
-                                               exc_info=sys.exc_info()))
+        exc_err: str = str_sanitize(target_str=exc_format(exc=e,
+                                                          exc_info=sys.exc_info()))
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"Syntax error: {exc_err}",

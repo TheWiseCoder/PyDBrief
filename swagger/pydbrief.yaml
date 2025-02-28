@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.6.0
+  version: 1.6.2
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -155,22 +155,22 @@ paths:
       parameters:
         - name: batch-size-in
           in: query
-          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows satisfying the query are retrieved at once.
+          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows satisfying the query are retrieved at once.
           required: false
           schema:
             type: integer
             minimum: 1000
             maximum: 10000000
-            default: 0
+            default: 1000000
         - name: batch-size-out
           in: query
-          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 0. A size of 0 means all rows retrieved are output at once.
+          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows retrieved are output at once.
           required: false
           schema:
             type: integer
             minimum: 1000
             maximum: 10000000
-            default: 0
+            default: 1000000
         - name: chunk-size
           in: query
           description: Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).
