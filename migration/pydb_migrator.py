@@ -8,15 +8,13 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DATETIME_FORMAT_INV,
-    pypomes_versions, env_is_docker,
+    dict_jsonify, pypomes_versions, env_is_docker,
     str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
     DbEngine, DbParam, db_connect
 )
-from pypomes_logging import (
-    LogParam, logging_get_entries, logging_get_params
-)
+from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import S3Engine
 from sqlalchemy.sql.elements import Type
 from typing import Any
@@ -141,7 +139,7 @@ def migrate(errors: list[str],
     to_rdbms.pop(str(DbParam.PWD))
 
     # initialize the return variable
-    result: dict = {
+    result: dict[str, Any] = {
         "colophon": {
             app_name: app_version,
             "Foundations": pypomes_versions()
@@ -231,21 +229,19 @@ def migrate(errors: list[str],
         target_conn: Any = db_connect(errors=errors,
                                       engine=target_rdbms,
                                       logger=logger)
-
-        if source_conn and target_conn:
-            op_errors: list[str] = []
+        if not errors:
             # disable target RDBMS restrictions to speed-up bulk operations
-            session_disable_restrictions(errors=op_errors,
+            session_disable_restrictions(errors=errors,
                                          rdbms=target_rdbms,
                                          conn=target_conn,
                                          logger=logger)
-            errors.extend(op_errors)
+
             # proceed, if restrictions were disabled
-            if not op_errors:
+            if not errors:
                 # migrate the plain data
                 if step_plaindata:
                     logger.info("Started migrating the plain data")
-                    plain_count = migrate_plain(errors=op_errors,
+                    plain_count = migrate_plain(errors=errors,
                                                 source_rdbms=source_rdbms,
                                                 target_rdbms=target_rdbms,
                                                 source_schema=source_schema,
@@ -257,19 +253,17 @@ def migrate(errors: list[str],
                                                 target_conn=target_conn,
                                                 migrated_tables=migrated_tables,
                                                 logger=logger)
-                    errors.extend(op_errors)
                     logger.info(msg="Finished migrating the plain data")
 
                 # migrate the LOB data
-                if step_lobdata:
+                if not errors and step_lobdata:
                     # ignore warnings from 'boto3' and 'minio' packages
                     # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
                     if target_s3:
                         warnings.filterwarnings(action="ignore")
 
                     logger.info("Started migrating the LOBs")
-                    op_errors = []
-                    lob_count = migrate_lobs(errors=op_errors,
+                    lob_count = migrate_lobs(errors=errors,
                                              source_rdbms=source_rdbms,
                                              target_rdbms=target_rdbms,
                                              source_schema=source_schema,
@@ -285,15 +279,13 @@ def migrate(errors: list[str],
                                              target_conn=target_conn,
                                              migrated_tables=migrated_tables,
                                              logger=logger)
-                    errors.extend(op_errors)
                     logger.info(msg="Finished migrating the LOBs")
 
                 # synchronize the plain data
-                if step_synchronize:
+                if not errors and step_synchronize:
                     logger.info(msg="Started synchronizing the plain data")
-                    op_errors = []
                     sync_deletes, sync_inserts, sync_updates = \
-                        synchronize_plain(errors=op_errors,
+                        synchronize_plain(errors=errors,
                                           source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
                                           source_schema=source_schema,
@@ -303,41 +295,31 @@ def migrate(errors: list[str],
                                           target_conn=target_conn,
                                           migrated_tables=migrated_tables,
                                           logger=logger)
-                    errors.extend(op_errors)
                     logger.info(msg="Finished synchronizing the plain data")
                     result["total-sync-deletes"] = sync_deletes
                     result["total-sync-inserts"] = sync_inserts
                     result["total-sync-updates"] = sync_updates
 
                 # restore target RDBMS restrictions delaying bulk operations
-                op_errors = []
-                session_restore_restrictions(errors=op_errors,
-                                             rdbms=target_rdbms,
-                                             conn=target_conn,
-                                             logger=logger)
+                if not errors:
+                    session_restore_restrictions(errors=errors,
+                                                 rdbms=target_rdbms,
+                                                 conn=target_conn,
+                                                 logger=logger)
 
-            # register possible errors and close source and target connections
-            errors.extend(op_errors)
-            source_conn.close()
-            target_conn.close()
+            # close source and target connections
+            if not errors:
+                source_conn.close()
+                target_conn.close()
 
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
-    if logger:
-        result["logging"] = logging_get_params()
-        filepath: Path = result.get("logging").get(str(LogParam.LOG_FILEPATH))
-        if isinstance(filepath, Path):
-            result["logging"][str(LogParam.LOG_FILEPATH)] = filepath.as_posix()
-        # if logger.root:
-        #     for handler in logger.root.handlers:
-        #         if isinstance(handler, FileHandler):
-        #             result["logging"]["log_file"] = Path(handler.baseFilename).as_posix()
-        #             break
-    finished: datetime = datetime.now()
-    result["finished"] = finished.strftime(format=DATETIME_FORMAT_INV)
+    result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
+    # HAZARD: dict holding the logging parameters is not serializable
+    result["logging"] = dict_jsonify(source=logging_get_params())
 
     if migration_badge:
         try:
@@ -345,8 +327,8 @@ def migrate(errors: list[str],
                           badge=migration_badge,
                           log_json=result)
         except Exception as e:
-            exc_err: str = str_sanitize(exc_format(exc=e,
-                                                   exc_info=sys.exc_info()))
+            exc_err: str = str_sanitize(target_str=exc_format(exc=e,
+                                                              exc_info=sys.exc_info()))
             logger.error(msg=exc_err)
             # 101: {}
             errors.append(validate_format_error(101,

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.6.2
+  version: 1.6.3
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -350,7 +350,7 @@ paths:
       parameters:
         - name: attach
           in: query
-          description: Indicates, with the value '0', 'f' or 'false', that the file should be displayed by the browser. It is saved by default.
+          description: Values '1', 't', or 'true' indicate that the file should be saved to the filesystem (the default value). Values '0', 'f' or 'false' indicate that the file should be displayed by the browser.
           required: false
           schema:
             type: string
@@ -379,22 +379,25 @@ paths:
                 properties:
                   PyDBrief:
                     type: string
-                    example: 1.5.7
-                  PyPomes-Core:
-                    type: string
-                    example: 1.6.5
-                  PyPomes-DB:
-                    type: string
-                    example: 1.7.6
-                  PyPomes-HTTP:
-                    type: string
-                    example: 0.4.8
-                  PyPomes-Logging:
-                    type: string
-                    example: 0.4.8
-                  PyPomes-S3:
-                    type: string
-                    example: 0.7.2
+                    example: 1.6.3
+                  Foundations:
+                    type: object
+                    properties:
+                      PyPomes-Core:
+                        type: string
+                        example: 1.8.3
+                      PyPomes-DB:
+                        type: string
+                        example: 1.9.3
+                      PyPomes-HTTP:
+                        type: string
+                        example: 0.5.1
+                      PyPomes-Logging:
+                        type: string
+                        example: 0.5.1
+                      PyPomes-S3:
+                        type: string
+                        example: 0.7.6
 components:
   parameters:
   # database group

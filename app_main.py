@@ -452,15 +452,15 @@ def _build_response(errors: list[str],
     # declare the return variable
     result: Response
 
-    if len(errors) == 0:
-        # 'reply' might be 'None'
-        result = jsonify(reply)
-    else:
+    if errors:
         reply_err: dict = {"errors": validate_format_errors(errors=errors)}
         if isinstance(reply, dict):
             reply_err.update(reply)
         result = jsonify(reply_err)
         result.status_code = 400
+    else:
+        # 'reply' might be 'None'
+        result = jsonify(reply)
 
     return result
 
