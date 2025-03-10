@@ -127,13 +127,13 @@ def migrate(errors: list[str],
         steps.append("synchronize-plaindata")
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                  db_engine=source_rdbms)
+                                                  db_engine=str(source_rdbms))
     from_rdbms["schema"] = source_schema
     # avoid displaying the password
     from_rdbms.pop(str(DbParam.PWD))
 
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                db_engine=target_rdbms)
+                                                db_engine=str(target_rdbms))
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
     to_rdbms.pop(str(DbParam.PWD))
@@ -154,7 +154,7 @@ def migrate(errors: list[str],
         result["migration-badge"] = migration_badge
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
-                                              s3_engine=target_s3)
+                                              s3_engine=str(target_s3))
         # avoid displaying the secret key
         to_s3.pop("secret_key")
         result["target-s3"] = to_s3

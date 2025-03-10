@@ -11,7 +11,7 @@ from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
-    pypomes_versions, dict_jsonify, exc_format,
+    pypomes_versions, exc_format,
     str_to_lower, str_as_list, validate_format_errors
 )
 from pypomes_db import DbEngine
@@ -139,7 +139,6 @@ def handle_rdbms(db_engine: str = None) -> Response:
             # get RDBMS connection params
             reply = get_rdbms_params(errors=errors,
                                      db_engine=db_engine)
-            dict_jsonify(source=reply)
         else:
             # configure the RDBMS
             set_rdbms_params(errors=errors,

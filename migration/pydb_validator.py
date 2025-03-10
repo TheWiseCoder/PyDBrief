@@ -1,6 +1,6 @@
 import sys
 from pypomes_core import (
-    dict_jsonify, exc_format, str_sanitize,
+    exc_format, str_sanitize,
     validate_bool, validate_str,
     validate_strs, validate_format_error
 )
@@ -280,7 +280,6 @@ def get_migration_context(errors: list[str],
     from_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                    db_engine=from_rdbms)
     if from_params:
-        dict_jsonify(source=from_params)
         from_params["rdbms"] = from_rdbms
 
     # obtain the target RDBMS parameters
@@ -288,7 +287,6 @@ def get_migration_context(errors: list[str],
     to_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                  db_engine=to_rdbms)
     if to_params:
-        dict_jsonify(source=to_params)
         to_params["rdbms"] = to_rdbms
 
     # obtain the target S3 parameters
@@ -297,8 +295,6 @@ def get_migration_context(errors: list[str],
     if to_s3:
         s3_params = get_s3_params(errors=errors,
                                   s3_engine=to_s3)
-        dict_jsonify(source=s3_params)
-
     # build the return data
     if not errors:
         result: dict[str, Any] = {

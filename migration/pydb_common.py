@@ -1,6 +1,7 @@
 from logging import Logger
+from pathlib import Path
 from pypomes_core import (
-    APP_PREFIX, env_get_str,
+    APP_PREFIX, env_get_str, dict_jsonify,
     validate_bool, validate_int,
     validate_format_error, validate_str
 )
@@ -92,12 +93,16 @@ def set_migration_metrics(errors: list[str],
 def get_rdbms_params(errors: list[str],
                      db_engine: str) -> dict[str, Any]:
 
-    db_engine: DbEngine = DbEngine(db_engine) \
-                          if db_engine in DbEngine else None
-    result: dict[str, Any] = db_get_params(engine=db_engine)
+    engine: DbEngine = DbEngine(db_engine) \
+                       if db_engine in DbEngine else None
+    result: dict[str, Any] = db_get_params(engine=engine)
     if isinstance(result, dict):
         result["engine"] = db_engine
-        result["version"] = db_get_version(engine=db_engine)
+        result["version"] = db_get_version(engine=engine)
+        client_path: Path = result.get("client")
+        if client_path:
+            result["client"] = client_path.as_posix()
+        dict_jsonify(result)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -161,6 +166,7 @@ def get_s3_params(errors: list[str],
                              if s3_engine in S3Engine else None
     if result:
         result["engine"] = s3_engine
+        dict_jsonify(result)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
