@@ -36,7 +36,6 @@ def migrate_lobs(errors: list[str],
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
-        op_errors: list[str] = []
         target_table: str = f"{target_schema}.{table_name}"
         source_table: str = f"{source_schema}.{table_name}"
 
@@ -56,15 +55,15 @@ def migrate_lobs(errors: list[str],
                             f"is not eligible for LOB migration (no PKs)")
             logger.error(msg=err_msg)
             # 101: {}
-            op_errors.append(validate_format_error(101,
-                                                   err_msg))
+            errors.append(validate_format_error(101,
+                                                err_msg))
 
         count: int = 0
-        if not op_errors and lob_columns and db_table_exists(errors=op_errors,
-                                                             table_name=target_table,
-                                                             engine=target_rdbms,
-                                                             connection=target_conn,
-                                                             logger=logger):
+        if not errors and lob_columns and db_table_exists(errors=errors,
+                                                          table_name=target_table,
+                                                          engine=target_rdbms,
+                                                          connection=target_conn,
+                                                          logger=logger):
             status: str | None = None
             limit_count: int = incremental_migration.get(table_name)
             offset_count: int = -1 if limit_count else None
@@ -97,15 +96,15 @@ def migrate_lobs(errors: list[str],
                                                     table=target_table[target_table.index(".")+1:],
                                                     column=named_column or lob_column)
                         # is a nonempty S3 prefix an issue ?
-                        if skip_nonempty and s3_item_exists(errors=op_errors,
+                        if skip_nonempty and s3_item_exists(errors=errors,
                                                             prefix=lob_prefix):
                             # yes, skip it
                             logger.debug(msg=f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}")
                             status = "skipped"
                     # errors ?
-                    if not op_errors:
+                    if not errors:
                         # no, migrate the column's LOBs
-                        count += s3_migrate_lobs(errors=op_errors,
+                        count += s3_migrate_lobs(errors=errors,
                                                  target_s3=target_s3,
                                                  target_rdbms=target_rdbms,
                                                  target_table=target_table,
@@ -124,7 +123,7 @@ def migrate_lobs(errors: list[str],
                                                  source_conn=source_conn,
                                                  logger=logger) or 0
                 else:
-                    count += db_migrate_lobs(errors=op_errors,
+                    count += db_migrate_lobs(errors=errors,
                                              source_engine=source_rdbms,
                                              source_table=source_table,
                                              source_lob_column=lob_column,
@@ -141,7 +140,7 @@ def migrate_lobs(errors: list[str],
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_CHUNK_SIZE,
                                              logger=logger) or 0
-            if op_errors:
+            if errors:
                 status = "none"
             else:
                 # do not change 'status' if it has already been set
@@ -151,15 +150,18 @@ def migrate_lobs(errors: list[str],
             table_data["lob-count"] = count
             logger.debug(msg=f"Migrated LOBs from {source_rdbms}.{source_table} "
                              f"to {target_rdbms}.{target_table}, status {status}")
-        elif not op_errors and lob_columns:
+        elif not errors and lob_columns:
             # target table does not exist
             err_msg: str = ("Unable to migrate LOBs. "
                             f"Table {target_rdbms}.{target_table} was not found")
             logger.error(msg=err_msg)
             # 101: {}
-            op_errors.append(validate_format_error(101,
-                                                   err_msg))
-        errors.extend(op_errors)
+            errors.append(validate_format_error(101,
+                                                err_msg))
+        # errors ?
+        if errors:
+            # yes, abort the lobdata migration
+            break
 
     return result
 
