@@ -361,7 +361,7 @@ def log_migration(errors: list[str],
     if errors:
         log_json = dict(log_json)
         log_json["errors"] = errors
-    json_data = json.dumps(obj=log_json,
+    json_data = json.dumps(obj=dict_jsonify(source=log_json),
                            ensure_ascii=False,
                            indent=4)
     json_file: Path = Path(base_path,
