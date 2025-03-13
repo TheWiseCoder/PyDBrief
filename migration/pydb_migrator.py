@@ -116,6 +116,7 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
+    started: str = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     steps: list[str] = []
     if step_metadata:
         steps.append("migrate-metadata")
@@ -144,24 +145,33 @@ def migrate(errors: list[str],
             app_name: app_version,
             "Foundations": pypomes_versions()
         },
-        "migration-metrics": get_migration_metrics(),
-        "started": datetime.now().strftime(format=DATETIME_FORMAT_INV),
         "steps": steps,
+        "migration-metrics": get_migration_metrics(),
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
     }
-    if migration_badge:
-        result["migration-badge"] = migration_badge
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=str(target_s3))
         # avoid displaying the secret key
         to_s3.pop("secret_key")
         result["target-s3"] = to_s3
+    if migration_badge:
+        result["migration-badge"] = migration_badge
     if process_indexes:
         result["process-indexes"] = process_indexes
     if process_views:
         result["process-views"] = process_views
+    if include_relations:
+        result["include-relations"] = include_relations
+    if exclude_relations:
+        result["exclude-relations"] = exclude_relations
+    if exclude_constraints:
+        result["exclude-constraints"] = exclude_constraints
+    if exclude_columns:
+        result["exclude-columns"] = exclude_columns
+    if override_columns:
+        result["override-columns"] = override_columns
     if relax_reflection:
         result["relax-reflection"] = relax_reflection
     if accept_empty:
@@ -176,16 +186,6 @@ def migrate(errors: list[str],
         result["remove-nulls"] = remove_nulls
     if incremental_migration:
         result["incremental-migration"] = incremental_migration
-    if include_relations:
-        result["include-relations"] = include_relations
-    if exclude_relations:
-        result["exclude-relations"] = exclude_relations
-    if exclude_constraints:
-        result["exclude-constraints"] = exclude_constraints
-    if exclude_columns:
-        result["exclude-columns"] = exclude_columns
-    if override_columns:
-        result["override-columns"] = override_columns
     if named_lobdata:
         result["named-lobdata"] = named_lobdata
 
@@ -306,7 +306,6 @@ def migrate(errors: list[str],
                                                  rdbms=target_rdbms,
                                                  conn=target_conn,
                                                  logger=logger)
-
             # close source and target connections
             if not errors:
                 source_conn.close()
@@ -315,10 +314,10 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    result["started"] = started
     result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
-    # HAZARD: dict holding the logging parameters is not serializable
     result["logging"] = dict_jsonify(source=logging_get_params())
 
     if migration_badge:
