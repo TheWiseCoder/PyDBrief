@@ -62,11 +62,11 @@ def migrate_plain(errors: list[str],
                             orderby_columns.append(column_name)
                 if not orderby_columns:
                     msg: str = f"for table {source_rdbms}.{source_table} having no PKs"
-                    if limit_count > 0:
+                    if limit_count:
                         logger.warning(msg=f"Incremental migration specified {msg}")
-                    if offset_count > 0:
+                    if offset_count:
                         logger.warning(msg=f"Reading offset specified {msg}")
-                    if pydb_common.MIGRATION_BATCH_SIZE_IN > 0:
+                    if pydb_common.MIGRATION_BATCH_SIZE_IN:
                         logger.warning(msg=f"Batch reading specified {msg}")
                 if not errors:
                     count: int = (db_migrate_data(errors=errors,
