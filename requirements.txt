@@ -1,4 +1,4 @@
-boto3==1.37.11
+boto3==1.37.12
 DateTime==5.5
 Flask==3.1.0
 Flask-Cors==5.0.1
@@ -9,8 +9,8 @@ oracledb==3.0.0
 pyodbc==5.2.0
 psycopg2-binary==2.9.10
 # pycryptodome==3.21.0              # installed from whl file
-pypomes_core==1.8.3
-pypomes_db==1.9.6
+pypomes_core==1.8.5
+pypomes_db==1.9.7
 pypomes_http==0.5.2
 pypomes_logging==0.5.1
 pypomes_s3==0.7.6

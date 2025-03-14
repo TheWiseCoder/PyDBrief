@@ -60,13 +60,14 @@ def migrate_plain(errors: list[str],
                         elif "primary-key" in features and \
                                 (limit_count > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
                             orderby_columns.append(column_name)
-                if limit_count > 0 and not orderby_columns:
-                    err_msg: str = (f"Table {source_rdbms}.{source_table} "
-                                    f"is not eligible for incremental migration (no PKs)")
-                    logger.error(msg=err_msg)
-                    # 101: {}
-                    errors.append(validate_format_error(101,
-                                                        err_msg))
+                if not orderby_columns:
+                    msg: str = f"for table {source_rdbms}.{source_table} having no PKs"
+                    if limit_count > 0:
+                        logger.warning(msg=f"Incremental migration specified {msg}")
+                    if offset_count > 0:
+                        logger.warning(msg=f"Reading offset specified {msg}")
+                    if pydb_common.MIGRATION_BATCH_SIZE_IN > 0:
+                        logger.warning(msg=f"Batch reading specified {msg}")
                 if not errors:
                     count: int = (db_migrate_data(errors=errors,
                                                   source_engine=source_rdbms,
