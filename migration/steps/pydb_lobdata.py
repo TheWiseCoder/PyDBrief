@@ -28,6 +28,7 @@ def migrate_lobs(errors: list[str],
                  named_lobdata: list[str],
                  source_conn: Any,
                  target_conn: Any,
+                 # migration_warnings: list[str],
                  migrated_tables: dict[str, Any],
                  logger: Logger) -> int:
 

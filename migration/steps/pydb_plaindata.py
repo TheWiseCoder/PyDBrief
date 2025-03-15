@@ -17,7 +17,8 @@ def migrate_plain(errors: list[str],
                   remove_nulls: list[str],
                   source_conn: Any,
                   target_conn: Any,
-                  migrated_tables: dict,
+                  migration_warnings: list[str],
+                  migrated_tables: dict[str, Any],
                   logger: Logger) -> int:
 
     # initialize the return variable
@@ -44,7 +45,7 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = "skipped"
             elif not errors:
                 # no, proceed
-                limit_count: int = incremental_migration.get(table_name) or 0
+                limit_count: int = incremental_migration.get(table_name)
                 offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
@@ -58,16 +59,22 @@ def migrate_plain(errors: list[str],
                         if "identity" in features:
                             identity_column = column_name
                         elif "primary-key" in features and \
-                                (limit_count > 0 or pydb_common.MIGRATION_BATCH_SIZE_IN > 0):
+                                (limit_count or pydb_common.MIGRATION_BATCH_SIZE_IN):
                             orderby_columns.append(column_name)
                 if not orderby_columns:
-                    msg: str = f"for table {source_rdbms}.{source_table} having no PKs"
+                    suffix: str = f"for table {source_rdbms}.{source_table} having no PKs"
                     if limit_count:
-                        logger.warning(msg=f"Incremental migration specified {msg}")
+                        warn: str = f"Incremental migration specified {suffix}"
+                        migration_warnings.append(warn)
+                        logger.warning(msg=warn)
                     if offset_count:
-                        logger.warning(msg=f"Reading offset specified {msg}")
+                        warn: str = f"Reading offset specified {suffix}"
+                        migration_warnings.append(warn)
+                        logger.warning(msg=warn)
                     if pydb_common.MIGRATION_BATCH_SIZE_IN:
-                        logger.warning(msg=f"Batch reading specified {msg}")
+                        warn: str = f"Batch reading specified {suffix}"
+                        migration_warnings.append(warn)
+                        logger.warning(msg=warn)
                 if not errors:
                     count: int = (db_migrate_data(errors=errors,
                                                   source_engine=source_rdbms,
@@ -81,7 +88,7 @@ def migrate_plain(errors: list[str],
                                                   target_committable=True,
                                                   orderby_clause=", ".join(orderby_columns),
                                                   offset_count=offset_count,
-                                                  limit_count=limit_count or None,
+                                                  limit_count=limit_count,
                                                   identity_column=identity_column,
                                                   batch_size_in=pydb_common.MIGRATION_BATCH_SIZE_IN,
                                                   batch_size_out=pydb_common.MIGRATION_BATCH_SIZE_OUT,
@@ -101,7 +108,6 @@ def migrate_plain(errors: list[str],
                     logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
                                      f"to {target_rdbms}.{target_table}, status {status}")
                     result += count
-
         elif not errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "

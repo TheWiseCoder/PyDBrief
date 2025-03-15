@@ -41,7 +41,7 @@ from migration.pydb_types import is_lob
 #      "plain-count": <number-of-tuples-migrated>,
 #      "plain-status": "none" | "full" | "partial"
 #      "lob-count":  <number-of-lobs-migrated>,
-#      "lob-status": "none" | "full" | "partial"
+#      "lob-status": "none" | "full" | "partial",
 #   }
 # ]
 def migrate_metadata(errors: list[str],
@@ -59,6 +59,7 @@ def migrate_metadata(errors: list[str],
                      exclude_columns: list[str],
                      exclude_constraints: list[str],
                      override_columns: dict[str, Type],
+                     # migration_warnings: list[str],
                      logger: Logger) -> dict[str, Any]:
 
     # iinitialize the return variable

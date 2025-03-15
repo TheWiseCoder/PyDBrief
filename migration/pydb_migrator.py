@@ -84,6 +84,9 @@ from migration.steps.pydb_sync import synchronize_plain
 #   "sync-deletes": nnn,
 #   "sync-inserts": nnn,
 #   "sync-updates": nnn,
+#   "warnings": [
+#     ...
+#   ]
 #   "migrated-tables": <migrated-tables-structure>
 # }
 def migrate(errors: list[str],
@@ -194,6 +197,7 @@ def migrate(errors: list[str],
 
     logger.info(result)
     logger.info(msg="Started discovering the metadata")
+    migration_warnings: list[str] = []
 
     migrated_tables: dict[str, Any] = \
         migrate_metadata(errors=errors,
@@ -211,6 +215,7 @@ def migrate(errors: list[str],
                          exclude_columns=exclude_columns,
                          exclude_constraints=exclude_constraints,
                          override_columns=override_columns,
+                         # migration_warnings=migration_warnings,
                          logger=logger) or {}
     logger.info(msg="Finished discovering the metadata")
 
@@ -251,6 +256,7 @@ def migrate(errors: list[str],
                                                 remove_nulls=remove_nulls,
                                                 source_conn=source_conn,
                                                 target_conn=target_conn,
+                                                migration_warnings=migration_warnings,
                                                 migrated_tables=migrated_tables,
                                                 logger=logger)
                     logger.info(msg="Finished migrating the plain data")
@@ -277,6 +283,7 @@ def migrate(errors: list[str],
                                              named_lobdata=named_lobdata,
                                              source_conn=source_conn,
                                              target_conn=target_conn,
+                                             # migration_warnings=migration_warnings,
                                              migrated_tables=migrated_tables,
                                              logger=logger)
                     logger.info(msg="Finished migrating the LOBs")
@@ -293,6 +300,7 @@ def migrate(errors: list[str],
                                           remove_nulls=remove_nulls,
                                           source_conn=source_conn,
                                           target_conn=target_conn,
+                                          # migration_warnings=migration_warnings,
                                           migrated_tables=migrated_tables,
                                           logger=logger)
                     logger.info(msg="Finished synchronizing the plain data")
@@ -316,6 +324,8 @@ def migrate(errors: list[str],
 
     result["started"] = started
     result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
+    if migration_warnings:
+        result["warnings"] = migration_warnings
     result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
     result["logging"] = dict_jsonify(source=logging_get_params())
