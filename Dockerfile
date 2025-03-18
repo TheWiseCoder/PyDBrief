@@ -40,8 +40,8 @@ RUN apk add vim
 RUN pip install --upgrade pip
 
 # temporary hack: install wheel file for 'pycryptodome'
-COPY pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl .
-RUN pip install pycryptodome-3.21.0-cp36-abi3-musllinux_1_2_x86_64.whl
+COPY pycryptodome-3.22.0-cp37-abi3-musllinux_1_2_x86_64.whl .
+RUN pip install pycryptodome-3.22.0-cp37-abi3-musllinux_1_2_x86_64.whl
 
 # intall Python package requirements
 ENV SSL_CERT_DIR=/etc/ssl/certs

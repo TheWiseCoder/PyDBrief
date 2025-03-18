@@ -1,4 +1,4 @@
-boto3==1.37.13
+boto3==1.37.14
 DateTime==5.5
 Flask==3.1.0
 Flask-Cors==5.0.1
@@ -8,12 +8,12 @@ mysql-connector-python==9.2.0
 oracledb==3.0.0
 pyodbc==5.2.0
 psycopg2-binary==2.9.10
-# pycryptodome==3.21.0              # installed from whl file
+# pycryptodome==3.22.0              # installed from whl file
 pypomes_core==1.8.5
 pypomes_db==1.9.7
-pypomes_http==0.5.2
-pypomes_logging==0.5.1
-pypomes_s3==0.7.6
+pypomes_http==0.5.7
+pypomes_logging==0.5.2
+pypomes_s3==0.7.7
 python-dateutil==2.9.0
 SQLAlchemy==2.0.39
 URLObject==2.4.3

@@ -35,17 +35,20 @@ def migrate_plain(errors: list[str],
                            engine=target_rdbms,
                            connection=target_conn,
                            logger=logger):
-            # yes, is a nonempty target table an issue ?
-            if skip_nonempty and (db_count(errors=errors,
-                                           table=target_table,
-                                           engine=target_rdbms,
-                                           connection=target_conn) or 0) > 0:
+            # yes, define whether this is an incremental migration
+            limit_count: int = incremental_migration.get(table_name)
+
+            # is a nonempty target table an issue ?
+            if skip_nonempty and not limit_count and \
+                    (db_count(errors=errors,
+                              table=target_table,
+                              engine=target_rdbms,
+                              connection=target_conn) or 0) > 0:
                 # yes, skip it
                 logger.debug(msg=f"Skipped nonempty {target_rdbms}.{target_table}")
                 table_data["plain-status"] = "skipped"
             elif not errors:
                 # no, proceed
-                limit_count: int = incremental_migration.get(table_name)
                 offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []

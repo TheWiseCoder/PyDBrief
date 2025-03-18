@@ -6,7 +6,7 @@
     "contact": {
       "email": "gtnunes@gmail.com"
     },
-    "version": "1.6.8"
+    "version": "1.6.9"
   },
   "externalDocs": {
     "description": "Known more about PyDBrief",
@@ -544,7 +544,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "example": "Value '<datetime>' of 'log_from_datetime' attribute invalid"
+                        "example": "Value '<datetime>' of 'log-from-datetime' attribute invalid"
                       }
                     }
                   }
@@ -603,7 +603,7 @@
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "example": "Value '<log_level>' of 'log_level' attribute invalid"
+                        "example": "Value '<log_level>' of 'log-level' attribute invalid"
                       }
                     }
                   }
@@ -783,7 +783,7 @@
         }
       },
       "LogFromDatetimeParam": {
-        "name": "log_from_datetime",
+        "name": "log-from-datetime",
         "in": "query",
         "description": "Timestamp for the start of the interval",
         "required": false,
@@ -793,7 +793,7 @@
         }
       },
       "LogToDatetimeParam": {
-        "name": "log_to_datetime",
+        "name": "log-to-datetime",
         "in": "query",
         "description": "Timestamp for the end of the interval",
         "required": false,
@@ -803,25 +803,25 @@
         }
       },
       "LogLastDaysParam": {
-        "name": "log_last_days",
+        "name": "log-last-days",
         "in": "query",
-        "description": "How many days to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified",
+        "description": "How many days to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' is specified",
         "required": false,
         "schema": {
           "type": "integer"
         }
       },
       "LogLastHoursParam": {
-        "name": "log_last_hours",
+        "name": "log-last-hours",
         "in": "query",
-        "description": "How many hours to go back for the start of the interval - ignored if 'log_from_datetime' or 'log_to_datetime' are specified",
+        "description": "How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' ise specified",
         "required": false,
         "schema": {
           "type": "integer"
         }
       },
       "LogTimestampParam": {
-        "name": "log_timestamp",
+        "name": "log-timestamp",
         "in": "query",
         "description": "Format for writing the date and time on the log entries. Must comply with Python's syntax for timestamp formatting.",
         "required": false,
@@ -831,7 +831,7 @@
         }
       },
       "LogFilenameParam": {
-        "name": "log_filename",
+        "name": "log-filename",
         "in": "query",
         "description": "Name of the file to save the downloaded data with. If omitted, the browser is requested to display the data, instead.",
         "required": false,
@@ -840,7 +840,7 @@
         }
       },
       "LogFilepathParam": {
-        "name": "log_filepath",
+        "name": "log-filepath",
         "in": "query",
         "description": "The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS standard temporary folder.",
         "required": false,
@@ -850,7 +850,7 @@
         }
       },
       "LogFilemodeParam": {
-        "name": "log_filemode",
+        "name": "log-filemode",
         "in": "query",
         "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents).",
         "required": false,
@@ -864,7 +864,7 @@
         }
       },
       "LogFormatParam": {
-        "name": "log_format",
+        "name": "log-format",
         "in": "query",
         "description": "Describes the information to be written to the log, detailing the format for each item. Very technical, requires knowledge of Python's 'logging' package.",
         "required": false,
@@ -873,7 +873,7 @@
         }
       },
       "LogLevelParam": {
-        "name": "log_level",
+        "name": "log-level",
         "in": "query",
         "description": "The log level. For the meaning of the available levels, refer to the documentation for logging in the C, Java, or Python platforms.",
         "required": false,
@@ -890,7 +890,7 @@
         }
       },
       "LogThreadParam": {
-        "name": "log_thread",
+        "name": "log-thread",
         "in": "query",
         "description": "The thread originating the log entries. Defaults to all threads.",
         "required": false,
@@ -899,9 +899,9 @@
         }
       },
       "LogStyleParam": {
-        "name": "log_style",
+        "name": "log-style",
         "in": "query",
-        "description": "The style used for building the 'log_format' parameter. Very technical, requires knowledge of Python's 'logging' package.",
+        "description": "The style used for building the 'log-format' parameter. Very technical, requires knowledge of Python's 'logging' package.",
         "required": false,
         "schema": {
           "type": "string"
