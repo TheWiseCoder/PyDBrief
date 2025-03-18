@@ -15,7 +15,7 @@ from pypomes_db import (
     DbEngine, DbParam, db_connect
 )
 from pypomes_logging import logging_get_entries, logging_get_params
-from pypomes_s3 import S3Engine
+from pypomes_s3 import S3Engine, S3Param
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
@@ -157,7 +157,7 @@ def migrate(errors: list[str],
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=str(target_s3))
         # avoid displaying the secret key
-        to_s3.pop("secret_key")
+        to_s3.pop(str(S3Param.SECRET_KEY))
         result["target-s3"] = to_s3
     if migration_badge:
         result["migration-badge"] = migration_badge
