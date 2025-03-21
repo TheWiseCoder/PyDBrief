@@ -14,8 +14,7 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from migration.pydb_common import (
-    MIGRATION_BATCH_SIZE_IN, MIGRATION_BATCH_SIZE_OUT,
-    MIGRATION_CHUNK_SIZE, MIGRATION_INCREMENTAL_SIZE,
+    MIGRATION_METRICS, Metrics,
     get_migration_metrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
@@ -126,30 +125,32 @@ def assert_migration(errors: list[str],
 
 def assert_metrics_params(errors: list[str]) -> None:
 
-    if not (MIGRATION_BATCH_SIZE_IN == 0 or
-            1000 <= MIGRATION_BATCH_SIZE_IN <= 10000000):
+    param: int = MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN)
+    if not (param == 0 or 1000 <= param <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
-                                            MIGRATION_BATCH_SIZE_IN,
+                                            param,
                                             [1000, 10000000],
                                             "@batch-size-in"))
-    if not (MIGRATION_BATCH_SIZE_OUT == 0 or
-            1000 <= MIGRATION_BATCH_SIZE_OUT <= 10000000):
+    param = MIGRATION_METRICS.get(Metrics.BATCH_SIZE_OUT)
+    if not (param == 0 or 1000 <= param <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
-                                            MIGRATION_BATCH_SIZE_OUT,
+                                            param,
                                             [1000, 10000000],
                                             "@batch-size-out"))
-    if not 1024 <= MIGRATION_CHUNK_SIZE <= 16777216:
+    param = MIGRATION_METRICS.get(Metrics.CHUNK_SIZE)
+    if not 1024 <= param <= 16777216:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
-                                            MIGRATION_CHUNK_SIZE,
+                                            param,
                                             [1024, 16777216],
                                             "@chunk-size"))
-    if not 1000 <= MIGRATION_INCREMENTAL_SIZE <= 10000000:
+    param = MIGRATION_METRICS.get(Metrics.INCREMENTAL_SIZE)
+    if not 1000 <= param <= 10000000:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
-                                            MIGRATION_INCREMENTAL_SIZE,
+                                            param,
                                             [1000, 10000000],
                                             "@incremental-size"))
 
@@ -258,7 +259,7 @@ def assert_incremental_migration(errors: list[str],
                 else:
                     result[table_name] = size
             else:
-                result[incremental_table] = MIGRATION_INCREMENTAL_SIZE
+                result[incremental_table] = MIGRATION_METRICS.get(Metrics.INCREMENTAL_SIZE)
     except Exception as e:
         exc_err: str = str_sanitize(target_str=exc_format(exc=e,
                                                           exc_info=sys.exc_info()))

@@ -10,7 +10,7 @@ from typing import Any
 from urlobject import URLObject
 
 from migration.pydb_types import is_lob
-from migration.pydb_common import MIGRATION_CHUNK_SIZE
+from migration.pydb_common import MIGRATION_METRICS, Metrics
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -139,7 +139,7 @@ def migrate_lobs(errors: list[str],
                                              offset_count=offset_count,
                                              limit_count=limit_count,
                                              accept_empty=accept_empty,
-                                             chunk_size=MIGRATION_CHUNK_SIZE,
+                                             chunk_size=MIGRATION_METRICS.get(Metrics.CHUNK_SIZE),
                                              logger=logger) or 0
             if errors:
                 status = "none"

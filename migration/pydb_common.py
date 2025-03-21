@@ -1,5 +1,5 @@
+from enum import StrEnum
 from logging import Logger
-from pathlib import Path
 from pypomes_core import (
     APP_PREFIX, env_get_str, dict_jsonify,
     validate_bool, validate_int,
@@ -13,24 +13,32 @@ from pypomes_s3 import (
 )
 from typing import Any, Final
 
+
+class Metrics(StrEnum):
+    """
+    Metrics for migration.
+    """
+    BATCH_SIZE_IN = "batch-size-in"
+    BATCH_SIZE_OUT = "batch-size-out"
+    CHUNK_SIZE = "chunk-size"
+    INCREMENTAL_SIZE = "incremental-size"
+
+
+MIGRATION_METRICS: Final[dict[Metrics, Any]] = {
+    Metrics.BATCH_SIZE_IN: 1000000,
+    Metrics.BATCH_SIZE_OUT: 1000000,
+    Metrics.CHUNK_SIZE: 1048576,
+    Metrics.INCREMENTAL_SIZE: 100000
+}
 REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
-# migration parameters
-MIGRATION_BATCH_SIZE_IN: int = 1000000
-MIGRATION_BATCH_SIZE_OUT: int = 1000000
-MIGRATION_CHUNK_SIZE: int = 1048576
-MIGRATION_INCREMENTAL_SIZE: int = 100000
 
+def get_migration_metrics() -> dict[str, int]:
 
-def get_migration_metrics() -> dict[str, Any]:
-
-    return {
-        "batch-size-in": MIGRATION_BATCH_SIZE_IN,
-        "batch-size-out": MIGRATION_BATCH_SIZE_OUT,
-        "chunk-size": MIGRATION_CHUNK_SIZE,
-        "incremental-size": MIGRATION_INCREMENTAL_SIZE
-    }
+    return dict_jsonify(source=MIGRATION_METRICS,
+                        jsonify_keys=True,
+                        jsonify_values=False)
 
 
 def set_migration_metrics(errors: list[str],
@@ -40,54 +48,50 @@ def set_migration_metrics(errors: list[str],
     # validate the optional 'batch-size-in' parameter
     batch_size_in: int = validate_int(errors=errors,
                                       scheme=scheme,
-                                      attr="batch-size-in",
+                                      attr=str(Metrics.BATCH_SIZE_IN),
                                       min_val=1000,
                                       max_val=10000000,
                                       logger=logger)
     # was it obtained ?
     if batch_size_in:
-        # yes, set the corresponding global parameter
-        global MIGRATION_BATCH_SIZE_IN
-        MIGRATION_BATCH_SIZE_IN = batch_size_in
+        # yes, set the corresponding migration parameter
+        MIGRATION_METRICS[Metrics.BATCH_SIZE_IN] = batch_size_in
 
     # validate the optional 'batch-size-out' parameter
     batch_size_out = validate_int(errors=errors,
                                   scheme=scheme,
-                                  attr="batch-size-out",
+                                  attr=str(Metrics.BATCH_SIZE_OUT),
                                   min_val=1000,
                                   max_val=10000000,
                                   logger=logger)
     # was it obtained ?
     if batch_size_out:
-        # yes, set the corresponding global parameter
-        global MIGRATION_BATCH_SIZE_OUT
-        MIGRATION_BATCH_SIZE_OUT = batch_size_out
+        # yes, set the corresponding migration parameter
+        MIGRATION_METRICS[Metrics.BATCH_SIZE_OUT] = batch_size_out
 
     # validate the optional 'chunk-size' parameter
     chunk_size: int = validate_int(errors=errors,
                                    scheme=scheme,
-                                   attr="chunk-size",
+                                   attr=str(Metrics.CHUNK_SIZE),
                                    min_val=1024,
                                    max_val=16777216,
                                    logger=logger)
     # was it obtained ?
     if chunk_size:
-        # yes, set the corresponding global parameter
-        global MIGRATION_CHUNK_SIZE
-        MIGRATION_CHUNK_SIZE = chunk_size
+        # yes, set the corresponding migration parameter
+        MIGRATION_METRICS[Metrics.CHUNK_SIZE] = chunk_size
 
     # validate the optional 'incremental-size' parameter
     incremental_size: int = validate_int(errors=errors,
                                          scheme=scheme,
-                                         attr="incremental-size",
+                                         attr=str(Metrics.INCREMENTAL_SIZE),
                                          min_val=1000,
                                          max_val=10000000,
                                          logger=logger)
     # was it obtained ?
     if incremental_size:
-        # yes, set the corresponding global parameter
-        global MIGRATION_INCREMENTAL_SIZE
-        MIGRATION_INCREMENTAL_SIZE = incremental_size
+        # yes, set the corresponding migration parameter
+        MIGRATION_METRICS[Metrics.INCREMENTAL_SIZE] = incremental_size
 
 
 def get_rdbms_params(errors: list[str],
@@ -99,10 +103,9 @@ def get_rdbms_params(errors: list[str],
     if isinstance(result, dict):
         result["engine"] = db_engine
         result["version"] = db_get_version(engine=engine)
-        client_path: Path = result.get("client")
-        if client_path:
-            result["client"] = client_path.as_posix()
-        dict_jsonify(result)
+        dict_jsonify(source=result,
+                     jsonify_keys=False,
+                     jsonify_values=True)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -162,11 +165,14 @@ def set_rdbms_params(errors: list[str],
 def get_s3_params(errors: list[str],
                   s3_engine: str) -> dict[str, Any]:
 
-    result: dict[str, Any] = s3_get_params(engine=S3Engine(s3_engine)) \
+    engine: S3Engine = S3Engine(s3_engine) \
                              if s3_engine in S3Engine else None
+    result: dict[str, Any] = s3_get_params(engine=engine)
     if result:
         result["engine"] = s3_engine
-        dict_jsonify(result)
+        dict_jsonify(source=result,
+                     jsonify_keys=False,
+                     jsonify_values=True)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,

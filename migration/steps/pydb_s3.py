@@ -14,7 +14,7 @@ from pypomes_s3 import (
 from pathlib import Path
 from typing import Any
 
-from migration.pydb_common import MIGRATION_CHUNK_SIZE
+from migration.pydb_common import MIGRATION_METRICS, Metrics
 
 
 def s3_migrate_lobs(errors: list[str],
@@ -74,7 +74,7 @@ def s3_migrate_lobs(errors: list[str],
                                        offset_count=offset_count,
                                        limit_count=limit_count,
                                        accept_empty=accept_empty,
-                                       chunk_size=MIGRATION_CHUNK_SIZE,
+                                       chunk_size=MIGRATION_METRICS.get(Metrics.CHUNK_SIZE),
                                        logger=logger):
             # new LOB
             if first_chunk:
