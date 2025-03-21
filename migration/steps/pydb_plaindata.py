@@ -1,6 +1,9 @@
 from logging import Logger
 from pypomes_core import validate_format_error
-from pypomes_db import db_count, db_table_exists, db_migrate_data, DbEngine
+from pypomes_db import (
+    DbEngine, db_is_reserved_word,
+    db_count, db_table_exists, db_migrate_data
+)
 from typing import Any
 
 from migration import pydb_types
@@ -53,18 +56,25 @@ def migrate_plain(errors: list[str],
                 offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
-                column_names: list[str] = []
-                # exclude LOB types
+                source_columns: list[str] = []
+                target_columns: list[str] = []
+
+                # setup source and target columns
                 for column_name, column_data in table_data["columns"].items():
                     column_type: str = column_data.get("source-type")
                     if not pydb_types.is_lob(col_type=column_type):
                         features: list[str] = column_data.get("features", [])
-                        column_names.append(column_name)
+                        source_columns.append(column_name)
+                        if db_is_reserved_word(word=column_name):
+                            target_columns.append(f'"{column_name}"')
+                        else:
+                            target_columns.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
                         elif "primary-key" in features and \
                                 (limit_count or MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN)):
                             orderby_columns.append(column_name)
+
                 if not orderby_columns:
                     suffix: str = f"for table {source_rdbms}.{source_table} having no PKs"
                     if limit_count:
@@ -83,9 +93,10 @@ def migrate_plain(errors: list[str],
                     count: int = (db_migrate_data(errors=errors,
                                                   source_engine=source_rdbms,
                                                   source_table=source_table,
-                                                  source_columns=column_names,
+                                                  source_columns=source_columns,
                                                   target_engine=target_rdbms,
                                                   target_table=target_table,
+                                                  target_columns=target_columns,
                                                   source_conn=source_conn,
                                                   target_conn=target_conn,
                                                   source_committable=True,
