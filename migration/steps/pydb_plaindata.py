@@ -124,6 +124,7 @@ def migrate_plain(errors: list[str],
                 logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
                                  f"to {target_rdbms}.{target_table}, status {status}")
                 result += count
+
         elif not errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "
