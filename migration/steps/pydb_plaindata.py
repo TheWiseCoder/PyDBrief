@@ -66,7 +66,8 @@ def migrate_plain(errors: list[str],
                     if not pydb_types.is_lob(col_type=column_type):
                         features: list[str] = column_data.get("features", [])
                         source_columns.append(column_name)
-                        if db_is_reserved_word(word=column_name):
+                        if db_is_reserved_word(word=column_name,
+                                               engine=target_rdbms):
                             target_columns.append(f'"{column_name}"')
                         else:
                             target_columns.append(column_name)

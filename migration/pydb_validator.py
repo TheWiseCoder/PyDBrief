@@ -93,6 +93,8 @@ def assert_migration(errors: list[str],
                                scheme=scheme)
 
     # validate the source and target RDBMS engines
+    source_rdbms: DbEngine
+    target_rdbms: DbEngine
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
     if source_rdbms and run_mode:
@@ -102,7 +104,7 @@ def assert_migration(errors: list[str],
         db_assert_access(errors=errors,
                          engine=target_rdbms)
     if not errors and \
-       (source_rdbms != "oracle" or target_rdbms != "postgres"):
+       (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
@@ -213,7 +215,7 @@ def assert_override_columns(errors: list[str],
                                                 scheme=scheme,
                                                 attr="override-columns") or []
     try:
-        rdbms: str = scheme.get("to-rdbms")
+        rdbms: DbEngine = DbEngine(scheme.get("to-rdbms"))
         for override_column in override_columns:
             # format of 'override_column' is <column_name>=<column_type>
             column_name: str = override_column[:f"={override_column.rindex('=')-1}"]

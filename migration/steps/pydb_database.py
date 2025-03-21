@@ -12,7 +12,7 @@ def schema_create(errors: list[str],
                   rdbms: DbEngine,
                   logger: Logger) -> None:
 
-    if rdbms == "oracle":
+    if rdbms == DbEngine.ORACLE:
         stmt: str = f"CREATE USER {schema} IDENTIFIED BY {schema}"
     else:
         user: str = db_get_param(key=DbParam.USER,
@@ -65,7 +65,7 @@ def session_restore_restrictions(errors: list[str],
                        engine=rdbms,
                        connection=conn,
                        logger=logger)
-        case "sqlserver":
+        case DbEngine.SQLSERVER:
             pass
 
     logger.debug(msg=f"RDBMS {rdbms}, restored session "
@@ -115,7 +115,7 @@ def view_get_ddl(errors: list[str],
         # yes, create the view in the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
                                .replace(f'"{source_schema}".', f'"{target_schema}".')
-        if source_rdbms == "oracle":
+        if source_rdbms == DbEngine.ORACLE:
             # purge Oracle-specific clauses
             result = result.replace("force editionable ", "")
         # errors ?

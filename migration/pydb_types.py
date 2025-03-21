@@ -511,7 +511,7 @@ LOBS: Final[list[str]] = [
 
 
 def migrate_column(source_rdbms: str,
-                   target_rdbms: str,
+                   target_rdbms: DbEngine,
                    source_schema: str,
                    target_schema: str,
                    native_ordinal: int,
@@ -550,7 +550,7 @@ def migrate_column(source_rdbms: str,
 
     # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
-    if target_rdbms == "postgres" and is_identity and \
+    if target_rdbms == DbEngine.POSTGRES and is_identity and \
        hasattr(source_column.identity, "cache") and \
        source_column.identity.cache == 0:
         source_column.identity.cache = 1
@@ -602,7 +602,7 @@ def migrate_column(source_rdbms: str,
                 type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
-        elif (target_rdbms == "postgres" and (is_pk or is_fk) and
+        elif (target_rdbms == DbEngine.POSTGRES and (is_pk or is_fk) and
               type_equiv in [None, REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC]):
             # Postgres does not accept PK columns of type NUMBER, thus FK columns must follow suit
             if not col_precision or col_precision > 9:
@@ -631,77 +631,79 @@ def migrate_column(source_rdbms: str,
     return result
 
 
-def establish_equivalences(source_rdbms: str,
-                           target_rdbms: str) -> tuple[int, int, list[tuple]]:
+def establish_equivalences(source_rdbms: DbEngine,
+                           target_rdbms: DbEngine) -> tuple[int, int, list[tuple]]:
 
     # make 'nat_equivalences' point to the appropriate list
     nat_equivalences: list[tuple] | None = None
     match source_rdbms:
-        case "mysql":
+        case DbEngine.MYSQL:
             nat_equivalences = MSQL_EQUIVALENCES
-        case "oracle":
+        case DbEngine.ORACLE:
             nat_equivalences = ORCL_EQUIVALENCES
-        case "postgres":
+        case DbEngine.POSTGRES:
             nat_equivalences = PG_EQUIVALENCES
-        case "sqlserver":
+        case DbEngine.SQLSERVER:
             nat_equivalences = SQLS_EQUIVALENCES
 
     # establish the ordinals
     nat_ordinal: int | None = None
     ref_ordinal: int | None = None
     match target_rdbms:
-        case "mysql":
+        case DbEngine.MYSQL:
             ref_ordinal = 1
             match source_rdbms:
-                case "oracle":
+                case DbEngine.ORACLE:
                     nat_ordinal = 1
-                case "postgres":
+                case DbEngine.POSTGRES:
                     nat_ordinal = 2
-                case "sqlserver":
+                case DbEngine.SQLSERVER:
                     nat_ordinal = 3
-        case "oracle":
+        case DbEngine.ORACLE:
             ref_ordinal = 2
             match source_rdbms:
-                case "mysql":
+                case DbEngine.MYSQL:
                     nat_ordinal = 1
-                case "postgres":
+                case DbEngine.POSTGRES:
                     nat_ordinal = 2
-                case "sqlserver":
+                case DbEngine.SQLSERVER:
                     nat_ordinal = 3
-        case "postgres":
+        case DbEngine.POSTGRES:
             ref_ordinal = 3
             match source_rdbms:
-                case "mysql":
+                case DbEngine.MYSQL:
                     nat_ordinal = 1
-                case "oracle":
+                case DbEngine.ORACLE:
                     nat_ordinal = 2
-                case "sqlserver":
+                case DbEngine.SQLSERVER:
                     nat_ordinal = 3
-        case "sqlserver":
+        case DbEngine.SQLSERVER:
             ref_ordinal = 4
             match source_rdbms:
-                case "mysql":
+                case DbEngine.MYSQL:
                     nat_ordinal = 1
-                case "oracle":
+                case DbEngine.ORACLE:
                     nat_ordinal = 2
-                case "postgres":
+                case DbEngine.POSTGRES:
                     nat_ordinal = 3
 
     return nat_ordinal, ref_ordinal, nat_equivalences
 
 
-def name_to_type(rdbms: str,
+def name_to_type(rdbms: DbEngine,
                  type_name: str) -> Type:
+
     prefix: str = str_positional(source=rdbms,
-                                 list_origin=["mysql", "oracle", "postgres", "sqlserver"],
+                                 list_origin=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
                                  list_dest=["msql", "orcl", "pg", "sqls"])
     return COLUMN_TYPES.get(f"{prefix}_{type_name}")
 
 
 def type_to_name(rdbms: DbEngine,
                  col_type: Type) -> str:
-    prefix: str = str_positional(source=str(rdbms),
-                                 list_origin=["mysql", "oracle", "postgres", "sqlserver"],
+
+    prefix: str = str_positional(source=rdbms,
+                                 list_origin=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
                                  list_dest=["msql", "orcl", "pg", "sqls"]) + "_"
     key: str = dict_get_key(source={key: value for (key, value)
                                     in COLUMN_TYPES.items() if key.startswith(prefix)},
