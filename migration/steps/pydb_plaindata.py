@@ -8,7 +8,7 @@ from typing import Any
 
 from migration import pydb_types
 from migration.pydb_common import MIGRATION_METRICS, Metrics
-from migration.steps import pydb_database
+from migration.steps.pydb_database import check_embedded_nulls
 
 
 def migrate_plain(errors: list[str],
@@ -47,10 +47,11 @@ def migrate_plain(errors: list[str],
                     (db_count(errors=errors,
                               table=target_table,
                               engine=target_rdbms,
-                              connection=target_conn) or 0) > 0:
+                              connection=target_conn) or 0) > 0 and not errors:
                 # yes, skip it
                 logger.debug(msg=f"Skipped nonempty {target_rdbms}.{target_table}")
                 table_data["plain-status"] = "skipped"
+
             elif not errors:
                 # no, proceed
                 offset_count: int = -1 if limit_count else None
@@ -89,40 +90,40 @@ def migrate_plain(errors: list[str],
                         warn: str = f"Batch reading specified {suffix}"
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
-                if not errors:
-                    count: int = (db_migrate_data(errors=errors,
-                                                  source_engine=source_rdbms,
-                                                  source_table=source_table,
-                                                  source_columns=source_columns,
-                                                  target_engine=target_rdbms,
-                                                  target_table=target_table,
-                                                  target_columns=target_columns,
-                                                  source_conn=source_conn,
-                                                  target_conn=target_conn,
-                                                  source_committable=True,
-                                                  target_committable=True,
-                                                  orderby_clause=", ".join(orderby_columns),
-                                                  offset_count=offset_count,
-                                                  limit_count=limit_count,
-                                                  identity_column=identity_column,
-                                                  batch_size_in=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN),
-                                                  batch_size_out=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_OUT),
-                                                  has_nulls=table_name in remove_nulls,
-                                                  logger=logger) or 0) if not errors else 0
-                    if errors:
-                        pydb_database.check_embedded_nulls(errors=errors,
-                                                           rdbms=target_rdbms,
-                                                           table=target_table,
-                                                           logger=logger)
-                        status: str = "error"
-                    else:
-                        status: str = "ok"
 
-                    table_data["plain-status"] = status
-                    table_data["plain-count"] = count
-                    logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
-                                     f"to {target_rdbms}.{target_table}, status {status}")
-                    result += count
+                count: int = (db_migrate_data(errors=errors,
+                                              source_engine=source_rdbms,
+                                              source_table=source_table,
+                                              source_columns=source_columns,
+                                              target_engine=target_rdbms,
+                                              target_table=target_table,
+                                              target_columns=target_columns,
+                                              source_conn=source_conn,
+                                              target_conn=target_conn,
+                                              source_committable=True,
+                                              target_committable=True,
+                                              orderby_clause=", ".join(orderby_columns),
+                                              offset_count=offset_count,
+                                              limit_count=limit_count,
+                                              identity_column=identity_column,
+                                              batch_size_in=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN),
+                                              batch_size_out=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_OUT),
+                                              has_nulls=table_name in remove_nulls,
+                                              logger=logger) or 0) if not errors else 0
+                if errors:
+                    check_embedded_nulls(errors=errors,
+                                         rdbms=target_rdbms,
+                                         table=target_table,
+                                         logger=logger)
+                    status: str = "error"
+                else:
+                    status: str = "ok"
+
+                table_data["plain-status"] = status
+                table_data["plain-count"] = count
+                logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
+                                 f"to {target_rdbms}.{target_table}, status {status}")
+                result += count
         elif not errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "
@@ -131,7 +132,6 @@ def migrate_plain(errors: list[str],
             # 101: {}
             errors.append(validate_format_error(101,
                                                 err_msg))
-        # errors ?
         if errors:
             # yes, abort the plaindata migration
             break
