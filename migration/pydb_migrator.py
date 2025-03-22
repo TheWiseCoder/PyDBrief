@@ -121,15 +121,15 @@ def migrate(errors: list[str],
             logger: Logger) -> dict[str, Any]:
 
     started: str = datetime.now().strftime(format=DATETIME_FORMAT_INV)
-    steps: list[str] = []
+    steps: list = []
     if step_metadata:
-        steps.append(MigrationConfig.MIGRATE_METADATA)
+        steps.append(MigrationConfig.MIGRATE_METADATA.value)
     if step_plaindata:
-        steps.append(MigrationConfig.MIGRATE_PLAINDATA)
+        steps.append(MigrationConfig.MIGRATE_PLAINDATA.value)
     if step_lobdata:
-        steps.append(MigrationConfig.MIGRATE_LOBDATA)
+        steps.append(MigrationConfig.MIGRATE_LOBDATA.value)
     if step_synchronize:
-        steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA)
+        steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA.value)
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   db_engine=source_rdbms)
@@ -144,7 +144,7 @@ def migrate(errors: list[str],
     to_rdbms.pop(str(DbParam.PWD))
 
     # initialize the return variable
-    result: dict[str, Any] = {
+    result: dict = {
         "colophon": {
             app_name: app_version,
             "Foundations": pypomes_versions()
@@ -161,37 +161,37 @@ def migrate(errors: list[str],
         to_s3.pop(str(S3Param.SECRET_KEY))
         result["target-s3"] = to_s3
     if migration_badge:
-        result[MigrationConfig.MIGRATION_BADGE] = migration_badge
+        result[MigrationConfig.MIGRATION_BADGE.value] = migration_badge
     if process_indexes:
-        result[MigrationConfig.PROCESS_INDEXES] = process_indexes
+        result[MigrationConfig.PROCESS_INDEXES.value] = process_indexes
     if process_views:
-        result[MigrationConfig.PROCESS_VIEWS] = process_views
+        result[MigrationConfig.PROCESS_VIEWS.value] = process_views
     if include_relations:
-        result[MigrationConfig.INCLUDE_RELATIONS] = include_relations
+        result[MigrationConfig.INCLUDE_RELATIONS.value] = include_relations
     if exclude_relations:
-        result[MigrationConfig.EXCLUDE_RELATIONS] = exclude_relations
+        result[MigrationConfig.EXCLUDE_RELATIONS.value] = exclude_relations
     if exclude_constraints:
-        result[MigrationConfig.EXCLUDE_CONSTRAINTS] = exclude_constraints
+        result[MigrationConfig.EXCLUDE_CONSTRAINTS.value] = exclude_constraints
     if exclude_columns:
-        result[MigrationConfig.EXCLUDE_COLUMNS] = exclude_columns
+        result[MigrationConfig.EXCLUDE_COLUMNS.value] = exclude_columns
     if override_columns:
-        result[MigrationConfig.OVERRIDE_COLUMNS] = override_columns
+        result[MigrationConfig.OVERRIDE_COLUMNS.value] = override_columns
     if relax_reflection:
-        result[MigrationConfig.RELAX_REFLECTION] = relax_reflection
+        result[MigrationConfig.RELAX_REFLECTION.value] = relax_reflection
     if accept_empty:
-        result[MigrationConfig.ACCEPT_EMPTY] = accept_empty
+        result[MigrationConfig.ACCEPT_EMPTY.value] = accept_empty
     if skip_nonempty:
-        result[MigrationConfig.SKIP_NONEMPTY] = skip_nonempty
+        result[MigrationConfig.SKIP_NONEMPTY.value] = skip_nonempty
     if reflect_filetype:
-        result[MigrationConfig.REFLECT_FILETYPE] = reflect_filetype
+        result[MigrationConfig.REFLECT_FILETYPE.value] = reflect_filetype
     if flatten_storage:
-        result[MigrationConfig.FLATTEN_STORAGE] = flatten_storage
+        result[MigrationConfig.FLATTEN_STORAGE.value] = flatten_storage
     if remove_nulls:
-        result[MigrationConfig.REMOVE_NULLS] = remove_nulls
+        result[MigrationConfig.REMOVE_NULLS.value] = remove_nulls
     if incremental_migration:
-        result[MigrationConfig.INCREMENTAL_MIGRATION] = incremental_migration
+        result[MigrationConfig.INCREMENTAL_MIGRATION.value] = incremental_migration
     if named_lobdata:
-        result[MigrationConfig.NAMED_LOBDATA] = named_lobdata
+        result[MigrationConfig.NAMED_LOBDATA.value] = named_lobdata
 
     # handle warnings as errors
     warnings.filterwarnings(action="error")
