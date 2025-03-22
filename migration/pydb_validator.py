@@ -78,7 +78,7 @@ def assert_rdbms_dual(errors: list[str],
                                    scheme=scheme,
                                    attr=MigrationConfig.FROM_RDBMS,
                                    values=list(map(str, DbEngine)))
-    if not errors and DbEngine(from_rdbms) not in engines:
+    if from_rdbms and DbEngine(from_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             from_rdbms,
@@ -89,7 +89,7 @@ def assert_rdbms_dual(errors: list[str],
                                  scheme=scheme,
                                  attr=MigrationConfig.TO_RDBMS,
                                  values=list(map(str, DbEngine)))
-    if not errors and DbEngine(to_rdbms) not in engines:
+    if to_rdbms and DbEngine(to_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             to_rdbms,
@@ -101,7 +101,6 @@ def assert_rdbms_dual(errors: list[str],
         errors.append(validate_format_error(126,
                                             to_rdbms,
                                             f"@'({MigrationConfig.FROM_RDBMS}, {MigrationConfig.TO_RDBMS})'"))
-
     if not errors:
         result = (DbEngine(from_rdbms), DbEngine(to_rdbms))
 
@@ -125,35 +124,33 @@ def assert_migration(errors: list[str],
     target_rdbms: DbEngine
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
+
     if source_rdbms and run_mode:
         db_assert_access(errors=errors,
                          engine=source_rdbms)
+
     if target_rdbms and run_mode:
         db_assert_access(errors=errors,
                          engine=target_rdbms)
-    if not errors and \
-       (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
+
+    if source_rdbms and target_rdbms and \
+            (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
                                             "been validated yet. For details, please email the developer."))
     # validate S3
-    op_errors: list[str] = []
-    to_s3: str = validate_str(errors=op_errors,
+    to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr=MigrationConfig.TO_S3,
                               values=list(map(str, S3Engine)))
-    if op_errors:
-        errors.extend(op_errors)
-    elif to_s3:
-        s3_engine: S3Engine = S3Engine(to_s3)
-        if s3_engine and run_mode and not s3_assert_access(errors=errors,
-                                                           engine=s3_engine):
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                to_s3,
-                                                "unknown or unconfigured S3 engine",
-                                                f"@{MigrationConfig.TO_S3}"))
+    if to_s3 and run_mode and not s3_assert_access(errors=errors,
+                                                   engine=S3Engine(to_s3)):
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            to_s3,
+                                            "unknown or unconfigured S3 engine",
+                                            f"@{MigrationConfig.TO_S3}"))
 
 
 def assert_metrics_params(errors: list[str]) -> None:
