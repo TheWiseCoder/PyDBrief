@@ -123,13 +123,13 @@ def migrate(errors: list[str],
     started: str = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     steps: list[str] = []
     if step_metadata:
-        steps.append("migrate-metadata")
+        steps.append(MigrationConfig.MIGRATE_METADATA)
     if step_plaindata:
-        steps.append("migrate-plaindata")
+        steps.append(MigrationConfig.MIGRATE_PLAINDATA)
     if step_lobdata:
-        steps.append("migrate-lobdata")
+        steps.append(MigrationConfig.MIGRATE_LOBDATA)
     if step_synchronize:
-        steps.append("synchronize-plaindata")
+        steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA)
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   db_engine=source_rdbms)
