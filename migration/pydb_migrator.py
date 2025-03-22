@@ -20,9 +20,9 @@ from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from migration.pydb_common import (
-    REGISTRY_DOCKER, REGISTRY_HOST,
     get_rdbms_params, get_s3_params, get_migration_metrics
 )
+from app_constants import REGISTRY_DOCKER, REGISTRY_HOST
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
 )
@@ -131,13 +131,13 @@ def migrate(errors: list[str],
         steps.append("synchronize-plaindata")
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                  db_engine=str(source_rdbms))
+                                                  db_engine=source_rdbms)
     from_rdbms["schema"] = source_schema
     # avoid displaying the password
     from_rdbms.pop(str(DbParam.PWD))
 
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                db_engine=str(target_rdbms))
+                                                db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
     to_rdbms.pop(str(DbParam.PWD))
@@ -155,7 +155,7 @@ def migrate(errors: list[str],
     }
     if target_s3:
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
-                                              s3_engine=str(target_s3))
+                                              s3_engine=target_s3)
         # avoid displaying the secret key
         to_s3.pop(str(S3Param.SECRET_KEY))
         result["target-s3"] = to_s3

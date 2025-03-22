@@ -93,6 +93,7 @@ lint.ignore = [
     "RUF013",   # implicit Optional in type annotations when the default parameter value is None
     "RUF022",   # __all__ is not sorted
     "S104",     # possible binding to all interfaces
+    "S105",     # hardcoded-password-string
     "S113",     # probable use of requests call without timeout
     "S301",     # 'pickle' and modules that wrap it can be unsafe when used to deserialize untrusted data
     "S608",     # possible SQL injection vector through string-based query construction

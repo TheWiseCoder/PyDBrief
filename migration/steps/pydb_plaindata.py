@@ -7,7 +7,7 @@ from pypomes_db import (
 from typing import Any
 
 from migration import pydb_types
-from migration.pydb_common import MIGRATION_METRICS, Metrics
+from migration.pydb_common import MIGRATION_METRICS, MetricsConfig
 from migration.steps.pydb_database import check_embedded_nulls
 
 
@@ -74,7 +74,7 @@ def migrate_plain(errors: list[str],
                         if "identity" in features:
                             identity_column = column_name
                         elif "primary-key" in features and \
-                                (limit_count or MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN)):
+                                (limit_count or MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_IN)):
                             orderby_columns.append(column_name)
 
                 if not orderby_columns:
@@ -87,7 +87,7 @@ def migrate_plain(errors: list[str],
                         warn: str = f"Reading offset specified {suffix}"
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
-                    if MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN):
+                    if MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_IN):
                         warn: str = f"Batch reading specified {suffix}"
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
@@ -107,8 +107,8 @@ def migrate_plain(errors: list[str],
                                              offset_count=offset_count,
                                              limit_count=limit_count,
                                              identity_column=identity_column,
-                                             batch_size_in=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_IN),
-                                             batch_size_out=MIGRATION_METRICS.get(Metrics.BATCH_SIZE_OUT),
+                                             batch_size_in=MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_IN),
+                                             batch_size_out=MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_OUT),
                                              has_nulls=table_name in remove_nulls,
                                              logger=logger) or 0
                 if errors:

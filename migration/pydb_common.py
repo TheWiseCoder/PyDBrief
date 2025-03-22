@@ -1,7 +1,7 @@
-from enum import StrEnum
+
 from logging import Logger
 from pypomes_core import (
-    APP_PREFIX, env_get_str, dict_jsonify,
+    dict_jsonify,
     validate_bool, validate_int,
     validate_format_error, validate_str
 )
@@ -13,25 +13,14 @@ from pypomes_s3 import (
 )
 from typing import Any, Final
 
+from app_constants import DbConfig, S3Config, MetricsConfig
 
-class Metrics(StrEnum):
-    """
-    Metrics for migration.
-    """
-    BATCH_SIZE_IN = "batch-size-in"
-    BATCH_SIZE_OUT = "batch-size-out"
-    CHUNK_SIZE = "chunk-size"
-    INCREMENTAL_SIZE = "incremental-size"
-
-
-MIGRATION_METRICS: Final[dict[Metrics, Any]] = {
-    Metrics.BATCH_SIZE_IN: 1000000,
-    Metrics.BATCH_SIZE_OUT: 1000000,
-    Metrics.CHUNK_SIZE: 1048576,
-    Metrics.INCREMENTAL_SIZE: 100000
+MIGRATION_METRICS: Final[dict[MetricsConfig, Any]] = {
+    MetricsConfig.BATCH_SIZE_IN: 1000000,
+    MetricsConfig.BATCH_SIZE_OUT: 1000000,
+    MetricsConfig.CHUNK_SIZE: 1048576,
+    MetricsConfig.INCREMENTAL_SIZE: 100000
 }
-REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
-REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 
 def get_migration_metrics() -> dict[str, int]:
@@ -48,68 +37,66 @@ def set_migration_metrics(errors: list[str],
     # validate the optional 'batch-size-in' parameter
     batch_size_in: int = validate_int(errors=errors,
                                       scheme=scheme,
-                                      attr=str(Metrics.BATCH_SIZE_IN),
+                                      attr=str(MetricsConfig.BATCH_SIZE_IN),
                                       min_val=1000,
                                       max_val=10000000,
                                       logger=logger)
     # was it obtained ?
     if batch_size_in:
         # yes, set the corresponding migration parameter
-        MIGRATION_METRICS[Metrics.BATCH_SIZE_IN] = batch_size_in
+        MIGRATION_METRICS[MetricsConfig.BATCH_SIZE_IN] = batch_size_in
 
     # validate the optional 'batch-size-out' parameter
     batch_size_out = validate_int(errors=errors,
                                   scheme=scheme,
-                                  attr=str(Metrics.BATCH_SIZE_OUT),
+                                  attr=str(MetricsConfig.BATCH_SIZE_OUT),
                                   min_val=1000,
                                   max_val=10000000,
                                   logger=logger)
     # was it obtained ?
     if batch_size_out:
         # yes, set the corresponding migration parameter
-        MIGRATION_METRICS[Metrics.BATCH_SIZE_OUT] = batch_size_out
+        MIGRATION_METRICS[MetricsConfig.BATCH_SIZE_OUT] = batch_size_out
 
     # validate the optional 'chunk-size' parameter
     chunk_size: int = validate_int(errors=errors,
                                    scheme=scheme,
-                                   attr=str(Metrics.CHUNK_SIZE),
+                                   attr=str(MetricsConfig.CHUNK_SIZE),
                                    min_val=1024,
                                    max_val=16777216,
                                    logger=logger)
     # was it obtained ?
     if chunk_size:
         # yes, set the corresponding migration parameter
-        MIGRATION_METRICS[Metrics.CHUNK_SIZE] = chunk_size
+        MIGRATION_METRICS[MetricsConfig.CHUNK_SIZE] = chunk_size
 
     # validate the optional 'incremental-size' parameter
     incremental_size: int = validate_int(errors=errors,
                                          scheme=scheme,
-                                         attr=str(Metrics.INCREMENTAL_SIZE),
+                                         attr=str(MetricsConfig.INCREMENTAL_SIZE),
                                          min_val=1000,
                                          max_val=10000000,
                                          logger=logger)
     # was it obtained ?
     if incremental_size:
         # yes, set the corresponding migration parameter
-        MIGRATION_METRICS[Metrics.INCREMENTAL_SIZE] = incremental_size
+        MIGRATION_METRICS[MetricsConfig.INCREMENTAL_SIZE] = incremental_size
 
 
 def get_rdbms_params(errors: list[str],
-                     db_engine: str) -> dict[str, Any]:
+                     db_engine: DbEngine) -> dict[str, Any]:
 
-    engine: DbEngine = DbEngine(db_engine) \
-                       if db_engine in DbEngine else None
-    result: dict[str, Any] = db_get_params(engine=engine)
+    result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
-        result["engine"] = db_engine
-        result["version"] = db_get_version(engine=engine)
+        result["engine"] = db_engine.value
+        result["version"] = db_get_version(engine=db_engine)
         dict_jsonify(source=result,
                      jsonify_keys=False,
                      jsonify_values=True)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            db_engine,
+                                            str(db_engine),
                                             "unknown or unconfigured RDBMS engine", "@rdbms"))
     return result
 
@@ -119,37 +106,36 @@ def set_rdbms_params(errors: list[str],
 
     db_engine: str = validate_str(errors=errors,
                                   scheme=scheme,
-                                  attr="db-engine",
+                                  attr=DbConfig.ENGINE,
                                   values=list(map(str, DbEngine)),
                                   required=True)
     db_name: str = validate_str(errors=errors,
                                 scheme=scheme,
-                                attr="db-name",
+                                attr=DbConfig.NAME,
                                 required=True)
     db_host: str = validate_str(errors=errors,
                                 scheme=scheme,
-                                attr="db-host",
+                                attr=DbConfig.HOST,
                                 required=True)
     db_port: int = validate_int(errors=errors,
                                 scheme=scheme,
-                                attr="db-port",
+                                attr=DbConfig.PORT,
                                 min_val=1,
                                 required=True)
     db_user: str = validate_str(errors=errors,
                                 scheme=scheme,
-                                attr="db-user",
+                                attr=DbConfig.USER,
                                 required=True)
     db_pwd: str = validate_str(errors=errors,
                                scheme=scheme,
-                               attr="db-pwd",
+                               attr=DbConfig.PWD,
                                required=True)
     db_client: str = validate_str(errors=errors,
                                   scheme=scheme,
-                                  attr="db-client")
+                                  attr=DbConfig.CLIENT)
     db_driver: str = validate_str(errors=errors,
                                   scheme=scheme,
-                                  attr="db-driver")
-    # noinspection PyTypeChecker
+                                  attr=DbConfig.DRIVER)
     if not errors and not db_setup(engine=DbEngine(db_engine),
                                    db_name=db_name,
                                    db_host=db_host,
@@ -163,20 +149,18 @@ def set_rdbms_params(errors: list[str],
 
 
 def get_s3_params(errors: list[str],
-                  s3_engine: str) -> dict[str, Any]:
+                  s3_engine: S3Engine) -> dict[str, Any]:
 
-    engine: S3Engine = S3Engine(s3_engine) \
-                             if s3_engine in S3Engine else None
-    result: dict[str, Any] = s3_get_params(engine=engine)
+    result: dict[str, Any] = s3_get_params(engine=s3_engine)
     if result:
-        result["engine"] = s3_engine
+        result["engine"] = s3_engine.value
         dict_jsonify(source=result,
                      jsonify_keys=False,
                      jsonify_values=True)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            s3_engine,
+                                            s3_engine.value,
                                             "unknown or unconfigured S3 engine", "@s3-engine"))
     return result
 
@@ -186,31 +170,31 @@ def set_s3_params(errors: list[str],
 
     engine: str = validate_str(errors=errors,
                                scheme=scheme,
-                               attr="s3-engine",
+                               attr=S3Config.ENGINE,
                                values=list(map(str, S3Engine)),
                                required=True)
     endpoint_url: str = validate_str(errors=errors,
                                      scheme=scheme,
-                                     attr="s3-endpoint-url",
+                                     attr=S3Config.ENDPOINT_URL,
                                      required=True)
     bucket_name: str = validate_str(errors=errors,
                                     scheme=scheme,
-                                    attr="s3-bucket-name",
+                                    attr=S3Config.BUCKET_NAME,
                                     required=True)
     access_key: str = validate_str(errors=errors,
                                    scheme=scheme,
-                                   attr="s3-access-key",
+                                   attr=S3Config.ACCESS_KEY,
                                    required=True)
     secret_key: str = validate_str(errors=errors,
                                    scheme=scheme,
-                                   attr="s3-secret-key",
+                                   attr=S3Config.SECRET_KEY,
                                    required=True)
     region_name: str = validate_str(errors=errors,
                                     scheme=scheme,
-                                    attr="s3-region-name")
+                                    attr=S3Config.REGION_NAME)
     secure_access: bool = validate_bool(errors=errors,
                                         scheme=scheme,
-                                        attr="s3-secure-access")
+                                        attr=S3Config.SECURE_ACCESS)
     # noinspection PyTypeChecker
     if not errors and not s3_setup(engine=S3Engine(engine),
                                    endpoint_url=endpoint_url,

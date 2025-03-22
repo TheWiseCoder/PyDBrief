@@ -12,7 +12,7 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
     pypomes_versions, exc_format,
-    str_to_lower, str_as_list, validate_format_errors
+    str_as_list, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
@@ -21,6 +21,7 @@ from pypomes_http import (
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
 
+from app_constants import MigrationConfig
 from migration.pydb_common import (
     get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params,
@@ -104,9 +105,9 @@ def version() -> Response:
 
 @flask_app.route(rule="/rdbms",
                  methods=["POST"])
-@flask_app.route(rule="/rdbms/<db_engine>",
+@flask_app.route(rule="/rdbms/<engine>",
                  methods=["GET"])
-def handle_rdbms(db_engine: str = None) -> Response:
+def handle_rdbms(engine: str = None) -> Response:
     """
     Entry point for configuring the RDBMS to use.
 
@@ -120,13 +121,14 @@ def handle_rdbms(db_engine: str = None) -> Response:
         - *db-client*: the client package (Oracle, only)
         - *db-driver*: the database access driver (SQLServer, only)
 
-    :param db_engine: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+    :param engine: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
     """
     # initialize the errors list
     errors: list[str] = []
 
     # retrieve and validate the input parameters
+    db_engine: DbEngine = DbEngine(engine) if engine in DbEngine else None
     scheme: dict[str, Any] = http_get_parameters(request=request)
     assert_params(errors=errors,
                   service="/rdbms",
@@ -158,9 +160,9 @@ def handle_rdbms(db_engine: str = None) -> Response:
 
 @flask_app.route(rule="/s3",
                  methods=["POST"])
-@flask_app.route(rule="/s3/<s3_engine>",
+@flask_app.route(rule="/s3/<engine>",
                  methods=["GET"])
-def handle_s3(s3_engine: str = None) -> Response:
+def handle_s3(engine: str = None) -> Response:
     """
     Entry point for configuring the S3 service to use.
 
@@ -173,7 +175,7 @@ def handle_s3(s3_engine: str = None) -> Response:
         - *s3-region-name*: the name of the region where the engine is located (AWS only)
         - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
 
-    :param s3_engine: the reference S3 engine (*aws* or *minio*)
+    :param engine: the reference S3 engine (*aws* or *minio*)
     :return: the operation outcome
     """
     # initialize the errors list
@@ -188,6 +190,7 @@ def handle_s3(s3_engine: str = None) -> Response:
 
     reply: dict | None = None
     if not errors:
+        s3_engine: S3Engine = S3Engine(engine) if engine else None
         if request.method == "GET":
             # get S3 access params
             reply = get_s3_params(errors=errors,
@@ -197,7 +200,6 @@ def handle_s3(s3_engine: str = None) -> Response:
             set_s3_params(errors=errors,
                           scheme=scheme)
             if not errors:
-                s3_engine = scheme.get("s3-engine")
                 reply = {"status": f"S3 '{s3_engine}' configuration updated"}
 
     # build the response
@@ -291,6 +293,7 @@ def migrate_data() -> Response:
         - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
         - *migrate-plaindata*: migrate non-LOB data
         - *migrate-lobdata*: migrate LOBs (large binary objects)
+        - *syncronize-plaindata*: synchronize tables in target database with tables in source database
         - *process-indexes*: whether to migrate indexes (defaults to *False*)
         - *process-views*: whether to migrate views (defaults to *False*)
         - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
@@ -343,34 +346,37 @@ def migrate_data() -> Response:
         # is migration possible ?
         if not errors:
             # yes, obtain the migration parameters
-            source_rdbms: str = scheme.get("from-rdbms").lower()
-            target_rdbms: str = scheme.get("to-rdbms").lower()
-            source_schema: str = scheme.get("from-schema").lower()
-            target_schema: str = scheme.get("to-schema").lower()
-            target_s3: str | None = (scheme.get("to-s3") or "").lower() or None
-            step_metadata: bool = str_to_lower(source=scheme.get("migrate-metadata")) in ["1", "t", "true"]
-            step_plaindata: bool = str_to_lower(source=scheme.get("migrate-plaindata")) in ["1", "t", "true"]
-            step_lobdata: bool = str_to_lower(source=scheme.get("migrate-lobdata")) in ["1", "t", "true"]
-            step_synchronize: bool = str_to_lower(source=scheme.get("synchronize-plaindata")) in ["1", "t", "true"]
-            process_indexes: bool = str_to_lower(source=scheme.get("process-indexes")) in ["1", "t", "true"]
-            process_views: bool = str_to_lower(source=scheme.get("process-views")) in ["1", "t", "true"]
-            relax_reflection: bool = str_to_lower(source=scheme.get("relax-reflection")) in ["1", "t", "true"]
-            accept_empty: bool = str_to_lower(source=scheme.get("accept-empty")) in ["1", "t", "true"]
-            skip_nonempty: bool = str_to_lower(source=scheme.get("skip-nonempty")) in ["1", "t", "true"]
-            reflect_filetype: bool = str_to_lower(source=scheme.get("reflect-filetype")) in ["1", "t", "true"]
-            flatten_storage: bool = str_to_lower(source=scheme.get("flatten-storage")) in ["1", "t", "true"]
-            remove_nulls: list[str] = str_as_list(str_to_lower(source=scheme.get("remove-nulls"))) or []
+            source_rdbms: str = scheme.get(MigrationConfig.FROM_RDBMS).lower()
+            target_rdbms: str = scheme.get(MigrationConfig.TO_RDBMS).lower()
+            source_schema: str = scheme.get(MigrationConfig.FROM_SCHEMA).lower()
+            target_schema: str = scheme.get(MigrationConfig.TO_SCHEMA).lower()
+            target_s3: str = (scheme.get(MigrationConfig.TO_S3) or "").lower()
+            migration_badge: str = scheme.get("migration-badge")
+
+            step_metadata: bool = scheme.get(MigrationConfig.MIGRATE_METADATA, "").lower() in ["1", "t", "true"]
+            step_plaindata: bool = scheme.get(MigrationConfig.MIGRATE_PLAINDATA, "").lower() in ["1", "t", "true"]
+            step_lobdata: bool = scheme.get(MigrationConfig.MIGRATE_LOBDATA, "").lower() in ["1", "t", "true"]
+            step_synchronize: bool = scheme.get(MigrationConfig.SYNCHRONIZE_PLAINDATA, "").lower() in ["1", "t", "true"]
+            process_indexes: bool = scheme.get(MigrationConfig.PROCESS_INDEXES, "").lower() in ["1", "t", "true"]
+            process_views: bool = scheme.get(MigrationConfig.PROCESS_VIEWS, "").lower() in ["1", "t", "true"]
+            relax_reflection: bool = scheme.get(MigrationConfig.RELAX_REFLECTION, "").lower() in ["1", "t", "true"]
+            accept_empty: bool = scheme.get(MigrationConfig.ACCEPT_EMPTY, "").lower() in ["1", "t", "true"]
+            skip_nonempty: bool = scheme.get(MigrationConfig.SKIP_NONEMPTY, "").lower() in ["1", "t", "true"]
+            reflect_filetype: bool = scheme.get(MigrationConfig.REFLECT_FILETYPE, "").lower() in ["1", "t", "true"]
+            flatten_storage: bool = scheme.get(MigrationConfig.FLATTEN_STORAGE, "").lower() in ["1", "t", "true"]
+
+            remove_nulls: list[str] = \
+                str_as_list(scheme.get(MigrationConfig.REMOVE_NULLS, "").lower()) or []
             include_relations: list[str] = \
-                str_as_list(source=str_to_lower(source=scheme.get("include-relations"))) or []
+                str_as_list(scheme.get(MigrationConfig.INCLUDE_RELATIONS, "").lower()) or []
             exclude_relations: list[str] = \
-                str_as_list(source=str_to_lower(source=scheme.get("exclude-relations"))) or []
+                str_as_list(scheme.get(MigrationConfig.EXCLUDE_RELATIONS, "").lower()) or []
             exclude_columns: list[str] = \
-                str_as_list(source=str_to_lower(source=scheme.get("exclude-columns"))) or []
+                str_as_list(scheme.get(MigrationConfig.EXCLUDE_COLUMNS, "").lower()) or []
             exclude_constraints: list[str] = \
-                str_as_list(source=str_to_lower(source=scheme.get("exclude-constraints"))) or []
+                str_as_list(scheme.get(MigrationConfig.EXCLUDE_CONSTRAINTS, "").lower()) or []
             named_lobdata: list[str] = \
-                str_as_list(source=str_to_lower(source=scheme.get("named-lobdata"))) or []
-            migration_badge: str | None = scheme.get("migration-badge")
+                str_as_list(source=scheme.get(MigrationConfig.NAMED_LOBDATA, "").lower()) or []
 
             # migrate the data
             reply = migrate(errors=errors,
