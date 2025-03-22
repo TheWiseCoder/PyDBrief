@@ -9,7 +9,7 @@ oracledb==3.0.0
 pyodbc==5.2.0
 psycopg2-binary==2.9.10
 # pycryptodome==3.22.0              # installed from whl file
-pypomes_core==1.8.8
+pypomes_core==1.8.9
 pypomes_db==2.0.3
 pypomes_http==0.5.7
 pypomes_logging==0.5.3
