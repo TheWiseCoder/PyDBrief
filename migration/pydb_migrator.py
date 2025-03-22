@@ -369,9 +369,9 @@ def log_migration(errors: list[str],
 
     # write the JSON file
     if errors:
-        log_json = dict(log_json)
+        log_json = log_json.copy()
         log_json["errors"] = errors
-    json_data = json.dumps(obj=dict_jsonify(source=log_json),
+    json_data = json.dumps(obj=log_json,
                            ensure_ascii=False,
                            indent=4)
     json_file: Path = Path(base_path,
