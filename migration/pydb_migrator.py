@@ -19,6 +19,7 @@ from pypomes_s3 import S3Engine, S3Param
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
+from app_constants import MigrationConfig
 from migration.pydb_common import (
     get_rdbms_params, get_s3_params, get_migration_metrics
 )
@@ -160,37 +161,37 @@ def migrate(errors: list[str],
         to_s3.pop(str(S3Param.SECRET_KEY))
         result["target-s3"] = to_s3
     if migration_badge:
-        result["migration-badge"] = migration_badge
+        result[MigrationConfig.MIGRATION_BADGE] = migration_badge
     if process_indexes:
-        result["process-indexes"] = process_indexes
+        result[MigrationConfig.PROCESS_INDEXES] = process_indexes
     if process_views:
-        result["process-views"] = process_views
+        result[MigrationConfig.PROCESS_VIEWS] = process_views
     if include_relations:
-        result["include-relations"] = include_relations
+        result[MigrationConfig.INCLUDE_RELATIONS] = include_relations
     if exclude_relations:
-        result["exclude-relations"] = exclude_relations
+        result[MigrationConfig.EXCLUDE_RELATIONS] = exclude_relations
     if exclude_constraints:
-        result["exclude-constraints"] = exclude_constraints
+        result[MigrationConfig.EXCLUDE_CONSTRAINTS] = exclude_constraints
     if exclude_columns:
-        result["exclude-columns"] = exclude_columns
+        result[MigrationConfig.EXCLUDE_COLUMNS] = exclude_columns
     if override_columns:
-        result["override-columns"] = override_columns
+        result[MigrationConfig.OVERRIDE_COLUMNS] = override_columns
     if relax_reflection:
-        result["relax-reflection"] = relax_reflection
+        result[MigrationConfig.RELAX_REFLECTION] = relax_reflection
     if accept_empty:
-        result["accept-empty"] = accept_empty
+        result[MigrationConfig.ACCEPT_EMPTY] = accept_empty
     if skip_nonempty:
-        result["skip-nonempty"] = skip_nonempty
+        result[MigrationConfig.SKIP_NONEMPTY] = skip_nonempty
     if reflect_filetype:
-        result["reflect-filetype"] = reflect_filetype
+        result[MigrationConfig.REFLECT_FILETYPE] = reflect_filetype
     if flatten_storage:
-        result["flatten-storage"] = flatten_storage
+        result[MigrationConfig.FLATTEN_STORAGE] = flatten_storage
     if remove_nulls:
-        result["remove-nulls"] = remove_nulls
+        result[MigrationConfig.REMOVE_NULLS] = remove_nulls
     if incremental_migration:
-        result["incremental-migration"] = incremental_migration
+        result[MigrationConfig.INCREMENTAL_MIGRATION] = incremental_migration
     if named_lobdata:
-        result["named-lobdata"] = named_lobdata
+        result[MigrationConfig.NAMED_LOBDATA] = named_lobdata
 
     # handle warnings as errors
     warnings.filterwarnings(action="error")
