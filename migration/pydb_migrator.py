@@ -192,7 +192,9 @@ def migrate(errors: list[str],
         result[MigrationConfig.INCREMENTAL_MIGRATION.value] = incremental_migration
     if named_lobdata:
         result[MigrationConfig.NAMED_LOBDATA.value] = named_lobdata
-
+    result["logging"] = dict_jsonify(source=logging_get_params(),
+                                     jsonify_keys=False,
+                                     jsonify_values=True)
     # handle warnings as errors
     warnings.filterwarnings(action="error")
 
@@ -323,13 +325,12 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    result["migrated-tables"] = migrated_tables
     result["started"] = started
     result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     if migration_warnings:
         result["warnings"] = migration_warnings
-    result["migrated-tables"] = migrated_tables
     result["total-tables"] = len(migrated_tables)
-    result["logging"] = dict_jsonify(source=logging_get_params())
 
     if migration_badge:
         try:
