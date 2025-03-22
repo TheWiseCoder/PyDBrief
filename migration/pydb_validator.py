@@ -9,7 +9,7 @@ from pypomes_db import (
     DbEngine, db_get_engines, db_assert_access
 )
 from pypomes_s3 import (
-    S3Engine, s3_assert_access
+    S3Engine, s3_get_engines, s3_assert_access
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
@@ -124,33 +124,34 @@ def assert_migration(errors: list[str],
     target_rdbms: DbEngine
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
                                                    scheme=scheme)
-
-    if source_rdbms and run_mode:
-        db_assert_access(errors=errors,
-                         engine=source_rdbms)
-
-    if target_rdbms and run_mode:
-        db_assert_access(errors=errors,
-                         engine=target_rdbms)
-
     if source_rdbms and target_rdbms and \
             (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
                                             "been validated yet. For details, please email the developer."))
+    # verify  database runtime capabilities
+    if source_rdbms and run_mode:
+        db_assert_access(errors=errors,
+                         engine=source_rdbms)
+    if target_rdbms and run_mode:
+        db_assert_access(errors=errors,
+                         engine=target_rdbms)
     # validate S3
     to_s3: str = validate_str(errors=errors,
                               scheme=scheme,
                               attr=MigrationConfig.TO_S3,
                               values=list(map(str, S3Engine)))
-    if to_s3 and run_mode and not s3_assert_access(errors=errors,
-                                                   engine=S3Engine(to_s3)):
-        # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142,
-                                            to_s3,
-                                            "unknown or unconfigured S3 engine",
-                                            f"@{MigrationConfig.TO_S3}"))
+    if to_s3:
+        s3_engine: S3Engine = S3Engine(to_s3)
+        if s3_engine not in s3_get_engines() or \
+                (run_mode and not s3_assert_access(errors=errors,
+                                                   engine=s3_engine)):
+            # 142: Invalid value {}: {}
+            errors.append(validate_format_error(142,
+                                                to_s3,
+                                                "unknown or unconfigured S3 engine",
+                                                f"@{MigrationConfig.TO_S3}"))
 
 
 def assert_metrics_params(errors: list[str]) -> None:
