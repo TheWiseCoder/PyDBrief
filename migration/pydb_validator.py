@@ -138,14 +138,17 @@ def assert_migration(errors: list[str],
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
                                             "been validated yet. For details, please email the developer."))
     # validate S3
-    to_s3: str = validate_str(errors=errors,
+    op_errors: list[str] = []
+    to_s3: str = validate_str(errors=op_errors,
                               scheme=scheme,
                               attr=MigrationConfig.TO_S3,
                               values=list(map(str, S3Engine)))
-    if not errors:
+    if op_errors:
+        errors.extend(op_errors)
+    elif to_s3:
         s3_engine: S3Engine = S3Engine(to_s3)
-        if to_s3 and run_mode and not s3_assert_access(errors=errors,
-                                                       engine=s3_engine):
+        if s3_engine and run_mode and not s3_assert_access(errors=errors,
+                                                           engine=s3_engine):
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,
                                                 to_s3,
@@ -326,7 +329,7 @@ def get_migration_context(errors: list[str],
     # obtain the target S3 parameters
     s3_params: dict[str, Any] | None = None
     s3: str = scheme.get(MigrationConfig.TO_S3)
-    to_s3: S3Engine = S3Engine(s3) if s3 else None
+    to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
     if to_s3:
         s3_params = get_s3_params(errors=errors,
                                   s3_engine=to_s3)
