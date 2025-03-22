@@ -284,41 +284,45 @@ def migrate_data() -> Response:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
 
-    These are the expected parameters:
-        - *from-rdbms*: the source RDBMS for the migration
-        - *from-schema*: the source schema for the migration
-        - *to-rdbms*: the destination RDBMS for the migration
-        - *to-schema*: the destination schema for the migration
-        - *to-s3*: the destination cloud storage for the LOBs
-        - *migrate-metadata*: migrate metadata (this creates or transforms the destination schema)
-        - *migrate-plaindata*: migrate non-LOB data
-        - *migrate-lobdata*: migrate LOBs (large binary objects)
-        - *syncronize-plaindata*: synchronize tables in target database with tables in source database
-        - *process-indexes*: whether to migrate indexes (defaults to *False*)
-        - *process-views*: whether to migrate views (defaults to *False*)
-        - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
-        - *accept-empty*: accounts for empty LOBs on migration
-        - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
-        - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
-        - *flatten-storage*: whether to omit path on LOB migration to S3 storage
-        - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
-        - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
-        - *exclude-constraints*: optional list of constraints not to migrate
-        - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
-        - *remove-nulls*: optional list of tables having columns with embedded NULLs in string data
-        - *exclude-columns*: optional list of table columns not to migrate
-        - *override-columns*: optional list of columns with forced migration types
-        - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-        - *migration-badge*: optional name for JSON and log file creation
+    Sources and targets for the migration:
+      - *from-rdbms*: the source RDBMS for the migration
+      - *from-schema*: the source schema for the migration
+      - *to-rdbms*: the destination RDBMS for the migration
+      - *to-schema*: the destination schema for the migration
+      - *to-s3*: optionally, the destination cloud storage for the LOBs
+
+    Types of migration to be carried out:
+      - *migrate-metadata*: migrate the schema's metadata (this creates or transforms the destination schema)
+      - *migrate-plaindata*: migrate non-LOB data
+      - *migrate-lobdata*: migrate LOBs (large binary objects)
+      - *syncronize-plaindata*: make sure tables in target database have the same content as tables in source database
+
+    Migration parameters:
+      - *process-indexes*: whether to migrate indexes (defaults to *False*)
+      - *process-views*: whether to migrate views (defaults to *False*)
+      - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
+      - *accept-empty*: accounts for empty LOBs on migration
+      - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
+      - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
+      - *flatten-storage*: whether to omit path on LOB migration to S3 storage
+      - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
+      - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
+      - *exclude-constraints*: optional list of constraints not to migrate
+      - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
+      - *remove-nulls*: optional list of tables having columns with embedded NULLs in string data
+      - *exclude-columns*: optional list of table columns not to migrate
+      - *override-columns*: optional list of columns with forced migration types
+      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
+      - *migration-badge*: optional name for JSON and log file creation
 
     These are noteworthy:
-        - the parameters *include-relations* and *exclude-relations* are mutually exclusive
-        - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
-          or that all targeted tables in destination schema exist
-        - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
-          or have already been, migrated.
+      - the parameters *include-relations* and *exclude-relations* are mutually exclusive
+      - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
+        or that all targeted tables in destination schema exist
+      - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
+        or have already been, migrated.
 
-    :return: the operation outcome
+    :return: *Response* with the operation outcome
     """
     # initialize the errors list
     errors: list[str] = []
@@ -350,20 +354,31 @@ def migrate_data() -> Response:
             target_rdbms: str = scheme.get(MigrationConfig.TO_RDBMS).lower()
             source_schema: str = scheme.get(MigrationConfig.FROM_SCHEMA).lower()
             target_schema: str = scheme.get(MigrationConfig.TO_SCHEMA).lower()
-            target_s3: str = (scheme.get(MigrationConfig.TO_S3) or "").lower()
+            target_s3: str = scheme.get(MigrationConfig.TO_S3, "").lower()
             migration_badge: str = scheme.get("migration-badge")
 
-            step_metadata: bool = scheme.get(MigrationConfig.MIGRATE_METADATA, "").lower() in ["1", "t", "true"]
-            step_plaindata: bool = scheme.get(MigrationConfig.MIGRATE_PLAINDATA, "").lower() in ["1", "t", "true"]
-            step_lobdata: bool = scheme.get(MigrationConfig.MIGRATE_LOBDATA, "").lower() in ["1", "t", "true"]
-            step_synchronize: bool = scheme.get(MigrationConfig.SYNCHRONIZE_PLAINDATA, "").lower() in ["1", "t", "true"]
-            process_indexes: bool = scheme.get(MigrationConfig.PROCESS_INDEXES, "").lower() in ["1", "t", "true"]
-            process_views: bool = scheme.get(MigrationConfig.PROCESS_VIEWS, "").lower() in ["1", "t", "true"]
-            relax_reflection: bool = scheme.get(MigrationConfig.RELAX_REFLECTION, "").lower() in ["1", "t", "true"]
-            accept_empty: bool = scheme.get(MigrationConfig.ACCEPT_EMPTY, "").lower() in ["1", "t", "true"]
-            skip_nonempty: bool = scheme.get(MigrationConfig.SKIP_NONEMPTY, "").lower() in ["1", "t", "true"]
-            reflect_filetype: bool = scheme.get(MigrationConfig.REFLECT_FILETYPE, "").lower() in ["1", "t", "true"]
-            flatten_storage: bool = scheme.get(MigrationConfig.FLATTEN_STORAGE, "").lower() in ["1", "t", "true"]
+            step_metadata: bool = \
+                scheme.get(MigrationConfig.MIGRATE_METADATA, "").lower() in ["1", "t", "true"]
+            step_plaindata: bool = \
+                scheme.get(MigrationConfig.MIGRATE_PLAINDATA, "").lower() in ["1", "t", "true"]
+            step_lobdata: bool = \
+                scheme.get(MigrationConfig.MIGRATE_LOBDATA, "").lower() in ["1", "t", "true"]
+            step_synchronize: bool = \
+                scheme.get(MigrationConfig.SYNCHRONIZE_PLAINDATA, "").lower() in ["1", "t", "true"]
+            process_indexes: bool = \
+                scheme.get(MigrationConfig.PROCESS_INDEXES, "").lower() in ["1", "t", "true"]
+            process_views: bool = \
+                scheme.get(MigrationConfig.PROCESS_VIEWS, "").lower() in ["1", "t", "true"]
+            relax_reflection: bool = \
+                scheme.get(MigrationConfig.RELAX_REFLECTION, "").lower() in ["1", "t", "true"]
+            accept_empty: bool = \
+                scheme.get(MigrationConfig.ACCEPT_EMPTY, "").lower() in ["1", "t", "true"]
+            skip_nonempty: bool = \
+                scheme.get(MigrationConfig.SKIP_NONEMPTY, "").lower() in ["1", "t", "true"]
+            reflect_filetype: bool = \
+                scheme.get(MigrationConfig.REFLECT_FILETYPE, "").lower() in ["1", "t", "true"]
+            flatten_storage: bool = \
+                scheme.get(MigrationConfig.FLATTEN_STORAGE, "").lower() in ["1", "t", "true"]
 
             remove_nulls: list[str] = \
                 str_as_list(scheme.get(MigrationConfig.REMOVE_NULLS, "").lower()) or []
