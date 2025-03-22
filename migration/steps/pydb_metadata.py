@@ -12,11 +12,11 @@ from sqlalchemy.exc import SAWarning
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from .pydb_database import column_set_nullable, view_get_ddl
-from .pydb_migration import (
+from migration.steps.pydb_database import column_set_nullable, view_get_ddl
+from migration.steps.pydb_migration import (
     prune_metadata, setup_schema, setup_tables
 )
-from .pydb_engine import build_engine
+from migration.steps.pydb_engine import build_engine
 from migration.pydb_types import is_lob
 
 
