@@ -67,7 +67,6 @@ def migrate_lobs(errors: list[str],
                                                           logger=logger):
             status: str | None = None
             limit_count: int = incremental_migration.get(table_name)
-            offset_count: int = -1 if limit_count else None
             # process the existing LOB columns
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
@@ -116,7 +115,6 @@ def migrate_lobs(errors: list[str],
                                                  pk_columns=pk_columns,
                                                  where_clause=where_clause,
                                                  accept_empty=accept_empty,
-                                                 offset_count=offset_count,
                                                  limit_count=limit_count,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
@@ -136,7 +134,7 @@ def migrate_lobs(errors: list[str],
                                              source_committable=True,
                                              target_committable=True,
                                              where_clause=where_clause,
-                                             offset_count=offset_count,
+                                             offset_count=-1 if limit_count else None,
                                              limit_count=limit_count,
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),

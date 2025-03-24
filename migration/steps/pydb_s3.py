@@ -6,7 +6,9 @@ from pypomes_core import (
     Mimetype,
     file_get_mimetype, file_is_binary, str_from_any
 )
-from pypomes_db import db_stream_lobs
+from pypomes_db import (
+    DbEngine, db_count, db_stream_lobs
+)
 from pypomes_s3 import (
     S3Engine,
     s3_data_store, s3_startup, s3_get_client
@@ -19,16 +21,15 @@ from migration.pydb_common import MIGRATION_METRICS, MetricsConfig
 
 def s3_migrate_lobs(errors: list[str],
                     target_s3: S3Engine,
-                    target_rdbms: str,
+                    target_rdbms: DbEngine,
                     target_table: str,
-                    source_rdbms: str,
+                    source_rdbms: DbEngine,
                     source_table: str,
                     lob_prefix: Path,
                     lob_column: str,
                     pk_columns: list[str],
                     where_clause: str,
                     accept_empty: bool,
-                    offset_count: int,
                     limit_count: int,
                     reflect_filetype: bool,
                     forced_filetype: str,
@@ -38,6 +39,9 @@ def s3_migrate_lobs(errors: list[str],
 
     # initialize the return variable
     result: int = 0
+
+    # initialize the local errors list
+    op_errors: list[str] = []
 
     # start the S3 module and obtain the S3 client
     client: Any = None
@@ -59,6 +63,17 @@ def s3_migrate_lobs(errors: list[str],
         lob_data: bytes = b""
         metadata: dict[str, str] = {}
         first_chunk: bool = True
+
+        # obtain the offset
+        offset_count: int | None = None
+        if limit_count:
+            offset_count = db_count(errors=op_errors,
+                                    table=source_table,
+                                    where_clause=where_clause,
+                                    engine=source_rdbms,
+                                    connection=source_conn,
+                                    committable=True,
+                                    logger=logger)
 
         # get data from the LOB streamer
         # noinspection PyTypeChecker

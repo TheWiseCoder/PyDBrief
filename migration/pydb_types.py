@@ -345,7 +345,7 @@ COLUMN_TYPES: dict[str, Type] = {
     "pg_numrange": PG_NUMRANGE,
     "pg_oid": PG_OID,
     "pg_real": REF_REAL,
-    "pg_": PG_REGCLASS,
+    "pg_regclass": PG_REGCLASS,
     "pg_regconfig": PG_REGCONFIG,
     "pg_smallint": REF_SMALLINT,
     "pg_text": REF_TEXT,
