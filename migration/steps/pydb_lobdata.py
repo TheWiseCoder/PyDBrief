@@ -58,7 +58,6 @@ def migrate_lobs(errors: list[str],
             # 101: {}
             errors.append(validate_format_error(101,
                                                 err_msg))
-
         count: int = 0
         if not errors and lob_columns and db_table_exists(errors=errors,
                                                           table_name=target_table,

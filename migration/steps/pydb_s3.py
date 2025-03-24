@@ -40,9 +40,6 @@ def s3_migrate_lobs(errors: list[str],
     # initialize the return variable
     result: int = 0
 
-    # initialize the local errors list
-    op_errors: list[str] = []
-
     # start the S3 module and obtain the S3 client
     client: Any = None
     if s3_startup(errors=errors,
@@ -67,97 +64,96 @@ def s3_migrate_lobs(errors: list[str],
         # obtain the offset
         offset_count: int | None = None
         if limit_count:
-            offset_count = db_count(errors=op_errors,
+            offset_count = db_count(errors=errors,
                                     table=source_table,
-                                    where_clause=where_clause,
                                     engine=source_rdbms,
                                     connection=source_conn,
                                     committable=True,
                                     logger=logger)
-
-        # get data from the LOB streamer
-        # noinspection PyTypeChecker
-        for row_data in db_stream_lobs(errors=errors,
-                                       table=source_table,
-                                       lob_column=lob_column,
-                                       pk_columns=pk_columns,
-                                       ref_column=named_column,
-                                       engine=source_rdbms,
-                                       connection=source_conn,
-                                       committable=True,
-                                       where_clause=where_clause,
-                                       offset_count=offset_count,
-                                       limit_count=limit_count,
-                                       accept_empty=accept_empty,
-                                       chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
-                                       logger=logger):
-            # new LOB
-            if first_chunk:
-                # the initial data is a 'dict' with the values of:
-                #   - the row's PK columns
-                #   - the lobdata's filename (if 'named_column' was specified)
-                values: list[Any] = []
-                metadata = {
-                    "rdbms": target_rdbms,
-                    "table": target_table
-                }
-                for key, value in sorted(row_data.items()):
-                    if key == named_column:
-                        identifier = value
+        if not errors:
+            # get data from the LOB streamer
+            # noinspection PyTypeChecker
+            for row_data in db_stream_lobs(errors=errors,
+                                           table=source_table,
+                                           lob_column=lob_column,
+                                           pk_columns=pk_columns,
+                                           ref_column=named_column,
+                                           engine=source_rdbms,
+                                           connection=source_conn,
+                                           committable=True,
+                                           where_clause=where_clause,
+                                           offset_count=offset_count,
+                                           limit_count=limit_count,
+                                           accept_empty=accept_empty,
+                                           chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
+                                           logger=logger):
+                # new LOB
+                if first_chunk:
+                    # the initial data is a 'dict' with the values of:
+                    #   - the row's PK columns
+                    #   - the lobdata's filename (if 'named_column' was specified)
+                    values: list[Any] = []
+                    metadata = {
+                        "rdbms": target_rdbms,
+                        "table": target_table
+                    }
+                    for key, value in sorted(row_data.items()):
+                        if key == named_column:
+                            identifier = value
+                        else:
+                            values.append(value)
+                            metadata[key] = str_from_any(source=value)
+                    if not identifier:
+                        # hex-formatted hash on the contents of the row's PK columns
+                        identifier = __build_identifier(values=values)
+                    lob_data = b""
+                    mimetype = None
+                    # noinspection PyUnusedLocal
+                    first_chunk = False
+                # data chunks
+                elif row_data:
+                    # add to LOB data
+                    if isinstance(row_data, bytes):
+                        lob_data += row_data
+                        if not mimetype:
+                            mimetype = Mimetype.BINARY
                     else:
-                        values.append(value)
-                        metadata[key] = str_from_any(source=value)
-                if not identifier:
-                    # hex-formatted hash on the contents of the row's PK columns
-                    identifier = __build_identifier(values=values)
-                lob_data = b""
-                mimetype = None
-                # noinspection PyUnusedLocal
-                first_chunk = False
-            # data chunks
-            elif row_data:
-                # add to LOB data
-                if isinstance(row_data, bytes):
-                    lob_data += row_data
-                    if not mimetype:
-                        mimetype = Mimetype.BINARY
+                        lob_data += bytes(row_data, "utf-8")
+                        if not mimetype:
+                            mimetype = Mimetype.TEXT
+                # no more data
                 else:
-                    lob_data += bytes(row_data, "utf-8")
-                    if not mimetype:
-                        mimetype = Mimetype.TEXT
-            # no more data
-            else:
-                # send LOB data
-                if accept_empty or lob_data:
-                    extension: str = forced_filetype
-                    # has filetype reflection been specified ?
-                    if reflect_filetype:
-                        # yes, determine LOB's mimetype and file extension
-                        mimetype = file_get_mimetype(file_data=lob_data) or \
-                                   Mimetype.BINARY if file_is_binary(file_data=lob_data) else Mimetype.TEXT
-                        extension = mimetypes.guess_extension(type=mimetype)
-                    # add extension
-                    if extension:
-                        identifier += extension
-                    # final consideration on mimetype
-                    if not mimetype:
-                        mimetype = forced_mimetype or Mimetype.BINARY
+                    # send LOB data
+                    if accept_empty or lob_data:
+                        extension: str = forced_filetype
+                        # has filetype reflection been specified ?
+                        if reflect_filetype:
+                            # yes, determine LOB's mimetype and file extension
+                            mimetype = file_get_mimetype(file_data=lob_data) or \
+                                       Mimetype.BINARY if file_is_binary(file_data=lob_data) else Mimetype.TEXT
+                            extension = mimetypes.guess_extension(type=mimetype)
+                        # add extension
+                        if extension:
+                            identifier += extension
+                        # final consideration on mimetype
+                        if not mimetype:
+                            mimetype = forced_mimetype or Mimetype.BINARY
 
-                    # send it to S3
-                    s3_data_store(errors=errors,
-                                  identifier=identifier,
-                                  data=lob_data,
-                                  length=len(lob_data),
-                                  mimetype=mimetype,
-                                  tags=metadata,
-                                  prefix=lob_prefix,
-                                  engine=target_s3,
-                                  client=client,
-                                  logger=logger)
-                    result += 1
+                        # send it to S3
+                        s3_data_store(errors=errors,
+                                      identifier=identifier,
+                                      data=lob_data,
+                                      length=len(lob_data),
+                                      mimetype=mimetype,
+                                      tags=metadata,
+                                      prefix=lob_prefix,
+                                      engine=target_s3,
+                                      client=client,
+                                      logger=logger)
+                        result += 1
 
-                # proceed to the next LOB
-                first_chunk = True
+                    # proceed to the next LOB
+                    first_chunk = True
 
     return result
 
