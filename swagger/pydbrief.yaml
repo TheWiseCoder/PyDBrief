@@ -807,7 +807,7 @@ components:
         items:
           type: string
     IncrementalMigrationParam:
-      name: incremental-migration
+      name: incremental-migrations
       in: query
       description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited, '\<size\>' is set to the migration metrics parameter 'incremental-size', and '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table.
       required: false

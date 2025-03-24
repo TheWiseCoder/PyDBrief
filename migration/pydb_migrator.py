@@ -2,6 +2,7 @@ import json
 import sys
 import threading
 import warnings
+from contextlib import suppress
 from datetime import datetime
 from io import BytesIO
 from logging import Logger
@@ -12,18 +13,21 @@ from pypomes_core import (
     str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, DbParam, db_connect
+    DbEngine, DbParam, db_connect, db_count
 )
 from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import S3Engine, S3Param
 from sqlalchemy.sql.elements import Type
 from typing import Any
 
-from app_constants import MigrationConfig
-from migration.pydb_common import (
-    get_rdbms_params, get_s3_params, get_migration_metrics
+from app_constants import (
+    REGISTRY_DOCKER, REGISTRY_HOST, MigrationConfig
 )
-from app_constants import REGISTRY_DOCKER, REGISTRY_HOST
+from migration.pydb_common import (
+    MIGRATION_METRICS,
+    get_rdbms_params, get_s3_params, get_migration_metrics,
+)
+from migration.pydb_validator import MetricsConfig
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
 )
@@ -107,7 +111,7 @@ def migrate(errors: list[str],
             skip_nonempty: bool,
             reflect_filetype: bool,
             flatten_storage: bool,
-            incremental_migration: dict[str, int],
+            incremental_migrations: dict[str, tuple[int, int]],
             remove_nulls: list[str],
             include_relations: list[str],
             exclude_relations: list[str],
@@ -188,8 +192,8 @@ def migrate(errors: list[str],
         result[MigrationConfig.FLATTEN_STORAGE.value] = flatten_storage
     if remove_nulls:
         result[MigrationConfig.REMOVE_NULLS.value] = remove_nulls
-    if incremental_migration:
-        result[MigrationConfig.INCREMENTAL_MIGRATION.value] = incremental_migration
+    if incremental_migrations:
+        result[MigrationConfig.INCREMENTAL_MIGRATIONS.value] = incremental_migrations
     if named_lobdata:
         result[MigrationConfig.NAMED_LOBDATA.value] = named_lobdata
     result["logging"] = dict_jsonify(source=logging_get_params(),
@@ -244,99 +248,105 @@ def migrate(errors: list[str],
                                          conn=target_conn,
                                          logger=logger)
 
-            # proceed, if restrictions were disabled
+            # establish incremental migration sizes and offsets
+            if not errors and incremental_migrations:
+                __establish_increments(errors=errors,
+                                       incremental_migrations=incremental_migrations,
+                                       target_rdbms=target_rdbms,
+                                       target_conn=target_conn,
+                                       logger=logger)
+            # migrate the plain data
+            if not errors and step_plaindata:
+                logger.info("Started migrating the plain data")
+                plain_count = migrate_plain(errors=errors,
+                                            source_rdbms=source_rdbms,
+                                            target_rdbms=target_rdbms,
+                                            source_schema=source_schema,
+                                            target_schema=target_schema,
+                                            skip_nonempty=skip_nonempty,
+                                            incremental_migrations=incremental_migrations,
+                                            remove_nulls=remove_nulls,
+                                            source_conn=source_conn,
+                                            target_conn=target_conn,
+                                            migration_warnings=migration_warnings,
+                                            migrated_tables=migrated_tables,
+                                            logger=logger)
+                logger.info(msg="Finished migrating the plain data")
+
+            # migrate the LOB data
+            if not errors and step_lobdata:
+                # ignore warnings from 'boto3' and 'minio' packages
+                # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+                if target_s3:
+                    warnings.filterwarnings(action="ignore")
+
+                logger.info("Started migrating the LOBs")
+                lob_count = migrate_lobs(errors=errors,
+                                         source_rdbms=source_rdbms,
+                                         target_rdbms=target_rdbms,
+                                         source_schema=source_schema,
+                                         target_schema=target_schema,
+                                         target_s3=target_s3,
+                                         skip_nonempty=skip_nonempty,
+                                         incremental_migrations=incremental_migrations,
+                                         accept_empty=accept_empty,
+                                         reflect_filetype=reflect_filetype,
+                                         flatten_storage=flatten_storage,
+                                         named_lobdata=named_lobdata,
+                                         source_conn=source_conn,
+                                         target_conn=target_conn,
+                                         # migration_warnings=migration_warnings,
+                                         migrated_tables=migrated_tables,
+                                         logger=logger)
+                logger.info(msg="Finished migrating the LOBs")
+
+            # synchronize the plain data
+            if not errors and step_synchronize:
+                logger.info(msg="Started synchronizing the plain data")
+                sync_deletes, sync_inserts, sync_updates = \
+                    synchronize_plain(errors=errors,
+                                      source_rdbms=source_rdbms,
+                                      target_rdbms=target_rdbms,
+                                      source_schema=source_schema,
+                                      target_schema=target_schema,
+                                      remove_nulls=remove_nulls,
+                                      source_conn=source_conn,
+                                      target_conn=target_conn,
+                                      # migration_warnings=migration_warnings,
+                                      migrated_tables=migrated_tables,
+                                      logger=logger)
+                logger.info(msg="Finished synchronizing the plain data")
+                result["total-sync-deletes"] = sync_deletes
+                result["total-sync-inserts"] = sync_inserts
+                result["total-sync-updates"] = sync_updates
+
+            # restore target RDBMS restrictions delaying bulk operations
             if not errors:
-                # migrate the plain data
-                if step_plaindata:
-                    logger.info("Started migrating the plain data")
-                    plain_count = migrate_plain(errors=errors,
-                                                source_rdbms=source_rdbms,
-                                                target_rdbms=target_rdbms,
-                                                source_schema=source_schema,
-                                                target_schema=target_schema,
-                                                skip_nonempty=skip_nonempty,
-                                                incremental_migration=incremental_migration,
-                                                remove_nulls=remove_nulls,
-                                                source_conn=source_conn,
-                                                target_conn=target_conn,
-                                                migration_warnings=migration_warnings,
-                                                migrated_tables=migrated_tables,
-                                                logger=logger)
-                    logger.info(msg="Finished migrating the plain data")
-
-                # migrate the LOB data
-                if not errors and step_lobdata:
-                    # ignore warnings from 'boto3' and 'minio' packages
-                    # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
-                    if target_s3:
-                        warnings.filterwarnings(action="ignore")
-
-                    logger.info("Started migrating the LOBs")
-                    lob_count = migrate_lobs(errors=errors,
-                                             source_rdbms=source_rdbms,
-                                             target_rdbms=target_rdbms,
-                                             source_schema=source_schema,
-                                             target_schema=target_schema,
-                                             target_s3=target_s3,
-                                             skip_nonempty=skip_nonempty,
-                                             incremental_migration=incremental_migration,
-                                             accept_empty=accept_empty,
-                                             reflect_filetype=reflect_filetype,
-                                             flatten_storage=flatten_storage,
-                                             named_lobdata=named_lobdata,
-                                             source_conn=source_conn,
-                                             target_conn=target_conn,
-                                             # migration_warnings=migration_warnings,
-                                             migrated_tables=migrated_tables,
+                session_restore_restrictions(errors=errors,
+                                             rdbms=target_rdbms,
+                                             conn=target_conn,
                                              logger=logger)
-                    logger.info(msg="Finished migrating the LOBs")
-
-                # synchronize the plain data
-                if not errors and step_synchronize:
-                    logger.info(msg="Started synchronizing the plain data")
-                    sync_deletes, sync_inserts, sync_updates = \
-                        synchronize_plain(errors=errors,
-                                          source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms,
-                                          source_schema=source_schema,
-                                          target_schema=target_schema,
-                                          remove_nulls=remove_nulls,
-                                          source_conn=source_conn,
-                                          target_conn=target_conn,
-                                          # migration_warnings=migration_warnings,
-                                          migrated_tables=migrated_tables,
-                                          logger=logger)
-                    logger.info(msg="Finished synchronizing the plain data")
-                    result["total-sync-deletes"] = sync_deletes
-                    result["total-sync-inserts"] = sync_inserts
-                    result["total-sync-updates"] = sync_updates
-
-                # restore target RDBMS restrictions delaying bulk operations
-                if not errors:
-                    session_restore_restrictions(errors=errors,
-                                                 rdbms=target_rdbms,
-                                                 conn=target_conn,
-                                                 logger=logger)
-            # close source and target connections
-            if not errors:
-                source_conn.close()
-                target_conn.close()
+        # close source and target connections
+        with suppress(Exception):
+            source_conn.close()
+        with suppress(Exception):
+            target_conn.close()
 
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started
     result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
     if migration_warnings:
         result["warnings"] = migration_warnings
-    result["total-tables"] = len(migrated_tables)
 
     if migration_badge:
         try:
-            log_migration(errors=errors,
-                          badge=migration_badge,
-                          log_json=result)
+            __log_migration(errors=errors,
+                            badge=migration_badge,
+                            log_json=result)
         except Exception as e:
             exc_err: str = str_sanitize(target_str=exc_format(exc=e,
                                                               exc_info=sys.exc_info()))
@@ -347,9 +357,34 @@ def migrate(errors: list[str],
     return result
 
 
-def log_migration(errors: list[str],
-                  badge: str,
-                  log_json: dict[str, Any]) -> None:
+def __establish_increments(errors: list[str],
+                           incremental_migrations: dict[str, tuple[int, int]],
+                           target_rdbms: DbEngine,
+                           target_conn: Any,
+                           logger: Logger) -> None:
+
+    for key, value in incremental_migrations.copy().items():
+        size: int | None = value[0]
+        offset: int | None = value[1]
+        if size is None:
+            size = MIGRATION_METRICS[MetricsConfig.INCREMENTAL_SIZE]
+        elif size == -1:
+            size = None
+        if offset is None:
+            offset = db_count(errors=errors,
+                              table=key,
+                              engine=target_rdbms,
+                              connection=target_conn,
+                              committable=True,
+                              logger=logger)
+            if errors:
+                break
+        incremental_migrations[key] = (size, offset)
+
+
+def __log_migration(errors: list[str],
+                    badge: str,
+                    log_json: dict[str, Any]) -> None:
 
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST

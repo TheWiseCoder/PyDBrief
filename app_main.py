@@ -29,7 +29,7 @@ from migration.pydb_common import (
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
-    assert_override_columns, assert_incremental_migration,
+    assert_override_columns, assert_incremental_migrations,
     assert_params, assert_migration, get_migration_context
 )
 
@@ -345,8 +345,8 @@ def migrate_data() -> Response:
         override_columns: dict[str, Type] = assert_override_columns(errors=errors,
                                                                     scheme=scheme)
         # assert and obtain the external columns parameter
-        incremental_migration: dict[str, int] = assert_incremental_migration(errors=errors,
-                                                                             scheme=scheme)
+        incremental_migrations: dict[str, tuple[int, int]] = assert_incremental_migrations(errors=errors,
+                                                                                           scheme=scheme)
         # is migration possible ?
         if not errors:
             # yes, obtain the migration parameters
@@ -411,7 +411,7 @@ def migrate_data() -> Response:
                             skip_nonempty=skip_nonempty,
                             reflect_filetype=reflect_filetype,
                             flatten_storage=flatten_storage,
-                            incremental_migration=incremental_migration,
+                            incremental_migrations=incremental_migrations,
                             remove_nulls=remove_nulls,
                             include_relations=include_relations,
                             exclude_relations=exclude_relations,

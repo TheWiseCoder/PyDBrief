@@ -17,7 +17,7 @@ def migrate_plain(errors: list[str],
                   source_schema: str,
                   target_schema: str,
                   skip_nonempty: bool,
-                  incremental_migration: dict[str, int],
+                  incremental_migrations: dict[str, tuple[int, int]],
                   remove_nulls: list[str],
                   source_conn: Any,
                   target_conn: Any,
@@ -39,8 +39,10 @@ def migrate_plain(errors: list[str],
                            engine=target_rdbms,
                            connection=target_conn,
                            logger=logger):
-            # yes, define whether this is an incremental migration
-            limit_count: int = incremental_migration.get(table_name)
+            limit_count: int | None = None
+            offset_count: int | None = None
+            if table_name in incremental_migrations:
+                limit_count, offset_count = incremental_migrations.get(table_name)
 
             # is a nonempty target table an issue ?
             if skip_nonempty and not limit_count and \
@@ -54,7 +56,6 @@ def migrate_plain(errors: list[str],
 
             elif not errors:
                 # no, proceed
-                offset_count: int = -1 if limit_count else None
                 identity_column: str | None = None
                 orderby_columns: list[str] = []
                 source_columns: list[str] = []

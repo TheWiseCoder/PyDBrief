@@ -55,7 +55,7 @@ class MigrationConfig(StrEnum):
     FROM_RDBMS = "from-rdbms"
     FROM_SCHEMA = "from-schema"
     INCLUDE_RELATIONS = "include-relations"
-    INCREMENTAL_MIGRATION = "incremental-migration"
+    INCREMENTAL_MIGRATIONS = "incremental-migrations"
     MIGRATE_METADATA = "migrate-metadata"
     MIGRATE_PLAINDATA = "migrate-plaindata"
     MIGRATE_LOBDATA = "migrate-lobdata"

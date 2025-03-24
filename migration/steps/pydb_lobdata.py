@@ -22,7 +22,7 @@ def migrate_lobs(errors: list[str],
                  target_s3: S3Engine,
                  accept_empty: bool,
                  skip_nonempty: bool,
-                 incremental_migration: dict[str, int],
+                 incremental_migrations: dict[str, tuple[int, int]],
                  reflect_filetype: bool,
                  flatten_storage: bool,
                  named_lobdata: list[str],
@@ -65,7 +65,10 @@ def migrate_lobs(errors: list[str],
                                                           connection=target_conn,
                                                           logger=logger):
             status: str | None = None
-            limit_count: int = incremental_migration.get(table_name)
+            limit_count: int | None = None
+            offset_count: int | None = None
+            if table_name in incremental_migrations:
+                limit_count, offset_count = incremental_migrations.get(table_name)
             # process the existing LOB columns
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
@@ -115,6 +118,7 @@ def migrate_lobs(errors: list[str],
                                                  where_clause=where_clause,
                                                  accept_empty=accept_empty,
                                                  limit_count=limit_count,
+                                                 offset_count=offset_count,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
                                                  named_column=named_column,
@@ -133,8 +137,8 @@ def migrate_lobs(errors: list[str],
                                              source_committable=True,
                                              target_committable=True,
                                              where_clause=where_clause,
-                                             offset_count=-1 if limit_count else None,
                                              limit_count=limit_count,
+                                             offset_count=offset_count,
                                              accept_empty=accept_empty,
                                              chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
                                              logger=logger) or 0

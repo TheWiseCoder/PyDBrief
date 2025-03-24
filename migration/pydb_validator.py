@@ -40,7 +40,7 @@ SERVICE_PARAMS: Final[dict[str, list[StrEnum]]] = {
         MigrationConfig.RELAX_REFLECTION, MigrationConfig.ACCEPT_EMPTY,
         MigrationConfig.SKIP_NONEMPTY, MigrationConfig.REFLECT_FILETYPE,
         MigrationConfig.FLATTEN_STORAGE, MigrationConfig.REMOVE_NULLS,
-        MigrationConfig.INCREMENTAL_MIGRATION, MigrationConfig.INCLUDE_RELATIONS,
+        MigrationConfig.INCREMENTAL_MIGRATIONS, MigrationConfig.INCLUDE_RELATIONS,
         MigrationConfig.EXCLUDE_RELATIONS, MigrationConfig.EXCLUDE_CONSTRAINTS,
         MigrationConfig.EXCLUDE_COLUMNS, MigrationConfig.OVERRIDE_COLUMNS,
         MigrationConfig.NAMED_LOBDATA, MigrationConfig.MIGRATION_BADGE
@@ -269,36 +269,41 @@ def assert_override_columns(errors: list[str],
     return result
 
 
-def assert_incremental_migration(errors: list[str],
-                                 scheme: dict[str, Any]) -> dict[str, int]:
+def assert_incremental_migrations(errors: list[str],
+                                  scheme: dict[str, Any]) -> dict[str, tuple[int, int]]:
 
     # initialize the return variable
-    result: dict[str, int] = {}
+    result: dict[str, tuple[int, int]] = {}
 
     # process the foreign columns list
     incremental_tables: list[str] = validate_strs(errors=errors,
                                                   scheme=scheme,
-                                                  attr=MigrationConfig.INCREMENTAL_MIGRATION) or []
+                                                  attr=MigrationConfig.INCREMENTAL_MIGRATIONS) or []
     try:
         for incremental_table in incremental_tables:
-            # format of 'incremental_table' is <table_name>[=<offset>]
-            pos: int = incremental_table.find("=")
-            if pos > 0:
-                table_name: str = incremental_table[:pos]
-                size: int = int(incremental_table[pos+1:])
-                if size == -1:
-                    result[table_name] = 0
-                else:
-                    result[table_name] = size
+            # format of 'incremental_table' is <table_name>[=<size>[:<offset>]]
+            size: int | None = None
+            offset: int | None = None
+            terms: list[str] = incremental_table.split(sep="=")
+            if len(terms) == 1:
+                terms = incremental_table.split(sep=":")
+                table_name = terms[0]
+                if len(terms) > 1:
+                    offset = int(terms[1])
             else:
-                result[incremental_table] = MIGRATION_METRICS.get(MetricsConfig.INCREMENTAL_SIZE)
+                table_name = terms[0]
+                terms = terms[1].split(":")
+                size = int(terms[0])
+                if len(terms) > 1:
+                    offset = int(terms[1])
+            result[table_name] = (size, offset)
     except Exception as e:
         exc_err: str = str_sanitize(target_str=exc_format(exc=e,
                                                           exc_info=sys.exc_info()))
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"Syntax error: {exc_err}",
-                                            f"@{MigrationConfig.INCREMENTAL_MIGRATION}"))
+                                            f"@{MigrationConfig.INCREMENTAL_MIGRATIONS}"))
     return result
 
 
