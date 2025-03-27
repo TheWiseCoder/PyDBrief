@@ -251,6 +251,7 @@ def migrate(errors: list[str],
                 __establish_increments(errors=errors,
                                        incremental_migrations=incremental_migrations,
                                        target_rdbms=target_rdbms,
+                                       target_schema=target_schema,
                                        target_conn=target_conn,
                                        logger=logger)
             # migrate the plain data
