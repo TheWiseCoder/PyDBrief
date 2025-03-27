@@ -58,6 +58,7 @@ def s3_migrate_lobs(errors: list[str],
         lob_data: bytes | None = None
         metadata: dict[str, str] = {}
         first_chunk: bool = True
+        lob_count: int = 0
 
         # get data from the LOB streamer
         # noinspection PyTypeChecker
@@ -139,10 +140,14 @@ def s3_migrate_lobs(errors: list[str],
                                   prefix=lob_prefix,
                                   engine=target_s3,
                                   client=client)
+                    lob_count += 1
                     result += 1
 
                 # proceed to the next LOB
                 first_chunk = True
+
+        # log the migration
+        logger.debug(msg=f"{lob_count} migrated from {target_table}.{lob_column} to S3 storage")
 
     return result
 
