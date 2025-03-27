@@ -12,7 +12,7 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
     pypomes_versions, exc_format,
-    str_as_list, validate_format_errors
+    str_as_list, validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
@@ -20,10 +20,11 @@ from pypomes_http import (
 )
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
+from typing import cast
 
 from app_constants import MigrationConfig
 from migration.pydb_common import (
-    get_s3_params, set_s3_params,
+    S3Config, get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params,
     get_migration_metrics, set_migration_metrics
 )
@@ -190,18 +191,25 @@ def handle_s3(engine: str = None) -> Response:
 
     reply: dict | None = None
     if not errors:
-        s3_engine: S3Engine = S3Engine(engine) if engine else None
-        if request.method == "GET":
-            # get S3 access params
-            reply = get_s3_params(errors=errors,
-                                  s3_engine=s3_engine)
+        # obtain the S3 engine
+        engine = engine or scheme.get(cast("str", S3Config.ENGINE.value))
+        s3_engine: S3Engine = S3Engine(engine) if engine in S3Engine else None
+        if s3_engine:
+            if request.method == "GET":
+                # get S3 access params
+                reply = get_s3_params(errors=errors,
+                                      s3_engine=s3_engine)
+            else:
+                # configure the S3 service
+                set_s3_params(errors=errors,
+                              scheme=scheme)
+                if not errors:
+                    reply = {"status": f"S3 '{engine}' configuration updated"}
         else:
-            # configure the S3 service
-            set_s3_params(errors=errors,
-                          scheme=scheme)
-            if not errors:
-                reply = {"status": f"S3 '{s3_engine}' configuration updated"}
-
+            # 141: Invalid value {}
+            errors.append(validate_format_error(141,
+                                                engine,
+                                                "@s3-engine"))
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)

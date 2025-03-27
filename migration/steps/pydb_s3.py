@@ -31,7 +31,7 @@ def s3_migrate_lobs(errors: list[str],
                     offset_count: int,
                     reflect_filetype: bool,
                     forced_filetype: str,
-                    named_column: str,
+                    ref_column: str,
                     source_conn: Any,
                     logger: Logger) -> int:
 
@@ -60,13 +60,18 @@ def s3_migrate_lobs(errors: list[str],
         first_chunk: bool = True
         lob_count: int = 0
 
-        # get data from the LOB streamer
+        # get data from the LOB streamer as follows:
+        #   - 'row_data' hold the streamed data (LOB identification or LOB payload)
+        #   - a 'dict' identifying the LOB is sent (flagged by 'first_chunk')
+        #   - if the LOB is null, one null payload follows, terminating the LOB
+        #   - if the LOB is empty, one empty payload follows, terminating the LOB
+        #   - if the LOB has data, multiple payloads follow, until a null payload terminates the LOB
         # noinspection PyTypeChecker
         for row_data in db_stream_lobs(errors=errors,
                                        table=source_table,
                                        lob_column=lob_column,
                                        pk_columns=pk_columns,
-                                       ref_column=named_column,
+                                       ref_column=ref_column,
                                        engine=source_rdbms,
                                        connection=source_conn,
                                        committable=True,
@@ -75,20 +80,23 @@ def s3_migrate_lobs(errors: list[str],
                                        limit_count=limit_count,
                                        chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
                                        logger=logger):
-            # new LOB
+            if errors:
+                break
+
+            # LOB identification
             if first_chunk:
                 # the metadata is a 'dict' with the values of:
                 #   - the rdbms
                 #   - the table
                 #   - the row's PK columns
-                #   - the lobdata's filename (if 'named_column' was specified)
+                #   - the lobdata's filename (if 'ref_column' was specified)
                 values: list[Any] = []
                 metadata = {
-                    "rdbms": target_rdbms,
+                    "rdbms": target_rdbms.value,
                     "table": target_table
                 }
                 for key, value in sorted(row_data.items()):
-                    if key == named_column:
+                    if key == ref_column:
                         identifier = value
                     else:
                         values.append(value)
@@ -99,8 +107,9 @@ def s3_migrate_lobs(errors: list[str],
                 lob_data = None
                 mimetype = None
                 first_chunk = False
+
             # data chunks
-            elif row_data:
+            elif row_data is not None:
                 # add to LOB data
                 if lob_data is None:
                     lob_data = b""
@@ -112,6 +121,7 @@ def s3_migrate_lobs(errors: list[str],
                     lob_data += bytes(row_data, "utf-8")
                     if not mimetype:
                         mimetype = Mimetype.TEXT
+
             # no more data
             else:
                 # send LOB data
@@ -130,7 +140,7 @@ def s3_migrate_lobs(errors: list[str],
                     if not mimetype:
                         mimetype = forced_mimetype or Mimetype.BINARY
 
-                    # send it to S3 (logging individual LOBs sent to storage risks writing too many lines)
+                    # send it to S3 (logging individual LOBs sent to S3 storage risks writing too many lines)
                     s3_data_store(errors=errors,
                                   identifier=identifier,
                                   data=lob_data,
@@ -142,6 +152,7 @@ def s3_migrate_lobs(errors: list[str],
                                   client=client)
                     lob_count += 1
                     result += 1
+                    lob_data = None
 
                 # proceed to the next LOB
                 first_chunk = True

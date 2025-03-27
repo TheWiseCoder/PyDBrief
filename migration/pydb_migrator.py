@@ -18,7 +18,7 @@ from pypomes_db import (
 from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import S3Engine, S3Param
 from sqlalchemy.sql.elements import Type
-from typing import Any
+from typing import Any, cast
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST, MigrationConfig
@@ -123,8 +123,7 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    # noinspection PyTypeChecker
-    started: str = datetime.now().strftime(format=DatetimeFormat.INV.value)
+    started: str = datetime.now().strftime(format=cast("str", DatetimeFormat.INV.value))
     steps: list = []
     if step_metadata:
         steps.append(MigrationConfig.MIGRATE_METADATA.value)
@@ -336,8 +335,7 @@ def migrate(errors: list[str],
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started
-    # noinspection PyTypeChecker
-    result["finished"] = datetime.now().strftime(format=DatetimeFormat.INV.value)
+    result["finished"] = datetime.now().strftime(format=cast("str", DatetimeFormat.INV.value))
     if migration_warnings:
         result["warnings"] = migration_warnings
 

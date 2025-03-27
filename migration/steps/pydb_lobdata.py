@@ -72,17 +72,18 @@ def migrate_lobs(errors: list[str],
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL"
                 if target_s3:
+                    # migration target is S3 storage
                     forced_filetype: str | None = None
-                    named_column: str | None = None
-                    # determine if lobdata in 'lob_column' is named
+                    ref_column: str | None = None
+                    # determine if lobdata in 'lob_column' is named in a reference column
                     for item in named_lobdata or []:
                         # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
                         if item.startswith(f"{table_name}.{lob_column}="):
-                            named_column = item[item.index("=")+1:]
-                            pos: int = named_column.find(".")
+                            ref_column = item[item.index("=")+1:]
+                            pos: int = ref_column.find(".")
                             if pos > 0:
-                                forced_filetype = named_column[pos:]
-                                named_column = named_column[:pos]
+                                forced_filetype = ref_column[pos:]
+                                ref_column = ref_column[:pos]
                             break
 
                     # obtain a S3 prefix for storing the lobdata
@@ -95,7 +96,7 @@ def migrate_lobs(errors: list[str],
                                                     host=url.hostname or str(url),
                                                     schema=target_table[:target_table.index(".")],
                                                     table=target_table[target_table.index(".")+1:],
-                                                    column=named_column or lob_column)
+                                                    column=ref_column or lob_column)
                         # is a nonempty S3 prefix an issue ?
                         if skip_nonempty and s3_item_exists(errors=errors,
                                                             prefix=lob_prefix):
@@ -119,10 +120,11 @@ def migrate_lobs(errors: list[str],
                                                  offset_count=offset_count,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
-                                                 named_column=named_column,
+                                                 ref_column=ref_column,
                                                  source_conn=source_conn,
                                                  logger=logger) or 0
                 else:
+                    # migration target is databse
                     count += db_migrate_lobs(errors=errors,
                                              source_engine=source_rdbms,
                                              source_table=source_table,

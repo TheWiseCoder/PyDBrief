@@ -12,7 +12,7 @@ from pypomes_s3 import (
     S3Engine, s3_get_engines, s3_assert_access
 )
 from sqlalchemy.sql.elements import Type
-from typing import Any, Final
+from typing import Any, Final, cast
 
 from app_constants import (
     DbConfig, S3Config, MetricsConfig, MigrationConfig
@@ -41,11 +41,11 @@ def assert_params(errors: list[str],
                   scheme: dict) -> None:
 
     params: list[StrEnum] = SERVICE_PARAMS.get(f"{service}:{method}") or []
+    # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
                                          f"@{key}") for key in scheme if key not in params])
 
 
-# noinspection PyTypeChecker
 def assert_rdbms_dual(errors: list[str],
                       scheme: dict) -> tuple[DbEngine, DbEngine]:
 
@@ -56,7 +56,7 @@ def assert_rdbms_dual(errors: list[str],
 
     from_rdbms: str = validate_str(errors=errors,
                                    scheme=scheme,
-                                   attr=MigrationConfig.FROM_RDBMS.value,
+                                   attr=cast("str", MigrationConfig.FROM_RDBMS.value),
                                    values=list(map(str, DbEngine)))
     if from_rdbms and DbEngine(from_rdbms) not in engines:
         # 142: Invalid value {}: {}
@@ -67,7 +67,7 @@ def assert_rdbms_dual(errors: list[str],
 
     to_rdbms: str = validate_str(errors=errors,
                                  scheme=scheme,
-                                 attr=MigrationConfig.TO_RDBMS.value,
+                                 attr=cast("str", MigrationConfig.TO_RDBMS.value),
                                  values=list(map(str, DbEngine)))
     if to_rdbms and DbEngine(to_rdbms) not in engines:
         # 142: Invalid value {}: {}
@@ -167,18 +167,17 @@ def assert_metrics_params(errors: list[str]) -> None:
                                             f"@{MetricsConfig.INCREMENTAL_SIZE.value}"))
 
 
-# noinspection PyTypeChecker
 def assert_migration_steps(errors: list[str],
                            scheme: dict) -> None:
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(errors=errors,
                                         scheme=scheme,
-                                        attr=MigrationConfig.MIGRATE_METADATA.value,
+                                        attr=cast("str", MigrationConfig.MIGRATE_METADATA.value),
                                         required=True)
     step_plaindata: bool = validate_bool(errors=errors,
                                          scheme=scheme,
-                                         attr=MigrationConfig.MIGRATE_PLAINDATA.value,
+                                         attr=cast("str", MigrationConfig.MIGRATE_PLAINDATA.value),
                                          required=True)
     step_lobdata: bool = validate_bool(errors=errors,
                                        scheme=scheme,
