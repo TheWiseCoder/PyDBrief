@@ -129,7 +129,7 @@ def s3_migrate_lobs(errors: list[str],
                     if not mimetype:
                         mimetype = forced_mimetype or Mimetype.BINARY
 
-                    # send it to S3
+                    # send it to S3 (logging individual LOBs sent to storage risks writing too many lines)
                     s3_data_store(errors=errors,
                                   identifier=identifier,
                                   data=lob_data,
@@ -138,8 +138,7 @@ def s3_migrate_lobs(errors: list[str],
                                   tags=metadata,
                                   prefix=lob_prefix,
                                   engine=target_s3,
-                                  client=client,
-                                  logger=logger)
+                                  client=client)
                     result += 1
 
                 # proceed to the next LOB
