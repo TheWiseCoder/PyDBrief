@@ -358,6 +358,7 @@ def migrate(errors: list[str],
 def __establish_increments(errors: list[str],
                            incremental_migrations: dict[str, tuple[int, int]],
                            target_rdbms: DbEngine,
+                           target_schema: str,
                            target_conn: Any,
                            logger: Logger) -> None:
 
@@ -370,7 +371,7 @@ def __establish_increments(errors: list[str],
             size = None
         if offset is None:
             offset = db_count(errors=errors,
-                              table=key,
+                              table=f"{target_schema}.{key}",
                               engine=target_rdbms,
                               connection=target_conn,
                               committable=True,
