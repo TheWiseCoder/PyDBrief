@@ -8,7 +8,7 @@ from io import BytesIO
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    DATETIME_FORMAT_INV,
+    DatetimeFormat,
     dict_jsonify, pypomes_versions, env_is_docker,
     str_sanitize, exc_format, validate_format_error
 )
@@ -107,7 +107,6 @@ def migrate(errors: list[str],
             process_indexes: bool,
             process_views: bool,
             relax_reflection: bool,
-            accept_empty: bool,
             skip_nonempty: bool,
             reflect_filetype: bool,
             flatten_storage: bool,
@@ -124,7 +123,8 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    started: str = datetime.now().strftime(format=DATETIME_FORMAT_INV)
+    # noinspection PyTypeChecker
+    started: str = datetime.now().strftime(format=DatetimeFormat.INV.value)
     steps: list = []
     if step_metadata:
         steps.append(MigrationConfig.MIGRATE_METADATA.value)
@@ -145,7 +145,7 @@ def migrate(errors: list[str],
                                                 db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
-    to_rdbms.pop(str(DbParam.PWD))
+    to_rdbms.pop(str(DbParam.PWD.value))
 
     # initialize the return variable
     result: dict = {
@@ -162,7 +162,7 @@ def migrate(errors: list[str],
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
         # avoid displaying the secret key
-        to_s3.pop(str(S3Param.SECRET_KEY))
+        to_s3.pop(str(S3Param.SECRET_KEY.value))
         result["target-s3"] = to_s3
     if migration_badge:
         result[MigrationConfig.MIGRATION_BADGE.value] = migration_badge
@@ -182,8 +182,6 @@ def migrate(errors: list[str],
         result[MigrationConfig.OVERRIDE_COLUMNS.value] = override_columns
     if relax_reflection:
         result[MigrationConfig.RELAX_REFLECTION.value] = relax_reflection
-    if accept_empty:
-        result[MigrationConfig.ACCEPT_EMPTY.value] = accept_empty
     if skip_nonempty:
         result[MigrationConfig.SKIP_NONEMPTY.value] = skip_nonempty
     if reflect_filetype:
@@ -289,7 +287,6 @@ def migrate(errors: list[str],
                                          target_s3=target_s3,
                                          skip_nonempty=skip_nonempty,
                                          incremental_migrations=incremental_migrations,
-                                         accept_empty=accept_empty,
                                          reflect_filetype=reflect_filetype,
                                          flatten_storage=flatten_storage,
                                          named_lobdata=named_lobdata,
@@ -338,7 +335,8 @@ def migrate(errors: list[str],
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started
-    result["finished"] = datetime.now().strftime(format=DATETIME_FORMAT_INV)
+    # noinspection PyTypeChecker
+    result["finished"] = datetime.now().strftime(format=DatetimeFormat.INV.value)
     if migration_warnings:
         result["warnings"] = migration_warnings
 

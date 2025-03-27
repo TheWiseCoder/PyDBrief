@@ -24,8 +24,8 @@ def build_engine(errors: list[str],
                                exc_info=sys.exc_info()))
         logger.error(msg=exc_err)
         # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, exc_err))
-
+        errors.append(validate_format_error(102,
+                                            exc_err))
     return result
 
 
@@ -48,6 +48,6 @@ def excecute_stmt(errors: list[str],
                                           exc_info=sys.exc_info()))
         logger.error(msg=exc_err)
         # 102: Unexpected error: {}
-        errors.append(validate_format_error(102, exc_err))
-
+        errors.append(validate_format_error(102,
+                                            exc_err))
     return result

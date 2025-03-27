@@ -47,7 +47,6 @@ class MigrationConfig(StrEnum):
     """
     Parameters for migration.
     """
-    ACCEPT_EMPTY = "accept-empty"
     EXCLUDE_COLUMNS = "exclude-columns"
     EXCLUDE_CONSTRAINTS = "exclude-constraints"
     EXCLUDE_RELATIONS = "exclude-relations"

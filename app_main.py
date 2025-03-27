@@ -371,8 +371,6 @@ def migrate_data() -> Response:
                 scheme.get(MigrationConfig.PROCESS_VIEWS, "").lower() in ["1", "t", "true"]
             relax_reflection: bool = \
                 scheme.get(MigrationConfig.RELAX_REFLECTION, "").lower() in ["1", "t", "true"]
-            accept_empty: bool = \
-                scheme.get(MigrationConfig.ACCEPT_EMPTY, "").lower() in ["1", "t", "true"]
             skip_nonempty: bool = \
                 scheme.get(MigrationConfig.SKIP_NONEMPTY, "").lower() in ["1", "t", "true"]
             reflect_filetype: bool = \
@@ -407,7 +405,6 @@ def migrate_data() -> Response:
                             process_indexes=process_indexes,
                             process_views=process_views,
                             relax_reflection=relax_reflection,
-                            accept_empty=accept_empty,
                             skip_nonempty=skip_nonempty,
                             reflect_filetype=reflect_filetype,
                             flatten_storage=flatten_storage,

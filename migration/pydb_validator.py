@@ -23,36 +23,15 @@ from migration.pydb_common import (
 )
 from migration.pydb_types import name_to_type
 
-SERVICE_PARAMS: Final[dict[str, list[StrEnum]]] = {
-    "/migration:metrics:PATCH": [
-        MetricsConfig.BATCH_SIZE_IN, MetricsConfig.BATCH_SIZE_OUT,
-        MetricsConfig.CHUNK_SIZE, MetricsConfig.INCREMENTAL_SIZE
-    ],
+SERVICE_PARAMS: Final[dict[str, list[str]]] = {
+    "/migration:metrics:PATCH":  list(map(str, MetricsConfig)),
+    "/migrate:POST": list(map(str, MigrationConfig)),
+    "/rdbms:POST": list(map(str, DbConfig)),
+    "/s3:POST": list(map(str, S3Config)),
     "/migration:verify:POST": [
-        MigrationConfig.FROM_RDBMS, MigrationConfig.TO_RDBMS, MigrationConfig.TO_S3
+        MigrationConfig.FROM_RDBMS.value,
+        MigrationConfig.TO_RDBMS.value, MigrationConfig.TO_S3.value
     ],
-    "/migrate:POST": [
-        MigrationConfig.FROM_RDBMS, MigrationConfig.FROM_SCHEMA,
-        MigrationConfig.TO_RDBMS, MigrationConfig.TO_SCHEMA, MigrationConfig.TO_S3,
-        MigrationConfig.MIGRATE_METADATA, MigrationConfig.MIGRATE_PLAINDATA,
-        MigrationConfig.MIGRATE_LOBDATA, MigrationConfig.SYNCHRONIZE_PLAINDATA,
-        MigrationConfig.PROCESS_INDEXES, MigrationConfig.PROCESS_VIEWS,
-        MigrationConfig.RELAX_REFLECTION, MigrationConfig.ACCEPT_EMPTY,
-        MigrationConfig.SKIP_NONEMPTY, MigrationConfig.REFLECT_FILETYPE,
-        MigrationConfig.FLATTEN_STORAGE, MigrationConfig.REMOVE_NULLS,
-        MigrationConfig.INCREMENTAL_MIGRATIONS, MigrationConfig.INCLUDE_RELATIONS,
-        MigrationConfig.EXCLUDE_RELATIONS, MigrationConfig.EXCLUDE_CONSTRAINTS,
-        MigrationConfig.EXCLUDE_COLUMNS, MigrationConfig.OVERRIDE_COLUMNS,
-        MigrationConfig.NAMED_LOBDATA, MigrationConfig.MIGRATION_BADGE
-    ],
-    "/rdbms:POST": [
-        DbConfig.ENGINE, DbConfig.NAME, DbConfig.USER, DbConfig.PWD,
-        DbConfig.HOST, DbConfig.PORT, DbConfig.CLIENT, DbConfig.DRIVER
-    ],
-    "/s3:POST": [
-        S3Config.ENGINE, S3Config.ENDPOINT_URL, S3Config.BUCKET_NAME,
-        S3Config.ACCESS_KEY, S3Config.SECRET_KEY, S3Config.REGION_NAME, S3Config.SECURE_ACCESS
-    ]
 }
 
 
@@ -66,6 +45,7 @@ def assert_params(errors: list[str],
                                          f"@{key}") for key in scheme if key not in params])
 
 
+# noinspection PyTypeChecker
 def assert_rdbms_dual(errors: list[str],
                       scheme: dict) -> tuple[DbEngine, DbEngine]:
 
@@ -76,31 +56,32 @@ def assert_rdbms_dual(errors: list[str],
 
     from_rdbms: str = validate_str(errors=errors,
                                    scheme=scheme,
-                                   attr=MigrationConfig.FROM_RDBMS,
+                                   attr=MigrationConfig.FROM_RDBMS.value,
                                    values=list(map(str, DbEngine)))
     if from_rdbms and DbEngine(from_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             from_rdbms,
                                             "unknown or unconfigured RDBMS engine",
-                                            f"@{MigrationConfig.FROM_RDBMS}"))
+                                            f"@{MigrationConfig.FROM_RDBMS.value}"))
 
     to_rdbms: str = validate_str(errors=errors,
                                  scheme=scheme,
-                                 attr=MigrationConfig.TO_RDBMS,
+                                 attr=MigrationConfig.TO_RDBMS.value,
                                  values=list(map(str, DbEngine)))
     if to_rdbms and DbEngine(to_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             to_rdbms,
                                             "unknown or unconfigured RDBMS engine",
-                                            f"@{MigrationConfig.TO_RDBMS}"))
+                                            f"@{MigrationConfig.TO_RDBMS.value}"))
 
     if from_rdbms and from_rdbms == to_rdbms:
         # 126: Value {} cannot be assigned for attributes {} at the same time
         errors.append(validate_format_error(126,
                                             to_rdbms,
-                                            f"@'({MigrationConfig.FROM_RDBMS}, {MigrationConfig.TO_RDBMS})'"))
+                                            f"@'({MigrationConfig.FROM_RDBMS.value}, "
+                                            f"{MigrationConfig.TO_RDBMS.value})'"))
     if not errors:
         result = (DbEngine(from_rdbms), DbEngine(to_rdbms))
 
@@ -128,8 +109,8 @@ def assert_migration(errors: list[str],
             (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
-                                            f"The migration path '{source_rdbms} -> {target_rdbms}' has not "
-                                            "been validated yet. For details, please email the developer."))
+                                            f"The migration path '{source_rdbms.value} -> {target_rdbms.value}' "
+                                            f"has not been validated yet. For details, please email the developer."))
     # verify  database runtime capabilities
     if source_rdbms and run_mode:
         db_assert_access(errors=errors,
@@ -162,41 +143,42 @@ def assert_metrics_params(errors: list[str]) -> None:
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_IN}"))
+                                            f"@{MetricsConfig.BATCH_SIZE_IN.value}"))
     param = MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_OUT)
     if not (param == 0 or 1000 <= param <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_OUT}"))
+                                            f"@{MetricsConfig.BATCH_SIZE_OUT.value}"))
     param = MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE)
     if not 1024 <= param <= 16777216:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1024, 16777216],
-                                            f"@{MetricsConfig.CHUNK_SIZE}"))
+                                            f"@{MetricsConfig.CHUNK_SIZE.value}"))
     param = MIGRATION_METRICS.get(MetricsConfig.INCREMENTAL_SIZE)
     if not 1000 <= param <= 10000000:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.INCREMENTAL_SIZE}"))
+                                            f"@{MetricsConfig.INCREMENTAL_SIZE.value}"))
 
 
+# noinspection PyTypeChecker
 def assert_migration_steps(errors: list[str],
                            scheme: dict) -> None:
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(errors=errors,
                                         scheme=scheme,
-                                        attr=MigrationConfig.MIGRATE_METADATA,
+                                        attr=MigrationConfig.MIGRATE_METADATA.value,
                                         required=True)
     step_plaindata: bool = validate_bool(errors=errors,
                                          scheme=scheme,
-                                         attr=MigrationConfig.MIGRATE_PLAINDATA,
+                                         attr=MigrationConfig.MIGRATE_PLAINDATA.value,
                                          required=True)
     step_lobdata: bool = validate_bool(errors=errors,
                                        scheme=scheme,

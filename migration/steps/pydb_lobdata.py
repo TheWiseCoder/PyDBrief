@@ -20,7 +20,6 @@ def migrate_lobs(errors: list[str],
                  source_schema: str,
                  target_schema: str,
                  target_s3: S3Engine,
-                 accept_empty: bool,
                  skip_nonempty: bool,
                  incremental_migrations: dict[str, tuple[int, int]],
                  reflect_filetype: bool,
@@ -71,7 +70,7 @@ def migrate_lobs(errors: list[str],
                 limit_count, offset_count = incremental_migrations.get(table_name)
             # process the existing LOB columns
             for lob_column in lob_columns:
-                where_clause: str = f"{lob_column} IS NOT NULL" if accept_empty else None
+                where_clause: str = f"{lob_column} IS NOT NULL"
                 if target_s3:
                     forced_filetype: str | None = None
                     named_column: str | None = None
@@ -116,7 +115,6 @@ def migrate_lobs(errors: list[str],
                                                  lob_column=lob_column,
                                                  pk_columns=pk_columns,
                                                  where_clause=where_clause,
-                                                 accept_empty=accept_empty,
                                                  limit_count=limit_count,
                                                  offset_count=offset_count,
                                                  reflect_filetype=reflect_filetype,
@@ -139,7 +137,6 @@ def migrate_lobs(errors: list[str],
                                              where_clause=where_clause,
                                              limit_count=limit_count,
                                              offset_count=offset_count,
-                                             accept_empty=accept_empty,
                                              chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
                                              logger=logger) or 0
             if errors:

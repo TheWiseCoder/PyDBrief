@@ -27,7 +27,6 @@ def s3_migrate_lobs(errors: list[str],
                     lob_column: str,
                     pk_columns: list[str],
                     where_clause: str,
-                    accept_empty: bool,
                     limit_count: int,
                     offset_count: int,
                     reflect_filetype: bool,
@@ -56,7 +55,7 @@ def s3_migrate_lobs(errors: list[str],
         # initialize the properties
         identifier: str | None = None
         mimetype: Mimetype | str | None = None
-        lob_data: bytes = b""
+        lob_data: bytes | None = None
         metadata: dict[str, str] = {}
         first_chunk: bool = True
 
@@ -73,12 +72,13 @@ def s3_migrate_lobs(errors: list[str],
                                        where_clause=where_clause,
                                        offset_count=offset_count,
                                        limit_count=limit_count,
-                                       accept_empty=accept_empty,
                                        chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
                                        logger=logger):
             # new LOB
             if first_chunk:
-                # the initial data is a 'dict' with the values of:
+                # the metadata is a 'dict' with the values of:
+                #   - the rdbms
+                #   - the table
                 #   - the row's PK columns
                 #   - the lobdata's filename (if 'named_column' was specified)
                 values: list[Any] = []
@@ -95,12 +95,14 @@ def s3_migrate_lobs(errors: list[str],
                 if not identifier:
                     # hex-formatted hash on the contents of the row's PK columns
                     identifier = __build_identifier(values=values)
-                lob_data = b""
+                lob_data = None
                 mimetype = None
                 first_chunk = False
             # data chunks
             elif row_data:
                 # add to LOB data
+                if lob_data is None:
+                    lob_data = b""
                 if isinstance(row_data, bytes):
                     lob_data += row_data
                     if not mimetype:
@@ -112,7 +114,7 @@ def s3_migrate_lobs(errors: list[str],
             # no more data
             else:
                 # send LOB data
-                if accept_empty or lob_data:
+                if lob_data is not None:
                     extension: str = forced_filetype
                     # has filetype reflection been specified ?
                     if reflect_filetype:
