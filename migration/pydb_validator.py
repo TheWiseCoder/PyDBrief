@@ -1,7 +1,7 @@
 import sys
 from enum import StrEnum
 from pypomes_core import (
-    exc_format, str_sanitize,
+    str_sanitize, str_splice, exc_format,
     validate_bool, validate_str,
     validate_strs, validate_format_error
 )
@@ -12,14 +12,13 @@ from pypomes_s3 import (
     S3Engine, s3_get_engines, s3_assert_access
 )
 from sqlalchemy.sql.elements import Type
-from typing import Any, Final, cast
+from typing import Any, Final
 
 from app_constants import (
     DbConfig, S3Config, MetricsConfig, MigrationConfig
 )
 from migration.pydb_common import (
-    MIGRATION_METRICS,
-    get_migration_metrics, get_rdbms_params, get_s3_params
+    MigrationMetrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
 
@@ -29,8 +28,7 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     "/rdbms:POST": list(map(str, DbConfig)),
     "/s3:POST": list(map(str, S3Config)),
     "/migration:verify:POST": [
-        MigrationConfig.FROM_RDBMS.value,
-        MigrationConfig.TO_RDBMS.value, MigrationConfig.TO_S3.value
+        MigrationConfig.FROM_RDBMS, MigrationConfig.TO_RDBMS, MigrationConfig.TO_S3
     ],
 }
 
@@ -38,16 +36,16 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
 def assert_params(errors: list[str],
                   service: str,
                   method: str,
-                  scheme: dict) -> None:
+                  input_params: dict) -> None:
 
     params: list[StrEnum] = SERVICE_PARAMS.get(f"{service}:{method}") or []
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
-                                         f"@{key}") for key in scheme if key not in params])
+                                         f"@{key}") for key in input_params if key not in params])
 
 
 def assert_rdbms_dual(errors: list[str],
-                      scheme: dict) -> tuple[DbEngine, DbEngine]:
+                      input_params: dict) -> tuple[DbEngine, DbEngine]:
 
     # initialize the return variable
     result: tuple[DbEngine | None, DbEngine | None] = (None, None)
@@ -55,33 +53,33 @@ def assert_rdbms_dual(errors: list[str],
     engines: list[DbEngine] = db_get_engines()
 
     from_rdbms: str = validate_str(errors=errors,
-                                   scheme=scheme,
-                                   attr=cast("str", MigrationConfig.FROM_RDBMS.value),
+                                   source=input_params,
+                                   attr=MigrationConfig.FROM_RDBMS,
                                    values=list(map(str, DbEngine)))
     if from_rdbms and DbEngine(from_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             from_rdbms,
                                             "unknown or unconfigured RDBMS engine",
-                                            f"@{MigrationConfig.FROM_RDBMS.value}"))
+                                            f"@{MigrationConfig.FROM_RDBMS}"))
 
     to_rdbms: str = validate_str(errors=errors,
-                                 scheme=scheme,
-                                 attr=cast("str", MigrationConfig.TO_RDBMS.value),
+                                 source=input_params,
+                                 attr=MigrationConfig.TO_RDBMS,
                                  values=list(map(str, DbEngine)))
     if to_rdbms and DbEngine(to_rdbms) not in engines:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             to_rdbms,
                                             "unknown or unconfigured RDBMS engine",
-                                            f"@{MigrationConfig.TO_RDBMS.value}"))
+                                            f"@{MigrationConfig.TO_RDBMS}"))
 
     if from_rdbms and from_rdbms == to_rdbms:
         # 126: Value {} cannot be assigned for attributes {} at the same time
         errors.append(validate_format_error(126,
                                             to_rdbms,
-                                            f"@'({MigrationConfig.FROM_RDBMS.value}, "
-                                            f"{MigrationConfig.TO_RDBMS.value})'"))
+                                            f"@'{MigrationConfig.FROM_RDBMS}, "
+                                            f"{MigrationConfig.TO_RDBMS})'"))
     if not errors:
         result = (DbEngine(from_rdbms), DbEngine(to_rdbms))
 
@@ -89,7 +87,7 @@ def assert_rdbms_dual(errors: list[str],
 
 
 def assert_migration(errors: list[str],
-                     scheme: dict,
+                     inpt_params: dict,
                      run_mode: bool) -> None:
 
     # validate the migration parameters
@@ -98,18 +96,18 @@ def assert_migration(errors: list[str],
     # validate the migration steps
     if run_mode:
         assert_migration_steps(errors=errors,
-                               scheme=scheme)
+                               input_params=inpt_params)
 
     # validate the source and target RDBMS engines
     source_rdbms: DbEngine
     target_rdbms: DbEngine
     source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
-                                                   scheme=scheme)
+                                                   input_params=inpt_params)
     if source_rdbms and target_rdbms and \
             (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
-                                            f"The migration path '{source_rdbms.value} -> {target_rdbms.value}' "
+                                            f"The migration path '{source_rdbms} -> {target_rdbms}' "
                                             f"has not been validated yet. For details, please email the developer."))
     # verify  database runtime capabilities
     if source_rdbms and run_mode:
@@ -120,7 +118,7 @@ def assert_migration(errors: list[str],
                          engine=target_rdbms)
     # validate S3
     to_s3: str = validate_str(errors=errors,
-                              scheme=scheme,
+                              source=inpt_params,
                               attr=MigrationConfig.TO_S3,
                               values=list(map(str, S3Engine)))
     if to_s3:
@@ -137,54 +135,54 @@ def assert_migration(errors: list[str],
 
 def assert_metrics_params(errors: list[str]) -> None:
 
-    param: int = MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_IN)
+    param: int = MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN)
     if not (param == 0 or 1000 <= param <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_IN.value}"))
-    param = MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_OUT)
+                                            f"@{MetricsConfig.BATCH_SIZE_IN}"))
+    param = MigrationMetrics.get(MetricsConfig.BATCH_SIZE_OUT)
     if not (param == 0 or 1000 <= param <= 10000000):
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_OUT.value}"))
-    param = MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE)
+                                            f"@{MetricsConfig.BATCH_SIZE_OUT}"))
+    param = MigrationMetrics.get(MetricsConfig.CHUNK_SIZE)
     if not 1024 <= param <= 16777216:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1024, 16777216],
-                                            f"@{MetricsConfig.CHUNK_SIZE.value}"))
-    param = MIGRATION_METRICS.get(MetricsConfig.INCREMENTAL_SIZE)
+                                            f"@{MetricsConfig.CHUNK_SIZE}"))
+    param = MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
     if not 1000 <= param <= 10000000:
         # 151: Invalid value {}: must be in the range {}
         errors.append(validate_format_error(151,
                                             param,
                                             [1000, 10000000],
-                                            f"@{MetricsConfig.INCREMENTAL_SIZE.value}"))
+                                            f"@{MetricsConfig.INCREMENTAL_SIZE}"))
 
 
 def assert_migration_steps(errors: list[str],
-                           scheme: dict) -> None:
+                           input_params: dict) -> None:
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(errors=errors,
-                                        scheme=scheme,
-                                        attr=cast("str", MigrationConfig.MIGRATE_METADATA.value),
+                                        source=input_params,
+                                        attr=MigrationConfig.MIGRATE_METADATA,
                                         required=True)
     step_plaindata: bool = validate_bool(errors=errors,
-                                         scheme=scheme,
-                                         attr=cast("str", MigrationConfig.MIGRATE_PLAINDATA.value),
+                                         source=input_params,
+                                         attr=MigrationConfig.MIGRATE_PLAINDATA,
                                          required=True)
     step_lobdata: bool = validate_bool(errors=errors,
-                                       scheme=scheme,
+                                       source=input_params,
                                        attr=MigrationConfig.MIGRATE_LOBDATA,
                                        required=True)
     step_synchronize: bool = validate_bool(errors=errors,
-                                           scheme=scheme,
+                                           source=input_params,
                                            attr=MigrationConfig.SYNCHRONIZE_PLAINDATA,
                                            required=False)
     # validate them
@@ -197,7 +195,7 @@ def assert_migration_steps(errors: list[str],
         err_msg = "Synchronization can not be combined with another operation"
     elif step_metadata and step_lobdata and not step_plaindata:
         target_s3: str = validate_str(errors=errors,
-                                      scheme=scheme,
+                                      source=input_params,
                                       attr=MigrationConfig.TO_S3,
                                       required=False)
         if not target_s3:
@@ -208,7 +206,7 @@ def assert_migration_steps(errors: list[str],
         errors.append(validate_format_error(101, err_msg))
 
     # validate the include and exclude relations lists
-    if scheme.get(MigrationConfig.INCLUDE_RELATIONS) and scheme.get(MigrationConfig.EXCLUDE_RELATIONS):
+    if input_params.get(MigrationConfig.INCLUDE_RELATIONS) and input_params.get(MigrationConfig.EXCLUDE_RELATIONS):
         # 151: "Attributes {} cannot be assigned values at the same time
         errors.append(validate_format_error(151,
                                             f"'({MigrationConfig.INCLUDE_RELATIONS}, "
@@ -223,7 +221,7 @@ def assert_override_columns(errors: list[str],
 
     # process the foreign columns list
     override_columns: list[str] = validate_strs(errors=errors,
-                                                scheme=scheme,
+                                                source=scheme,
                                                 attr=MigrationConfig.OVERRIDE_COLUMNS) or []
     try:
         rdbms: DbEngine = DbEngine(scheme.get("to-rdbms"))
@@ -257,27 +255,19 @@ def assert_incremental_migrations(errors: list[str],
     result: dict[str, tuple[int, int]] = {}
 
     # process the foreign columns list
-    incremental_tables: list[str] = validate_strs(errors=errors,
-                                                  scheme=scheme,
-                                                  attr=MigrationConfig.INCREMENTAL_MIGRATIONS) or []
+    incremental_tables: list[str] = \
+        validate_strs(errors=errors,
+                      source=scheme,
+                      attr=MigrationConfig.INCREMENTAL_MIGRATIONS) or []
     try:
+        # format of 'incremental_tables' is [<table_name>[=<size>[:<offset>],...]
         for incremental_table in incremental_tables:
-            # format of 'incremental_table' is <table_name>[=<size>[:<offset>]]
-            size: int | None = None
-            offset: int | None = None
-            terms: list[str] = incremental_table.split(sep="=")
-            if len(terms) == 1:
-                terms = incremental_table.split(sep=":")
-                table_name = terms[0]
-                if len(terms) > 1:
-                    offset = int(terms[1])
-            else:
-                table_name = terms[0]
-                terms = terms[1].split(":")
-                size = int(terms[0])
-                if len(terms) > 1:
-                    offset = int(terms[1])
-            result[table_name] = (size, offset)
+            # noinspection PyTypeChecker
+            terms: tuple[str, str, str] = str_splice(source=incremental_table,
+                                                     seps=["=", ":"])
+            size: int = None if terms[1] is None or not terms[1].isdigit() else int(terms[1])
+            offset: int = None if terms[2] is None or not terms[2].isdigit() else int(terms[2])
+            result[terms[0]] = (size, offset)
     except Exception as e:
         exc_err: str = str_sanitize(target_str=exc_format(exc=e,
                                                           exc_info=sys.exc_info()))
@@ -320,7 +310,7 @@ def get_migration_context(errors: list[str],
     # build the return data
     if not errors:
         result: dict[str, Any] = {
-            "metrics": get_migration_metrics(),
+            "metrics": MigrationMetrics,
             MigrationConfig.FROM_RDBMS: from_params,
             MigrationConfig.TO_RDBMS: to_params
         }

@@ -482,13 +482,15 @@ components:
       required: false
       schema:
         type: integer
+        example: 2
     LogLastHoursParam:
       name: log-last-hours
       in: query
-      description: How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' ise specified
+      description: How many hours to go back for the start of the interval - ignored if 'log-from-datetime' or 'log-to-datetime' is specified
       required: false
       schema:
         type: integer
+        example: 10
     LogTimestampParam:
       name: log-timestamp
       in: query
@@ -845,7 +847,28 @@ components:
       properties:
         status:
           type: string
-          example: Log restarted, with the configuration specified
+          example: Log restarted
+        configuration:
+          type: object
+          properties:
+            log-filemode:
+              type: string
+              example: a
+            log-filepath:
+              type: string
+              example: C:/tmp/ijud.log
+            log-format:
+              type: string
+              example: "{asctime} {levelname:1.1} {thread:5d} {module:20.20} {funcName:20.20} {lineno:3d} {message}"
+            log-level:
+              type: string
+              example: INFO 
+            log-style:
+              type: string
+              example: "{"
+            log-timestamp:
+              type: string
+              example: "%Y-%m-%d %H:%M:%S"
     MigrationMetrics:
       type: object
       properties:

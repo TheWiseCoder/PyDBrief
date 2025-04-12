@@ -3,7 +3,7 @@ from typing import Any
 from pypomes_db import db_sync_data, DbEngine
 
 from migration import pydb_types
-from migration.pydb_common import MIGRATION_METRICS, MetricsConfig
+from migration.pydb_common import MigrationMetrics, MetricsConfig
 from migration.steps import pydb_database
 
 
@@ -57,7 +57,7 @@ def synchronize_plain(errors: list[str],
                                                  source_committable=True,
                                                  target_committable=True,
                                                  identity_column=identity_column,
-                                                 batch_size=MIGRATION_METRICS.get(MetricsConfig.BATCH_SIZE_IN),
+                                                 batch_size=MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN),
                                                  has_nulls=table_name in remove_nulls,
                                                  logger=logger) or (0, 0, 0)
         if op_errors:

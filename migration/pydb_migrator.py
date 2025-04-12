@@ -18,14 +18,13 @@ from pypomes_db import (
 from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import S3Engine, S3Param
 from sqlalchemy.sql.elements import Type
-from typing import Any, cast
+from typing import Any
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST, MigrationConfig
 )
 from migration.pydb_common import (
-    MIGRATION_METRICS,
-    get_rdbms_params, get_s3_params, get_migration_metrics,
+    MigrationMetrics, get_rdbms_params, get_s3_params
 )
 from migration.pydb_validator import MetricsConfig
 from migration.steps.pydb_database import (
@@ -123,16 +122,16 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    started: str = datetime.now().strftime(format=cast("str", DatetimeFormat.INV.value))
+    started: str = datetime.now().strftime(format=DatetimeFormat.INV)
     steps: list = []
     if step_metadata:
-        steps.append(MigrationConfig.MIGRATE_METADATA.value)
+        steps.append(MigrationConfig.MIGRATE_METADATA)
     if step_plaindata:
-        steps.append(MigrationConfig.MIGRATE_PLAINDATA.value)
+        steps.append(MigrationConfig.MIGRATE_PLAINDATA)
     if step_lobdata:
-        steps.append(MigrationConfig.MIGRATE_LOBDATA.value)
+        steps.append(MigrationConfig.MIGRATE_LOBDATA)
     if step_synchronize:
-        steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA.value)
+        steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA)
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   db_engine=source_rdbms)
@@ -144,7 +143,7 @@ def migrate(errors: list[str],
                                                 db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
     # avoid displaying the password
-    to_rdbms.pop(str(DbParam.PWD.value))
+    to_rdbms.pop(DbParam.PWD)
 
     # initialize the return variable
     result: dict = {
@@ -153,7 +152,7 @@ def migrate(errors: list[str],
             "Foundations": pypomes_versions()
         },
         "steps": steps,
-        "migration-metrics": get_migration_metrics(),
+        "migration-metrics": MigrationMetrics,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
     }
@@ -161,38 +160,38 @@ def migrate(errors: list[str],
         to_s3: dict[str, Any] = get_s3_params(errors=errors,
                                               s3_engine=target_s3)
         # avoid displaying the secret key
-        to_s3.pop(str(S3Param.SECRET_KEY.value))
+        to_s3.pop(S3Param.SECRET_KEY)
         result["target-s3"] = to_s3
     if migration_badge:
-        result[MigrationConfig.MIGRATION_BADGE.value] = migration_badge
+        result[MigrationConfig.MIGRATION_BADGE] = migration_badge
     if process_indexes:
-        result[MigrationConfig.PROCESS_INDEXES.value] = process_indexes
+        result[MigrationConfig.PROCESS_INDEXES] = process_indexes
     if process_views:
-        result[MigrationConfig.PROCESS_VIEWS.value] = process_views
+        result[MigrationConfig.PROCESS_VIEWS] = process_views
     if include_relations:
-        result[MigrationConfig.INCLUDE_RELATIONS.value] = include_relations
+        result[MigrationConfig.INCLUDE_RELATIONS] = include_relations
     if exclude_relations:
-        result[MigrationConfig.EXCLUDE_RELATIONS.value] = exclude_relations
+        result[MigrationConfig.EXCLUDE_RELATIONS] = exclude_relations
     if exclude_constraints:
-        result[MigrationConfig.EXCLUDE_CONSTRAINTS.value] = exclude_constraints
+        result[MigrationConfig.EXCLUDE_CONSTRAINTS] = exclude_constraints
     if exclude_columns:
-        result[MigrationConfig.EXCLUDE_COLUMNS.value] = exclude_columns
+        result[MigrationConfig.EXCLUDE_COLUMNS] = exclude_columns
     if override_columns:
-        result[MigrationConfig.OVERRIDE_COLUMNS.value] = override_columns
+        result[MigrationConfig.OVERRIDE_COLUMNS] = override_columns
     if relax_reflection:
-        result[MigrationConfig.RELAX_REFLECTION.value] = relax_reflection
+        result[MigrationConfig.RELAX_REFLECTION] = relax_reflection
     if skip_nonempty:
-        result[MigrationConfig.SKIP_NONEMPTY.value] = skip_nonempty
+        result[MigrationConfig.SKIP_NONEMPTY] = skip_nonempty
     if reflect_filetype:
-        result[MigrationConfig.REFLECT_FILETYPE.value] = reflect_filetype
+        result[MigrationConfig.REFLECT_FILETYPE] = reflect_filetype
     if flatten_storage:
-        result[MigrationConfig.FLATTEN_STORAGE.value] = flatten_storage
+        result[MigrationConfig.FLATTEN_STORAGE] = flatten_storage
     if remove_nulls:
-        result[MigrationConfig.REMOVE_NULLS.value] = remove_nulls
+        result[MigrationConfig.REMOVE_NULLS] = remove_nulls
     if incremental_migrations:
-        result[MigrationConfig.INCREMENTAL_MIGRATIONS.value] = incremental_migrations
+        result[MigrationConfig.INCREMENTAL_MIGRATIONS] = incremental_migrations
     if named_lobdata:
-        result[MigrationConfig.NAMED_LOBDATA.value] = named_lobdata
+        result[MigrationConfig.NAMED_LOBDATA] = named_lobdata
     result["logging"] = dict_jsonify(source=logging_get_params(),
                                      jsonify_keys=False,
                                      jsonify_values=True)
@@ -335,7 +334,7 @@ def migrate(errors: list[str],
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started
-    result["finished"] = datetime.now().strftime(format=cast("str", DatetimeFormat.INV.value))
+    result["finished"] = datetime.now().strftime(format=DatetimeFormat.INV)
     if migration_warnings:
         result["warnings"] = migration_warnings
 
@@ -365,7 +364,7 @@ def __establish_increments(errors: list[str],
         size: int | None = value[0]
         offset: int | None = value[1]
         if size is None:
-            size = MIGRATION_METRICS[MetricsConfig.INCREMENTAL_SIZE]
+            size = MigrationMetrics[MetricsConfig.INCREMENTAL_SIZE]
         elif size == -1:
             size = None
         if offset is None:

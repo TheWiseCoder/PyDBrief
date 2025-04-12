@@ -10,7 +10,7 @@ from typing import Any
 from urlobject import URLObject
 
 from migration.pydb_types import is_lob
-from migration.pydb_common import MIGRATION_METRICS, MetricsConfig
+from migration.pydb_common import MigrationMetrics, MetricsConfig
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -74,16 +74,16 @@ def migrate_lobs(errors: list[str],
                 if target_s3:
                     # migration target is S3 storage
                     forced_filetype: str | None = None
-                    ref_column: str | None = None
+                    ret_column: str | None = None
                     # determine if lobdata in 'lob_column' is named in a reference column
                     for item in named_lobdata or []:
                         # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
                         if item.startswith(f"{table_name}.{lob_column}="):
-                            ref_column = item[item.index("=")+1:]
-                            pos: int = ref_column.find(".")
+                            ret_column = item[item.index("=")+1:]
+                            pos: int = ret_column.find(".")
                             if pos > 0:
-                                forced_filetype = ref_column[pos:]
-                                ref_column = ref_column[:pos]
+                                forced_filetype = ret_column[pos:]
+                                ret_column = ret_column[:pos]
                             break
 
                     # obtain a S3 prefix for storing the lobdata
@@ -96,7 +96,7 @@ def migrate_lobs(errors: list[str],
                                                     host=url.hostname or str(url),
                                                     schema=target_table[:target_table.index(".")],
                                                     table=target_table[target_table.index(".")+1:],
-                                                    column=ref_column or lob_column)
+                                                    column=ret_column or lob_column)
                         # is a nonempty S3 prefix an issue ?
                         if skip_nonempty and s3_item_exists(errors=errors,
                                                             prefix=lob_prefix):
@@ -109,6 +109,7 @@ def migrate_lobs(errors: list[str],
                         count += s3_migrate_lobs(errors=errors,
                                                  target_s3=target_s3,
                                                  target_rdbms=target_rdbms,
+                                                 target_schema=target_schema,
                                                  target_table=target_table,
                                                  source_rdbms=source_rdbms,
                                                  source_table=source_table,
@@ -120,7 +121,7 @@ def migrate_lobs(errors: list[str],
                                                  offset_count=offset_count,
                                                  reflect_filetype=reflect_filetype,
                                                  forced_filetype=forced_filetype,
-                                                 ref_column=ref_column,
+                                                 ret_column=ret_column,
                                                  source_conn=source_conn,
                                                  logger=logger) or 0
                 else:
@@ -139,7 +140,7 @@ def migrate_lobs(errors: list[str],
                                              where_clause=where_clause,
                                              limit_count=limit_count,
                                              offset_count=offset_count,
-                                             chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
+                                             chunk_size=MigrationMetrics.get(MetricsConfig.CHUNK_SIZE),
                                              logger=logger) or 0
             if errors:
                 status = "none"
@@ -167,7 +168,7 @@ def migrate_lobs(errors: list[str],
     return result
 
 
-def __build_prefix(rdbms: str,
+def __build_prefix(rdbms: DbEngine,
                    host: str,
                    schema: str,
                    table: str,

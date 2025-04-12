@@ -14,12 +14,13 @@ from pypomes_s3 import (
 from pathlib import Path
 from typing import Any
 
-from migration.pydb_common import MIGRATION_METRICS, MetricsConfig
+from migration.pydb_common import MigrationMetrics, MetricsConfig
 
 
 def s3_migrate_lobs(errors: list[str],
                     target_s3: S3Engine,
                     target_rdbms: DbEngine,
+                    target_schema: str,
                     target_table: str,
                     source_rdbms: DbEngine,
                     source_table: str,
@@ -31,7 +32,7 @@ def s3_migrate_lobs(errors: list[str],
                     offset_count: int,
                     reflect_filetype: bool,
                     forced_filetype: str,
-                    ref_column: str,
+                    ret_column: str,
                     source_conn: Any,
                     logger: Logger) -> int:
 
@@ -64,21 +65,21 @@ def s3_migrate_lobs(errors: list[str],
         #   - 'row_data' hold the streamed data (LOB identification or LOB payload)
         #   - a 'dict' identifying the LOB is sent (flagged by 'first_chunk')
         #   - if the LOB is null, one null payload follows, terminating the LOB
-        #   - if the LOB is empty, one empty payload follows, terminating the LOB
+        #   - if the LOB is empty, one empty and one null payload follow in sequence, terminating the LOB
         #   - if the LOB has data, multiple payloads follow, until a null payload terminates the LOB
         # noinspection PyTypeChecker
         for row_data in db_stream_lobs(errors=errors,
                                        table=source_table,
                                        lob_column=lob_column,
                                        pk_columns=pk_columns,
-                                       ref_column=ref_column,
+                                       ret_column=ret_column,
                                        engine=source_rdbms,
                                        connection=source_conn,
                                        committable=True,
                                        where_clause=where_clause,
                                        offset_count=offset_count,
                                        limit_count=limit_count,
-                                       chunk_size=MIGRATION_METRICS.get(MetricsConfig.CHUNK_SIZE),
+                                       chunk_size=MigrationMetrics.get(MetricsConfig.CHUNK_SIZE),
                                        logger=logger):
             if errors:
                 break
@@ -92,11 +93,12 @@ def s3_migrate_lobs(errors: list[str],
                 #   - the lobdata's filename (if 'ref_column' was specified)
                 values: list[Any] = []
                 metadata = {
-                    "rdbms": target_rdbms.value,
+                    "rdbms": target_rdbms,
+                    "schema": target_schema,
                     "table": target_table
                 }
                 for key, value in sorted(row_data.items()):
-                    if key == ref_column:
+                    if key == ret_column:
                         identifier = value
                     else:
                         values.append(value)

@@ -510,7 +510,7 @@ LOBS: Final[list[str]] = [
 ]
 
 
-def migrate_column(source_rdbms: str,
+def migrate_column(source_rdbms: DbEngine,
                    target_rdbms: DbEngine,
                    source_schema: str,
                    target_schema: str,

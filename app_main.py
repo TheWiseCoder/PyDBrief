@@ -11,7 +11,7 @@ from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
 from pypomes_core import (
-    pypomes_versions, exc_format,
+    Mimetype, pypomes_versions, exc_format,
     str_as_list, validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
@@ -20,13 +20,11 @@ from pypomes_http import (
 )
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
-from typing import cast
 
 from app_constants import MigrationConfig
 from migration.pydb_common import (
-    S3Config, get_s3_params, set_s3_params,
-    get_rdbms_params, set_rdbms_params,
-    get_migration_metrics, set_migration_metrics
+    MigrationMetrics, S3Config, get_s3_params, set_s3_params,
+    get_rdbms_params, set_rdbms_params, set_migration_metrics
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
@@ -71,9 +69,8 @@ def swagger() -> Response:
     filename: str = http_get_parameter(request=request,
                                        param="filename")
 
-    return send_file(path_or_file=Path(Path.cwd(),
-                                       "swagger/pydbrief.json"),
-                     mimetype="application/json",
+    return send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
+                     mimetype=Mimetype.JSON,
                      as_attachment=filename is not None,
                      download_name=filename)
 
@@ -110,17 +107,17 @@ def version() -> Response:
                  methods=["GET"])
 def handle_rdbms(engine: str = None) -> Response:
     """
-    Entry point for configuring the RDBMS to use.
+    Entry point for configuring the RDBMS engine to use.
 
     The parameters are as follows:
-        - *db-engine*: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
-        - *db-name*: name of database
-        - *db-user*: the logon user
-        - *db-pwd*: the logon password
-        - *db-host*: the host URL
-        - *db-port*: the connection port
-        - *db-client*: the client package (Oracle, only)
-        - *db-driver*: the database access driver (SQLServer, only)
+      - *db-engine*: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+      - *db-name*: name of database
+      - *db-user*: the logon user
+      - *db-pwd*: the logon password
+      - *db-host*: the host URL
+      - *db-port*: the connection port
+      - *db-client*: the client package (Oracle, only)
+      - *db-driver*: the database access driver (SQLServer, only)
 
     :param engine: the reference RDBMS engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
     :return: the operation outcome
@@ -134,7 +131,7 @@ def handle_rdbms(engine: str = None) -> Response:
     assert_params(errors=errors,
                   service="/rdbms",
                   method=request.method,
-                  scheme=scheme)
+                  input_params=scheme)
 
     reply: dict | None = None
     if not errors:
@@ -145,10 +142,10 @@ def handle_rdbms(engine: str = None) -> Response:
         else:
             # configure the RDBMS
             set_rdbms_params(errors=errors,
-                             scheme=scheme)
+                             input_params=scheme)
             if not errors:
-                db_engine = scheme.get("db-engine")
-                reply = {"status": f"RDBMS '{db_engine}' configuration updated"}
+                engine = scheme.get("db-engine")
+                reply = {"status": f"RDBMS '{engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -187,12 +184,12 @@ def handle_s3(engine: str = None) -> Response:
     assert_params(errors=errors,
                   service="/s3",
                   method=request.method,
-                  scheme=scheme)
+                  input_params=scheme)
 
     reply: dict | None = None
     if not errors:
         # obtain the S3 engine
-        engine = engine or scheme.get(cast("str", S3Config.ENGINE.value))
+        engine = engine or scheme.get("str", S3Config.ENGINE)
         s3_engine: S3Engine = S3Engine(engine) if engine in S3Engine else None
         if s3_engine:
             if request.method == "GET":
@@ -202,7 +199,7 @@ def handle_s3(engine: str = None) -> Response:
             else:
                 # configure the S3 service
                 set_s3_params(errors=errors,
-                              scheme=scheme)
+                              input_params=scheme)
                 if not errors:
                     reply = {"status": f"S3 '{engine}' configuration updated"}
         else:
@@ -246,25 +243,25 @@ def handle_migration() -> Response:
     assert_params(errors=errors,
                   service=request.path,
                   method=request.method,
-                  scheme=scheme)
+                  input_params=scheme)
 
     reply: dict[str, Any] | None = None
     if not errors:
         match request.method:
             case "GET":
                 # retrieve the migration parameters
-                reply = get_migration_metrics()
+                reply = MigrationMetrics
             case "PATCH":
                 # establish the migration parameters
                 set_migration_metrics(errors=errors,
-                                      scheme=scheme,
+                                      input_params=scheme,
                                       logger=PYPOMES_LOGGER)
                 if not errors:
                     reply = {"status": "Migration metrics updated"}
             case "POST":
                 # assert whether migration is warranted
                 assert_migration(errors=errors,
-                                 scheme=scheme,
+                                 inpt_params=scheme,
                                  run_mode=False)
                 # errors ?
                 if errors:
@@ -340,13 +337,13 @@ def migrate_data() -> Response:
     assert_params(errors=errors,
                   service="/migrate",
                   method=request.method,
-                  scheme=scheme)
+                  input_params=scheme)
 
     reply: dict[str, Any] | None = None
     if not errors:
         # assert whether migration is warranted
         assert_migration(errors=errors,
-                         scheme=scheme,
+                         inpt_params=scheme,
                          run_mode=True)
 
         # assert and obtain the external columns parameter
@@ -363,7 +360,7 @@ def migrate_data() -> Response:
             source_schema: str = scheme.get(MigrationConfig.FROM_SCHEMA).lower()
             target_schema: str = scheme.get(MigrationConfig.TO_SCHEMA).lower()
             target_s3: str = scheme.get(MigrationConfig.TO_S3, "").lower()
-            migration_badge: str = scheme.get("migration-badge")
+            migration_badge: str = scheme.get(MigrationConfig.MIGRATION_BADGE)
 
             step_metadata: bool = \
                 scheme.get(MigrationConfig.MIGRATE_METADATA, "").lower() in ["1", "t", "true"]
