@@ -9,7 +9,7 @@ from pathlib import Path
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
-from app_ident import APP_NAME, APP_VERSION  # must be imported before local and PyPomes packages
+from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
     Mimetype, pypomes_versions, exc_format,
     str_as_list, validate_format_error, validate_format_errors
