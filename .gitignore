@@ -3,6 +3,7 @@
 .venv
 .idea
 .vscode
+docker
 env
 venv
 temp
