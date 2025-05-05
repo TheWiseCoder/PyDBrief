@@ -21,9 +21,9 @@ from pypomes_http import (
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
 
-from app_constants import MigrationConfig
+from app_constants import DbConfig, S3Config, MigrationConfig
 from migration.pydb_common import (
-    MigrationMetrics, S3Config, get_s3_params, set_s3_params,
+    MigrationMetrics, get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params, set_migration_metrics
 )
 from migration.pydb_migrator import migrate
@@ -144,14 +144,14 @@ def handle_rdbms(engine: str = None) -> Response:
             set_rdbms_params(errors=errors,
                              input_params=scheme)
             if not errors:
-                engine = scheme.get("db-engine")
+                engine = scheme.get(DbConfig.ENGINE)
                 reply = {"status": f"RDBMS '{engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    scheme.pop("db-pwd")
+    scheme.pop(DbConfig.PWD)
     PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
 
     return result
@@ -212,7 +212,7 @@ def handle_s3(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    scheme.pop("s3-secret-key")
+    scheme.pop(S3Config.SECRET_KEY)
     PYPOMES_LOGGER.info(msg=f"Response {request.path}?{scheme}: {result}")
 
     return result
