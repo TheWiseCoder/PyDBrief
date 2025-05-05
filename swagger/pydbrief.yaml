@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.7.2
+  version: 1.7.3
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -247,7 +247,6 @@ paths:
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
-        - $ref: '#/components/parameters/AcceptEmptyParam'
         - $ref: '#/components/parameters/SkipNonemptyParam'
         - $ref: '#/components/parameters/ReflectFiletypeParam'
         - $ref: '#/components/parameters/FlattenStorageParam'
@@ -672,13 +671,6 @@ components:
         type: string
         enum: [mysql,oracle,postgres,sqlserver]
   # migration parameters group
-    AcceptEmptyParam:
-      name: accept-empty
-      in: query
-      description: Accounts for all migrated LOBs, even if they are empty, or if their corresponding column cells have NULL values. If LOBs are being migrated to an S3 storage, this parameter causes empty LOBs to be sent thereto. Ignored if parameter 'migrate-lobdata' is not specified.
-      schema:
-        type: boolean
-        default: false
     ReflectFiletypeParam:
       name: reflect-filetype
       in: query

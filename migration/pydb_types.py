@@ -34,7 +34,7 @@ from sqlalchemy.types import (
 
 # This category of types refers to types that are either part of the SQL standard,
 # or are potentially found within a subset of database backends.
-# Unlike the “generic” types, the SQL standard/multi-vendor types have no guarantee of working
+# Unlike the “generic” types, the SQL standard/multivendor types have no guarantee of working
 # on all backends, and will only work on those backends that explicitly support them by name.
 # noinspection PyUnresolvedReferences
 from sqlalchemy.types import (

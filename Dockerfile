@@ -43,7 +43,7 @@ RUN pip install --upgrade pip
 COPY pycryptodome-3.22.0-cp37-abi3-musllinux_1_2_x86_64.whl .
 RUN pip install pycryptodome-3.22.0-cp37-abi3-musllinux_1_2_x86_64.whl
 
-# intall Python package requirements
+# install Python package requirements
 ENV SSL_CERT_DIR=/etc/ssl/certs
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 COPY . .

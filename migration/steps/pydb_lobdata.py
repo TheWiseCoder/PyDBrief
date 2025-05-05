@@ -71,6 +71,8 @@ def migrate_lobs(errors: list[str],
             # process the existing LOB columns
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL"
+
+                # migrate the column's LOBs
                 if target_s3:
                     # migration target is S3 storage
                     forced_filetype: str | None = None
@@ -105,7 +107,7 @@ def migrate_lobs(errors: list[str],
                             status = "skipped"
                     # errors ?
                     if not errors:
-                        # no, migrate the column's LOBs
+                        # no, proceed with the column's LOBs migration
                         count += s3_migrate_lobs(errors=errors,
                                                  target_s3=target_s3,
                                                  target_rdbms=target_rdbms,

@@ -151,6 +151,7 @@ def handle_rdbms(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
+    scheme.pop("db-pwd")
     PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
 
     return result
@@ -211,6 +212,7 @@ def handle_s3(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
+    scheme.pop("s3-secret-key")
     PYPOMES_LOGGER.info(msg=f"Response {request.path}?{scheme}: {result}")
 
     return result
@@ -306,7 +308,6 @@ def migrate_data() -> Response:
       - *process-indexes*: whether to migrate indexes (defaults to *False*)
       - *process-views*: whether to migrate views (defaults to *False*)
       - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
-      - *accept-empty*: accounts for empty LOBs on migration
       - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
       - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
       - *flatten-storage*: whether to omit path on LOB migration to S3 storage

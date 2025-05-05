@@ -207,7 +207,7 @@ def assert_migration_steps(errors: list[str],
 
     # validate the include and exclude relations lists
     if input_params.get(MigrationConfig.INCLUDE_RELATIONS) and input_params.get(MigrationConfig.EXCLUDE_RELATIONS):
-        # 151: "Attributes {} cannot be assigned values at the same time
+        # 151: Attributes {} cannot be assigned values at the same time
         errors.append(validate_format_error(151,
                                             f"'({MigrationConfig.INCLUDE_RELATIONS}, "
                                             f"{MigrationConfig.EXCLUDE_RELATIONS})'"))
