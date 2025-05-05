@@ -207,7 +207,7 @@ def handle_s3(engine: str = None) -> Response:
             # 141: Invalid value {}
             errors.append(validate_format_error(141,
                                                 engine,
-                                                "@s3-engine"))
+                                                f"@{S3Config.ENGINE}"))
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
