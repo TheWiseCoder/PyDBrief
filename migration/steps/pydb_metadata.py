@@ -20,30 +20,6 @@ from migration.steps.pydb_engine import build_engine
 from migration.pydb_types import is_lob
 
 
-# structure of the migration data returned:
-# [
-#   <table-name>: {
-#      "columns": [
-#        <column-name>: {
-#          "name": <column-name>,
-#          "source-type": <column-type>,
-#          "target-type": <column-type>,
-#          "features": [
-#            "identity",
-#            "nullable",
-#            "unique",
-#            "foreign-key",
-#            "primary-key"
-#          ]
-#        },
-#        ...
-#      ],
-#      "plain-count": <number-of-tuples-migrated>,
-#      "plain-status": "none" | "full" | "partial"
-#      "lob-count":  <number-of-lobs-migrated>,
-#      "lob-status": "none" | "full" | "partial",
-#   }
-# ]
 def migrate_metadata(errors: list[str],
                      source_rdbms: DbEngine,
                      target_rdbms: DbEngine,
