@@ -36,63 +36,6 @@ from migration.steps.pydb_plaindata import migrate_plain
 from migration.steps.pydb_sync import synchronize_plain
 
 
-# structure of the migration data returned:
-# {
-#   "started": <yyyy-mm-ddThh:mm:ss>,
-#   "finished": <yyyy-mm-ddThh:mm:ss>,
-#   "version": <i.j.k>,
-#   "source-rdbms": {
-#     "rdbms": <rdbms>,
-#     "schema": <schema>,
-#     "name": <db-name>,
-#     "host": <db-host>,
-#     "port": nnnn,
-#     "user": "db-user"
-#   },
-#   "target-rdbms": {
-#     "rdbms": <rdbms>,
-#     "schema": <schema>,
-#     "name": <db-name>,
-#     "host": <db-host>,
-#     "port": nnnn,
-#     "user": "db-user"
-#   },
-#   "steps": [
-#     "migrate-metadata",
-#     "migrate-plaindata",
-#     "migrate-lobdata",
-#     "synchronize-plaindata"
-#   ],
-#   "process-indexes": <bool>>,
-#   "process-views": <bool>,
-#   "relax-reflection": <bool>
-#   "accept-empty": <bool>
-#   "skip-nonempty": <bool>,
-#   "include-relations": <list[str]>,
-#   "exclude-relations": <list[str]>,
-#   "exclude-constraints": <list[str]>,
-#   "exclude-columns": <list[str]>,
-#   "override-columns": [
-#     "<table-name>.<column-name>=<type>"
-#   ],
-#   "remove-nulls": [
-#     "<table-name>"
-#   ]
-#   "named-lobdata": [
-#     "<table-name>.<lob-column>=<names-column>[.<extension>]"
-#   ],
-#   "migration-badge": <migration-badge>,
-#   "total-plains": nnn,
-#   "total-lobs": nnn,
-#   "total-tables": nnn,
-#   "sync-deletes": nnn,
-#   "sync-inserts": nnn,
-#   "sync-updates": nnn,
-#   "warnings": [
-#     ...
-#   ]
-#   "migrated-tables": <migrated-tables-structure>
-# }
 def migrate(errors: list[str],
             source_rdbms: DbEngine,
             target_rdbms: DbEngine,
