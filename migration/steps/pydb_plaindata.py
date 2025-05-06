@@ -33,7 +33,7 @@ def migrate_plain(errors: list[str],
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
 
-        # does the target table exist ?
+        # verify whether the target table exists
         if db_table_exists(errors=errors,
                            table_name=target_table,
                            engine=target_rdbms,

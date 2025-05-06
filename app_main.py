@@ -190,7 +190,7 @@ def handle_s3(engine: str = None) -> Response:
     reply: dict | None = None
     if not errors:
         # obtain the S3 engine
-        engine = engine or scheme.get("str", S3Config.ENGINE)
+        engine = engine or scheme.get(S3Config.ENGINE)
         s3_engine: S3Engine = S3Engine(engine) if engine in S3Engine else None
         if s3_engine:
             if request.method == "GET":
