@@ -135,13 +135,14 @@ def migrate(errors: list[str],
         result[MigrationConfig.INCREMENTAL_MIGRATIONS] = incremental_migrations
     if named_lobdata:
         result[MigrationConfig.NAMED_LOBDATA] = named_lobdata
-    result["logging"] = dict_jsonify(source=logging_get_params(),
-                                     jsonify_keys=False,
-                                     jsonify_values=True)
+    result["logging"] = logging_get_params()
+
     # handle warnings as errors
     warnings.filterwarnings(action="error")
 
-    logger.info(result)
+    logger.info(dict_jsonify(source=result,
+                             jsonify_keys=True,
+                             jsonify_values=True))
     logger.info(msg="Started discovering the metadata")
     migration_warnings: list[str] = []
 
