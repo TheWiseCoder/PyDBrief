@@ -12,7 +12,8 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
     Mimetype, pypomes_versions, exc_format,
-    str_as_list, validate_format_error, validate_format_errors
+    validate_bool, validate_strs,
+    validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
@@ -334,69 +335,89 @@ def migrate_data() -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    scheme: dict = http_get_parameters(request=request)
+    input_params: dict = http_get_parameters(request=request)
     assert_params(errors=errors,
                   service="/migrate",
                   method=request.method,
-                  input_params=scheme)
+                  input_params=input_params)
 
     reply: dict[str, Any] | None = None
     if not errors:
         # assert whether migration is warranted
         assert_migration(errors=errors,
-                         inpt_params=scheme,
+                         inpt_params=input_params,
                          run_mode=True)
 
-        # assert and obtain the external columns parameter
+        # assert and retrieve the override columns parameter
         override_columns: dict[str, Type] = assert_override_columns(errors=errors,
-                                                                    scheme=scheme)
-        # assert and obtain the external columns parameter
+                                                                    scheme=input_params)
+        # assert and retrieve the incremental migrations parameter
         incremental_migrations: dict[str, tuple[int, int]] = assert_incremental_migrations(errors=errors,
-                                                                                           scheme=scheme)
+                                                                                           scheme=input_params)
         # is migration possible ?
         if not errors:
-            # yes, obtain the migration parameters
-            source_rdbms: str = scheme.get(MigrationConfig.FROM_RDBMS).lower()
-            target_rdbms: str = scheme.get(MigrationConfig.TO_RDBMS).lower()
-            source_schema: str = scheme.get(MigrationConfig.FROM_SCHEMA).lower()
-            target_schema: str = scheme.get(MigrationConfig.TO_SCHEMA).lower()
-            target_s3: str = scheme.get(MigrationConfig.TO_S3, "").lower()
-            migration_badge: str = scheme.get(MigrationConfig.MIGRATION_BADGE)
+            # yes, obtain the remaining migration parameters
+            source_rdbms: str = input_params.get(MigrationConfig.FROM_RDBMS).lower()
+            target_rdbms: str = input_params.get(MigrationConfig.TO_RDBMS).lower()
+            source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
+            target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
+            target_s3: str = input_params.get(MigrationConfig.TO_S3, "").lower()
+            migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
 
-            step_metadata: bool = \
-                scheme.get(MigrationConfig.MIGRATE_METADATA, "").lower() in ["1", "t", "true"]
-            step_plaindata: bool = \
-                scheme.get(MigrationConfig.MIGRATE_PLAINDATA, "").lower() in ["1", "t", "true"]
-            step_lobdata: bool = \
-                scheme.get(MigrationConfig.MIGRATE_LOBDATA, "").lower() in ["1", "t", "true"]
-            step_synchronize: bool = \
-                scheme.get(MigrationConfig.SYNCHRONIZE_PLAINDATA, "").lower() in ["1", "t", "true"]
-            process_indexes: bool = \
-                scheme.get(MigrationConfig.PROCESS_INDEXES, "").lower() in ["1", "t", "true"]
-            process_views: bool = \
-                scheme.get(MigrationConfig.PROCESS_VIEWS, "").lower() in ["1", "t", "true"]
-            relax_reflection: bool = \
-                scheme.get(MigrationConfig.RELAX_REFLECTION, "").lower() in ["1", "t", "true"]
-            skip_nonempty: bool = \
-                scheme.get(MigrationConfig.SKIP_NONEMPTY, "").lower() in ["1", "t", "true"]
-            reflect_filetype: bool = \
-                scheme.get(MigrationConfig.REFLECT_FILETYPE, "").lower() in ["1", "t", "true"]
-            flatten_storage: bool = \
-                scheme.get(MigrationConfig.FLATTEN_STORAGE, "").lower() in ["1", "t", "true"]
-
-            remove_nulls: list[str] = \
-                str_as_list(scheme.get(MigrationConfig.REMOVE_NULLS, "").lower()) or []
-            include_relations: list[str] = \
-                str_as_list(scheme.get(MigrationConfig.INCLUDE_RELATIONS, "").lower()) or []
-            exclude_relations: list[str] = \
-                str_as_list(scheme.get(MigrationConfig.EXCLUDE_RELATIONS, "").lower()) or []
-            exclude_columns: list[str] = \
-                str_as_list(scheme.get(MigrationConfig.EXCLUDE_COLUMNS, "").lower()) or []
-            exclude_constraints: list[str] = \
-                str_as_list(scheme.get(MigrationConfig.EXCLUDE_CONSTRAINTS, "").lower()) or []
-            named_lobdata: list[str] = \
-                str_as_list(source=scheme.get(MigrationConfig.NAMED_LOBDATA, "").lower()) or []
-
+            step_metadata: bool = validate_bool(errors=None,
+                                                source=input_params,
+                                                attr=MigrationConfig.MIGRATE_METADATA)
+            step_plaindata: bool = validate_bool(errors=None,
+                                                 source=input_params,
+                                                 attr=MigrationConfig.MIGRATE_PLAINDATA)
+            step_lobdata: bool = validate_bool(errors=None,
+                                               source=input_params,
+                                               attr=MigrationConfig.MIGRATE_LOBDATA)
+            step_synchronize: bool = validate_bool(errors=None,
+                                                   source=input_params,
+                                                   attr=MigrationConfig.SYNCHRONIZE_PLAINDATA)
+            process_indexes: bool = validate_bool(errors=None,
+                                                  source=input_params,
+                                                  attr=MigrationConfig.PROCESS_INDEXES)
+            process_views: bool = validate_bool(errors=None,
+                                                source=input_params,
+                                                attr=MigrationConfig.PROCESS_VIEWS)
+            relax_reflection: bool = validate_bool(errors=None,
+                                                   source=input_params,
+                                                   attr=MigrationConfig.RELAX_REFLECTION)
+            skip_nonempty: bool = validate_bool(errors=None,
+                                                source=input_params,
+                                                attr=MigrationConfig.SKIP_NONEMPTY)
+            reflect_filetype: bool = validate_bool(errors=None,
+                                                   source=input_params,
+                                                   attr=MigrationConfig.REFLECT_FILETYPE)
+            flatten_storage: bool = validate_bool(errors=None,
+                                                  source=input_params,
+                                                  attr=MigrationConfig.FLATTEN_STORAGE)
+            remove_nulls: list[str] = [s.lower()
+                                       for s in validate_strs(errors=None,
+                                                              source=input_params,
+                                                              attr=MigrationConfig.REMOVE_NULLS)]
+            include_relations: list[str] = [s.lower()
+                                            for s in validate_strs(errors=None,
+                                                                   source=input_params,
+                                                                   attr=MigrationConfig.INCLUDE_RELATIONS)]
+            exclude_relations: list[str] = [s.lower()
+                                            for s in validate_strs(errors=None,
+                                                                   source=input_params,
+                                                                   attr=MigrationConfig.EXCLUDE_RELATIONS)]
+            exclude_columns: list[str] = [s.lower()
+                                          for s in validate_strs(errors=None,
+                                                                 source=input_params,
+                                                                 attr=MigrationConfig.EXCLUDE_COLUMNS)]
+            exclude_constraints: list[str] = [s.lower()
+                                              for s in validate_strs(errors=None,
+                                                                     source=input_params,
+                                                                     attr=MigrationConfig.EXCLUDE_CONSTRAINTS)]
+            named_lobdata: list[str] = [s.lower()
+                                        for s in validate_strs(errors=None,
+                                                               source=input_params,
+                                                               attr=MigrationConfig.NAMED_LOBDATA)]
             # migrate the data
             reply: dict[str, Any] = migrate(errors=errors,
                                             source_rdbms=DbEngine(source_rdbms),

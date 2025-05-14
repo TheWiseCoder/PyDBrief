@@ -243,6 +243,9 @@ def migrate(errors: list[str],
             # synchronize the plain data
             if not errors and step_synchronize:
                 logger.info(msg="Started synchronizing the plain data")
+                sync_deletes: int
+                sync_inserts: int
+                sync_updates: int
                 sync_deletes, sync_inserts, sync_updates = \
                     synchronize_plain(errors=errors,
                                       source_rdbms=source_rdbms,
