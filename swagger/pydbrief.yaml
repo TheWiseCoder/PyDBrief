@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.7.3
+  version: 1.7.4
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -272,6 +272,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SchemaError'
+  /migrate/{migration-badge}:
+    delete:
+      tags:
+        - data migration
+      summary: Abort an ongoing data migration
+      description: Abort an ongoing data migration, identified by the 'migration-badge' parameter
+      operationId: abort-migration
+      parameters:
+        - $ref: '#/components/parameters/MigrationBadgePath'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationAborted'
+        '400':
+          description: Unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationBadgeError'
   /logging:
     get:
       tags:
@@ -620,6 +642,13 @@ components:
       required: false
       schema:
         type: string
+    MigrationBadgePath:
+      name: migration-badge
+      in: path
+      description: The identification for the migration session to abort.
+      required: true
+      schema:
+        type: string
   # migration source/destination group
     ToS3Param:
       name: to-s3
@@ -939,6 +968,12 @@ components:
         secure-access:
           type: boolean
           example: true
+    MigrationAborted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Migration 'my-badge' marked for abortion
     MetricsUpdated:
       type: object
       properties:
@@ -1076,6 +1111,20 @@ components:
               description:
                 type: string
                 example: Invalid value '50'
+    MigrationBadgeError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              attribute:
+                type: string
+                example: migration-badge
+              description:
+                type: string
+                example: Invalid value 'my-badge'
     SchemaError:
       type: object
       properties:

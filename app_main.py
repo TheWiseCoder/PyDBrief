@@ -24,7 +24,8 @@ from pypomes_s3 import S3Engine
 
 from app_constants import DbConfig, S3Config, MigrationConfig
 from migration.pydb_common import (
-    MigrationMetrics, get_s3_params, set_s3_params,
+    MigrationMetrics, OngoingMigrations,
+    get_s3_params, set_s3_params,
     get_rdbms_params, set_rdbms_params, set_migration_metrics
 )
 from migration.pydb_migrator import migrate
@@ -447,6 +448,38 @@ def migrate_data() -> Response:
                                             app_name=APP_NAME,
                                             app_version=APP_VERSION,
                                             logger=PYPOMES_LOGGER)
+    # build the response
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
+    # log the response
+    PYPOMES_LOGGER.info(f"Response: {result}")
+
+    return result
+
+
+@flask_app.route(rule="/migrate/<migration_badge>",
+                 methods=["DELETE"])
+def abort_migration(migration_badge: str) -> Response:
+    """
+    Abort the ongoing migration specified by the *migration-badge' parameter.
+
+    :return: *Response* with the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    reply: dict[str, Any] | None = None
+    if not errors:
+        if migration_badge in OngoingMigrations:
+            OngoingMigrations.remove(migration_badge)
+            reply = {
+                "status": f"Migration '{migration_badge}' marked for abortion"
+            }
+        else:
+            # 141: Invalid value {}
+            errors.append(validate_format_error(141,
+                                                migration_badge,
+                                                f"@{MigrationConfig.MIGRATION_BADGE}"))
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)

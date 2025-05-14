@@ -21,6 +21,8 @@ MigrationMetrics: dict[MetricsConfig, int] = {
     MetricsConfig.INCREMENTAL_SIZE: 100000
 }
 
+OngoingMigrations: list[str] = []
+
 
 def set_migration_metrics(errors: list[str],
                           input_params: dict[str, Any],

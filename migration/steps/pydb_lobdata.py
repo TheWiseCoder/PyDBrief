@@ -1,6 +1,7 @@
+from datetime import datetime, UTC
 from logging import Logger
 from pathlib import Path
-from pypomes_core import validate_format_error
+from pypomes_core import timestamp_interval, validate_format_error
 from pypomes_db import (
     DbEngine, DbParam,
     db_get_param, db_migrate_lobs, db_table_exists
@@ -10,7 +11,9 @@ from typing import Any
 from urlobject import URLObject
 
 from migration.pydb_types import is_lob
-from migration.pydb_common import MigrationMetrics, MetricsConfig
+from migration.pydb_common import (
+    MigrationMetrics, MetricsConfig, OngoingMigrations
+)
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -29,6 +32,7 @@ def migrate_lobs(errors: list[str],
                  target_conn: Any,
                  # migration_warnings: list[str],
                  migrated_tables: dict[str, Any],
+                 migration_badge: str,
                  logger: Logger) -> int:
 
     # initialize the return variable
@@ -36,6 +40,16 @@ def migrate_lobs(errors: list[str],
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
+
+        # verify whether current migration is marked for abortion
+        if migration_badge and migration_badge not in OngoingMigrations:
+            err_msg: str = f"Migration '{migration_badge}' aborted upon request"
+            logger.error(msg=err_msg)
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                err_msg))
+            break
+
         target_table: str = f"{target_schema}.{table_name}"
         source_table: str = f"{source_schema}.{table_name}"
 
@@ -68,7 +82,9 @@ def migrate_lobs(errors: list[str],
             offset_count: int | None = None
             if table_name in incremental_migrations:
                 limit_count, offset_count = incremental_migrations.get(table_name)
+
             # process the existing LOB columns
+            started: datetime = datetime.now(tz=UTC)
             for lob_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL"
 
@@ -127,7 +143,7 @@ def migrate_lobs(errors: list[str],
                                                  source_conn=source_conn,
                                                  logger=logger) or 0
                 else:
-                    # migration target is databse
+                    # migration target is database
                     count += db_migrate_lobs(errors=errors,
                                              source_engine=source_rdbms,
                                              source_table=source_table,
@@ -150,10 +166,16 @@ def migrate_lobs(errors: list[str],
                 # do not change 'status' if it has already been set
                 status = status or "full"
                 result += count
+
+            finished: datetime = datetime.now(tz=UTC)
+            interval: tuple[int, int, int, int, int] = timestamp_interval(start=started,
+                                                                          finish=finished)
+            duration: str = f"{interval[0]}h{interval[1]}m{interval[2]}s"
             table_data["lob-status"] = status
             table_data["lob-count"] = count
-            logger.debug(msg=f"Migrated LOBs from {source_rdbms}.{source_table} "
-                             f"to {target_rdbms}.{target_table}, status {status}")
+            table_data["lob-duration"] = duration
+            logger.debug(msg=f"Migrated {count} lobdata from {source_rdbms}.{source_table} "
+                             f"to {target_rdbms}.{target_table}, status {status}, duration {duration}")
         elif not errors and lob_columns:
             # target table does not exist
             err_msg: str = ("Unable to migrate LOBs. "

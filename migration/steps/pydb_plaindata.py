@@ -1,5 +1,6 @@
+from datetime import datetime, UTC
 from logging import Logger
-from pypomes_core import validate_format_error
+from pypomes_core import timestamp_interval, validate_format_error
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
     db_count, db_table_exists, db_migrate_data
@@ -7,7 +8,9 @@ from pypomes_db import (
 from typing import Any
 
 from migration import pydb_types
-from migration.pydb_common import MigrationMetrics, MetricsConfig
+from migration.pydb_common import (
+    MigrationMetrics, MetricsConfig, OngoingMigrations
+)
 from migration.steps.pydb_database import check_embedded_nulls
 
 
@@ -23,6 +26,7 @@ def migrate_plain(errors: list[str],
                   target_conn: Any,
                   migration_warnings: list[str],
                   migrated_tables: dict[str, Any],
+                  migration_badge: str,
                   logger: Logger) -> int:
 
     # initialize the return variable
@@ -32,6 +36,15 @@ def migrate_plain(errors: list[str],
     for table_name, table_data in migrated_tables.items():
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
+
+        # verify whether current migration is marked for abortion
+        if migration_badge and migration_badge not in OngoingMigrations:
+            err_msg: str = f"Migration '{migration_badge}' aborted upon request"
+            logger.error(msg=err_msg)
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                err_msg))
+            break
 
         # verify whether the target table exists
         if db_table_exists(errors=errors,
@@ -93,6 +106,7 @@ def migrate_plain(errors: list[str],
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
 
+                started: datetime = datetime.now(tz=UTC)
                 count: int = db_migrate_data(errors=errors,
                                              source_engine=source_rdbms,
                                              source_table=source_table,
@@ -121,10 +135,15 @@ def migrate_plain(errors: list[str],
                 else:
                     status: str = "ok"
 
+                finished: datetime = datetime.now(tz=UTC)
+                interval: tuple[int, int, int, int, int] = timestamp_interval(start=started,
+                                                                              finish=finished)
+                duration: str = f"{interval[0]}h{interval[1]}m{interval[2]}s"
                 table_data["plain-status"] = status
                 table_data["plain-count"] = count
-                logger.debug(msg=f"Attempted plaindata migration from {source_rdbms}.{source_table} "
-                                 f"to {target_rdbms}.{target_table}, status {status}")
+                table_data["plain-duration"] = duration
+                logger.debug(msg=f"Migrated {count} plaindata from {source_rdbms}.{source_table} "
+                                 f"to {target_rdbms}.{target_table}, status {status}, duration {duration}")
                 result += count
 
         elif not errors:

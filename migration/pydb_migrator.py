@@ -24,7 +24,7 @@ from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST, MigrationConfig
 )
 from migration.pydb_common import (
-    MigrationMetrics, get_rdbms_params, get_s3_params
+    MigrationMetrics, OngoingMigrations, get_rdbms_params, get_s3_params
 )
 from migration.pydb_validator import MetricsConfig
 from migration.steps.pydb_database import (
@@ -107,6 +107,7 @@ def migrate(errors: list[str],
         result["target-s3"] = to_s3
     if migration_badge:
         result[MigrationConfig.MIGRATION_BADGE] = migration_badge
+        OngoingMigrations.append(migration_badge)
     if process_indexes:
         result[MigrationConfig.PROCESS_INDEXES] = process_indexes
     if process_views:
@@ -211,6 +212,7 @@ def migrate(errors: list[str],
                                             target_conn=target_conn,
                                             migration_warnings=migration_warnings,
                                             migrated_tables=migrated_tables,
+                                            migration_badge=migration_badge,
                                             logger=logger)
                 logger.info(msg="Finished migrating the plain data")
 
@@ -237,6 +239,7 @@ def migrate(errors: list[str],
                                          target_conn=target_conn,
                                          # migration_warnings=migration_warnings,
                                          migrated_tables=migrated_tables,
+                                         migration_badge=migration_badge,
                                          logger=logger)
                 logger.info(msg="Finished migrating the LOBs")
 
@@ -286,6 +289,7 @@ def migrate(errors: list[str],
         result["warnings"] = migration_warnings
 
     if migration_badge:
+        OngoingMigrations.remove(migration_badge)
         try:
             __log_migration(errors=errors,
                             badge=migration_badge,
