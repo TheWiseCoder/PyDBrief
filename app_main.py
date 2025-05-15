@@ -129,13 +129,13 @@ def handle_rdbms(engine: str = None) -> Response:
 
     # retrieve and validate the input parameters
     db_engine: DbEngine = DbEngine(engine) if engine in DbEngine else None
-    scheme: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = http_get_parameters(request=request)
     assert_params(errors=errors,
                   service="/rdbms",
                   method=request.method,
-                  input_params=scheme)
+                  input_params=input_params)
 
-    reply: dict | None = None
+    reply: dict[str, Any] | None = None
     if not errors:
         if request.method == "GET":
             # get RDBMS connection params
@@ -144,17 +144,17 @@ def handle_rdbms(engine: str = None) -> Response:
         else:
             # configure the RDBMS
             set_rdbms_params(errors=errors,
-                             input_params=scheme)
+                             input_params=input_params)
             if not errors:
-                engine = scheme.get(DbConfig.ENGINE)
+                engine = input_params.get(DbConfig.ENGINE)
                 reply = {"status": f"RDBMS '{engine}' configuration updated"}
 
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    scheme.pop(DbConfig.PWD)
-    PYPOMES_LOGGER.info(f"Response {request.path}?{scheme}: {result}")
+    input_params.pop(DbConfig.PWD, None)
+    PYPOMES_LOGGER.info(f"Response {request.path}?{input_params}: {result}")
 
     return result
 
@@ -183,16 +183,16 @@ def handle_s3(engine: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    scheme: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = http_get_parameters(request=request)
     assert_params(errors=errors,
                   service="/s3",
                   method=request.method,
-                  input_params=scheme)
+                  input_params=input_params)
 
-    reply: dict | None = None
+    reply: dict[str, Any] | None = None
     if not errors:
         # obtain the S3 engine
-        engine = engine or scheme.get(S3Config.ENGINE)
+        engine = engine or input_params.get(S3Config.ENGINE)
         s3_engine: S3Engine = S3Engine(engine) if engine in S3Engine else None
         if s3_engine:
             if request.method == "GET":
@@ -202,7 +202,7 @@ def handle_s3(engine: str = None) -> Response:
             else:
                 # configure the S3 service
                 set_s3_params(errors=errors,
-                              input_params=scheme)
+                              input_params=input_params)
                 if not errors:
                     reply = {"status": f"S3 '{engine}' configuration updated"}
         else:
@@ -214,8 +214,8 @@ def handle_s3(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        reply=reply)
     # log the response
-    scheme.pop(S3Config.SECRET_KEY)
-    PYPOMES_LOGGER.info(msg=f"Response {request.path}?{scheme}: {result}")
+    input_params.pop(S3Config.SECRET_KEY, None)
+    PYPOMES_LOGGER.info(msg=f"Response {request.path}?{input_params}: {result}")
 
     return result
 

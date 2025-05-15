@@ -1,24 +1,29 @@
 from logging import Logger
 from pypomes_core import (
-    dict_jsonify,
     validate_bool, validate_int,
     validate_format_error, validate_str
 )
 from pypomes_db import (
-    DbEngine, db_get_params, db_get_version, db_setup
+    DbEngine, DbParam,
+    db_get_params, db_get_version, db_setup
 )
 from pypomes_s3 import (
-    S3Engine, s3_get_params, s3_setup
+    S3Engine, S3Param,
+    s3_get_params, s3_get_version, s3_setup
 )
 from typing import Any
 
-from app_constants import DbConfig, S3Config, MetricsConfig
+from app_constants import (
+    DbConfig, S3Config, MetricsConfig,
+    RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
+    RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE
+)
 
 MigrationMetrics: dict[MetricsConfig, int] = {
-    MetricsConfig.BATCH_SIZE_IN: 1000000,
-    MetricsConfig.BATCH_SIZE_OUT: 1000000,
-    MetricsConfig.CHUNK_SIZE: 1048576,
-    MetricsConfig.INCREMENTAL_SIZE: 100000
+    MetricsConfig.BATCH_SIZE_IN: RANGE_BATCH_SIZE_IN[2],
+    MetricsConfig.BATCH_SIZE_OUT: RANGE_BATCH_SIZE_OUT[2],
+    MetricsConfig.CHUNK_SIZE: RANGE_CHUNK_SIZE[2],
+    MetricsConfig.INCREMENTAL_SIZE: RANGE_INCREMENTAL_SIZE[2]
 }
 
 OngoingMigrations: list[str] = []
@@ -32,8 +37,8 @@ def set_migration_metrics(errors: list[str],
     batch_size_in: int = validate_int(errors=errors,
                                       source=input_params,
                                       attr=MetricsConfig.BATCH_SIZE_IN,
-                                      min_val=1000,
-                                      max_val=10000000,
+                                      min_val=RANGE_BATCH_SIZE_IN[0],
+                                      max_val=RANGE_BATCH_SIZE_IN[1],
                                       logger=logger)
     # was it obtained ?
     if batch_size_in:
@@ -44,8 +49,8 @@ def set_migration_metrics(errors: list[str],
     batch_size_out = validate_int(errors=errors,
                                   source=input_params,
                                   attr=MetricsConfig.BATCH_SIZE_OUT,
-                                  min_val=1000,
-                                  max_val=10000000,
+                                  min_val=RANGE_BATCH_SIZE_OUT[0],
+                                  max_val=RANGE_BATCH_SIZE_OUT[1],
                                   logger=logger)
     # was it obtained ?
     if batch_size_out:
@@ -56,8 +61,8 @@ def set_migration_metrics(errors: list[str],
     chunk_size: int = validate_int(errors=errors,
                                    source=input_params,
                                    attr=MetricsConfig.CHUNK_SIZE,
-                                   min_val=1024,
-                                   max_val=16777216,
+                                   min_val=RANGE_CHUNK_SIZE[0],
+                                   max_val=RANGE_CHUNK_SIZE[1],
                                    logger=logger)
     # was it obtained ?
     if chunk_size:
@@ -68,8 +73,8 @@ def set_migration_metrics(errors: list[str],
     incremental_size: int = validate_int(errors=errors,
                                          source=input_params,
                                          attr=MetricsConfig.INCREMENTAL_SIZE,
-                                         min_val=1000,
-                                         max_val=10000000,
+                                         min_val=RANGE_INCREMENTAL_SIZE[0],
+                                         max_val=RANGE_INCREMENTAL_SIZE[1],
                                          logger=logger)
     # was it obtained ?
     if incremental_size:
@@ -82,16 +87,14 @@ def get_rdbms_params(errors: list[str],
 
     result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
-        result["engine"] = db_engine
+        result.pop(DbParam.PWD)
         result["version"] = db_get_version(engine=db_engine)
-        dict_jsonify(source=result,
-                     jsonify_keys=False,
-                     jsonify_values=True)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            str(db_engine),
-                                            "unknown or unconfigured RDBMS engine", "@rdbms"))
+                                            db_engine,
+                                            "unknown or unconfigured RDBMS engine",
+                                            f"@{DbConfig.ENGINE}"))
     return result
 
 
@@ -147,15 +150,14 @@ def get_s3_params(errors: list[str],
 
     result: dict[str, Any] = s3_get_params(engine=s3_engine)
     if result:
-        result["engine"] = s3_engine
-        dict_jsonify(source=result,
-                     jsonify_keys=False,
-                     jsonify_values=True)
+        result.pop(S3Param.SECRET_KEY)
+        result["version"] = s3_get_version(engine=s3_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             s3_engine,
-                                            "unknown or unconfigured S3 engine", "@s3-engine"))
+                                            "unknown or unconfigured S3 engine",
+                                            f"@{S3Config.ENGINE}"))
     return result
 
 

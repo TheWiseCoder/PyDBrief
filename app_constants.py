@@ -71,3 +71,10 @@ class MigrationConfig(StrEnum):
     TO_S3 = "to-s3"
     TO_RDBMS = "to-rdbms"
     TO_SCHEMA = "to-schema"
+
+
+# values are (min, max, default)
+RANGE_BATCH_SIZE_IN: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
+RANGE_BATCH_SIZE_OUT: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
+RANGE_CHUNK_SIZE: Final[tuple[int, int, int]] = (1024, 16777216, 1048576)
+RANGE_INCREMENTAL_SIZE: Final[tuple[int, int, int]] = (1000, 10000000, 100000)

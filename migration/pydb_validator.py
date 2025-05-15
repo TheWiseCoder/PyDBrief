@@ -108,7 +108,7 @@ def assert_migration(errors: list[str],
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' "
-                                            f"has not been validated yet. For details, please email the developer."))
+                                            "has not been validated yet. For details, please email the developer."))
     # verify  database runtime capabilities
     if source_rdbms and run_mode:
         db_assert_access(errors=errors,

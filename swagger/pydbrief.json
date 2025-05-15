@@ -6,7 +6,7 @@
         "contact": {
             "email": "gtnunes@gmail.com"
         },
-        "version": "1.7.4"
+        "version": "1.7.5"
     },
     "externalDocs": {
         "description": "Known more about PyDBrief",
@@ -492,8 +492,8 @@
                 "tags": [
                     "data migration"
                 ],
-                "summary": "Abort an ongoing data migration",
-                "description": "Abort an ongoing data migration, identified by the 'migration-badge' parameter",
+                "summary": "Abort an ongoing migration session",
+                "description": "Abort an ongoing migration session, identified by the 'migration-badge' parameter",
                 "operationId": "abort-migration",
                 "parameters": [
                     {
