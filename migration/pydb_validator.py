@@ -18,12 +18,14 @@ from app_constants import (
     DbConfig, S3Config, MetricsConfig, MigrationConfig
 )
 from migration.pydb_common import (
-    MigrationMetrics, get_rdbms_params, get_s3_params
+    MigrationMetrics, OngoingMigrations,
+    get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
 
 SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     "/migration:metrics:PATCH":  list(map(str, MetricsConfig)),
+    "/migrate:DELETE": [MigrationConfig.MIGRATION_BADGE.value],
     "/migrate:POST": list(map(str, MigrationConfig)),
     "/rdbms:POST": list(map(str, DbConfig)),
     "/s3:POST": list(map(str, S3Config)),
@@ -36,7 +38,7 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
 def assert_params(errors: list[str],
                   service: str,
                   method: str,
-                  input_params: dict) -> None:
+                  input_params: dict[str, str]) -> None:
 
     params: list[StrEnum] = SERVICE_PARAMS.get(f"{service}:{method}") or []
     # 122 Attribute is unknown or invalid in this context
@@ -45,7 +47,7 @@ def assert_params(errors: list[str],
 
 
 def assert_rdbms_dual(errors: list[str],
-                      input_params: dict) -> tuple[DbEngine, DbEngine]:
+                      input_params: dict[str, str]) -> tuple[DbEngine, DbEngine]:
 
     # initialize the return variable
     result: tuple[DbEngine | None, DbEngine | None] = (None, None)
@@ -87,7 +89,7 @@ def assert_rdbms_dual(errors: list[str],
 
 
 def assert_migration(errors: list[str],
-                     inpt_params: dict,
+                     inpt_params: dict[str, str],
                      run_mode: bool) -> None:
 
     # validate the migration parameters
@@ -165,8 +167,30 @@ def assert_metrics_params(errors: list[str]) -> None:
                                             f"@{MetricsConfig.INCREMENTAL_SIZE}"))
 
 
+def assert_migration_badge(errors: list[str],
+                           input_params: dict[str, str]) -> str:
+
+    # initialize the return variable
+    result: str | None = None
+
+    # retrieve and validate the migration badge
+    migration_badge: str = validate_str(errors=errors,
+                                        source=input_params,
+                                        attr=MigrationConfig.MIGRATION_BADGE,
+                                        required=True)
+    if migration_badge:
+        result = migration_badge
+    elif not errors and migration_badge not in OngoingMigrations:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            migration_badge,
+                                            "not an ongoing migration session"
+                                            f"@{MigrationConfig.MIGRATION_BADGE}"))
+    return result
+
+
 def assert_migration_steps(errors: list[str],
-                           input_params: dict) -> None:
+                           input_params: dict[str, str]) -> None:
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(errors=errors,
@@ -214,17 +238,17 @@ def assert_migration_steps(errors: list[str],
 
 
 def assert_override_columns(errors: list[str],
-                            scheme: dict[str, Any]) -> dict[str, Type]:
+                            input_params: dict[str, str]) -> dict[str, Type]:
 
     # initialize the return variable
     result: dict[str, Type] = {}
 
     # process the foreign columns list
     override_columns: list[str] = validate_strs(errors=errors,
-                                                source=scheme,
+                                                source=input_params,
                                                 attr=MigrationConfig.OVERRIDE_COLUMNS) or []
     try:
-        rdbms: DbEngine = DbEngine(scheme.get("to-rdbms"))
+        rdbms: DbEngine = DbEngine(input_params.get("to-rdbms"))
         for override_column in override_columns:
             # format of 'override_column' is <column_name>=<column_type>
             column_name: str = override_column[:f"={override_column.rindex('=')-1}"]
@@ -249,7 +273,7 @@ def assert_override_columns(errors: list[str],
 
 
 def assert_incremental_migrations(errors: list[str],
-                                  scheme: dict[str, Any]) -> dict[str, tuple[int, int]]:
+                                  input_params: dict[str, Any]) -> dict[str, tuple[int, int]]:
 
     # initialize the return variable
     result: dict[str, tuple[int, int]] = {}
@@ -257,7 +281,7 @@ def assert_incremental_migrations(errors: list[str],
     # process the foreign columns list
     incremental_tables: list[str] = \
         validate_strs(errors=errors,
-                      source=scheme,
+                      source=input_params,
                       attr=MigrationConfig.INCREMENTAL_MIGRATIONS) or []
     try:
         # format of 'incremental_tables' is [<table_name>[=<size>[:<offset>],...]
@@ -279,24 +303,24 @@ def assert_incremental_migrations(errors: list[str],
 
 
 def get_migration_context(errors: list[str],
-                          scheme: dict) -> dict[str, Any]:
+                          input_params: dict[str, str]) -> dict[str, Any]:
 
     # initialize the return variable
     result: dict[str, Any] | None = None
 
     # obtain the source RDBMS parameters
-    rdbms: str = scheme.get(MigrationConfig.FROM_RDBMS)
+    rdbms: str = input_params.get(MigrationConfig.FROM_RDBMS)
     from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     from_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                    db_engine=from_rdbms)
     # obtain the target RDBMS parameters
-    rdbms = scheme.get(MigrationConfig.TO_RDBMS)
+    rdbms = input_params.get(MigrationConfig.TO_RDBMS)
     to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     to_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                  db_engine=to_rdbms)
     # obtain the target S3 parameters
     s3_params: dict[str, Any] | None = None
-    s3: str = scheme.get(MigrationConfig.TO_S3)
+    s3: str = input_params.get(MigrationConfig.TO_S3)
     to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
     if to_s3:
         s3_params = get_s3_params(errors=errors,

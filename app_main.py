@@ -31,7 +31,8 @@ from migration.pydb_common import (
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
     assert_override_columns, assert_incremental_migrations,
-    assert_params, assert_migration, get_migration_context
+    assert_params, assert_migration, assert_migration_badge,
+    get_migration_context
 )
 
 # create the Flask application
@@ -274,7 +275,7 @@ def handle_migration() -> Response:
                 else:
                     # no, display the migration context
                     reply = get_migration_context(errors=errors,
-                                                  scheme=scheme)
+                                                  input_params=scheme)
                     if reply:
                         reply["status"] = "Migration can be launched"
 
@@ -288,14 +289,11 @@ def handle_migration() -> Response:
 
 
 @flask_app.route(rule="/migrate",
-                 methods=["POST"])
-@flask_app.route(rule="/migrate/<migration_badge>",
-                 methods=["DELETE"])
-def migration(migration_badge: str = None) -> Response:
+                 methods=["DELETE", "POST"])
+def migration() -> Response:
     """
     Initiate or abort a migration operation.
 
-    :param migration_badge: session identification
     :return: *Response* with the operation outcome
     """
     # initialize the errors list
@@ -307,7 +305,7 @@ def migration(migration_badge: str = None) -> Response:
                              request=request)
     else:
         reply = abort_migration(errors=errors,
-                                migration_badge=migration_badge)
+                                request=request)
     # build the response
     result: Response = _build_response(errors=errors,
                                        reply=reply)
@@ -365,7 +363,7 @@ def migrate_data(errors: list[str],
     result: dict[str, Any] | None = None
 
     # retrieve and validate the input parameters
-    input_params: dict = http_get_parameters(request=request)
+    input_params: dict[str, str] = http_get_parameters(request=request)
     assert_params(errors=errors,
                   service="/migrate",
                   method=request.method,
@@ -378,10 +376,10 @@ def migrate_data(errors: list[str],
 
         # assert and retrieve the override columns parameter
         override_columns: dict[str, Type] = assert_override_columns(errors=errors,
-                                                                    scheme=input_params)
+                                                                    input_params=input_params)
         # assert and retrieve the incremental migrations parameter
         incremental_migrations: dict[str, tuple[int, int]] = assert_incremental_migrations(errors=errors,
-                                                                                           scheme=input_params)
+                                                                                           input_params=input_params)
         # is migration possible ?
         if not errors:
             # yes, obtain the remaining migration parameters
@@ -479,26 +477,30 @@ def migrate_data(errors: list[str],
 
 
 def abort_migration(errors: list[str],
-                    migration_badge: str) -> dict[str, Any]:
+                    request: Request) -> dict[str, Any]:
     """
-    Abort the ongoing migration specified by *migration-badge*.
+    Abort the ongoing migration specified by the *migration-badge* input parameter.
 
     :return: the operation outcome
     """
     # initialize the return variable
     result: dict[str, Any] | None = None
 
-    if migration_badge in OngoingMigrations:
-        OngoingMigrations.remove(migration_badge)
-        result = {
-            "status": f"Migration '{migration_badge}' marked for abortion"
-        }
-    else:
-        # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142,
-                                            migration_badge,
-                                            "no migration session found"
-                                            f"@{MigrationConfig.MIGRATION_BADGE}"))
+    # retrieve and validate the input parameters
+    input_params: dict[str, str] = http_get_parameters(request=request)
+    assert_params(errors=errors,
+                  service="/migrate",
+                  method=request.method,
+                  input_params=input_params)
+    if not errors:
+        migration_badge = assert_migration_badge(errors=errors,
+                                                 input_params=input_params)
+        if migration_badge:
+            OngoingMigrations.remove(migration_badge)
+            result = {
+                "status": f"Migration '{migration_badge}' marked for abortion"
+            }
+
     return result
 
 
