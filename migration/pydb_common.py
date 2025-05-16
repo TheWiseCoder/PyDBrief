@@ -1,7 +1,8 @@
 from logging import Logger
 from pypomes_core import (
     validate_bool, validate_int,
-    validate_format_error, validate_str
+    validate_str, validate_enum,
+    validate_format_error
 )
 from pypomes_db import (
     DbEngine, DbParam,
@@ -101,11 +102,11 @@ def get_rdbms_params(errors: list[str],
 def set_rdbms_params(errors: list[str],
                      input_params: dict[str, Any]) -> None:
 
-    db_engine: str = validate_str(errors=errors,
-                                  source=input_params,
-                                  attr=DbConfig.ENGINE,
-                                  values=list(map(str, DbEngine)),
-                                  required=True)
+    db_engine: DbEngine = validate_enum(errors=errors,
+                                        source=input_params,
+                                        attr=DbConfig.ENGINE,
+                                        enum_class=DbEngine,
+                                        required=True)
     db_name: str = validate_str(errors=errors,
                                 source=input_params,
                                 attr=DbConfig.NAME,
@@ -133,7 +134,7 @@ def set_rdbms_params(errors: list[str],
     db_driver: str = validate_str(errors=errors,
                                   source=input_params,
                                   attr=DbConfig.DRIVER)
-    if not errors and not db_setup(engine=DbEngine(db_engine),
+    if not errors and not db_setup(engine=db_engine,
                                    db_name=db_name,
                                    db_host=db_host,
                                    db_port=db_port,
@@ -164,11 +165,11 @@ def get_s3_params(errors: list[str],
 def set_s3_params(errors: list[str],
                   input_params: dict[str, Any]) -> None:
 
-    engine: str = validate_str(errors=errors,
-                               source=input_params,
-                               attr=S3Config.ENGINE,
-                               values=list(map(str, S3Engine)),
-                               required=True)
+    engine: S3Engine = validate_enum(errors=errors,
+                                     source=input_params,
+                                     attr=S3Config.ENGINE,
+                                     enum_class=S3Engine,
+                                     required=True)
     endpoint_url: str = validate_str(errors=errors,
                                      source=input_params,
                                      attr=S3Config.ENDPOINT_URL,
@@ -191,7 +192,7 @@ def set_s3_params(errors: list[str],
     secure_access: bool = validate_bool(errors=errors,
                                         source=input_params,
                                         attr=S3Config.SECURE_ACCESS)
-    if not errors and not s3_setup(engine=S3Engine(engine),
+    if not errors and not s3_setup(engine=engine,
                                    endpoint_url=endpoint_url,
                                    bucket_name=bucket_name,
                                    access_key=access_key,

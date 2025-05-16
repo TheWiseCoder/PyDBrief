@@ -13,7 +13,7 @@ from pypomes_core import (
     str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, DbParam, db_connect, db_count
+    DbEngine, db_connect, db_count
 )
 from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import S3Engine, S3Param
