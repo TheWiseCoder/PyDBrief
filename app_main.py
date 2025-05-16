@@ -287,8 +287,10 @@ def handle_migration() -> Response:
     return result
 
 
+@flask_app.route(rule="/migrate",
+                 methods=["POST"])
 @flask_app.route(rule="/migrate/<migration_badge>",
-                 methods=["DELETE", "POST"])
+                 methods=["DELETE"])
 def migration(migration_badge: str = None) -> Response:
     """
     Initiate or abort a migration operation.
