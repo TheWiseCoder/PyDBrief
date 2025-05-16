@@ -2,7 +2,7 @@ from logging import Logger
 from pypomes_core import (
     validate_bool, validate_int,
     validate_str, validate_enum,
-    validate_format_error
+    validate_format_error, dict_jsonify
 )
 from pypomes_db import (
     DbEngine, DbParam,
@@ -89,6 +89,7 @@ def get_rdbms_params(errors: list[str],
     result: dict[str, Any] = db_get_params(engine=db_engine)
     if isinstance(result, dict):
         result.pop(DbParam.PWD)
+        dict_jsonify(source=result)
         result["version"] = db_get_version(engine=db_engine)
     else:
         # 142: Invalid value {}: {}
@@ -152,6 +153,7 @@ def get_s3_params(errors: list[str],
     result: dict[str, Any] = s3_get_params(engine=s3_engine)
     if result:
         result.pop(S3Param.SECRET_KEY)
+        dict_jsonify(source=result)
         result["version"] = s3_get_version(engine=s3_engine)
     else:
         # 142: Invalid value {}: {}
