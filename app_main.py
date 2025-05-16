@@ -486,17 +486,17 @@ def abort_migration(errors: list[str],
     # initialize the return variable
     result: dict[str, Any] | None = None
 
-    if not errors:
-        if migration_badge in OngoingMigrations:
-            OngoingMigrations.remove(migration_badge)
-            result = {
-                "status": f"Migration '{migration_badge}' marked for abortion"
-            }
-        else:
-            # 141: Invalid value {}
-            errors.append(validate_format_error(141,
-                                                migration_badge,
-                                                f"@{MigrationConfig.MIGRATION_BADGE}"))
+    if migration_badge in OngoingMigrations:
+        OngoingMigrations.remove(migration_badge)
+        result = {
+            "status": f"Migration '{migration_badge}' marked for abortion"
+        }
+    else:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            migration_badge,
+                                            "no migration session found"
+                                            f"@{MigrationConfig.MIGRATION_BADGE}"))
     return result
 
 
