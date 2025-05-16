@@ -197,6 +197,7 @@ def setup_tables(errors: list[str],
                  target_s3: S3Engine,
                  target_tables: list[Table],
                  override_columns: dict[str, Type],
+                 step_metadata: bool,
                  logger: Logger) -> dict[str, Any]:
 
     # iinitialize the return variable
@@ -232,7 +233,7 @@ def setup_tables(errors: list[str],
             # mark LOB column for S3 migration
             if target_s3 and is_lob(column_type):
                 s3_columns.append(column)
-                table_columns[column.name]["target-type"] = str(target_s3)
+                table_columns[column.name]["target-type"] = target_s3.value
 
         # remove the S3-targeted LOB columns
         for s3_column in s3_columns:
@@ -241,18 +242,19 @@ def setup_tables(errors: list[str],
             target_table._columns.remove(s3_column)
 
         # migrate the columns
-        setup_columns(errors=op_errors,
-                      table_columns=columns,
-                      source_rdbms=source_rdbms,
-                      target_rdbms=target_rdbms,
-                      source_schema=source_schema,
-                      target_schema=target_schema,
-                      native_ordinal=native_ordinal,
-                      reference_ordinal=reference_ordinal,
-                      nat_equivalences=nat_equivalences,
-                      override_columns=override_columns,
-                      logger=logger)
-        errors.extend(op_errors)
+        if step_metadata:
+            setup_columns(errors=op_errors,
+                          target_columns=columns,
+                          source_rdbms=source_rdbms,
+                          target_rdbms=target_rdbms,
+                          source_schema=source_schema,
+                          target_schema=target_schema,
+                          native_ordinal=native_ordinal,
+                          reference_ordinal=reference_ordinal,
+                          nat_equivalences=nat_equivalences,
+                          override_columns=override_columns,
+                          logger=logger)
+            errors.extend(op_errors)
 
         # register the target column properties
         for column in columns:
@@ -297,7 +299,7 @@ def setup_tables(errors: list[str],
 
 
 def setup_columns(errors: list[str],
-                  table_columns: Iterable[Column],
+                  target_columns: Iterable[Column],
                   source_rdbms: DbEngine,
                   target_rdbms: DbEngine,
                   source_schema: str,
@@ -309,7 +311,7 @@ def setup_columns(errors: list[str],
                   logger: Logger) -> None:
 
     # set the target columns
-    for table_column in table_columns:
+    for target_column in target_columns:
         try:
             # convert the type
             target_type: Any = migrate_column(source_rdbms=source_rdbms,
@@ -318,21 +320,21 @@ def setup_columns(errors: list[str],
                                               target_schema=target_schema,
                                               native_ordinal=native_ordinal,
                                               reference_ordinal=reference_ordinal,
-                                              source_column=table_column,
+                                              source_column=target_column,
                                               nat_equivalences=nat_equivalences,
                                               override_columns=override_columns,
                                               logger=logger)
             # set column's new type
-            table_column.type = target_type
+            target_column.type = target_type
 
             # remove the server default value
-            if hasattr(table_column, "server_default"):
-                table_column.server_default = None
+            if hasattr(target_column, "server_default"):
+                target_column.server_default = None
 
             # convert the default value - TODO: write a decent default value conversion function
-            if hasattr(table_column, "default") and \
-               table_column.default in ["sysdate", "systime"]:
-                table_column.default = None
+            if hasattr(target_column, "default") and \
+               target_column.default in ["sysdate", "systime"]:
+                target_column.default = None
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))

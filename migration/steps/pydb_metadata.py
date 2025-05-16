@@ -180,6 +180,7 @@ def migrate_metadata(errors: list[str],
                                               target_s3=target_s3,
                                               target_tables=target_tables,
                                               override_columns=override_columns,
+                                              step_metadata=step_metadata,
                                               logger=logger)
 
                         # proceed, if migrating the metadata was indicated

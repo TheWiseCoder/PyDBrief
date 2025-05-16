@@ -1,7 +1,7 @@
 import json
 import sys
 from flask import (
-    Blueprint, Flask, Response, jsonify, request, send_file
+    Blueprint, Flask, Request, Response, jsonify, request, send_file
 )
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -287,9 +287,36 @@ def handle_migration() -> Response:
     return result
 
 
-@flask_app.route(rule="/migrate",
-                 methods=["POST"])
-def migrate_data() -> Response:
+@flask_app.route(rule="/migrate/<migration_badge>",
+                 methods=["DELETE", "POST"])
+def migration(migration_badge: str = None) -> Response:
+    """
+    Initiate or abort a migration operation.
+
+    :param migration_badge: session identification
+    :return: *Response* with the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    reply: dict[str, Any]
+    if request.method == "POST":
+        reply = migrate_data(errors=errors,
+                             request=request)
+    else:
+        reply = abort_migration(errors=errors,
+                                migration_badge=migration_badge)
+    # build the response
+    result: Response = _build_response(errors=errors,
+                                       reply=reply)
+    # log the response
+    PYPOMES_LOGGER.info(f"Response: {result}")
+
+    return result
+
+
+def migrate_data(errors: list[str],
+                 request: Request) -> dict[str, Any]:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
 
@@ -321,7 +348,7 @@ def migrate_data() -> Response:
       - *exclude-columns*: optional list of table columns not to migrate
       - *override-columns*: optional list of columns with forced migration types
       - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-      - *migration-badge*: optional name for JSON and log file creation
+      - *migration-badge*: optional name for session (used on JSON and log file creation)
 
     These are noteworthy:
       - the parameters *include-relations* and *exclude-relations* are mutually exclusive
@@ -332,8 +359,8 @@ def migrate_data() -> Response:
 
     :return: *Response* with the operation outcome
     """
-    # initialize the errors list
-    errors: list[str] = []
+    # initialize the return variable
+    result: dict[str, Any] | None = None
 
     # retrieve and validate the input parameters
     input_params: dict = http_get_parameters(request=request)
@@ -341,8 +368,6 @@ def migrate_data() -> Response:
                   service="/migrate",
                   method=request.method,
                   input_params=input_params)
-
-    reply: dict[str, Any] | None = None
     if not errors:
         # assert whether migration is warranted
         assert_migration(errors=errors,
@@ -420,59 +445,51 @@ def migrate_data() -> Response:
                                                                source=input_params,
                                                                attr=MigrationConfig.NAMED_LOBDATA)]
             # migrate the data
-            reply: dict[str, Any] = migrate(errors=errors,
-                                            source_rdbms=DbEngine(source_rdbms),
-                                            target_rdbms=DbEngine(target_rdbms),
-                                            source_schema=source_schema,
-                                            target_schema=target_schema,
-                                            target_s3=S3Engine(target_s3) if target_s3 else None,
-                                            step_metadata=step_metadata,
-                                            step_plaindata=step_plaindata,
-                                            step_lobdata=step_lobdata,
-                                            step_synchronize=step_synchronize,
-                                            process_indexes=process_indexes,
-                                            process_views=process_views,
-                                            relax_reflection=relax_reflection,
-                                            skip_nonempty=skip_nonempty,
-                                            reflect_filetype=reflect_filetype,
-                                            flatten_storage=flatten_storage,
-                                            incremental_migrations=incremental_migrations,
-                                            remove_nulls=remove_nulls,
-                                            include_relations=include_relations,
-                                            exclude_relations=exclude_relations,
-                                            exclude_columns=exclude_columns,
-                                            exclude_constraints=exclude_constraints,
-                                            named_lobdata=named_lobdata,
-                                            override_columns=override_columns,
-                                            migration_badge=migration_badge,
-                                            app_name=APP_NAME,
-                                            app_version=APP_VERSION,
-                                            logger=PYPOMES_LOGGER)
-    # build the response
-    result: Response = _build_response(errors=errors,
-                                       reply=reply)
-    # log the response
-    PYPOMES_LOGGER.info(f"Response: {result}")
-
+            result = migrate(errors=errors,
+                             source_rdbms=DbEngine(source_rdbms),
+                             target_rdbms=DbEngine(target_rdbms),
+                             source_schema=source_schema,
+                             target_schema=target_schema,
+                             target_s3=S3Engine(target_s3) if target_s3 else None,
+                             step_metadata=step_metadata,
+                             step_plaindata=step_plaindata,
+                             step_lobdata=step_lobdata,
+                             step_synchronize=step_synchronize,
+                             process_indexes=process_indexes,
+                             process_views=process_views,
+                             relax_reflection=relax_reflection,
+                             skip_nonempty=skip_nonempty,
+                             reflect_filetype=reflect_filetype,
+                             flatten_storage=flatten_storage,
+                             incremental_migrations=incremental_migrations,
+                             remove_nulls=remove_nulls,
+                             include_relations=include_relations,
+                             exclude_relations=exclude_relations,
+                             exclude_columns=exclude_columns,
+                             exclude_constraints=exclude_constraints,
+                             named_lobdata=named_lobdata,
+                             override_columns=override_columns,
+                             migration_badge=migration_badge,
+                             app_name=APP_NAME,
+                             app_version=APP_VERSION,
+                             logger=PYPOMES_LOGGER)
     return result
 
 
-@flask_app.route(rule="/migrate/<migration_badge>",
-                 methods=["DELETE"])
-def abort_migration(migration_badge: str) -> Response:
+def abort_migration(errors: list[str],
+                    migration_badge: str) -> dict[str, Any]:
     """
-    Abort the ongoing migration specified by the *migration-badge' parameter.
+    Abort the ongoing migration specified by *migration-badge*.
 
-    :return: *Response* with the operation outcome
+    :return: the operation outcome
     """
-    # initialize the errors list
-    errors: list[str] = []
+    # initialize the return variable
+    result: dict[str, Any] | None = None
 
-    reply: dict[str, Any] | None = None
     if not errors:
         if migration_badge in OngoingMigrations:
             OngoingMigrations.remove(migration_badge)
-            reply = {
+            result = {
                 "status": f"Migration '{migration_badge}' marked for abortion"
             }
         else:
@@ -480,12 +497,6 @@ def abort_migration(migration_badge: str) -> Response:
             errors.append(validate_format_error(141,
                                                 migration_badge,
                                                 f"@{MigrationConfig.MIGRATION_BADGE}"))
-    # build the response
-    result: Response = _build_response(errors=errors,
-                                       reply=reply)
-    # log the response
-    PYPOMES_LOGGER.info(f"Response: {result}")
-
     return result
 
 
