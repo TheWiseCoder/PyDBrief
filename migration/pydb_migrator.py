@@ -79,14 +79,10 @@ def migrate(errors: list[str],
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                   db_engine=source_rdbms)
     from_rdbms["schema"] = source_schema
-    # avoid displaying the password
-    from_rdbms.pop(str(DbParam.PWD))
 
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
                                                 db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
-    # avoid displaying the password
-    to_rdbms.pop(DbParam.PWD)
 
     # initialize the return variable
     result: dict = {
@@ -141,9 +137,7 @@ def migrate(errors: list[str],
     # handle warnings as errors
     warnings.filterwarnings(action="error")
 
-    logger.info(dict_jsonify(source=result,
-                             jsonify_keys=True,
-                             jsonify_values=True))
+    logger.info(msg=dict_jsonify(source=result))
     logger.info(msg="Started discovering the metadata")
     migration_warnings: list[str] = []
 

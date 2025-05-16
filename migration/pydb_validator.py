@@ -289,17 +289,11 @@ def get_migration_context(errors: list[str],
     from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     from_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                    db_engine=from_rdbms)
-    if from_params:
-        from_params["rdbms"] = rdbms
-
     # obtain the target RDBMS parameters
     rdbms = scheme.get(MigrationConfig.TO_RDBMS)
     to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     to_params: dict[str, Any] = get_rdbms_params(errors=errors,
                                                  db_engine=to_rdbms)
-    if to_params:
-        to_params["rdbms"] = rdbms
-
     # obtain the target S3 parameters
     s3_params: dict[str, Any] | None = None
     s3: str = scheme.get(MigrationConfig.TO_S3)
