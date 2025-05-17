@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.7.5
+  version: 1.7.6
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -643,7 +643,7 @@ components:
         type: string
     MigrationBadgeReqParam:
       name: migration-badge
-      in: path
+      in: query
       description: The identification for the migration session to abort.
       required: true
       schema:
@@ -1123,7 +1123,7 @@ components:
                 example: migration-badge
               description:
                 type: string
-                example: Invalid value 'my-badge': migration session not found
+                example: "Invalid value 'my-badge': migration session not found"
     SchemaError:
       type: object
       properties:
