@@ -8,7 +8,7 @@ mysql-connector-python==9.3.0
 oracledb==3.1.1
 pyodbc==5.2.0
 psycopg2-binary==2.9.10
-# pycryptodome==3.22.0              # installed from whl file
+pycryptodome==3.22.0
 pypomes_core==2.2.9
 pypomes_db==2.2.0
 pypomes_http==0.6.7

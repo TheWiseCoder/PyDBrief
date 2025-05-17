@@ -12,7 +12,7 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
     Mimetype, pypomes_versions, exc_format,
-    validate_bool, validate_strs,
+    validate_bool, validate_strs, validate_enum,
     validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
@@ -383,11 +383,21 @@ def migrate_data(errors: list[str],
         # is migration possible ?
         if not errors:
             # yes, obtain the remaining migration parameters
-            source_rdbms: str = input_params.get(MigrationConfig.FROM_RDBMS).lower()
-            target_rdbms: str = input_params.get(MigrationConfig.TO_RDBMS).lower()
+            source_rdbms: DbEngine = validate_enum(errors=None,
+                                                   source=input_params,
+                                                   attr=MigrationConfig.FROM_RDBMS,
+                                                   enum_class=DbEngine)
+            target_rdbms: DbEngine = validate_enum(errors=None,
+                                                   source=input_params,
+                                                   attr=MigrationConfig.TO_RDBMS,
+                                                   enum_class=DbEngine)
+            target_s3: S3Engine = validate_enum(errors=None,
+                                                source=input_params,
+                                                attr=MigrationConfig.TO_S3,
+                                                enum_class=S3Engine)
+
             source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
             target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
-            target_s3: str = input_params.get(MigrationConfig.TO_S3, "").lower()
             migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
 
             step_metadata: bool = validate_bool(errors=None,
@@ -446,11 +456,11 @@ def migrate_data(errors: list[str],
                                                                attr=MigrationConfig.NAMED_LOBDATA)]
             # migrate the data
             result = migrate(errors=errors,
-                             source_rdbms=DbEngine(source_rdbms),
-                             target_rdbms=DbEngine(target_rdbms),
+                             source_rdbms=source_rdbms,
+                             target_rdbms=target_rdbms,
                              source_schema=source_schema,
                              target_schema=target_schema,
-                             target_s3=S3Engine(target_s3) if target_s3 else None,
+                             target_s3=target_s3,
                              step_metadata=step_metadata,
                              step_plaindata=step_plaindata,
                              step_lobdata=step_lobdata,
