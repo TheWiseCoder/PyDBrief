@@ -290,7 +290,7 @@ def handle_migration() -> Response:
 
 @flask_app.route(rule="/migrate",
                  methods=["DELETE", "POST"])
-def migration() -> Response:
+def handle_migrate() -> Response:
     """
     Initiate or abort a migration operation.
 
