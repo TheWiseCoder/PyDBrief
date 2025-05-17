@@ -178,9 +178,9 @@ def assert_migration_badge(errors: list[str],
                                         source=input_params,
                                         attr=MigrationConfig.MIGRATION_BADGE,
                                         required=True)
-    if migration_badge:
+    if migration_badge in OngoingMigrations:
         result = migration_badge
-    elif not errors and migration_badge not in OngoingMigrations:
+    elif not errors:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             migration_badge,
