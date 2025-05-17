@@ -43,7 +43,7 @@ def migrate_lobs(errors: list[str],
 
         # verify whether current migration is marked for abortion
         if migration_badge and migration_badge not in OngoingMigrations:
-            err_msg: str = f"Migration '{migration_badge}' aborted upon request"
+            err_msg: str = f"Migration '{migration_badge}' aborted on request"
             logger.error(msg=err_msg)
             # 101: {}
             errors.append(validate_format_error(101,
