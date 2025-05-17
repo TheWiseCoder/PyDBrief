@@ -184,7 +184,7 @@ def assert_migration_badge(errors: list[str],
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             migration_badge,
-                                            "not an ongoing migration session"
+                                            "migration session not found"
                                             f"@{MigrationConfig.MIGRATION_BADGE}"))
     return result
 

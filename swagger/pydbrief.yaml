@@ -258,7 +258,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/OverrideColumnsParam'
         - $ref: '#/components/parameters/NamedLobdataParam'
-        - $ref: '#/components/parameters/MigrationBadge'
+        - $ref: '#/components/parameters/MigrationBadgeOptParam'
       responses:
         '200':
           description: Successful operation
@@ -272,7 +272,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SchemaError'
-  /migrate/{migration-badge}:
     delete:
       tags:
         - data migration
@@ -280,7 +279,7 @@ paths:
       description: Abort an ongoing migration session, identified by the 'migration-badge' parameter
       operationId: abort-migration
       parameters:
-        - $ref: '#/components/parameters/MigrationBadgePath'
+        - $ref: '#/components/parameters/MigrationBadgeReqParam'
       responses:
         '200':
           description: Successful operation
@@ -635,14 +634,14 @@ components:
         type: string
         enum: [aws,minio]
   # migration identification
-    MigrationBadge:
+    MigrationBadgeOptParam:
       name: migration-badge
       in: query
-      description: The optional identification for the migration session. If specified, it will be used to generate the JSON and log files specific to the current migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
+      description: The optional identification for the migration session. If specified, it will be used to generate the JSON and log files specific to the  migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
       required: false
       schema:
         type: string
-    MigrationBadgePath:
+    MigrationBadgeReqParam:
       name: migration-badge
       in: path
       description: The identification for the migration session to abort.
@@ -1124,7 +1123,7 @@ components:
                 example: migration-badge
               description:
                 type: string
-                example: Invalid value 'my-badge'
+                example: Invalid value 'my-badge': migration session not found
     SchemaError:
       type: object
       properties:
