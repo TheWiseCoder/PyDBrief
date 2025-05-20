@@ -1,8 +1,8 @@
 import sys
 from enum import StrEnum
 from pypomes_core import (
-    str_sanitize, str_splice, exc_format,
-    validate_bool, validate_str,
+    str_sanitize, str_splice, str_is_int,
+    exc_format, validate_bool, validate_str,
     validate_strs, validate_format_error
 )
 from pypomes_db import (
@@ -289,8 +289,9 @@ def assert_incremental_migrations(errors: list[str],
             # noinspection PyTypeChecker
             terms: tuple[str, str, str] = str_splice(source=incremental_table,
                                                      seps=["=", ":"])
-            size: int = None if terms[1] is None or not terms[1].isdigit() else int(terms[1])
-            offset: int = None if terms[2] is None or not terms[2].isdigit() else int(terms[2])
+            size: int = int(terms[1]) if str_is_int(source=terms[1]) \
+                else MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
+            offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
             result[terms[0]] = (size, offset)
     except Exception as e:
         exc_err: str = str_sanitize(target_str=exc_format(exc=e,

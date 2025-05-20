@@ -6,7 +6,7 @@
         "contact": {
             "email": "gtnunes@gmail.com"
         },
-        "version": "1.7.6"
+        "version": "1.7.7"
     },
     "externalDocs": {
         "description": "Known more about PyDBrief",
@@ -39,7 +39,7 @@
             "name": "data migration",
             "description": "Data migration at various levels",
             "externalDocs": {
-                "description": "Learn about data migration between RDBMS engines",
+                "description": "About data migration between RDBMS engines",
                 "url": "https://en.wikipedia.org/wiki/Schema_migration"
             }
         },
@@ -388,7 +388,7 @@
                 ],
                 "summary": "Migrate the data",
                 "description": "Migrate the data from the source to the target RDBMS and schema.",
-                "operationId": "migrate-schema",
+                "operationId": "migrate-data",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/FromRdbmsParam"
@@ -491,7 +491,7 @@
                     "data migration"
                 ],
                 "summary": "Abort an ongoing migration session",
-                "description": "Abort an ongoing migration session, identified by the 'migration-badge' parameter",
+                "description": "Abort an ongoing migration session, identified by the 'migration-badge' parameter. The session is aborted after the plaindata or lobdata migration for the current table is finished, thus preventing migration to continue for the remaining tables.",
                 "operationId": "abort-migration",
                 "parameters": [
                     {
@@ -1286,7 +1286,7 @@
             "IncrementalMigrationParam": {
                 "name": "incremental-migrations",
                 "in": "query",
-                "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\\<table-name\\>[=[\\<size\\>][:\\<offset\\>]]', where '\\<size\\>' is the maximum number of rows to migrate, and '\\<offset\\>' is the offset into the source table. If ommited, '\\<size\\>' is set to the migration metrics parameter 'incremental-size', and '\\<offset\\>' is set to 0. If '\\<size\\>' is set to -1, migration is to include all rows to the end of the table.",
+                "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\\<table-name\\>[=[\\<size\\>][:\\<offset\\>]]', where '\\<size\\>' is the maximum number of rows to migrate, and '\\<offset\\>' is the offset into the source table. If ommited, '\\<size\\>' is set to the migration metrics parameter 'incremental-size', and '\\<offset\\>' is set to 0. If '\\<size\\>' is set to -1, migration is to include all rows to the end of the table. If '\\<offset\\>' is set to -1, it is set to the value of a count operation on the target table.",
                 "required": false,
                 "explode": false,
                 "schema": {
