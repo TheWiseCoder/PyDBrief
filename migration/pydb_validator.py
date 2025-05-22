@@ -283,23 +283,17 @@ def assert_incremental_migrations(errors: list[str],
         validate_strs(errors=errors,
                       source=input_params,
                       attr=MigrationConfig.INCREMENTAL_MIGRATIONS) or []
-    try:
-        # format of 'incremental_tables' is [<table_name>[=<size>[:<offset>],...]
-        for incremental_table in incremental_tables:
-            # noinspection PyTypeChecker
-            terms: tuple[str, str, str] = str_splice(source=incremental_table,
-                                                     seps=["=", ":"])
-            size: int = int(terms[1]) if str_is_int(source=terms[1]) \
-                else MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
-            offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
-            result[terms[0]] = (size, offset)
-    except Exception as e:
-        exc_err: str = str_sanitize(target_str=exc_format(exc=e,
-                                                          exc_info=sys.exc_info()))
-        # 101: {}
-        errors.append(validate_format_error(101,
-                                            f"Syntax error: {exc_err}",
-                                            f"@{MigrationConfig.INCREMENTAL_MIGRATIONS}"))
+
+    # format of 'incremental_tables' is [<table_name>[=<size>[:<offset>],...]
+    for incremental_table in incremental_tables:
+        # noinspection PyTypeChecker
+        terms: tuple[str, str, str] = str_splice(source=incremental_table,
+                                                 seps=["=", ":"])
+        size: int = int(terms[1]) if str_is_int(source=terms[1]) \
+            else MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
+        offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
+        result[terms[0]] = (size, offset)
+
     return result
 
 

@@ -1,7 +1,9 @@
 from datetime import datetime, UTC
 from logging import Logger
 from pathlib import Path
-from pypomes_core import timestamp_interval, validate_format_error
+from pypomes_core import (
+    timestamp_interval, validate_format_error, list_elem_starting_with
+)
 from pypomes_db import (
     DbEngine, DbParam,
     db_get_param, db_migrate_lobs, db_table_exists
@@ -59,7 +61,10 @@ def migrate_lobs(errors: list[str],
         table_columns = table_data.get("columns", {})
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
-            if is_lob(column_type):
+            # migrating to S3 requires the lob column be mapped in 'named_lobdata'
+            if is_lob(column_type) and \
+                    (not target_s3 or list_elem_starting_with(source=named_lobdata,
+                                                              prefix=f"{table_name}.{column_name}=")):
                 lob_columns.append(column_name)
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
