@@ -1,4 +1,4 @@
-boto3==1.38.19
+boto3==1.38.21
 DateTime==5.5
 Flask==3.1.1
 Flask-Cors==6.0.0
