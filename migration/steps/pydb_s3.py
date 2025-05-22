@@ -20,7 +20,6 @@ from migration.pydb_common import MigrationMetrics, MetricsConfig
 def s3_migrate_lobs(errors: list[str],
                     target_s3: S3Engine,
                     target_rdbms: DbEngine,
-                    target_schema: str,
                     target_table: str,
                     source_rdbms: DbEngine,
                     source_table: str,
@@ -94,7 +93,6 @@ def s3_migrate_lobs(errors: list[str],
                 values: list[Any] = []
                 metadata = {
                     "rdbms": target_rdbms,
-                    "schema": target_schema,
                     "table": target_table
                 }
                 for key, value in sorted(row_data.items()):
