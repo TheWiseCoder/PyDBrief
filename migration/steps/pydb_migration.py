@@ -89,7 +89,8 @@ def prune_metadata(source_schema: str,
             for constraint in source_table.constraints:
                 if constraint.name in table_cks or \
                    constraint.name in exclude_constraints:
-                    tainted_constraints.append(constraint)
+                    if constraint not in tainted_constraints:
+                        tainted_constraints.append(constraint)
                 elif isinstance(constraint, CheckConstraint):
                     table_cks.append(constraint.name)
 
