@@ -2,7 +2,7 @@ from datetime import datetime, UTC
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    timestamp_interval, validate_format_error, list_elem_starting_with
+    timestamp_duration, validate_format_error, list_elem_starting_with
 )
 from pypomes_db import (
     DbEngine, DbParam,
@@ -172,9 +172,8 @@ def migrate_lobs(errors: list[str],
                 result += count
 
             finished: datetime = datetime.now(tz=UTC)
-            interval: tuple[int, int, int, int, int] = timestamp_interval(start=started,
-                                                                          finish=finished)
-            duration: str = f"{interval[0]}h{interval[1]}m{interval[2]}s"
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
             table_data["lob-status"] = status
             table_data["lob-count"] = count
             table_data["lob-duration"] = duration

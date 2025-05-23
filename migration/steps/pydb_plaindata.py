@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 from logging import Logger
-from pypomes_core import timestamp_interval, validate_format_error
+from pypomes_core import timestamp_duration, validate_format_error
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
     db_count, db_table_exists, db_migrate_data
@@ -136,9 +136,8 @@ def migrate_plain(errors: list[str],
                     status: str = "ok"
 
                 finished: datetime = datetime.now(tz=UTC)
-                interval: tuple[int, int, int, int, int] = timestamp_interval(start=started,
-                                                                              finish=finished)
-                duration: str = f"{interval[0]}h{interval[1]}m{interval[2]}s"
+                duration: str = timestamp_duration(start=started,
+                                                   finish=finished)
                 table_data["plain-status"] = status
                 table_data["plain-count"] = count
                 table_data["plain-duration"] = duration

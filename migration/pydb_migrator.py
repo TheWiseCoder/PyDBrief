@@ -3,14 +3,14 @@ import sys
 import threading
 import warnings
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, UTC
 from io import BytesIO
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DatetimeFormat,
     dict_jsonify, pypomes_versions, env_is_docker,
-    str_sanitize, exc_format, validate_format_error
+    timestamp_duration, str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_connect, db_count
@@ -65,7 +65,7 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    started: str = datetime.now().strftime(format=DatetimeFormat.INV)
+    started: datetime = datetime.now(tz=UTC)
     steps: list = []
     if step_metadata:
         steps.append(MigrationConfig.MIGRATE_METADATA)
@@ -271,10 +271,13 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    finished: datetime = datetime.now(tz=UTC)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
-    result["started"] = started
-    result["finished"] = datetime.now().strftime(format=DatetimeFormat.INV)
+    result["started"] = started.strftime(format=DatetimeFormat.INV)
+    result["finished"] = finished.strftime(format=DatetimeFormat.INV)
+    result["duration"] = timestamp_duration(start=started,
+                                            finish=finished)
     if migration_warnings:
         result["warnings"] = migration_warnings
 
@@ -285,8 +288,8 @@ def migrate(errors: list[str],
                             badge=migration_badge,
                             log_json=result)
         except Exception as e:
-            exc_err: str = str_sanitize(target_str=exc_format(exc=e,
-                                                              exc_info=sys.exc_info()))
+            exc_err: str = str_sanitize(source=exc_format(exc=e,
+                                                          exc_info=sys.exc_info()))
             logger.error(msg=exc_err)
             # 101: {}
             errors.append(validate_format_error(101,
