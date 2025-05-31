@@ -338,7 +338,7 @@ def __log_migration(errors: list[str],
     # write the log file
     log_thread: str = str(threading.get_ident())
     log_entries: BytesIO = logging_get_entries(errors=errors,
-                                               log_thread=log_thread)
+                                               log_threads=[log_thread])
     if log_entries:
         log_entries.seek(0)
         with log_file.open("wb") as f:

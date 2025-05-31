@@ -694,8 +694,8 @@ def name_to_type(rdbms: DbEngine,
                  type_name: str) -> Type:
 
     prefix: str = str_positional(source=rdbms,
-                                 list_origin=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
-                                 list_dest=["msql", "orcl", "pg", "sqls"])
+                                 list_from=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
+                                 list_to=["msql", "orcl", "pg", "sqls"])
     return COLUMN_TYPES.get(f"{prefix}_{type_name}")
 
 
@@ -703,8 +703,8 @@ def type_to_name(rdbms: DbEngine,
                  col_type: Type) -> str:
 
     prefix: str = str_positional(source=rdbms,
-                                 list_origin=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
-                                 list_dest=["msql", "orcl", "pg", "sqls"]) + "_"
+                                 list_from=[DbEngine.MYSQL, DbEngine.ORACLE, DbEngine.POSTGRES, DbEngine.SQLSERVER],
+                                 list_to=["msql", "orcl", "pg", "sqls"]) + "_"
     key: str = dict_get_key(source={key: value for (key, value)
                                     in COLUMN_TYPES.items() if key.startswith(prefix)},
                             value=col_type)
