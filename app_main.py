@@ -183,13 +183,13 @@ def handle_s3(engine: str = None) -> Response:
     Entry point for configuring the S3 service to use.
 
     The parameters are as follows:
-        - *s3-engine*: the reference S3 engine (*aws* or *minio*)
-        - *s3-endpoint-url*: the access URL for the service
-        - *s3-bucket-name*: the name of the default bucket
-        - *s3-access-key*: the access key for the service
-        - *s3-secret-key*: the access secret code
-        - *s3-region-name*: the name of the region where the engine is located (AWS only)
-        - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
+      - *s3-engine*: the reference S3 engine (*aws* or *minio*)
+      - *s3-endpoint-url*: the access URL for the service
+      - *s3-bucket-name*: the name of the default bucket
+      - *s3-access-key*: the access key for the service
+      - *s3-secret-key*: the access secret code
+      - *s3-region-name*: the name of the region where the engine is located (AWS only)
+      - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
 
     :param engine: the reference S3 engine (*aws* or *minio*)
     :return: the operation outcome
@@ -246,7 +246,7 @@ def handle_s3(engine: str = None) -> Response:
                  methods=[HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST])
 def handle_sessions(session_id: str = None) -> Response:
     """
-    Entry point for configuring migration sessions.
+    Entry point for handling migration sessions.
 
     :param session_id: the session identification
     :return: the operation outcome
@@ -306,7 +306,7 @@ def handle_sessions(session_id: str = None) -> Response:
                  methods=[HttpMethod.GET, HttpMethod.PATCH])
 def handle_migration() -> Response:
     """
-    Entry point for configuring migration sessions and metrics, and for assessing migration readiness.
+    Entry point for configuring migration metrics, and for assessing migration readiness.
 
     Assessing the server's migration readiness means to verify whether its state and data
     are valid and consistent, thus allowing for a migration to be attempted.

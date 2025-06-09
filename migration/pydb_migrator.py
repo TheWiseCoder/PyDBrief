@@ -68,6 +68,9 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
+    # retrieve the metrics for the session
+    session_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
+
     started: datetime = datetime.now(tz=UTC)
     steps: list = []
     if step_metadata:
@@ -95,7 +98,7 @@ def migrate(errors: list[str],
             "foundations": pypomes_versions()
         },
         MigrationConfig.SESSION_ID: session_id,
-        MigrationConfig.METRICS: get_metrics_params(session_id=session_id),
+        MigrationConfig.METRICS: session_metrics,
         "steps": steps,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
@@ -197,7 +200,7 @@ def migrate(errors: list[str],
                                        target_rdbms=target_rdbms,
                                        target_schema=target_schema,
                                        target_conn=target_conn,
-                                       session_id=session_id,
+                                       incremental_size=session_metrics.get(MetricsConfig.INCREMENTAL_SIZE),
                                        logger=logger)
             # migrate the plain data
             if not errors and step_plaindata:
@@ -284,6 +287,12 @@ def migrate(errors: list[str],
         result["total-plains"] = plain_count
         result["total-lobs"] = lob_count
 
+    # update the session state
+    curr_state: MigrationState = session_registry.get(MigrationConfig.STATE)
+    new_state: MigrationState = MigrationState.FINISHED \
+        if curr_state == MigrationState.MIGRATING else MigrationState.ABORTED
+    session_registry[MigrationConfig.STATE] = new_state
+
     finished: datetime = datetime.now(tz=UTC)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
@@ -314,15 +323,14 @@ def __establish_increments(errors: list[str],
                            target_rdbms: DbEngine,
                            target_schema: str,
                            target_conn: Any,
-                           session_id: str,
+                           incremental_size: int,
                            logger: Logger) -> None:
 
     for key, value in incremental_migrations.copy().items():
         size: int | None = value[0]
         offset: int | None = value[1]
         if size is None:
-            metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
-            size = metrics.get(MetricsConfig.INCREMENTAL_SIZE)
+            size = incremental_size
         elif size == -1:
             size = None
         if offset is None:

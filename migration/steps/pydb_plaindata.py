@@ -33,8 +33,9 @@ def migrate_plain(errors: list[str],
     result: int = 0
 
     # retrieve the input and output batch sizes
-    batch_size_in: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_IN)
-    batch_size_out: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_OUT)
+    metric_params: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
+    batch_size_in: int = metric_params.get(MetricsConfig.BATCH_SIZE_IN)
+    batch_size_out: int = metric_params.get(MetricsConfig.BATCH_SIZE_OUT)
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
