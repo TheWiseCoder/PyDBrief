@@ -259,6 +259,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MigrationMetrics'
+        '400':
+          description: Unable to retrieve the migration metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIdError'
     patch:
       tags:
         - data migration
@@ -1161,7 +1167,10 @@ components:
       properties:
         status:
           type: string
-          example: Migration metrics updated for session 'my-session'
+          example: Migration metrics updated
+        session_id:
+          type: string
+          example: my_session
     RdbmsUpdated:
       type: object
       properties:

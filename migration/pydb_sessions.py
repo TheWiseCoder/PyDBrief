@@ -129,6 +129,18 @@ def get_active_session(client_id: str) -> str | None:
     return result
 
 
+def get_session_state(session_id: str) -> str | None:
+
+    # initialize the return variable
+    result: str | None = None
+
+    session_registry = migration_registry.get(session_id)
+    if session_registry:
+        result = session_registry.get(MigrationConfig.STATE)
+
+    return result
+
+
 def set_session_state(errors: list[str],
                       input_params: dict[str, Any]) -> MigrationState | None:
 
@@ -180,7 +192,7 @@ def get_session_params(errors: list[str],
     client_id: str = request.cookies.get(MigrationConfig.CLIENT_ID)
     if not client_id:
         client_id = str(uuid.uuid4())
-    # 'cilent_id' must be returned, even if error
+    # 'client_id' must be returned, even if error
     result[MigrationConfig.CLIENT_ID] = client_id
 
     # obtain the session id
@@ -189,8 +201,8 @@ def get_session_params(errors: list[str],
                   get_active_session(client_id=client_id))
     if session_id:
         result[MigrationConfig.SESSION_ID] = session_id
-        # if it is not being created, session must exist and belong to client
         if not (request.path.startswith("/sessions") and request.method == HttpMethod.POST):
+            # if it is not being created, session must exist and belong to client
             session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
             if client_id != (session_registry or {}).get(MigrationConfig.CLIENT_ID):
                 # 141: Invalid value {}

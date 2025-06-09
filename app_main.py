@@ -28,7 +28,7 @@ from migration.pydb_common import (
 )
 from migration.pydb_sessions import (
     get_sessions, get_session_params, abort_session_migration,
-    create_session, delete_session, set_session_state
+    create_session, delete_session, get_session_state, set_session_state
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
@@ -156,12 +156,18 @@ def handle_rdbms(engine: str = None) -> Response:
                 if reply:
                     reply[MigrationConfig.SESSION_ID] = session_id
         else:
-            # configure the RDBMS
-            set_rdbms_params(errors=errors,
-                             input_params=input_params)
-            if not errors:
-                engine = input_params.get(DbConfig.ENGINE)
-                reply = {"status": f"RDBMS '{engine}' configuration updated for session '{session_id}'"}
+            # validate the session's state
+            state = get_session_state(session_id=session_id)
+            if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    f"Operation not possible for session with state '{state}'"))
+            else:
+                set_rdbms_params(errors=errors,
+                                 input_params=input_params)
+                if not errors:
+                    engine = input_params.get(DbConfig.ENGINE)
+                    reply = {"status": f"RDBMS '{engine}' configuration updated for session '{session_id}'"}
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -223,12 +229,19 @@ def handle_s3(engine: str = None) -> Response:
                 if reply:
                     reply[MigrationConfig.SESSION_ID] = session_id
         else:
-            # configure the S3 service
-            set_s3_params(errors=errors,
-                          input_params=input_params)
-            if not errors:
-                engine = input_params.get(S3Config.ENGINE)
-                reply = {"status": f"S3 '{engine}' configuration updated for session '{session_id}"}
+            # validate the session's state
+            state = get_session_state(session_id=session_id)
+            if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    f"Operation not possible for session with state '{state}'"))
+            else:
+                # configure the S3 service
+                set_s3_params(errors=errors,
+                              input_params=input_params)
+                if not errors:
+                    engine = input_params.get(S3Config.ENGINE)
+                    reply = {"status": f"S3 '{engine}' configuration updated for session '{session_id}"}
     # build the response
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
@@ -347,7 +360,6 @@ def handle_migration() -> Response:
                     # yes, report the problem
                     reply = {
                         "status": "Migration cannot be launched",
-                        MigrationConfig.SESSION_ID: session_id
                     }
                 else:
                     # no, display the migration context
@@ -355,19 +367,20 @@ def handle_migration() -> Response:
                                                   input_params=input_params)
                     if reply:
                         reply["status"] = "Migration can be launched"
-                        reply[MigrationConfig.SESSION_ID] = session_id
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
                         # retrieve the migration parameters
                         reply = get_metrics_params(session_id=session_id)
-                        reply[MigrationConfig.SESSION_ID] = session_id
                     case HttpMethod.PATCH:
                         # establish the migration parameters
                         set_metrics_params(errors=errors,
                                            input_params=input_params)
                         if not errors:
-                            reply = {"status": f"Migration metrics updated for session '{session_id}'"}
+                            reply = {"status": f"Migration metrics updated"}
+        if reply:
+            reply[MigrationConfig.SESSION_ID] = session_id
+
     # build the response
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
@@ -488,18 +501,17 @@ def migrate_data(errors: list[str],
                                                source=input_params,
                                                attr=MigrationConfig.FROM_RDBMS,
                                                enum_class=DbEngine)
-        target_rdbms: DbEngine = validate_enum(errors=None,
-                                               source=input_params,
-                                               attr=MigrationConfig.TO_RDBMS,
-                                               enum_class=DbEngine)
+        target_rdbms: DbEngine = validate_enum(
+            errors=None, source=input_params, attr=MigrationConfig.TO_RDBMS, enum_class=DbEngine
+        )
         target_s3: S3Engine = validate_enum(errors=None,
                                             source=input_params,
                                             attr=MigrationConfig.TO_S3,
                                             enum_class=S3Engine)
 
+        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
         target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         migration_badge: str = input_params.get(MigrationConfig.SESSION_ID)
 
         step_metadata: bool = validate_bool(errors=None,

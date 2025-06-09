@@ -16,7 +16,7 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from app_constants import (
-    DbConfig, S3Config, MetricsConfig, MigrationConfig,
+    DbConfig, S3Config, MetricsConfig, MigrationConfig, MigrationState,
     RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
     RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
     RANGE_PLAINDATA_CHANNELS, RANGE_LOBDATA_CHANNELS
@@ -24,6 +24,7 @@ from app_constants import (
 from migration.pydb_common import (
     get_metrics_params, get_rdbms_params, get_s3_params
 )
+from migration.pydb_sessions import get_session_state
 from migration.pydb_types import name_to_type
 
 SERVICE_PARAMS: Final[dict[str, list[str]]] = {
@@ -104,11 +105,17 @@ def assert_migration(errors: list[str],
     migration_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
     assert_metrics(errors=errors,
                    migration_metrics=migration_metrics)
-
-    # validate the migration steps
     if run_mode:
+        # validate the migration steps
         assert_migration_steps(errors=errors,
                                input_params=input_params)
+
+    # validate the migration session
+    state: MigrationState = get_session_state(session_id=session_id)
+    if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
+        # 101: {}
+        errors.append(validate_format_error(101,
+                                            f"Operation not possible for session with state '{state}'"))
 
     # validate the source and target RDBMS engines
     rdbms: tuple[DbEngine, DbEngine] = assert_rdbms_dual(errors=errors,
