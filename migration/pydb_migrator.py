@@ -251,26 +251,22 @@ def migrate(errors: list[str],
             # synchronize the plain data
             if not errors and step_synchronize:
                 logger.info(msg="Started synchronizing the plain data")
-                sync_deletes: int
-                sync_inserts: int
-                sync_updates: int
-                sync_deletes, sync_inserts, sync_updates = \
-                    synchronize_plain(errors=errors,
-                                      source_rdbms=source_rdbms,
-                                      target_rdbms=target_rdbms,
-                                      source_schema=source_schema,
-                                      target_schema=target_schema,
-                                      remove_nulls=remove_nulls,
-                                      source_conn=source_conn,
-                                      target_conn=target_conn,
-                                      # migration_warnings=migration_warnings,
-                                      migrated_tables=migrated_tables,
-                                      session_id=session_id,
-                                      logger=logger)
+                counts: tuple[int, int, int] = synchronize_plain(errors=errors,
+                                                                 source_rdbms=source_rdbms,
+                                                                 target_rdbms=target_rdbms,
+                                                                 source_schema=source_schema,
+                                                                 target_schema=target_schema,
+                                                                 remove_nulls=remove_nulls,
+                                                                 source_conn=source_conn,
+                                                                 target_conn=target_conn,
+                                                                 # migration_warnings=migration_warnings,
+                                                                 migrated_tables=migrated_tables,
+                                                                 session_id=session_id,
+                                                                 logger=logger)
+                result["total-sync-deletes"] = counts[0]
+                result["total-sync-inserts"] = counts[1]
+                result["total-sync-updates"] = counts[2]
                 logger.info(msg="Finished synchronizing the plain data")
-                result["total-sync-deletes"] = sync_deletes
-                result["total-sync-inserts"] = sync_inserts
-                result["total-sync-updates"] = sync_updates
 
             # restore target RDBMS restrictions delaying bulk operations
             if not errors:
