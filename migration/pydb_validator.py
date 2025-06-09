@@ -2,12 +2,13 @@ import sys
 from enum import StrEnum
 from pypomes_core import (
     str_sanitize, str_splice, str_is_int,
-    exc_format, validate_bool, validate_str,
-    validate_strs, validate_format_error
+    exc_format, validate_bool, validate_enum,
+    validate_str, validate_strs, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_get_engines, db_assert_access
 )
+from pypomes_http import HttpMethod
 from pypomes_s3 import (
     S3Engine, s3_get_engines, s3_assert_access
 )
@@ -15,32 +16,38 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from app_constants import (
-    DbConfig, S3Config, MetricsConfig, MigrationConfig
+    DbConfig, S3Config, MetricsConfig, MigrationConfig,
+    RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
+    RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
+    RANGE_PLAINDATA_CHANNELS, RANGE_LOBDATA_CHANNELS
 )
 from migration.pydb_common import (
-    MigrationMetrics, OngoingMigrations,
-    get_rdbms_params, get_s3_params
+    get_metrics_params, get_rdbms_params, get_s3_params
 )
 from migration.pydb_types import name_to_type
 
 SERVICE_PARAMS: Final[dict[str, list[str]]] = {
-    "/migration:metrics:PATCH":  list(map(str, MetricsConfig)),
-    "/migrate:DELETE": [MigrationConfig.MIGRATION_BADGE.value],
-    "/migrate:POST": list(map(str, MigrationConfig)),
-    "/rdbms:POST": list(map(str, DbConfig)),
-    "/s3:POST": list(map(str, S3Config)),
-    "/migration:verify:POST": [
+    f"/sessions:{HttpMethod.PATCH}": [MigrationConfig.IS_ACTIVE],
+    f"/rdbms:{HttpMethod.POST}": list(map(str, DbConfig)),
+    f"/s3:{HttpMethod.POST}": list(map(str, S3Config)),
+    f"/migrate:{HttpMethod.POST}": list(map(str, MigrationConfig)),
+    f"/migration/metrics:{HttpMethod.PATCH}":  list(map(str, MetricsConfig)),
+    f"/migration:verify:{HttpMethod.POST}": [
         MigrationConfig.FROM_RDBMS, MigrationConfig.TO_RDBMS, MigrationConfig.TO_S3
     ],
 }
 
 
-def assert_params(errors: list[str],
-                  service: str,
-                  method: str,
-                  input_params: dict[str, str]) -> None:
+def assert_expected_params(errors: list[str],
+                           service: str,
+                           method: str,
+                           input_params: dict[str, str]) -> None:
 
-    params: list[StrEnum] = SERVICE_PARAMS.get(f"{service}:{method}") or []
+    op: str = f"{service}:{method}"
+    params: list[StrEnum] = SERVICE_PARAMS.get(op) or []
+    params.append(MigrationConfig.CLIENT_ID)
+    if op != f"/sessions/{HttpMethod.GET}":
+        params.append(MigrationConfig.SESSION_ID)
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
                                          f"@{key}") for key in input_params if key not in params])
@@ -52,141 +59,164 @@ def assert_rdbms_dual(errors: list[str],
     # initialize the return variable
     result: tuple[DbEngine | None, DbEngine | None] = (None, None)
 
-    engines: list[DbEngine] = db_get_engines()
-
-    from_rdbms: str = validate_str(errors=errors,
-                                   source=input_params,
-                                   attr=MigrationConfig.FROM_RDBMS,
-                                   values=list(map(str, DbEngine)))
-    if from_rdbms and DbEngine(from_rdbms) not in engines:
+    from_rdbms: DbEngine = validate_enum(errors=errors,
+                                         source=input_params,
+                                         attr=MigrationConfig.FROM_RDBMS,
+                                         enum_class=DbEngine,
+                                         required=True)
+    if not errors and from_rdbms not in db_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             from_rdbms,
-                                            "unknown or unconfigured RDBMS engine",
+                                            "unknown or unconfigured DB engine",
                                             f"@{MigrationConfig.FROM_RDBMS}"))
 
-    to_rdbms: str = validate_str(errors=errors,
-                                 source=input_params,
-                                 attr=MigrationConfig.TO_RDBMS,
-                                 values=list(map(str, DbEngine)))
-    if to_rdbms and DbEngine(to_rdbms) not in engines:
+    to_rdbms: DbEngine = validate_enum(errors=errors,
+                                       source=input_params,
+                                       attr=MigrationConfig.TO_RDBMS,
+                                       enum_class=DbEngine,
+                                       required=True)
+    if not errors and to_rdbms not in db_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
                                             to_rdbms,
-                                            "unknown or unconfigured RDBMS engine",
+                                            "unknown or unconfigured DB engine",
                                             f"@{MigrationConfig.TO_RDBMS}"))
 
-    if from_rdbms and from_rdbms == to_rdbms:
+    if not errors and from_rdbms == to_rdbms:
         # 126: Value {} cannot be assigned for attributes {} at the same time
         errors.append(validate_format_error(126,
                                             to_rdbms,
                                             f"@'{MigrationConfig.FROM_RDBMS}, "
                                             f"{MigrationConfig.TO_RDBMS})'"))
     if not errors:
-        result = (DbEngine(from_rdbms), DbEngine(to_rdbms))
+        result = (from_rdbms, to_rdbms)
 
     return result
 
 
 def assert_migration(errors: list[str],
-                     inpt_params: dict[str, str],
+                     input_params: dict[str, str],
                      run_mode: bool) -> None:
 
-    # validate the migration parameters
-    assert_metrics_params(errors=errors)
+    # validate the metric parameters
+    session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+    migration_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
+    assert_metrics(errors=errors,
+                   migration_metrics=migration_metrics)
 
     # validate the migration steps
     if run_mode:
         assert_migration_steps(errors=errors,
-                               input_params=inpt_params)
+                               input_params=input_params)
 
     # validate the source and target RDBMS engines
-    source_rdbms: DbEngine
-    target_rdbms: DbEngine
-    source_rdbms, target_rdbms = assert_rdbms_dual(errors=errors,
-                                                   input_params=inpt_params)
+    rdbms: tuple[DbEngine, DbEngine] = assert_rdbms_dual(errors=errors,
+                                                         input_params=input_params)
+    source_rdbms: DbEngine = rdbms[0]
+    target_rdbms: DbEngine = rdbms[1]
     if source_rdbms and target_rdbms and \
             (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"The migration path '{source_rdbms} -> {target_rdbms}' "
                                             "has not been validated yet. For details, please email the developer."))
-    # verify  database runtime capabilities
-    if source_rdbms and run_mode:
-        db_assert_access(errors=errors,
-                         engine=source_rdbms)
-    if target_rdbms and run_mode:
-        db_assert_access(errors=errors,
-                         engine=target_rdbms)
     # validate S3
-    to_s3: str = validate_str(errors=errors,
-                              source=inpt_params,
-                              attr=MigrationConfig.TO_S3,
-                              values=list(map(str, S3Engine)))
-    if to_s3:
-        s3_engine: S3Engine = S3Engine(to_s3)
-        if s3_engine not in s3_get_engines() or \
-                (run_mode and not s3_assert_access(errors=errors,
-                                                   engine=s3_engine)):
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                to_s3,
-                                                "unknown or unconfigured S3 engine",
-                                                f"@{MigrationConfig.TO_S3}"))
-
-
-def assert_metrics_params(errors: list[str]) -> None:
-
-    param: int = MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN)
-    if not (param == 0 or 1000 <= param <= 10000000):
-        # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151,
-                                            param,
-                                            [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_IN}"))
-    param = MigrationMetrics.get(MetricsConfig.BATCH_SIZE_OUT)
-    if not (param == 0 or 1000 <= param <= 10000000):
-        # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151,
-                                            param,
-                                            [1000, 10000000],
-                                            f"@{MetricsConfig.BATCH_SIZE_OUT}"))
-    param = MigrationMetrics.get(MetricsConfig.CHUNK_SIZE)
-    if not 1024 <= param <= 16777216:
-        # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151,
-                                            param,
-                                            [1024, 16777216],
-                                            f"@{MetricsConfig.CHUNK_SIZE}"))
-    param = MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
-    if not 1000 <= param <= 10000000:
-        # 151: Invalid value {}: must be in the range {}
-        errors.append(validate_format_error(151,
-                                            param,
-                                            [1000, 10000000],
-                                            f"@{MetricsConfig.INCREMENTAL_SIZE}"))
-
-
-def assert_migration_badge(errors: list[str],
-                           input_params: dict[str, str]) -> str:
-
-    # initialize the return variable
-    result: str | None = None
-
-    # retrieve and validate the migration badge
-    migration_badge: str = validate_str(errors=errors,
+    s3_engine: S3Engine = validate_enum(errors=errors,
                                         source=input_params,
-                                        attr=MigrationConfig.MIGRATION_BADGE,
-                                        required=True)
-    if migration_badge in OngoingMigrations:
-        result = migration_badge
-    elif not errors:
+                                        attr=MigrationConfig.TO_S3,
+                                        enum_class=S3Engine,
+                                        required=False)
+    if s3_engine and s3_engine not in s3_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            migration_badge,
-                                            "migration session not found"
-                                            f"@{MigrationConfig.MIGRATION_BADGE}"))
-    return result
+                                            s3_engine,
+                                            "unknown or unconfigured S3 engine",
+                                            f"@{MigrationConfig.TO_S3}"))
+    if run_mode:
+        # verify  database runtime capabilities
+        if source_rdbms and not db_assert_access(errors=errors,
+                                                 engine=source_rdbms):
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                f"Source database '{source_rdbms}' "
+                                                "is not accessible as configured"))
+        if target_rdbms and not db_assert_access(errors=errors,
+                                                 engine=target_rdbms):
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                f"Target database '{source_rdbms}' "
+                                                "is not accessible as configured"))
+        if s3_engine and not s3_assert_access(errors=errors,
+                                              engine=s3_engine):
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                f"Target S3 '{s3_engine}' "
+                                                "is not accessible as configured"))
+
+
+def assert_metrics(errors: list[str],
+                   migration_metrics: dict[MetricsConfig, int]) -> None:
+
+    param: int = migration_metrics.get(MetricsConfig.BATCH_SIZE_IN)
+    min_val: int = RANGE_BATCH_SIZE_IN[0]
+    max_val: int = RANGE_BATCH_SIZE_IN[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.BATCH_SIZE_IN}"))
+
+    param = migration_metrics.get(MetricsConfig.BATCH_SIZE_OUT)
+    min_val = RANGE_BATCH_SIZE_OUT[0]
+    max_val = RANGE_BATCH_SIZE_OUT[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.BATCH_SIZE_OUT}"))
+
+    param = migration_metrics.get(MetricsConfig.CHUNK_SIZE)
+    min_val = RANGE_CHUNK_SIZE[0]
+    max_val = RANGE_CHUNK_SIZE[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.CHUNK_SIZE}"))
+
+    param = migration_metrics.get(MetricsConfig.INCREMENTAL_SIZE)
+    min_val = RANGE_INCREMENTAL_SIZE[0]
+    max_val = RANGE_INCREMENTAL_SIZE[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.INCREMENTAL_SIZE}"))
+
+    param = migration_metrics.get(MetricsConfig.PLAINDATA_CHANNELS)
+    min_val = RANGE_PLAINDATA_CHANNELS[0]
+    max_val = RANGE_PLAINDATA_CHANNELS[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.PLAINDATA_CHANNELS}"))
+
+    param = migration_metrics.get(MetricsConfig.LOBDATA_CHANNELS)
+    min_val = RANGE_LOBDATA_CHANNELS[0]
+    max_val = RANGE_LOBDATA_CHANNELS[1]
+    if not (param == 0 or min_val <= param <= max_val):
+        # 151: Invalid value {}: must be in the range {}
+        errors.append(validate_format_error(151,
+                                            param,
+                                            [min_val, max_val],
+                                            f"@{MetricsConfig.LOBDATA_CHANNELS}"))
 
 
 def assert_migration_steps(errors: list[str],
@@ -289,8 +319,12 @@ def assert_incremental_migrations(errors: list[str],
         # noinspection PyTypeChecker
         terms: tuple[str, str, str] = str_splice(source=incremental_table,
                                                  seps=["=", ":"])
-        size: int = int(terms[1]) if str_is_int(source=terms[1]) \
-            else MigrationMetrics.get(MetricsConfig.INCREMENTAL_SIZE)
+        if str_is_int(source=terms[1]):
+            size: int = int(terms[1])
+        else:
+            session_id = input_params.get(MigrationConfig.SESSION_ID)
+            session_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
+            size: int = session_metrics.get(MetricsConfig.INCREMENTAL_SIZE)
         offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
         result[terms[0]] = (size, offset)
 
@@ -303,27 +337,33 @@ def get_migration_context(errors: list[str],
     # initialize the return variable
     result: dict[str, Any] | None = None
 
-    # obtain the source RDBMS parameters
+    # retrieve the session identification
+    session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+
+    # retrieve the source RDBMS parameters
     rdbms: str = input_params.get(MigrationConfig.FROM_RDBMS)
     from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     from_params: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                   session_id=session_id,
                                                    db_engine=from_rdbms)
-    # obtain the target RDBMS parameters
+    # retrieve the target RDBMS parameters
     rdbms = input_params.get(MigrationConfig.TO_RDBMS)
     to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
     to_params: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                 session_id=session_id,
                                                  db_engine=to_rdbms)
-    # obtain the target S3 parameters
+    # retrieve the target S3 parameters
     s3_params: dict[str, Any] | None = None
     s3: str = input_params.get(MigrationConfig.TO_S3)
     to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
     if to_s3:
         s3_params = get_s3_params(errors=errors,
+                                  session_id=session_id,
                                   s3_engine=to_s3)
     # build the return data
     if not errors:
         result: dict[str, Any] = {
-            "metrics": MigrationMetrics,
+            MigrationConfig.METRICS: get_metrics_params(session_id=session_id),
             MigrationConfig.FROM_RDBMS: from_params,
             MigrationConfig.TO_RDBMS: to_params
         }

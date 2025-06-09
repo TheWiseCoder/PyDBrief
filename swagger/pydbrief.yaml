@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.7.7
+  version: 1.7.8
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -13,6 +13,8 @@ servers:
   - url: http://localhost:5000
     description: Local server for RDBMS migration work
 tags:
+  - name: migration sessions
+    description: Handling of migration sessions
   - name: rdbms
     description: Domain related to the RDBMS engines
     externalDocs:
@@ -35,8 +37,8 @@ paths:
     post:
       tags:
         - rdbms
-      summary: Configure the RDBMS engine
-      description: Configure the RDBMS engine with the data needed for conection.
+      summary: Configure the RDBMS engine for a given session
+      description: Configure the RDBMS engine on a given session, with the data needed for conection.
       operationId: configure-rdbms-engine
       parameters:
         - $ref: '#/components/parameters/DbEngineParam'
@@ -47,6 +49,7 @@ paths:
         - $ref: '#/components/parameters/DbPortParam'
         - $ref: '#/components/parameters/DbClientParam'
         - $ref: '#/components/parameters/DbDriverParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Configuration updated
@@ -64,11 +67,12 @@ paths:
     get:
       tags:
         - rdbms
-      summary: Retrieve the RDBMS engine configuration data
-      description: Retrieve the connection parameters for the given RDBMS engine.
+      summary: Retrieve the RDBMS engine configuration data on a given session
+      description: Retrieve the connection parameters for the given RDBMS engine, on a given session.
       operationId: get-rdbms-configuration
       parameters:
         - $ref: '#/components/parameters/RdbmsParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Successful operation
@@ -86,8 +90,8 @@ paths:
     post:
       tags:
         - S3
-      summary: Configure the S3 engine
-      description: Configure the S3 engine with the data needed for conection.
+      summary: Configure the S3 engine for a given session
+      description: Configure the S3 engine for a given session, with the data needed for conection.
       operationId: configure-s3-engine
       parameters:
         - $ref: '#/components/parameters/S3EngineParam'
@@ -97,6 +101,7 @@ paths:
         - $ref: '#/components/parameters/S3SecretKeyParam'
         - $ref: '#/components/parameters/S3RegionNameParam'
         - $ref: '#/components/parameters/S3SecureAccessParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Configuration updated
@@ -114,11 +119,12 @@ paths:
     get:
       tags:
         - S3
-      summary: Retrieve the S3 engine configuration data
-      description: Retrieve the access parameters for the given S3 engine.
+      summary: Retrieve the S3 engine configuration data for a given session
+      description: Retrieve the access parameters for the given S3 engine on a given session.
       operationId: get-s3s-configuration
       parameters:
         - $ref: '#/components/parameters/S3EnginePathParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Successful operation
@@ -132,87 +138,97 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/S3Error'
-  /migration:metrics:
+  /sessions:
     get:
       tags:
-        - data migration
-      summary: Retrieve the metrics for data migration
-      description: Retrieve the RDBMS-independent parameters driving the data migration.
-      operationId: get-migration-metrics
+        - migration sessions
+      summary: Retrieve the existing sessions
+      description: Retrieve the existing migration sessions, along with their statuses.
+      operationId: retrieve-sessions
       responses:
         '200':
           description: Successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MigrationMetrics'
-    patch:
+                $ref: '#/components/schemas/MigrationSessionsSuccess'
+  /sessions/{session-id}:
+    post:
       tags:
-        - data migration
-      summary: Configure the metrics for data migration
-      description: Set up the RDBMS-independent parameters driving the migration process.
-      operationId: configure-migration
+        - migration sessions
+      summary: Create a new session and set it to 'active'
+      description: Create a new migration session and set its state to 'active'.
+      operationId: create-session
       parameters:
-        - name: batch-size-in
-          in: query
-          description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows satisfying the query are retrieved at once.
-          required: false
-          schema:
-            type: integer
-            minimum: 1000
-            maximum: 10000000
-            default: 1000000
-        - name: batch-size-out
-          in: query
-          description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows retrieved are output at once.
-          required: false
-          schema:
-            type: integer
-            minimum: 1000
-            maximum: 10000000
-            default: 1000000
-        - name: chunk-size
-          in: query
-          description: Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).
-          required: false
-          schema:
-            type: integer
-            minimum: 1024
-            maximum: 16777216
-            default: 1048576
-        - name: incremental-size
-          in: query
-          description: Maximum number of rows to migrate, for tables flagged for incremental migration. Range is [1000-10000000], initial value is 100000.
-          required: false
-          schema:
-            type: integer
-            minimum: 1000
-            maximum: 10000000
-            default: 100000
+        - $ref: '#/components/parameters/SessionIdPathParam'
       responses:
         '200':
-          description: Metrics configured
+          description: Successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MetricsUpdated'
+                $ref: '#/components/schemas/MigrationSessionCreated'
         '400':
-          description: Unable to configure the migration metrics
+          description: Unsuccessful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ChunkSizeError'
+                $ref: '#/components/schemas/SessionIdError'
+    patch:
+      tags:
+        - migration sessions
+      summary: Set an existing session as 'active' or 'inactive'
+      description: Set the state of an existing session as 'active' or 'inactive'.
+      operationId: activate-session
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPathParam'
+        - $ref: '#/components/parameters/IsActiveReqParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationSessionActivated'
+        '400':
+          description: Unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIdError'
+    delete:
+      tags:
+        - migration sessions
+      summary: Delete an existing session
+      description: Delete an existing migration session. This operation will fail if a  migration is ongoing for the session.
+      operationId: delete-session
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPathParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationSessionDeleted'
+        '400':
+          description: Unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIdError'
   /migration:verify:
     post:
       tags:
         - data migration
-      summary: Verify whether a migration can be launched
+      summary: Verify whether a migration can be launched on a given session
       description: Verify whether the current configuration allows for a migration to be launched.
       operationId: verify-migration
       parameters:
-        - $ref: '#/components/parameters/FromRdbmsParam'
-        - $ref: '#/components/parameters/ToRdbmsParam'
-        - $ref: '#/components/parameters/ToS3Param'
+        - $ref: '#/components/parameters/FromRdbmsReqParam'
+        - $ref: '#/components/parameters/ToRdbmsReqParam'
+        - $ref: '#/components/parameters/ToS3OptParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Migration can be launched
@@ -227,19 +243,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerificationFailure'
+  /migration/metrics:
+    get:
+      tags:
+        - data migration
+      summary: Retrieve the metrics for data migration on a given session
+      description: Retrieve the RDBMS-independent parameters driving the data migration on a given session.
+      operationId: get-migration-metrics
+      parameters:
+        - $ref: '#/components/parameters/SessionIdOptParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationMetrics'
+    patch:
+      tags:
+        - data migration
+      summary: Configure the metrics for data migration for a given session
+      description: Set up the RDBMS-independent parameters driving the migration process on a given session.
+      operationId: configure-migration
+      parameters:
+        - $ref: '#/components/parameters/BatchSizeInParam'
+        - $ref: '#/components/parameters/BatchSizeOutParam'
+        - $ref: '#/components/parameters/ChunkSizeParam'
+        - $ref: '#/components/parameters/IncrementalSizeParam'
+        - $ref: '#/components/parameters/PlaindataChannelsParam'
+        - $ref: '#/components/parameters/LobdataChannelsParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
+      responses:
+        '200':
+          description: Metrics configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsUpdated'
+        '400':
+          description: Unable to configure the migration metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChunkSizeError'
   /migrate:
     post:
       tags:
         - data migration
-      summary: Migrate the data
-      description:  Migrate the data from the source to the target RDBMS and schema.
+      summary: Migrate the data on a given session
+      description:  Migrate the data from the source to the target RDBMS and schema on a given session.
       operationId: migrate-data
       parameters:
-        - $ref: '#/components/parameters/FromRdbmsParam'
+        - $ref: '#/components/parameters/FromRdbmsReqParam'
         - $ref: '#/components/parameters/FromSchemaParam'
-        - $ref: '#/components/parameters/ToRdbmsParam'
+        - $ref: '#/components/parameters/ToRdbmsReqParam'
         - $ref: '#/components/parameters/ToSchemaParam'
-        - $ref: '#/components/parameters/ToS3Param'
+        - $ref: '#/components/parameters/ToS3OptParam'
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
@@ -259,6 +318,7 @@ paths:
         - $ref: '#/components/parameters/OverrideColumnsParam'
         - $ref: '#/components/parameters/NamedLobdataParam'
         - $ref: '#/components/parameters/MigrationBadgeOptParam'
+        - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
           description: Successful operation
@@ -272,14 +332,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SchemaError'
+  /migrate/{session-id}:
     delete:
       tags:
         - data migration
-      summary: Abort an ongoing migration session
-      description: Abort an ongoing migration session, identified by the 'migration-badge' parameter. The session is aborted after the plaindata or lobdata migration for the current table is finished, thus preventing migration to continue for the remaining tables.
+      summary: Abort an ongoing migration
+      description: Abort an ongoing migration, identified by the 'session-id' parameter. The migration is aborted after the plaindata or lobdata migration for the current table is finished, thus preventing it to continue for the remaining tables.
       operationId: abort-migration
       parameters:
-        - $ref: '#/components/parameters/MigrationBadgeReqParam'
+        - $ref: '#/components/parameters/SessionIdPathParam'
       responses:
         '200':
           description: Successful operation
@@ -292,7 +353,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MigrationBadgeError'
+                $ref: '#/components/schemas/SessionIdError'
   /logging:
     get:
       tags:
@@ -303,7 +364,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/LogFilenameParam'
         - $ref: '#/components/parameters/LogLevelParam'
-        - $ref: '#/components/parameters/LogThreadParam'
+        - $ref: '#/components/parameters/LogThreadsParam'
         - $ref: '#/components/parameters/LogFromDatetimeParam'
         - $ref: '#/components/parameters/LogToDatetimeParam'
         - $ref: '#/components/parameters/LogLastDaysParam'
@@ -331,7 +392,7 @@ paths:
     post:
       tags:
         - registry
-      summary: Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values, or values obtained from environment variables, are used.
+      summary: Reconfigure the properties, location, and contents of the server's operation log. For omitted parameters, the existing current values, possibily obtained from environment variables, are used.
       description:  Reconfigure and restart the server's operating log
       operationId: configure-log
       parameters:
@@ -395,29 +456,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  PyDBrief:
-                    type: string
-                    example: 1.6.3
-                  Foundations:
-                    type: object
-                    properties:
-                      PyPomes-Core:
-                        type: string
-                        example: 1.8.3
-                      PyPomes-DB:
-                        type: string
-                        example: 1.9.3
-                      PyPomes-HTTP:
-                        type: string
-                        example: 0.5.1
-                      PyPomes-Logging:
-                        type: string
-                        example: 0.5.1
-                      PyPomes-S3:
-                        type: string
-                        example: 0.7.6
+                $ref: '#/components/schemas/Collophon'
 components:
   parameters:
   # database group
@@ -529,7 +568,7 @@ components:
     LogFilepathParam:
       name: log-filepath
       in: query
-      description: The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS standard temporary folder.
+      description: The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS default temporary folder.
       required: false
       schema:
         type: string
@@ -559,10 +598,10 @@ components:
         type: string
         enum: [debug,info,warning,error,critical]
         default: debug
-    LogThreadParam:
-      name: log-thread
+    LogThreadsParam:
+      name: log-threads
       in: query
-      description: The thread originating the log entries. Defaults to all threads.
+      description: A comma-separated list of threads originating the log entries. Defaults to all threads.
       required: false
       schema:
         type: string
@@ -633,23 +672,99 @@ components:
       schema:
         type: string
         enum: [aws,minio]
+  # migration metrics group
+    BatchSizeInParam:
+      name: batch-size-in
+      in: query
+      description: Maximum number of rows to retrieve per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows satisfying the query are retrieved at once.
+      required: false
+      schema:
+        type: integer
+        minimum: 1000
+        maximum: 10000000
+        default: 1000000
+    BatchSizeOutParam:
+      name: batch-size-out
+      in: query
+      description: Maximum number of rows to output per batch. Range is [1000-10000000], initial value is 1000000. A size of 0 means all rows retrieved are output at once.
+      required: false
+      schema:
+        type: integer
+        minimum: 1000
+        maximum: 10000000
+        default: 1000000
+    ChunkSizeParam:
+      name: chunk-size
+      in: query
+      description: Maximum size, in bytes, of data chunks in LOB data copying. Range is [1024-16777216] ([1 KBytes-16 GBytes]), initial value is 1048576 (1 GBytes).
+      required: false
+      schema:
+        type: integer
+        minimum: 1024
+        maximum: 16777216
+        default: 1048576
+    IncrementalSizeParam:
+      name: incremental-size
+      in: query
+      description: Maximum number of rows to migrate, for tables flagged for incremental migration. Range is [1000-10000000], initial value is 100000.
+      required: false
+      schema:
+        type: integer
+        minimum: 1000
+        maximum: 10000000
+        default: 100000
+    PlaindataChannelsParam:
+      name: plaindata-channels
+      in: query
+      description: Number of channels for simultaneous use in plaindata migrations. Range is [1-32], initial value is 1.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 32
+        default: 1
+    LobdataChannelsParam:
+      name: lobdata-channels
+      in: query
+      description: Number of channels for simultaneous use in lobdata migrations. Range is [1-32], initial value is 1.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 32
+        default: 1
   # migration identification
     MigrationBadgeOptParam:
       name: migration-badge
       in: query
-      description: The optional identification for the migration session. If specified, it will be used to generate the JSON and log files specific to the  migration. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
+      description: The optional identification for the migration operation. If specified, it will be used to generate the JSON and log files specific to the  migration, and may be used for aborting the migration operation. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
       required: false
       schema:
         type: string
-    MigrationBadgeReqParam:
-      name: migration-badge
+  # session identification
+    IsActiveReqParam:
+      name: is-active
       in: query
-      description: The identification for the migration session to abort.
+      description: The state to set the session to ('active' if True, 'inactive' otherwise).
+      required: True
+      schema:
+        type: boolean
+    SessionIdPathParam:
+      name: session-id
+      in: path
+      description: The required identification for a migration session. It is used to group all the configuration items used in migration operations.
       required: true
       schema:
         type: string
+    SessionIdOptParam:
+      name: session-id
+      in: query
+      description: The optional identification for the migration session. If not specified, the current active session is used.
+      required: false
+      schema:
+        type: string
   # migration source/destination group
-    ToS3Param:
+    ToS3OptParam:
       name: to-s3
       in: query
       description: The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to S3 is desired. Otherwise, it should not be specified.
@@ -658,7 +773,7 @@ components:
         type: string
         enum: [aws,minio]
         example: 
-    FromRdbmsParam:
+    FromRdbmsReqParam:
       name: from-rdbms
       in: query
       description: The RBMS to migrate from
@@ -667,7 +782,7 @@ components:
         type: string
         enum: [mysql,oracle,postgres,sqlserver]
         example: oracle
-    ToRdbmsParam:
+    ToRdbmsReqParam:
       name: to-rdbms
       in: query
       description: The RBMS to migrate to
@@ -831,7 +946,7 @@ components:
     IncrementalMigrationParam:
       name: incremental-migrations
       in: query
-      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited, '\<size\>' is set to the migration metrics parameter 'incremental-size', and '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the source table. If '\<offset\>' is set to -1, the offset is set to the value of a count operation on the target table. Note that, as a target table does not exist for LOB migrations to S3, setting '\<offset\>' to -1 in those cases has no effect.
+      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited, '\<size\>' is set to the migration metrics parameter 'incremental-size', and '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
       required: false
       explode: false
       schema:
@@ -862,6 +977,30 @@ components:
           type: string
           example: my_table.my_column=integer
   schemas:
+    Collophon:
+      type: object
+      properties:
+        PyDBrief:
+          type: string
+          example: 1.7.8
+        foundations:
+          type: object
+          properties:
+            pypomes_core:
+              type: string
+              example: 2.3.7
+            pypomes_db:
+              type: string
+              example: 2.2.5
+            pypomes_http:
+              type: string
+              example: 0.7.1
+            pypomes_logging:
+              type: string
+              example: 0.6.4
+            pypomes_s3:
+              type: string
+              example: 0.8.7
     LoggingRestarted:
       type: object
       properties:
@@ -904,15 +1043,18 @@ components:
         incremental-size:
           type: integer
           example: 100000
+        plaindata-channels:
+          type: integer
+          example: 4
+        lobdata-channels:
+          type: integer
+          example: 6
     OracleConfiguration:
       type: object
       properties:
         engine:
           type: string
           example: oracle
-        version:
-          type: string
-          example: Oracle Database 21c Express Edition Release 21.0.0.0.0 - Production
         name:
           type: string
           example: MyOracle
@@ -928,15 +1070,15 @@ components:
         client:
           type: string
           example: C:\oracle\instantclient_21_6
+        version:
+          type: string
+          example: Oracle Database 21c Express Edition Release 21.0.0.0.0 - Production
     PostgresConfiguration:
       type: object
       properties:
         engine:
           type: string
           example: postgres
-        version:
-          type: string
-          example: PostgreSQL 17.4 (Debian 17.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
         name:
           type: string
           example: MyPostgres
@@ -949,6 +1091,9 @@ components:
         port:
           type: integer
           example: 5432
+        version:
+          type: string
+          example: PostgreSQL 17.4 (Debian 17.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
     S3Configuration:
       type: object
       properties:
@@ -967,36 +1112,77 @@ components:
         secure-access:
           type: boolean
           example: true
+        version:
+          type: string
+          example: 4.3.1
+    MigrationSessionActivated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Session 'my-session' set to 'active'
+    MigrationSessionCreated:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Session 'my-session' created and set to 'active'
+    MigrationSessionDeleted:
+      type: object
+      properties:
+        status:
+          type: string
+          example: Session 'my-session' deleted
+    MigrationSessionsSuccess:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: my-session
+              state:
+                type: string
+                example: active
+              client:
+                type: string
+                example: 8661743c-3bbd-43f0-b998-f15581753f8b
     MigrationAborted:
       type: object
       properties:
         status:
           type: string
-          example: Migration 'my-badge' marked for abortion
+          example: Migration in session 'my-session' marked for abortion
     MetricsUpdated:
       type: object
       properties:
         status:
           type: string
-          example: Migration metrics updated
+          example: Migration metrics updated for session 'my-session'
     RdbmsUpdated:
       type: object
       properties:
         status:
           type: string
-          example: Rdbms 'oracle' configuration updated
+          example: Rdbms 'oracle' configuration updated for session 'my-session'
     S3Updated:
       type: object
       properties:
         status:
           type: string
-          example: S3 'minio' configuration updated
+          example: S3 'minio' configuration updated for session 'my-session'
     VerificationSuccess:
       type: object
       properties:
         status:
           type: string
           example: Migration can be launched
+        session-id:
+          type: string
+          example: my-session
         metrics:
           $ref: '#/components/schemas/MigrationMetrics'
         from-rdbms:
@@ -1011,6 +1197,9 @@ components:
         status:
           type: string
           example: Migration cannot be launched
+        session-id:
+          type: string
+          example: my-session
         errors:
           type: array
           items:
@@ -1035,6 +1224,8 @@ components:
           example:
             - migrate-metadata
             - migrate-plaindata
+        collophon:
+          $ref: '#/components/schemas/Collophon'
         source-rdbms:
           $ref: '#/components/schemas/OracleConfiguration'
         target-rdbms:
@@ -1093,9 +1284,6 @@ components:
         total-tables:
           type: integer
           example: 15
-        version:
-          type: string
-          example: 1.3.0
     ChunkSizeError:
       type: object
       properties:
@@ -1123,7 +1311,21 @@ components:
                 example: migration-badge
               description:
                 type: string
-                example: "Invalid value 'my-badge': migration session not found"
+                example: "Invalid value 'my-badge'"
+    SessionIdError:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              attribute:
+                type: string
+                example: session-id
+              description:
+                type: string
+                example: Invalid value 'my-session'
     SchemaError:
       type: object
       properties:

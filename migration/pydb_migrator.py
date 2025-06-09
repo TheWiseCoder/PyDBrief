@@ -4,13 +4,14 @@ import threading
 import warnings
 from contextlib import suppress
 from datetime import datetime, UTC
+from enum import StrEnum
 from io import BytesIO
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
     DatetimeFormat,
-    dict_jsonify, pypomes_versions, env_is_docker,
-    timestamp_duration, str_sanitize, exc_format, validate_format_error
+    dict_jsonify, timestamp_duration, pypomes_versions,
+    env_is_docker, str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_connect, db_count
@@ -21,12 +22,13 @@ from sqlalchemy.sql.elements import Type
 from typing import Any
 
 from app_constants import (
-    REGISTRY_DOCKER, REGISTRY_HOST, MigrationConfig
+    REGISTRY_DOCKER, REGISTRY_HOST,
+    MigrationConfig, MigrationState, MetricsConfig
 )
 from migration.pydb_common import (
-    MigrationMetrics, OngoingMigrations, get_rdbms_params, get_s3_params
+    get_metrics_params, get_session_registry,
+    get_rdbms_params, get_s3_params
 )
-from migration.pydb_validator import MetricsConfig
 from migration.steps.pydb_database import (
     session_disable_restrictions, session_restore_restrictions
 )
@@ -60,6 +62,7 @@ def migrate(errors: list[str],
             exclude_constraints: list[str],
             named_lobdata: list[str],
             override_columns: dict[str, Type],
+            session_id: str,
             migration_badge: str,
             app_name: str,
             app_version: str,
@@ -77,9 +80,11 @@ def migrate(errors: list[str],
         steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA)
 
     from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                  session_id=session_id,
                                                   db_engine=source_rdbms)
     from_rdbms["schema"] = source_schema
     to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
+                                                session_id=session_id,
                                                 db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
 
@@ -87,19 +92,20 @@ def migrate(errors: list[str],
     result: dict = {
         "colophon": {
             app_name: app_version,
-            "Foundations": pypomes_versions()
+            "foundations": pypomes_versions()
         },
+        MigrationConfig.SESSION_ID: session_id,
+        MigrationConfig.METRICS: get_metrics_params(session_id=session_id),
         "steps": steps,
-        "migration-metrics": MigrationMetrics,
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
     }
     if target_s3:
         result["target-s3"] = get_s3_params(errors=errors,
+                                            session_id=session_id,
                                             s3_engine=target_s3)
     if migration_badge:
         result[MigrationConfig.MIGRATION_BADGE] = migration_badge
-        OngoingMigrations.append(migration_badge)
     if process_indexes:
         result[MigrationConfig.PROCESS_INDEXES] = process_indexes
     if process_views:
@@ -132,29 +138,34 @@ def migrate(errors: list[str],
 
     # handle warnings as errors
     warnings.filterwarnings(action="error")
-
-    logger.info(msg=dict_jsonify(source=result))
-    logger.info(msg="Started discovering the metadata")
     migration_warnings: list[str] = []
 
-    migrated_tables: dict[str, Any] = \
-        migrate_metadata(errors=errors,
-                         source_rdbms=source_rdbms,
-                         target_rdbms=target_rdbms,
-                         source_schema=source_schema,
-                         target_schema=target_schema,
-                         target_s3=target_s3,
-                         step_metadata=step_metadata,
-                         process_indexes=process_indexes,
-                         process_views=process_views,
-                         relax_reflection=relax_reflection,
-                         include_relations=include_relations,
-                         exclude_relations=exclude_relations,
-                         exclude_columns=exclude_columns,
-                         exclude_constraints=exclude_constraints,
-                         override_columns=override_columns,
-                         # migration_warnings=migration_warnings,
-                         logger=logger) or {}
+    # log the migration start
+    logger.info(msg=json.dumps(obj=dict_jsonify(source=result),
+                               ensure_ascii=False))
+    logger.info(msg="Started discovering the metadata")
+
+    # set state for session
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+    session_registry[MigrationConfig.STATE] = MigrationState.MIGRATING
+
+    migrated_tables: dict[str, Any] = migrate_metadata(errors=errors,
+                                                       source_rdbms=source_rdbms,
+                                                       target_rdbms=target_rdbms,
+                                                       source_schema=source_schema,
+                                                       target_schema=target_schema,
+                                                       target_s3=target_s3,
+                                                       step_metadata=step_metadata,
+                                                       process_indexes=process_indexes,
+                                                       process_views=process_views,
+                                                       relax_reflection=relax_reflection,
+                                                       include_relations=include_relations,
+                                                       exclude_relations=exclude_relations,
+                                                       exclude_columns=exclude_columns,
+                                                       exclude_constraints=exclude_constraints,
+                                                       override_columns=override_columns,
+                                                       # migration_warnings=migration_warnings,
+                                                       logger=logger) or {}
     logger.info(msg="Finished discovering the metadata")
 
     # proceed, if migration of plain data and/or LOB data has been indicated
@@ -186,6 +197,7 @@ def migrate(errors: list[str],
                                        target_rdbms=target_rdbms,
                                        target_schema=target_schema,
                                        target_conn=target_conn,
+                                       session_id=session_id,
                                        logger=logger)
             # migrate the plain data
             if not errors and step_plaindata:
@@ -202,7 +214,7 @@ def migrate(errors: list[str],
                                             target_conn=target_conn,
                                             migration_warnings=migration_warnings,
                                             migrated_tables=migrated_tables,
-                                            migration_badge=migration_badge,
+                                            session_id=session_id,
                                             logger=logger)
                 logger.info(msg="Finished migrating the plain data")
 
@@ -229,7 +241,7 @@ def migrate(errors: list[str],
                                          target_conn=target_conn,
                                          # migration_warnings=migration_warnings,
                                          migrated_tables=migrated_tables,
-                                         migration_badge=migration_badge,
+                                         session_id=session_id,
                                          logger=logger)
                 logger.info(msg="Finished migrating the LOBs")
 
@@ -250,6 +262,7 @@ def migrate(errors: list[str],
                                       target_conn=target_conn,
                                       # migration_warnings=migration_warnings,
                                       migrated_tables=migrated_tables,
+                                      session_id=session_id,
                                       logger=logger)
                 logger.info(msg="Finished synchronizing the plain data")
                 result["total-sync-deletes"] = sync_deletes
@@ -282,7 +295,6 @@ def migrate(errors: list[str],
         result["warnings"] = migration_warnings
 
     if migration_badge:
-        OngoingMigrations.remove(migration_badge)
         try:
             __log_migration(errors=errors,
                             badge=migration_badge,
@@ -302,13 +314,15 @@ def __establish_increments(errors: list[str],
                            target_rdbms: DbEngine,
                            target_schema: str,
                            target_conn: Any,
+                           session_id: str,
                            logger: Logger) -> None:
 
     for key, value in incremental_migrations.copy().items():
         size: int | None = value[0]
         offset: int | None = value[1]
         if size is None:
-            size = MigrationMetrics[MetricsConfig.INCREMENTAL_SIZE]
+            metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
+            size = metrics.get(MetricsConfig.INCREMENTAL_SIZE)
         elif size == -1:
             size = None
         if offset is None:

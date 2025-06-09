@@ -2,8 +2,9 @@ from logging import Logger
 from typing import Any
 from pypomes_db import db_sync_data, DbEngine
 
+from app_constants import MetricsConfig
 from migration import pydb_types
-from migration.pydb_common import MigrationMetrics, MetricsConfig
+from migration.pydb_common import assert_abort_state, get_metrics_params
 from migration.steps import pydb_database
 
 
@@ -15,7 +16,8 @@ def synchronize_plain(errors: list[str],
                       remove_nulls: list[str],
                       source_conn: Any,
                       target_conn: Any,
-                      migrated_tables: dict,
+                      migrated_tables: dict[str, Any],
+                      session_id: str,
                       logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
@@ -23,8 +25,18 @@ def synchronize_plain(errors: list[str],
     result_inserts: int = 0
     result_updates: int = 0
 
+    # retrieve the input batch size
+    batch_size_in: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_IN)
+
     # traverse list of migrated tables to synchronize their plain data
     for table_name, table_data in migrated_tables.items():
+
+        # verify whether current migration is marked for abortion
+        if assert_abort_state(errors=errors,
+                              session_id=session_id,
+                              logger=logger):
+            break
+
         source_table: str = f"{source_schema}.{table_name}"
         target_table: str = f"{target_schema}.{table_name}"
 
@@ -45,21 +57,24 @@ def synchronize_plain(errors: list[str],
                 if "identity" in features:
                     identity_column = column_name
 
-        deletes, inserts, updates = db_sync_data(errors=op_errors,
-                                                 source_engine=source_rdbms,
-                                                 source_table=source_table,
-                                                 target_engine=target_rdbms,
-                                                 target_table=target_table,
-                                                 pk_columns=pk_columns,
-                                                 sync_columns=sync_columns,
-                                                 source_conn=source_conn,
-                                                 target_conn=target_conn,
-                                                 source_committable=True,
-                                                 target_committable=True,
-                                                 identity_column=identity_column,
-                                                 batch_size=MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN),
-                                                 has_nulls=table_name in remove_nulls,
-                                                 logger=logger) or (0, 0, 0)
+        counts: tuple[int, int, int] = db_sync_data(errors=op_errors,
+                                                    source_engine=source_rdbms,
+                                                    source_table=source_table,
+                                                    target_engine=target_rdbms,
+                                                    target_table=target_table,
+                                                    pk_columns=pk_columns,
+                                                    sync_columns=sync_columns,
+                                                    source_conn=source_conn,
+                                                    target_conn=target_conn,
+                                                    source_committable=True,
+                                                    target_committable=True,
+                                                    identity_column=identity_column,
+                                                    batch_size=batch_size_in,
+                                                    has_nulls=table_name in remove_nulls,
+                                                    logger=logger) or (0, 0, 0)
+        deletes: int = counts[0]
+        inserts: int = counts[1]
+        updates: int = counts[2]
         if op_errors:
             pydb_database.check_embedded_nulls(errors=op_errors,
                                                rdbms=target_rdbms,

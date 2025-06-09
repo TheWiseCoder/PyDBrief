@@ -20,8 +20,8 @@ def build_engine(errors: list[str],
         result = create_engine(url=conn_str)
         logger.debug(msg=f"RDBMS {rdbms}, created migration engine")
     except Exception as e:
-        exc_err = str_sanitize(exc_format(exc=e,
-                               exc_info=sys.exc_info()))
+        exc_err = str_sanitize(source=exc_format(exc=e,
+                                                 exc_info=sys.exc_info()))
         logger.error(msg=exc_err)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
@@ -44,8 +44,8 @@ def excecute_stmt(errors: list[str],
             trans.commit()
             logger.debug(msg=f"RDBMS {rdbms}, sucessfully executed {stmt}")
     except Exception as e:
-        exc_err = str_sanitize(exc_format(exc=e,
-                                          exc_info=sys.exc_info()))
+        exc_err = str_sanitize(source=exc_format(exc=e,
+                                                 exc_info=sys.exc_info()))
         logger.error(msg=exc_err)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,

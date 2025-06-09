@@ -8,9 +8,9 @@ from pypomes_db import (
 from typing import Any
 
 from migration import pydb_types
-from migration.pydb_common import (
-    MigrationMetrics, MetricsConfig, OngoingMigrations
-)
+from app_constants import MetricsConfig
+from migration.pydb_common import assert_abort_state, get_metrics_params
+
 from migration.steps.pydb_database import check_embedded_nulls
 
 
@@ -26,11 +26,15 @@ def migrate_plain(errors: list[str],
                   target_conn: Any,
                   migration_warnings: list[str],
                   migrated_tables: dict[str, Any],
-                  migration_badge: str,
+                  session_id: str,
                   logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
+
+    # retrieve the input and output batch sizes
+    batch_size_in: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_IN)
+    batch_size_out: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_OUT)
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
@@ -38,12 +42,9 @@ def migrate_plain(errors: list[str],
         target_table: str = f"{target_schema}.{table_name}"
 
         # verify whether current migration is marked for abortion
-        if migration_badge and migration_badge not in OngoingMigrations:
-            err_msg: str = f"Migration '{migration_badge}' aborted on request"
-            logger.error(msg=err_msg)
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
+        if assert_abort_state(errors=errors,
+                              session_id=session_id,
+                              logger=logger):
             break
 
         # verify whether the target table exists
@@ -87,8 +88,7 @@ def migrate_plain(errors: list[str],
                             target_columns.append(column_name)
                         if "identity" in features:
                             identity_column = column_name
-                        elif "primary-key" in features and \
-                                (limit_count or MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN)):
+                        elif "primary-key" in features and (limit_count or batch_size_in):
                             orderby_columns.append(column_name)
 
                 if not orderby_columns:
@@ -101,7 +101,7 @@ def migrate_plain(errors: list[str],
                         warn: str = f"Reading offset specified {suffix}"
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
-                    if MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN):
+                    if batch_size_in:
                         warn: str = f"Batch reading specified {suffix}"
                         migration_warnings.append(warn)
                         logger.warning(msg=warn)
@@ -122,8 +122,8 @@ def migrate_plain(errors: list[str],
                                              offset_count=offset_count,
                                              limit_count=limit_count,
                                              identity_column=identity_column,
-                                             batch_size_in=MigrationMetrics.get(MetricsConfig.BATCH_SIZE_IN),
-                                             batch_size_out=MigrationMetrics.get(MetricsConfig.BATCH_SIZE_OUT),
+                                             batch_size_in=batch_size_in,
+                                             batch_size_out=batch_size_out,
                                              has_nulls=table_name in remove_nulls,
                                              logger=logger) or 0
                 if errors:

@@ -337,8 +337,8 @@ def setup_columns(errors: list[str],
                target_column.default in ["sysdate", "systime"]:
                 target_column.default = None
         except Exception as e:
-            exc_err = str_sanitize(exc_format(exc=e,
-                                              exc_info=exc_info()))
+            exc_err = str_sanitize(source=exc_format(exc=e,
+                                                     exc_info=exc_info()))
             # 102: Unexpected error: {}
             errors.append(validate_format_error(102,
                                                 exc_err))

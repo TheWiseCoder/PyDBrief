@@ -12,10 +12,9 @@ from pypomes_s3 import S3Engine, s3_item_exists
 from typing import Any
 from urlobject import URLObject
 
+from app_constants import MetricsConfig
+from migration.pydb_common import assert_abort_state, get_metrics_params
 from migration.pydb_types import is_lob
-from migration.pydb_common import (
-    MigrationMetrics, MetricsConfig, OngoingMigrations
-)
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 
@@ -34,22 +33,22 @@ def migrate_lobs(errors: list[str],
                  target_conn: Any,
                  # migration_warnings: list[str],
                  migrated_tables: dict[str, Any],
-                 migration_badge: str,
+                 session_id: str,
                  logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
 
-    # traverse list of migrated tables to copy the plain data
+    # retrieve the chunk size
+    chunk_size: int = get_metrics_params(session_id=session_id).get(MetricsConfig.CHUNK_SIZE)
+
+    # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if migration_badge and migration_badge not in OngoingMigrations:
-            err_msg: str = f"Migration '{migration_badge}' aborted on request"
-            logger.error(msg=err_msg)
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
+        if assert_abort_state(errors=errors,
+                              session_id=session_id,
+                              logger=logger):
             break
 
         target_table: str = f"{target_schema}.{table_name}"
@@ -145,6 +144,7 @@ def migrate_lobs(errors: list[str],
                                                  forced_filetype=forced_filetype,
                                                  ret_column=ret_column,
                                                  source_conn=source_conn,
+                                                 session_id=session_id,
                                                  logger=logger) or 0
                 else:
                     # migration target is database
@@ -162,7 +162,7 @@ def migrate_lobs(errors: list[str],
                                              where_clause=where_clause,
                                              limit_count=limit_count,
                                              offset_count=offset_count,
-                                             chunk_size=MigrationMetrics.get(MetricsConfig.CHUNK_SIZE),
+                                             chunk_size=chunk_size,
                                              logger=logger) or 0
             if errors:
                 status = "none"

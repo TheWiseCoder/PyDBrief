@@ -14,7 +14,8 @@ from pypomes_s3 import (
 from pathlib import Path
 from typing import Any
 
-from migration.pydb_common import MigrationMetrics, MetricsConfig
+from app_constants import MetricsConfig
+from migration.pydb_common import assert_abort_state, get_metrics_params
 
 
 def s3_migrate_lobs(errors: list[str],
@@ -33,6 +34,7 @@ def s3_migrate_lobs(errors: list[str],
                     forced_filetype: str,
                     ret_column: str,
                     source_conn: Any,
+                    session_id: str,
                     logger: Logger) -> int:
 
     # initialize the return variable
@@ -50,6 +52,7 @@ def s3_migrate_lobs(errors: list[str],
     # was the S3 client obtained ?
     if client:
         # yes, proceed
+        chunk_size: int = get_metrics_params(session_id=session_id).get(MetricsConfig.CHUNK_SIZE)
         forced_mimetype: str = mimetypes.types_map.get(forced_filetype)
 
         # initialize the properties
@@ -78,8 +81,13 @@ def s3_migrate_lobs(errors: list[str],
                                        where_clause=where_clause,
                                        offset_count=offset_count,
                                        limit_count=limit_count,
-                                       chunk_size=MigrationMetrics.get(MetricsConfig.CHUNK_SIZE),
+                                       chunk_size=chunk_size,
                                        logger=logger):
+
+            # verify whether current migration is marked for abortion
+            assert_abort_state(errors=errors,
+                               session_id=session_id,
+                               logger=logger)
             if errors:
                 break
 
