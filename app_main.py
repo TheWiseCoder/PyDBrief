@@ -17,7 +17,7 @@ from pypomes_core import (
     validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
-from pypomes_http import HttpMethod, http_get_parameter
+from pypomes_http import HttpMethod, http_get_parameter, http_get_parameters
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
 
@@ -644,6 +644,13 @@ def handle_exception(exc: Exception) -> Response:
         result = Response(response=json_str,
                           status=500,
                           mimetype="application/json")
+    # log the operation
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
     return result
 
 
