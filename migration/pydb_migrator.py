@@ -23,7 +23,8 @@ from typing import Any
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    MigrationConfig, MigrationState, MetricsConfig
+    DbConfig, MetricsConfig,
+    MigrationConfig, MigrationState
 )
 from migration.pydb_common import (
     get_metrics_params, get_session_registry,
@@ -82,17 +83,17 @@ def migrate(errors: list[str],
     if step_synchronize:
         steps.append(MigrationConfig.SYNCHRONIZE_PLAINDATA)
 
-    from_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                  session_id=session_id,
-                                                  db_engine=source_rdbms)
+    from_rdbms: dict[DbConfig | str, Any] = get_rdbms_params(errors=errors,
+                                                             session_id=session_id,
+                                                             db_engine=source_rdbms)
     from_rdbms["schema"] = source_schema
-    to_rdbms: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                session_id=session_id,
-                                                db_engine=target_rdbms)
+    to_rdbms: dict[DbConfig | str, Any] = get_rdbms_params(errors=errors,
+                                                           session_id=session_id,
+                                                           db_engine=target_rdbms)
     to_rdbms["schema"] = target_schema
 
     # initialize the return variable
-    result: dict = {
+    result: dict[StrEnum | str, Any] = {
         "colophon": {
             app_name: app_version,
             "foundations": pypomes_versions()

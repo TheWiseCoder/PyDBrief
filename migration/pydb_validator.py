@@ -350,17 +350,17 @@ def get_migration_context(errors: list[str],
     # retrieve the source RDBMS parameters
     rdbms: str = input_params.get(MigrationConfig.FROM_RDBMS)
     from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
-    from_params: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                   session_id=session_id,
-                                                   db_engine=from_rdbms)
+    from_params: dict[DbConfig, Any] = get_rdbms_params(errors=errors,
+                                                        session_id=session_id,
+                                                        db_engine=from_rdbms)
     # retrieve the target RDBMS parameters
     rdbms = input_params.get(MigrationConfig.TO_RDBMS)
     to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
-    to_params: dict[str, Any] = get_rdbms_params(errors=errors,
-                                                 session_id=session_id,
-                                                 db_engine=to_rdbms)
+    to_params: dict[DbConfig, Any] = get_rdbms_params(errors=errors,
+                                                      session_id=session_id,
+                                                      db_engine=to_rdbms)
     # retrieve the target S3 parameters
-    s3_params: dict[str, Any] | None = None
+    s3_params: dict[S3Config, Any] | None = None
     s3: str = input_params.get(MigrationConfig.TO_S3)
     to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
     if to_s3:

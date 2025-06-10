@@ -1,5 +1,6 @@
 import json
 import sys
+from enum import StrEnum
 from flask import (
     Blueprint, Flask, Request, Response,
     request, jsonify, send_file
@@ -12,12 +13,12 @@ from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
-    Mimetype, pypomes_versions, exc_format,
+    Mimetype, pypomes_versions, dict_clone, exc_format,
     validate_bool, validate_strs, validate_enum,
     validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
-from pypomes_http import HttpMethod, http_get_parameter, http_get_parameters
+from pypomes_http import HttpMethod, HttpStatus, http_get_parameter, http_get_parameters
 from pypomes_logging import PYPOMES_LOGGER, logging_service
 from pypomes_s3 import S3Engine
 
@@ -89,6 +90,9 @@ def version() -> Response:
 
     :return: the versions in execution
     """
+    # log the request
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}")
+
     # retrieve the versions
     versions: dict[str, Any] = {
         APP_NAME: APP_VERSION,
@@ -98,7 +102,7 @@ def version() -> Response:
     # assign to the return variable
     result: Response = jsonify(versions)
 
-    # log the operation
+    # log the response
     PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, response {result}")
 
     return result
@@ -108,7 +112,7 @@ def version() -> Response:
                  methods=[HttpMethod.POST])
 @flask_app.route(rule="/rdbms/<engine>",
                  methods=[HttpMethod.GET])
-def handle_rdbms(engine: str = None) -> Response:
+def service_rdbms(engine: str = None) -> Response:
     """
     Entry point for configuring the RDBMS engine to use.
 
@@ -131,12 +135,19 @@ def handle_rdbms(engine: str = None) -> Response:
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
                                                       request=request)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=dict_clone(source=input_params,
+                                                  from_to_keys=[key for key in input_params
+                                                                if key != DbConfig.PWD]))
+    PYPOMES_LOGGER.info(msg=msg)
+
     assert_expected_params(errors=errors,
                            service="/rdbms",
                            method=request.method,
                            input_params=input_params)
 
-    reply: dict[str, Any] | None = None
+    reply: dict[StrEnum, Any] | None = None
     if not errors:
         session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         if request.method == HttpMethod.GET:
@@ -171,12 +182,8 @@ def handle_rdbms(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the operation
-    input_params.pop(DbConfig.PWD, None)
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -185,7 +192,7 @@ def handle_rdbms(engine: str = None) -> Response:
                  methods=[HttpMethod.POST])
 @flask_app.route(rule="/s3/<engine>",
                  methods=[HttpMethod.GET])
-def handle_s3(engine: str = None) -> Response:
+def service_s3(engine: str = None) -> Response:
     """
     Entry point for configuring the S3 service to use.
 
@@ -207,12 +214,19 @@ def handle_s3(engine: str = None) -> Response:
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
                                                       request=request)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=dict_clone(source=input_params,
+                                                  from_to_keys=[key for key in input_params
+                                                                if key != S3Config.SECRET_KEY]))
+    PYPOMES_LOGGER.info(msg=msg)
+
     assert_expected_params(errors=errors,
                            service="/s3",
                            method=request.method,
                            input_params=input_params)
 
-    reply: dict[str, Any] | None = None
+    reply: dict[S3Config | str, Any] | None = None
     if not errors:
         session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         if request.method == HttpMethod.GET:
@@ -247,12 +261,8 @@ def handle_s3(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the operation
-    input_params.pop(S3Config.SECRET_KEY, None)
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -261,7 +271,7 @@ def handle_s3(engine: str = None) -> Response:
                  methods=[HttpMethod.GET])
 @flask_app.route(rule="/sessions/<session_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST])
-def handle_sessions(session_id: str = None) -> Response:
+def service_sessions(session_id: str = None) -> Response:
     """
     Entry point for handling migration sessions.
 
@@ -271,15 +281,19 @@ def handle_sessions(session_id: str = None) -> Response:
     # initialize the errors list
     errors: list[str] = []
 
-    if not session_id and request.method != HttpMethod.GET:
-        # 121: Required attribute
-        errors.append(validate_format_error(121,
-                                            f"@{MigrationConfig.SESSION_ID}"))
-
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
                                                       request=request,
                                                       session_id=session_id)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    if not (session_id or request.method != HttpMethod.GET):
+        # 121: Required attribute
+        errors.append(validate_format_error(121,
+                                            f"@{MigrationConfig.SESSION_ID}"))
     assert_expected_params(errors=errors,
                            service="/sessions",
                            method=request.method,
@@ -310,11 +324,8 @@ def handle_sessions(session_id: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
                                        reply=reply)
-    # log the operation
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -323,7 +334,7 @@ def handle_sessions(session_id: str = None) -> Response:
                  methods=[HttpMethod.POST])
 @flask_app.route(rule="/migration/metrics",
                  methods=[HttpMethod.GET, HttpMethod.PATCH])
-def handle_migration() -> Response:
+def service_migration() -> Response:
     """
     Entry point for configuring migration metrics, and for assessing migration readiness.
 
@@ -346,6 +357,11 @@ def handle_migration() -> Response:
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
                                                       request=request)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
     client_id: str = input_params.get(MigrationConfig.CLIENT_ID)
     assert_expected_params(errors=errors,
                            service=request.path,
@@ -391,11 +407,8 @@ def handle_migration() -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
                                        reply=reply)
-    # log the operation
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -404,7 +417,7 @@ def handle_migration() -> Response:
                  methods=[HttpMethod.POST])
 @flask_app.route(rule="/migrate/<session_id>",
                  methods=[HttpMethod.DELETE])
-def handle_migrate(session_id: str = None) -> Response:
+def service_migrate(session_id: str = None) -> Response:
     """
     Initiate or abort a migration operation.
 
@@ -417,6 +430,11 @@ def handle_migrate(session_id: str = None) -> Response:
     input_params: dict[str, str] = get_session_params(errors=errors,
                                                       request=request,
                                                       session_id=session_id)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
     assert_expected_params(errors=errors,
                            service="/migrate",
                            method=request.method,
@@ -438,11 +456,8 @@ def handle_migrate(session_id: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the operation
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -626,11 +641,17 @@ def handle_exception(exc: Exception) -> Response:
     # declare the return variable
     result: Response
 
+    # log the request
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
     # is the exception an instance of werkzeug.exceptions.NotFound ?
     if isinstance(exc, NotFound):
-        # yes, disregard it (with status 'No content')
+        # yes, disregard it
         # (handles a bug causing the re-submission of a GET request from a browser)
-        result = Response(status=204)
+        result = Response(status=HttpStatus.NO_CONTENT)
     else:
         # no, report the problem
         err_msg: str = exc_format(exc=exc,
@@ -639,17 +660,11 @@ def handle_exception(exc: Exception) -> Response:
         reply: dict = {
             "errors": [err_msg]
         }
-        json_str: str = json.dumps(obj=reply,
-                                   ensure_ascii=False)
-        result = Response(response=json_str,
-                          status=500,
-                          mimetype="application/json")
-    # log the operation
-    input_params: dict[str, Any] = http_get_parameters(request=request)
-    msg: str = __op_log(request=request,
-                        response=result,
-                        input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
+        result = jsonify(reply)
+        result.status_code = HttpStatus.INTERNAL_SERVER_ERROR
+
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -666,7 +681,7 @@ def _build_response(errors: list[str],
         if isinstance(reply, dict):
             reply_err.update(reply)
         result = jsonify(reply_err)
-        result.status_code = 400
+        result.status_code = HttpStatus.BAD_REQUEST
     else:
         # 'reply' might be 'None'
         result = jsonify(reply)
@@ -675,14 +690,12 @@ def _build_response(errors: list[str],
     return result
 
 
-def __op_log(request: Request,
-             response: Response,
-             input_params: dict) -> str:
+def __log_init(request: Request,
+               input_params: dict) -> str:
 
     params: str = json.dumps(obj=input_params,
                              ensure_ascii=False)
-    return (f"Request {request.method}:{request.path}, "
-            f"params {params}, response {response}")
+    return f"Request {request.method}:{request.path}, params {params}"
 
 
 if __name__ == "__main__":
