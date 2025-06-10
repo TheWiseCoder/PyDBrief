@@ -2,8 +2,7 @@ from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
     validate_bool, validate_int,
-    validate_str, validate_enum,
-    validate_format_error, dict_jsonify
+    validate_str, validate_enum, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_get_version, db_setup
@@ -22,12 +21,10 @@ from app_constants import (
 from migration.pydb_sessions import get_session_registry
 
 
-def get_metrics_params(session_id: str) -> dict[str, int]:
+def get_metrics_params(session_id: str) -> dict[MetricsConfig, int]:
 
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    result: dict[str, Any] = dict_jsonify(source=session_registry.get(MigrationConfig.METRICS))
-
-    return result
+    return session_registry.get(MigrationConfig.METRICS)
 
 
 def set_metrics_params(errors: list[str],
@@ -92,17 +89,17 @@ def set_metrics_params(errors: list[str],
 
 def get_rdbms_params(errors: list[str],
                      session_id: str,
-                     db_engine: DbEngine) -> dict[str, Any] | None:
+                     db_engine: DbEngine) -> dict[DbConfig, Any] | None:
 
     # initialize the return variable
-    result: dict[str, Any] | None = None
+    result: dict[DbConfig, Any] | None = None
 
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     rdbms_params: dict[DbConfig, Any] = session_registry.get(db_engine)
     if isinstance(rdbms_params, dict):
-        rdbms_params.pop(DbConfig.PWD, None)
-        rdbms_params[DbConfig.VERSION] = db_get_version(engine=db_engine)
-        result = dict_jsonify(source=rdbms_params)
+        result = rdbms_params.copy()
+        result.pop(DbConfig.PWD)
+        result[DbConfig.VERSION] = db_get_version(engine=db_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -181,17 +178,17 @@ def set_rdbms_params(errors: list[str],
 
 def get_s3_params(errors: list[str],
                   session_id: str,
-                  s3_engine: S3Engine) -> dict[str, Any] | None:
+                  s3_engine: S3Engine) -> dict[S3Config, Any] | None:
 
     # initialize the return variable
-    result: dict[str, Any] | None = None
+    result: dict[S3Config, Any] | None = None
 
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     s3_params: dict[S3Config, Any] = session_registry.get(s3_engine)
     if isinstance(s3_params, dict):
-        s3_params.pop(S3Config.SECRET_KEY, None)
-        s3_params[S3Config.VERSION] = s3_get_version(engine=s3_engine)
-        result = dict_jsonify(source=s3_params)
+        result = s3_params.copy()
+        result.pop(S3Config.SECRET_KEY)
+        result[S3Config.VERSION] = s3_get_version(engine=s3_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
