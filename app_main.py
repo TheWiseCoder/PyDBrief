@@ -356,7 +356,7 @@ def handle_migration() -> Response:
     if not errors:
         session_id = input_params.get(MigrationConfig.SESSION_ID)
         match request.path:
-            case "/migration/verify":
+            case "/migration:verify":
                 # assert whether migration is warranted
                 assert_migration(errors=errors,
                                  input_params=input_params,
