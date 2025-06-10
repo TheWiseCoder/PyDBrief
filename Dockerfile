@@ -39,6 +39,11 @@ RUN apk add vim
 # upgrade pip
 RUN pip install --upgrade pip
 
+# to install the wheels file 'pkg.whl':
+#   1. comment it out in 'requirements.txt'
+#   2. COPY pkg.whl .
+#      RUN pip install pkg.whl
+
 # install Python package requirements
 ENV SSL_CERT_DIR=/etc/ssl/certs
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt

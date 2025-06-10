@@ -88,9 +88,6 @@ def version() -> Response:
 
     :return: the versions in execution
     """
-    # register the request
-    PYPOMES_LOGGER.info(msg=f"URL {request.url}")
-
     # retrieve the versions
     versions: dict[str, Any] = {
         APP_NAME: APP_VERSION,
@@ -100,8 +97,8 @@ def version() -> Response:
     # assign to the return variable
     result: Response = jsonify(versions)
 
-    # log the response
-    PYPOMES_LOGGER.info(msg=f"Response {request.path}: {result}")
+    # log the operation
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, response {result}")
 
     return result
 
@@ -173,9 +170,10 @@ def handle_rdbms(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the response
+    # log the operation
     input_params.pop(DbConfig.PWD, None)
-    PYPOMES_LOGGER.info(f"Response {request.path}?{input_params}: {result}")
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
+                            f"params {input_params}, response {result}")
 
     return result
 
@@ -246,9 +244,10 @@ def handle_s3(engine: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the response
+    # log the operation
     input_params.pop(S3Config.SECRET_KEY, None)
-    PYPOMES_LOGGER.info(msg=f"Response {request.path}?{input_params}: {result}")
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
+                            f"params {input_params}, response {result}")
 
     return result
 
@@ -306,9 +305,9 @@ def handle_sessions(session_id: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
                                        reply=reply)
-
-    # log the response
-    PYPOMES_LOGGER.info(f"Response {request.path}?{input_params}: {result}")
+    # log the operation
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
+                            f"params {input_params}, response {result}")
 
     return result
 
@@ -385,8 +384,9 @@ def handle_migration() -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
                                        reply=reply)
-    # log the response
-    PYPOMES_LOGGER.info(f"Response {request.path}?{input_params}: {result}")
+    # log the operation
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
+                            f"params {input_params}, response {result}")
 
     return result
 
@@ -429,8 +429,9 @@ def handle_migrate(session_id: str = None) -> Response:
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
-    # log the response
-    PYPOMES_LOGGER.info(f"Response: {result}")
+    # log the operation
+    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
+                            f"params {input_params}, response {result}")
 
     return result
 
