@@ -1,7 +1,8 @@
 import json
 import sys
 from flask import (
-    Blueprint, Flask, Response, jsonify, request, send_file
+    Blueprint, Flask, Request, Response,
+    request, jsonify, send_file
 )
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -172,8 +173,10 @@ def handle_rdbms(engine: str = None) -> Response:
                                        reply=reply)
     # log the operation
     input_params.pop(DbConfig.PWD, None)
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
-                            f"params {input_params}, response {result}")
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     return result
 
@@ -246,8 +249,10 @@ def handle_s3(engine: str = None) -> Response:
                                        reply=reply)
     # log the operation
     input_params.pop(S3Config.SECRET_KEY, None)
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
-                            f"params {input_params}, response {result}")
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     return result
 
@@ -306,8 +311,10 @@ def handle_sessions(session_id: str = None) -> Response:
                                        client_id=client_id,
                                        reply=reply)
     # log the operation
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
-                            f"params {input_params}, response {result}")
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     return result
 
@@ -385,8 +392,10 @@ def handle_migration() -> Response:
                                        client_id=client_id,
                                        reply=reply)
     # log the operation
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
-                            f"params {input_params}, response {result}")
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     return result
 
@@ -430,8 +439,10 @@ def handle_migrate(session_id: str = None) -> Response:
                                        client_id=input_params.get(MigrationConfig.CLIENT_ID),
                                        reply=reply)
     # log the operation
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, "
-                            f"params {input_params}, response {result}")
+    msg: str = __op_log(request=request,
+                        response=result,
+                        input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     return result
 
@@ -655,6 +666,16 @@ def _build_response(errors: list[str],
     result.set_cookie(key="client-id",
                       value=client_id)
     return result
+
+
+def __op_log(request: Request,
+             response: Response,
+             input_params: dict) -> str:
+
+    params: str = json.dumps(obj=input_params,
+                             ensure_ascii=False)
+    return (f"Request {request.method}:{request.path}, "
+            f"params {params}, response {response}")
 
 
 if __name__ == "__main__":
