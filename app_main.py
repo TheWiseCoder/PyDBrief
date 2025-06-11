@@ -290,10 +290,6 @@ def service_sessions(session_id: str = None) -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    if not (session_id or request.method != HttpMethod.GET):
-        # 121: Required attribute
-        errors.append(validate_format_error(121,
-                                            f"@{MigrationConfig.SESSION_ID}"))
     assert_expected_params(errors=errors,
                            service="/sessions",
                            method=request.method,
