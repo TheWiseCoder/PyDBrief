@@ -12,7 +12,7 @@ pycryptodome==3.23.0
 pypomes_core==2.3.9
 pypomes_db==2.2.5
 pypomes_http==0.7.1
-pypomes_logging==0.6.5
+pypomes_logging==0.6.6
 pypomes_s3==0.8.7
 python-dateutil==2.9.0
 SQLAlchemy==2.0.41
