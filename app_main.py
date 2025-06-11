@@ -19,7 +19,7 @@ from pypomes_core import (
 )
 from pypomes_db import DbEngine
 from pypomes_http import HttpMethod, HttpStatus, http_get_parameter, http_get_parameters
-from pypomes_logging import PYPOMES_LOGGER, logging_service
+from pypomes_logging import PYPOMES_LOGGER, service_logging
 from pypomes_s3 import S3Engine
 
 from app_constants import DbConfig, S3Config, MigrationConfig, MigrationState
@@ -47,7 +47,7 @@ CORS(flask_app)
 # set the logging endpoint
 flask_app.add_url_rule(rule="/logging",
                        endpoint="logging",
-                       view_func=logging_service,
+                       view_func=service_logging,
                        methods=[HttpMethod.GET, HttpMethod.POST])
 
 # make PyDBrief's REST API available as a Swagger app
