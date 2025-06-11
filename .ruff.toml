@@ -1,7 +1,7 @@
 # environment
 cache-dir = "~/.cache/ruff"
 force-exclude = true
-required-version = ">=0.9.10"
+required-version = ">=0.11.0"
 target-version = "py312"
 respect-gitignore = true
 lint.task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
@@ -17,6 +17,7 @@ lint.select = [
     "DTZ",   # flake8-datetimez - check for usage of unsafe naive datetime class
     "EM",    # flake8-errmsg - enforce good formatting of error messages
     "FA",    # flake8-future-annotations - verify use of 'from __future__ import annotations'
+    "FBT",   # flake8-boolean-trap - check for boolean traps
     "FIX",   # flake8-fix_me - check for FIXMEs, TODOs and other temporary developer notes
     "G",     # flake8-logging-format - validate logging format strings
     "ICN",   # flake8-import-conventions - check for proper importing and aliasing of packages
@@ -26,6 +27,7 @@ lint.select = [
     "PIE",   # flake8-pie - miscellaneous lints
     "PT",    # flake8-pytest-style - check common style issues or inconsistencies with pytest-based tests
     "PTH",   # flake8-use-pathlib - check use of functions that can be replaced by pathlib module
+    "PYI",   # flake8-pyi - provide specializations for type hinting stub files
     "Q",     # flake8-quotes - linter for quotes
     "RET",   # flake8-return - check return values
     "RSE",   # flake8-raise - enforce proper coding of 'raise' statements
@@ -53,7 +55,6 @@ lint.select = [
     "PGH",   # pygrep-hooks - check pre-commit hooks
     "PD",    # pandas-vet - provide opinionated linting for pandas code
     "PL",    # Pylint - Python classic static code analyser
-    "SLF",   # flake8-return - lint private member access
     "TRY",   # tryceratops - prevent exception handling antipatterns
     "UP",    # pyupgrade - upgrade syntax for newer versions of the language
 #   unused
@@ -63,9 +64,7 @@ lint.select = [
 #   "DJ",    # flake8-django - detect bad practices on Django projects
 #   "ERA",   # eradicate - check for commented-out code
 #   "EXE",   # flake8-executable - ensure the executable permissions and shebangs of Python files are correctly set
-#   "FBT",   # flake8-boolean-trap - check for boolean traps
 #   "I",     # isort - organize imports
-#   "PYI",   # flake8-pyi - provide specializations for type hinting stub files
 #   "T10",   # flake8-debugger - check for 'pdb;idbp' imports and set traces
 #   "T20",   # flake8-print - check for 'print' and 'pprint' statements in python files
 ]
