@@ -147,7 +147,7 @@ def service_rdbms(engine: str = None) -> Response:
                            method=request.method,
                            input_params=input_params)
 
-    reply: dict[StrEnum, Any] | None = None
+    reply: dict[StrEnum | str, Any] | None = None
     if not errors:
         session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         if request.method == HttpMethod.GET:
