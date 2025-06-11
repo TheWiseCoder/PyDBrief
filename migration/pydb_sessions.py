@@ -129,10 +129,10 @@ def get_active_session(client_id: str) -> str | None:
     return result
 
 
-def get_session_state(session_id: str) -> str | None:
+def get_session_state(session_id: str) -> MigrationState | None:
 
     # initialize the return variable
-    result: str | None = None
+    result: MigrationState | None = None
 
     session_registry = migration_registry.get(session_id)
     if session_registry:

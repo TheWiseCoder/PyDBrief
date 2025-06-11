@@ -166,7 +166,7 @@ def service_rdbms(engine: str = None) -> Response:
                     reply[MigrationConfig.SESSION_ID] = session_id
         else:
             # validate the session's state
-            state = get_session_state(session_id=session_id)
+            state: MigrationState = get_session_state(session_id=session_id)
             if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
                 # 101: {}
                 errors.append(validate_format_error(101,
@@ -245,7 +245,7 @@ def service_s3(engine: str = None) -> Response:
                     reply[MigrationConfig.SESSION_ID] = session_id
         else:
             # validate the session's state
-            state = get_session_state(session_id=session_id)
+            state: MigrationState = get_session_state(session_id=session_id)
             if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
                 # 101: {}
                 errors.append(validate_format_error(101,
