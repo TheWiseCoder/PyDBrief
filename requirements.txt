@@ -1,7 +1,7 @@
-boto3==1.38.33
+boto3==1.38.34
 DateTime==5.5
 Flask==3.1.1
-Flask-Cors==6.0.0
+Flask-Cors==6.0.1
 flask-swagger-ui==5.21.0
 minio==7.2.15
 mysql-connector-python==9.3.0
@@ -9,7 +9,7 @@ oracledb==3.1.1
 pyodbc==5.2.0
 psycopg2-binary==2.9.10
 pycryptodome==3.23.0
-pypomes_core==2.3.8
+pypomes_core==2.3.9
 pypomes_db==2.2.5
 pypomes_http==0.7.1
 pypomes_logging==0.6.5
