@@ -535,7 +535,7 @@ def migrate_data(errors: list[str],
         session_id: str = input_params.get(MigrationConfig.SESSION_ID)
         source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
         target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
-        migration_badge: str = input_params.get(MigrationConfig.SESSION_ID)
+        migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
 
         step_metadata: bool = validate_bool(errors=None,
                                             source=input_params,

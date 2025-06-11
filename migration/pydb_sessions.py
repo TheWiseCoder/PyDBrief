@@ -26,6 +26,16 @@ from app_constants import (
 #         MetricsConfig.LOBDATA_CHANNELS: RANGE_LOBDATA_CHANNELS[2],
 #         MetricsConfig.PLAINDATA_CHANNELS: RANGE_PLAINDATA_CHANNELS[2]
 #      },
+#      MigrationConfig.STEPS: {
+#        MIGRATE_METADATA: <bool>,
+#        MIGRATE_PLAINDATA: <bool>,
+#        MIGRATE_LOBDATA: <bool>,
+#        SYNCHRONIZE_PLAIDATA: <bool>
+#      },
+#      MigrationConfig.SPOTS: {
+#      },
+#      MigrationConfig.SPECS: {
+#      },
 #      <DbEngine>: {
 #         DbConfig.ENGINE: <DbEngine>,
 #         DbConfig.HOST: <str>,

@@ -60,6 +60,12 @@ class MigrationConfig(StrEnum):
     """
     Parameters for migration.
     """
+    # grouping
+    METRICS = "metrics"
+    SPECS = "specs"
+    SPOTS = "spots"
+    STEPS = "steps"
+    # singles
     CLIENT_ID = "client-id"
     EXCLUDE_COLUMNS = "exclude-columns"
     EXCLUDE_CONSTRAINTS = "exclude-constraints"
@@ -70,7 +76,6 @@ class MigrationConfig(StrEnum):
     INCLUDE_RELATIONS = "include-relations"
     INCREMENTAL_MIGRATIONS = "incremental-migrations"
     IS_ACTIVE = "is-active"
-    METRICS = "metrics"
     MIGRATION_BADGE = "migration-badge"
     MIGRATE_METADATA = "migrate-metadata"
     MIGRATE_PLAINDATA = "migrate-plaindata"
