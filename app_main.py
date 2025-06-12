@@ -64,7 +64,7 @@ flask_app.config["JSON_AS_ASCII"] = False
 
 @flask_app.route(rule="/swagger",
                  methods=[HttpMethod.GET])
-def swagger() -> Response:
+def service_swagger() -> Response:
     """
     Entry point for the microservice providing OpenAPI specifications in the Swagger standard.
 
@@ -73,37 +73,48 @@ def swagger() -> Response:
 
     :return: the requested OpenAPI specifications
     """
-    filename: str = http_get_parameter(request=request,
-                                       param="filename")
+    # retrieve the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
 
-    return send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
-                     mimetype=Mimetype.JSON,
-                     as_attachment=filename is not None,
-                     download_name=filename)
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    filename: str = input_params.get("filename")
+    result: Response = send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
+                                 mimetype=Mimetype.JSON,
+                                 as_attachment=filename is not None,
+                                 download_name=filename)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
 
 @flask_app.route(rule="/version",
                  methods=[HttpMethod.GET])
-def version() -> Response:
+def service_version() -> Response:
     """
     Obtain the current version of *PyDBrief*, along with the foundation modules in use.
 
     :return: the versions in execution
     """
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
     # log the request
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}")
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
 
     # retrieve the versions
     versions: dict[str, Any] = {
         APP_NAME: APP_VERSION,
         "foundations": pypomes_versions()
     }
-
     # assign to the return variable
     result: Response = jsonify(versions)
 
     # log the response
-    PYPOMES_LOGGER.info(msg=f"Request {request.method}:{request.path}, response {result}")
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
 
     return result
 
@@ -281,6 +292,13 @@ def service_sessions(session_id: str = None) -> Response:
     # initialize the errors list
     errors: list[str] = []
 
+    # GET on '/sessions' does not have a 'session-id' parameter
+    if request.method == HttpMethod.GET and http_get_parameter(request=request,
+                                                               param=MigrationConfig.SESSION_ID):
+        # 122 Attribute is unknown or invalid in this context
+        errors.append(validate_format_error(122,
+                                            f"@{MigrationConfig.SESSION_ID}"))
+
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
                                                       request=request,
@@ -306,6 +324,7 @@ def service_sessions(session_id: str = None) -> Response:
                     reply = {"status": f"Session '{session_id}' deleted"}
             case HttpMethod.GET:
                 reply = get_sessions()
+                reply["client"] = client_id
             case HttpMethod.PATCH:
                 state: MigrationState = set_session_state(errors=errors,
                                                           input_params=input_params)
@@ -507,9 +526,9 @@ def migrate_data(errors: list[str],
     result: dict[str, Any] | None = None
 
     # assert whether migration is warranted
-    assert_migration(errors=errors,
-                     input_params=input_params,
-                     run_mode=True)
+    specs: tuple = assert_migration(errors=errors,
+                                    input_params=input_params,
+                                    run_mode=True)
 
     # assert and retrieve the override columns parameter
     override_columns: dict[str, Type] = assert_override_columns(errors=errors,
@@ -519,36 +538,21 @@ def migrate_data(errors: list[str],
                                                                                        input_params=input_params)
     # is migration possible ?
     if not errors:
-        # yes, obtain the remaining migration parameters
-        source_rdbms: DbEngine = validate_enum(errors=None,
-                                               source=input_params,
-                                               attr=MigrationConfig.FROM_RDBMS,
-                                               enum_class=DbEngine)
-        target_rdbms: DbEngine = validate_enum(
-            errors=None, source=input_params, attr=MigrationConfig.TO_RDBMS, enum_class=DbEngine
-        )
-        target_s3: S3Engine = validate_enum(errors=None,
-                                            source=input_params,
-                                            attr=MigrationConfig.TO_S3,
-                                            enum_class=S3Engine)
+        # yes, proceed
+        source_rdbms: DbEngine = specs[0]
+        target_rdbms: DbEngine = specs[1]
+        target_s3: S3Engine = specs[2]
+        step_metadata: bool = specs[3]
+        step_plaindata: bool = specs[4]
+        step_lobdata: bool = specs[5]
+        step_synchronize: bool = specs[6]
 
+        # obtain the remaining migration parameters
         session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+        migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
         source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
         target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
-        migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
 
-        step_metadata: bool = validate_bool(errors=None,
-                                            source=input_params,
-                                            attr=MigrationConfig.MIGRATE_METADATA)
-        step_plaindata: bool = validate_bool(errors=None,
-                                             source=input_params,
-                                             attr=MigrationConfig.MIGRATE_PLAINDATA)
-        step_lobdata: bool = validate_bool(errors=None,
-                                           source=input_params,
-                                           attr=MigrationConfig.MIGRATE_LOBDATA)
-        step_synchronize: bool = validate_bool(errors=None,
-                                               source=input_params,
-                                               attr=MigrationConfig.SYNCHRONIZE_PLAINDATA)
         process_indexes: bool = validate_bool(errors=None,
                                               source=input_params,
                                               attr=MigrationConfig.PROCESS_INDEXES)
@@ -652,10 +656,8 @@ def handle_exception(exc: Exception) -> Response:
         # no, report the problem
         err_msg: str = exc_format(exc=exc,
                                   exc_info=sys.exc_info())
-        PYPOMES_LOGGER.error(msg=f"{err_msg}")
-        reply: dict = {
-            "errors": [err_msg]
-        }
+        PYPOMES_LOGGER.error(msg=err_msg)
+        reply: dict = {"errors": [err_msg]}
         result = jsonify(reply)
         result.status_code = HttpStatus.INTERNAL_SERVER_ERROR
 

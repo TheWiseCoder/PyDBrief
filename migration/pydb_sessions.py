@@ -32,9 +32,27 @@ from app_constants import (
 #        MIGRATE_LOBDATA: <bool>,
 #        SYNCHRONIZE_PLAIDATA: <bool>
 #      },
-#      MigrationConfig.SPOTS: {
-#      },
 #      MigrationConfig.SPECS: {
+#        EXCLUDE_COLUMNS: <
+#        EXCLUDE_CONSTRAINTS:
+#        EXCLUDE_RELATIONS:
+#        FLATTEN_STORAGE:
+#        INCLUDE_RELATIONS:
+#        INCREMENTAL_MIGRATIONS:
+#        MIGRATION_BADGE:
+#        NAMED_LOBDATA:
+#        OVERRIDE_COLUMNS:
+#        PROCESS_INDEXES:
+#        PROCESS_VIEWS:
+#        REFLECT_FILETYPE:
+#        RELAX_REFLECTION:
+#        REMOVE_NULLS:
+#        SKIP_NONEMPTY:
+#      },
+#      MigrationConfig.SPOTS: {
+#        MigrationConfig.FROM_RDBMS: <DbEngine>,
+#        MigrationConfig.TO_RDBMS: <DbEngine>,
+#        MigrationConfig.TO_S3: <S3Engine>
 #      },
 #      <DbEngine>: {
 #         DbConfig.ENGINE: <DbEngine>,

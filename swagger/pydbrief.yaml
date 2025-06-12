@@ -1142,6 +1142,9 @@ components:
     MigrationSessionsSuccess:
       type: object
       properties:
+        client:
+          type: string
+          example: 9745693c-3cd45-7830-c124-f15584393f8b
         sessions:
           type: array
           items:

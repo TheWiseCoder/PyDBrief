@@ -55,10 +55,10 @@ def assert_expected_params(errors: list[str],
 
 
 def assert_rdbms_dual(errors: list[str],
-                      input_params: dict[str, str]) -> tuple[DbEngine, DbEngine]:
+                      input_params: dict[str, str]) -> tuple[DbEngine, DbEngine] | None:
 
     # initialize the return variable
-    result: tuple[DbEngine | None, DbEngine | None] = (None, None)
+    result: tuple[DbEngine, DbEngine] = None
 
     from_rdbms: DbEngine = validate_enum(errors=errors,
                                          source=input_params,
@@ -98,17 +98,21 @@ def assert_rdbms_dual(errors: list[str],
 
 def assert_migration(errors: list[str],
                      input_params: dict[str, str],
-                     run_mode: bool) -> None:
+                     run_mode: bool) -> tuple[DbConfig, DbConfig, S3Config, bool, bool, bool, bool] | None:
+
+    # initialize the return variable
+    result: tuple[DbConfig, DbConfig, S3Config, bool, bool, bool, bool] | None = None
 
     # validate the metric parameters
     session_id: str = input_params.get(MigrationConfig.SESSION_ID)
     migration_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
     assert_metrics(errors=errors,
                    migration_metrics=migration_metrics)
+    # validate the migration steps
+    steps: tuple[bool, bool, bool, bool] | None = None
     if run_mode:
-        # validate the migration steps
-        assert_migration_steps(errors=errors,
-                               input_params=input_params)
+        steps = assert_migration_steps(errors=errors,
+                                       input_params=input_params)
 
     # validate the migration session
     state: MigrationState = get_session_state(session_id=session_id)
@@ -118,10 +122,10 @@ def assert_migration(errors: list[str],
                                             f"Operation not possible for session with state '{state}'"))
 
     # validate the source and target RDBMS engines
-    rdbms: tuple[DbEngine, DbEngine] = assert_rdbms_dual(errors=errors,
-                                                         input_params=input_params)
-    source_rdbms: DbEngine = rdbms[0]
-    target_rdbms: DbEngine = rdbms[1]
+    dbs: tuple[DbEngine, DbEngine] = assert_rdbms_dual(errors=errors,
+                                                       input_params=input_params)
+    source_rdbms: DbEngine = dbs[0] if dbs else None
+    target_rdbms: DbEngine = dbs[1] if dbs else None
     if source_rdbms and target_rdbms and \
             (source_rdbms != DbEngine.ORACLE or target_rdbms != DbEngine.POSTGRES):
         # 101: {}
@@ -132,8 +136,7 @@ def assert_migration(errors: list[str],
     s3_engine: S3Engine = validate_enum(errors=errors,
                                         source=input_params,
                                         attr=MigrationConfig.TO_S3,
-                                        enum_class=S3Engine,
-                                        required=False)
+                                        enum_class=S3Engine)
     if s3_engine and s3_engine not in s3_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -160,6 +163,11 @@ def assert_migration(errors: list[str],
             errors.append(validate_format_error(101,
                                                 f"Target S3 '{s3_engine}' "
                                                 "is not accessible as configured"))
+    if not errors and run_mode:
+        result = (source_rdbms, target_rdbms, s3_engine,
+                  steps[0], steps[1], steps[2], steps[3])
+
+    return result
 
 
 def assert_metrics(errors: list[str],
@@ -227,7 +235,10 @@ def assert_metrics(errors: list[str],
 
 
 def assert_migration_steps(errors: list[str],
-                           input_params: dict[str, str]) -> None:
+                           input_params: dict[str, str]) -> tuple[bool, bool, bool, bool] | None:
+
+    # initialize the return variable
+    result:  tuple[bool, bool, bool, bool] | None = None
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(errors=errors,
@@ -267,11 +278,16 @@ def assert_migration_steps(errors: list[str],
         errors.append(validate_format_error(101, err_msg))
 
     # validate the include and exclude relations lists
-    if input_params.get(MigrationConfig.INCLUDE_RELATIONS) and input_params.get(MigrationConfig.EXCLUDE_RELATIONS):
+    if input_params.get(MigrationConfig.INCLUDE_RELATIONS) and \
+            input_params.get(MigrationConfig.EXCLUDE_RELATIONS):
         # 151: Attributes {} cannot be assigned values at the same time
         errors.append(validate_format_error(151,
                                             f"'({MigrationConfig.INCLUDE_RELATIONS}, "
                                             f"{MigrationConfig.EXCLUDE_RELATIONS})'"))
+    if not errors:
+        result = (step_metadata, step_plaindata, step_lobdata, step_synchronize)
+
+    return result
 
 
 def assert_override_columns(errors: list[str],
