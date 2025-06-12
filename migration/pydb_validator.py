@@ -58,7 +58,7 @@ def assert_rdbms_dual(errors: list[str],
                       input_params: dict[str, str]) -> tuple[DbEngine, DbEngine] | None:
 
     # initialize the return variable
-    result: tuple[DbEngine, DbEngine] = None
+    result: tuple[DbEngine, DbEngine] | None = None
 
     from_rdbms: DbEngine = validate_enum(errors=errors,
                                          source=input_params,
