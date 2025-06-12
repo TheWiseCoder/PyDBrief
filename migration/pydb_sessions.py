@@ -229,8 +229,8 @@ def get_session_params(errors: list[str],
                   get_active_session(client_id=client_id))
     if session_id:
         result[MigrationConfig.SESSION_ID] = session_id
+        # if it is not being created, session must exist and belong to client
         if not (request.path.startswith("/sessions") and request.method == HttpMethod.POST):
-            # if it is not being created, session must exist and belong to client
             session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
             if client_id != (session_registry or {}).get(MigrationConfig.CLIENT_ID):
                 # 141: Invalid value {}

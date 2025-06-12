@@ -456,16 +456,17 @@ def service_migrate(session_id: str = None) -> Response:
                            input_params=input_params)
 
     reply: dict[str, Any] | None = None
-    if request.method == HttpMethod.POST:
-        reply = migrate_data(errors=errors,
-                             input_params=input_params)
-    else:
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
-        if abort_session_migration(errors=errors,
-                                   session_id=session_id):
-            reply = {
-                "status": f"Migration in session '{session_id}' marked for abortion"
-            }
+    if not errors:
+        if request.method == HttpMethod.POST:
+            reply = migrate_data(errors=errors,
+                                 input_params=input_params)
+        else:
+            session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+            if abort_session_migration(errors=errors,
+                                       session_id=session_id):
+                reply = {
+                    "status": f"Migration in session '{session_id}' marked for abortion"
+                }
 
     # build the response
     result: Response = _build_response(errors=errors,
