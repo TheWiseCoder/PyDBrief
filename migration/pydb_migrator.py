@@ -3,13 +3,13 @@ import sys
 import threading
 import warnings
 from contextlib import suppress
-from datetime import datetime, UTC
+from datetime import datetime
 from enum import StrEnum
 from io import BytesIO
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    DatetimeFormat,
+    DatetimeFormat, TIMEZONE_LOCAL,
     dict_jsonify, timestamp_duration, pypomes_versions,
     env_is_docker, str_sanitize, exc_format, validate_format_error
 )
@@ -72,7 +72,7 @@ def migrate(errors: list[str],
     # retrieve the metrics for the session
     session_metrics: dict[MetricsConfig, int] = get_metrics_params(session_id=session_id)
 
-    started: datetime = datetime.now(tz=UTC)
+    started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
     steps: list = []
     if step_metadata:
         steps.append(MigrationConfig.MIGRATE_METADATA)
@@ -290,7 +290,7 @@ def migrate(errors: list[str],
         if curr_state == MigrationState.MIGRATING else MigrationState.ABORTED
     session_registry[MigrationConfig.STATE] = new_state
 
-    finished: datetime = datetime.now(tz=UTC)
+    finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started.strftime(format=DatetimeFormat.INV)

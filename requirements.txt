@@ -1,4 +1,4 @@
-boto3==1.38.34
+boto3==1.38.35
 DateTime==5.5
 Flask==3.1.1
 Flask-Cors==6.0.1
@@ -10,7 +10,7 @@ pyodbc==5.2.0
 psycopg2-binary==2.9.10
 pycryptodome==3.23.0
 pypomes_core==2.3.9
-pypomes_db==2.2.5
+pypomes_db==2.2.6
 pypomes_http==0.7.1
 pypomes_logging==0.6.6
 pypomes_s3==0.8.7
