@@ -24,7 +24,8 @@ from pypomes_logging import PYPOMES_LOGGER, service_logging
 from pypomes_s3 import S3Engine
 
 from app_constants import (
-    DbConfig, S3Config, MigConfig, MigSpec, MigrationState
+    DbConfig, S3Config, MigrationState,
+    MigConfig, MigSpec, MigSpot
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import (
@@ -396,17 +397,24 @@ def service_migration() -> Response:
                         "status": "Migration cannot be launched",
                     }
                 else:
-                    # no, display the migration context
-                    reply = get_session_registry(session_id=session_id)[MigConfig.SPOTS].copy()
-                    if reply:
-                        reply["status"] = "Migration can be launched"
+                    # no, build the migration context
+                    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+                    reply = {
+                        MigConfig.METRICS: session_registry[MigConfig.METRICS],
+                        MigSpot.FROM_RDBMS: session_registry[input_params.get(MigSpot.FROM_RDBMS)],
+                        MigSpot.TO_RDBMS: session_registry[input_params.get(MigSpot.TO_RDBMS)],
+                        "status": "Migration can be launched"
+                    }
+                    to_s3: S3Engine = input_params.get(MigSpot.TO_S3)
+                    if to_s3:
+                        reply[MigSpot.TO_S3] = session_registry[input_params.get(MigSpot.TO_S3)]
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
-                        # retrieve the migration parameters
+                        # obtain a copy of the metrics parameters
                         reply = get_session_registry(session_id=session_id)[MigConfig.METRICS].copy()
                     case HttpMethod.PATCH:
-                        # establish the migration parameters
+                        # establish the metrics parameters
                         validate_metrics(errors=errors,
                                          input_params=input_params)
                         if not errors:
