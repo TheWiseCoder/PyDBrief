@@ -67,7 +67,7 @@ def migrate_plain(errors: list[str],
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
     session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPOTS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # retrieve the input and output batch sizes
     batch_size_in: int = session_metrics.get(MigMetric.BATCH_SIZE_IN)
