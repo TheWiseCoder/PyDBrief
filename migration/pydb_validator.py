@@ -56,82 +56,6 @@ def assert_expected_params(errors: list[str],
                                          f"@{key}") for key in input_params if key not in params])
 
 
-def validate_metrics(errors: list[str],
-                     input_params: dict[str, Any]) -> None:
-
-    # validate 'batch-size-in'
-    batch_size_in: int = validate_int(errors=errors,
-                                      source=input_params,
-                                      attr=MigMetric.BATCH_SIZE_IN,
-                                      min_val=RANGE_BATCH_SIZE_IN[0],
-                                      max_val=RANGE_BATCH_SIZE_IN[1])
-    # validate 'batch-size-out'
-    batch_size_out = validate_int(errors=errors,
-                                  source=input_params,
-                                  attr=MigMetric.BATCH_SIZE_OUT,
-                                  min_val=RANGE_BATCH_SIZE_OUT[0],
-                                  max_val=RANGE_BATCH_SIZE_OUT[1])
-    # validate 'chunk-size'
-    chunk_size: int = validate_int(errors=errors,
-                                   source=input_params,
-                                   attr=MigMetric.CHUNK_SIZE,
-                                   min_val=RANGE_CHUNK_SIZE[0],
-                                   max_val=RANGE_CHUNK_SIZE[1])
-    # validate 'incremental-size'
-    incremental_size: int = validate_int(errors=errors,
-                                         source=input_params,
-                                         attr=MigMetric.INCREMENTAL_SIZE,
-                                         min_val=RANGE_INCREMENTAL_SIZE[0],
-                                         max_val=RANGE_INCREMENTAL_SIZE[1])
-    # validate 'lobdata-channels'
-    lobdata_channels: int = validate_int(errors=errors,
-                                         source=input_params,
-                                         attr=MigMetric.LOBDATA_CHANNELS,
-                                         min_val=RANGE_LOBDATA_CHANNELS[0],
-                                         max_val=RANGE_LOBDATA_CHANNELS[1])
-    # validate 'lobdata-channel-size'
-    lobdata_channel_size: int = validate_int(errors=errors,
-                                             source=input_params,
-                                             attr=MigMetric.LOBDATA_CHANNEL_SIZE,
-                                             min_val=RANGE_LOBDATA_CHANNEL_SIZE[0],
-                                             max_val=RANGE_LOBDATA_CHANNEL_SIZE[1])
-    # validate 'plaindata-channels'
-    plaindata_channels: int = validate_int(errors=errors,
-                                           source=input_params,
-                                           attr=MigMetric.LOBDATA_CHANNELS,
-                                           min_val=RANGE_PLAINDATA_CHANNELS[0],
-                                           max_val=RANGE_PLAINDATA_CHANNELS[1])
-    # validate 'plaindata-channel-size'
-    plaindata_channel_size: int = validate_int(errors=errors,
-                                               source=input_params,
-                                               attr=MigMetric.LOBDATA_CHANNEL_SIZE,
-                                               min_val=RANGE_PLAINDATA_CHANNEL_SIZE[0],
-                                               max_val=RANGE_PLAINDATA_CHANNEL_SIZE[1])
-    if not errors:
-        # retrieve the session id
-        session_id: str = input_params.get(MigSpec.SESSION_ID)
-        # retrieve the metrics for the session
-        session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-        metrics: dict[MigMetric, int] = session_registry.get(MigConfig.METRICS)
-        # set the parameters
-        if batch_size_in:
-            metrics[MigMetric.BATCH_SIZE_IN] = batch_size_in
-        if batch_size_out:
-            metrics[MigMetric.BATCH_SIZE_OUT] = batch_size_out
-        if chunk_size:
-            metrics[MigMetric.CHUNK_SIZE] = chunk_size
-        if incremental_size:
-            metrics[MigMetric.INCREMENTAL_SIZE] = incremental_size
-        if lobdata_channels:
-            metrics[MigMetric.LOBDATA_CHANNELS] = lobdata_channels
-        if lobdata_channel_size:
-            metrics[MigMetric.LOBDATA_CHANNEL_SIZE] = lobdata_channel_size
-        if plaindata_channels:
-            metrics[MigMetric.PLAINDATA_CHANNELS] = plaindata_channels
-        if plaindata_channel_size:
-            metrics[MigMetric.PLAINDATA_CHANNEL_SIZE] = plaindata_channel_size
-
-
 def validate_rdbms(errors: list[str],
                    input_params: dict[str, Any]) -> None:
 
@@ -258,55 +182,77 @@ def validate_s3(errors: list[str],
             errors.append(validate_format_error(error_id=145))
 
 
-def validate_steps(errors: list[str],
-                   input_params: dict[str, str]) -> None:
+def validate_metrics(errors: list[str],
+                     input_params: dict[str, Any]) -> None:
 
-    # retrieve the migration steps
-    step_metadata: bool = validate_bool(errors=errors,
-                                        source=input_params,
-                                        attr=MigStep.MIGRATE_METADATA,
-                                        required=True)
-    step_plaindata: bool = validate_bool(errors=errors,
-                                         source=input_params,
-                                         attr=MigStep.MIGRATE_PLAINDATA,
-                                         required=True)
-    step_lobdata: bool = validate_bool(errors=errors,
-                                       source=input_params,
-                                       attr=MigStep.MIGRATE_LOBDATA,
-                                       required=True)
-    step_synchronize: bool = validate_bool(errors=errors,
-                                           source=input_params,
-                                           attr=MigStep.SYNCHRONIZE_PLAINDATA,
-                                           required=False)
-    # validate them
-    err_msg: str | None = None
-    if not (step_metadata or step_lobdata or
-            step_plaindata or step_synchronize):
-        err_msg = "At least one migration step must be specified"
-    elif (step_synchronize and
-          (step_metadata or step_plaindata or step_lobdata)):
-        err_msg = "Synchronization can not be combined with another operation"
-    elif step_metadata and step_lobdata and not step_plaindata:
-        target_s3: str = validate_str(errors=errors,
+    # validate 'batch-size-in'
+    batch_size_in: int = validate_int(errors=errors,
                                       source=input_params,
-                                      attr=MigSpot.TO_S3,
-                                      required=False)
-        if not target_s3:
-            err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
-
-    if err_msg:
-        # 101: {}
-        errors.append(validate_format_error(101, err_msg))
-    else:
-        # retrieve the session id and save the migration steps
+                                      attr=MigMetric.BATCH_SIZE_IN,
+                                      min_val=RANGE_BATCH_SIZE_IN[0],
+                                      max_val=RANGE_BATCH_SIZE_IN[1])
+    # validate 'batch-size-out'
+    batch_size_out = validate_int(errors=errors,
+                                  source=input_params,
+                                  attr=MigMetric.BATCH_SIZE_OUT,
+                                  min_val=RANGE_BATCH_SIZE_OUT[0],
+                                  max_val=RANGE_BATCH_SIZE_OUT[1])
+    # validate 'chunk-size'
+    chunk_size: int = validate_int(errors=errors,
+                                   source=input_params,
+                                   attr=MigMetric.CHUNK_SIZE,
+                                   min_val=RANGE_CHUNK_SIZE[0],
+                                   max_val=RANGE_CHUNK_SIZE[1])
+    # validate 'incremental-size'
+    incremental_size: int = validate_int(errors=errors,
+                                         source=input_params,
+                                         attr=MigMetric.INCREMENTAL_SIZE,
+                                         min_val=RANGE_INCREMENTAL_SIZE[0],
+                                         max_val=RANGE_INCREMENTAL_SIZE[1])
+    # validate 'lobdata-channels'
+    lobdata_channels: int = validate_int(errors=errors,
+                                         source=input_params,
+                                         attr=MigMetric.LOBDATA_CHANNELS,
+                                         min_val=RANGE_LOBDATA_CHANNELS[0],
+                                         max_val=RANGE_LOBDATA_CHANNELS[1])
+    # validate 'lobdata-channel-size'
+    lobdata_channel_size: int = validate_int(errors=errors,
+                                             source=input_params,
+                                             attr=MigMetric.LOBDATA_CHANNEL_SIZE,
+                                             min_val=RANGE_LOBDATA_CHANNEL_SIZE[0],
+                                             max_val=RANGE_LOBDATA_CHANNEL_SIZE[1])
+    # validate 'plaindata-channels'
+    plaindata_channels: int = validate_int(errors=errors,
+                                           source=input_params,
+                                           attr=MigMetric.LOBDATA_CHANNELS,
+                                           min_val=RANGE_PLAINDATA_CHANNELS[0],
+                                           max_val=RANGE_PLAINDATA_CHANNELS[1])
+    # validate 'plaindata-channel-size'
+    plaindata_channel_size: int = validate_int(errors=errors,
+                                               source=input_params,
+                                               attr=MigMetric.LOBDATA_CHANNEL_SIZE,
+                                               min_val=RANGE_PLAINDATA_CHANNEL_SIZE[0],
+                                               max_val=RANGE_PLAINDATA_CHANNEL_SIZE[1])
+    if not errors:
+        # set the metrics for the session
         session_id: str = input_params.get(MigSpec.SESSION_ID)
-        session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-        session_registry[MigConfig.STEPS] = {
-            MigStep.MIGRATE_METADATA: step_metadata,
-            MigStep.MIGRATE_PLAINDATA: step_plaindata,
-            MigStep.MIGRATE_LOBDATA: step_lobdata,
-            MigStep.SYNCHRONIZE_PLAINDATA: step_synchronize
-        }
+        session_metrics: dict[MigMetric, int] = get_session_registry(session_id=session_id)[MigConfig.METRICS]
+        if batch_size_in:
+            session_metrics[MigMetric.BATCH_SIZE_IN] = batch_size_in
+        if batch_size_out:
+            session_metrics[MigMetric.BATCH_SIZE_OUT] = batch_size_out
+        if chunk_size:
+            session_metrics[MigMetric.CHUNK_SIZE] = chunk_size
+        if incremental_size:
+            session_metrics[MigMetric.INCREMENTAL_SIZE] = incremental_size
+        if lobdata_channels:
+            session_metrics[MigMetric.LOBDATA_CHANNELS] = lobdata_channels
+        if lobdata_channel_size:
+            session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE] = lobdata_channel_size
+        if plaindata_channels:
+            session_metrics[MigMetric.PLAINDATA_CHANNELS] = plaindata_channels
+        if plaindata_channel_size:
+            session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE] = plaindata_channel_size
 
 
 def validate_spots(errors: list[str],
@@ -350,14 +296,14 @@ def validate_spots(errors: list[str],
                                             f"The migration path '{from_rdbms} -> {to_rdbms}' "
                                             "has not been validated yet. For details, please email the developer."))
     # validate S3
-    s3_engine: S3Engine = validate_enum(errors=errors,
-                                        source=input_params,
-                                        attr=MigSpot.TO_S3,
-                                        enum_class=S3Engine)
-    if s3_engine and s3_engine not in s3_get_engines():
+    to_s3: S3Engine = validate_enum(errors=errors,
+                                    source=input_params,
+                                    attr=MigSpot.TO_S3,
+                                    enum_class=S3Engine)
+    if to_s3 and to_s3 not in s3_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
-                                            s3_engine,
+                                            to_s3,
                                             "unknown or unconfigured S3 engine",
                                             f"@{MigSpot.TO_S3}"))
     if not errors:
@@ -374,12 +320,68 @@ def validate_spots(errors: list[str],
             errors.append(validate_format_error(101,
                                                 f"Target database '{to_rdbms}' "
                                                 "is not accessible as configured"))
-        if s3_engine and not s3_assert_access(errors=errors,
-                                              engine=s3_engine):
+        if to_s3 and not s3_assert_access(errors=errors,
+                                          engine=to_s3):
             # 101: {}
             errors.append(validate_format_error(101,
-                                                f"Target S3 '{s3_engine}' "
+                                                f"Target S3 '{to_s3}' "
                                                 "is not accessible as configured"))
+    if not errors:
+        # set the spots for the session
+        session_id: str = input_params.get(MigSpec.SESSION_ID)
+        session_spots: dict[MigSpot, Any] = get_session_registry(session_id=session_id)[MigConfig.SPOTS]
+        session_spots[MigSpot.FROM_RDBMS] = from_rdbms
+        session_spots[MigSpot.TO_RDBMS] = to_rdbms
+        session_spots[MigSpot.TO_S3] = to_s3
+
+
+def validate_steps(errors: list[str],
+                   input_params: dict[str, str]) -> None:
+
+    # retrieve the migration steps
+    step_metadata: bool = validate_bool(errors=errors,
+                                        source=input_params,
+                                        attr=MigStep.MIGRATE_METADATA,
+                                        required=True)
+    step_plaindata: bool = validate_bool(errors=errors,
+                                         source=input_params,
+                                         attr=MigStep.MIGRATE_PLAINDATA,
+                                         required=True)
+    step_lobdata: bool = validate_bool(errors=errors,
+                                       source=input_params,
+                                       attr=MigStep.MIGRATE_LOBDATA,
+                                       required=True)
+    step_synchronize: bool = validate_bool(errors=errors,
+                                           source=input_params,
+                                           attr=MigStep.SYNCHRONIZE_PLAINDATA,
+                                           required=False)
+    # validate them
+    err_msg: str | None = None
+    if not (step_metadata or step_lobdata or
+            step_plaindata or step_synchronize):
+        err_msg = "At least one migration step must be specified"
+    elif (step_synchronize and
+          (step_metadata or step_plaindata or step_lobdata)):
+        err_msg = "Synchronization can not be combined with another operation"
+    elif step_metadata and step_lobdata and not step_plaindata:
+        target_s3: str = validate_str(errors=errors,
+                                      source=input_params,
+                                      attr=MigSpot.TO_S3,
+                                      required=False)
+        if not target_s3:
+            err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
+
+    if err_msg:
+        # 101: {}
+        errors.append(validate_format_error(101, err_msg))
+    else:
+        # set the steps for the session
+        session_id: str = input_params.get(MigSpec.SESSION_ID)
+        session_steps: dict[MigStep, bool] = get_session_registry(session_id=session_id)[MigConfig.STEPS]
+        session_steps[MigStep.MIGRATE_METADATA] = step_metadata
+        session_steps[MigStep.MIGRATE_PLAINDATA] = step_plaindata
+        session_steps[MigStep.MIGRATE_LOBDATA] = step_lobdata
+        session_steps[MigStep.SYNCHRONIZE_PLAINDATA] = step_synchronize
 
 
 def validate_specs(errors: list[str],
@@ -466,26 +468,25 @@ def validate_specs(errors: list[str],
     if errors:
         session_registry[MigConfig.SPECS] = {}
     else:
-        # save the migration specs
-        session_registry[MigConfig.SPECS] = {
-            MigSpec.EXCLUDE_COLUMNS: exclude_columns,
-            MigSpec.EXCLUDE_CONSTRAINTS: exclude_constraints,
-            MigSpec.EXCLUDE_RELATIONS: exclude_relations,
-            MigSpec.FROM_SCHEMA: from_schema,
-            MigSpec.FLATTEN_STORAGE: flatten_storage,
-            MigSpec.INCLUDE_RELATIONS: include_relations,
-            MigSpec.INCREMENTAL_MIGRATIONS: incremental_migrations,
-            MigSpec.MIGRATION_BADGE: migration_badge,
-            MigSpec.NAMED_LOBDATA: named_lobdata,
-            MigSpec.OVERRIDE_COLUMNS: override_columns,
-            MigSpec.PROCESS_INDEXES: process_indexes,
-            MigSpec.PROCESS_VIEWS: process_views,
-            MigSpec.REFLECT_FILETYPE: reflect_filetype,
-            MigSpec.RELAX_REFLECTION: relax_reflection,
-            MigSpec.REMOVE_NULLS: remove_nulls,
-            MigSpec.TO_SCHEMA: to_schema,
-            MigSpec.SKIP_NONEMPTY: skip_nonempty
-        }
+        # set the specs for the session
+        session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+        session_specs[MigSpec.EXCLUDE_COLUMNS] = exclude_columns
+        session_specs[MigSpec.EXCLUDE_CONSTRAINTS] = exclude_constraints
+        session_specs[MigSpec.EXCLUDE_RELATIONS] = exclude_relations
+        session_specs[MigSpec.FROM_SCHEMA] = from_schema
+        session_specs[MigSpec.FLATTEN_STORAGE] = flatten_storage
+        session_specs[MigSpec.INCLUDE_RELATIONS] = include_relations
+        session_specs[MigSpec.INCREMENTAL_MIGRATIONS] = incremental_migrations
+        session_specs[MigSpec.MIGRATION_BADGE] = migration_badge
+        session_specs[MigSpec.NAMED_LOBDATA] = named_lobdata
+        session_specs[MigSpec.OVERRIDE_COLUMNS] = override_columns
+        session_specs[MigSpec.PROCESS_INDEXES] = process_indexes
+        session_specs[MigSpec.PROCESS_VIEWS] = process_views
+        session_specs[MigSpec.REFLECT_FILETYPE] = reflect_filetype
+        session_specs[MigSpec.RELAX_REFLECTION] = relax_reflection
+        session_specs[MigSpec.REMOVE_NULLS] = remove_nulls
+        session_specs[MigSpec.TO_SCHEMA] = to_schema
+        session_specs[MigSpec.SKIP_NONEMPTY] = skip_nonempty
 
 
 def __assert_override_columns(errors: list[str],
