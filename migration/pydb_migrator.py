@@ -72,9 +72,8 @@ def migrate(errors: list[str],
         result["target-s3"] = get_s3_specs(errors=errors,
                                            session_id=session_id,
                                            s3_engine=session_spots[MigSpot.TO_S3])
-    for key, value in session_specs.items():
-        if value:
-            result[key] = value
+    # add the migration specs
+    result.update({k: v for k, v in session_specs.items() if v})
     result["logging"] = logging_get_params()
 
     # handle warnings as errors
