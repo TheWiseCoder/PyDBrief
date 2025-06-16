@@ -70,8 +70,8 @@ def migrate_plain(errors: list[str],
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # retrieve the input and output batch sizes
-    batch_size_in: int = session_metrics.get(MigMetric.BATCH_SIZE_IN)
-    batch_size_out: int = session_metrics.get(MigMetric.BATCH_SIZE_OUT)
+    batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
+    batch_size_out: int = session_metrics[MigMetric.BATCH_SIZE_OUT]
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
@@ -145,21 +145,18 @@ def migrate_plain(errors: list[str],
                                 orderby_columns.append(column_name)
 
                     if not orderby_columns:
-                        suffix: str = f"for table {session_spots[MigSpot.FROM_RDBMS]}.{source_table} having no PKs"
+                        warn: str = ""
                         if session_metrics[MigMetric.PLAINDATA_CHANNELS] > 1:
-                            warn: str = f"Multi-channel migration specified {suffix}"
-                            migration_warnings.append(warn)
-                            logger.warning(msg=warn)
-                        if limit_count:
-                            warn: str = f"Incremental migration specified {suffix}"
-                            migration_warnings.append(warn)
-                            logger.warning(msg=warn)
-                        if offset_count:
-                            warn: str = f"Reading offset specified {suffix}"
-                            migration_warnings.append(warn)
-                            logger.warning(msg=warn)
-                        if batch_size_in:
-                            warn: str = f"Batch reading specified {suffix}"
+                            warn = "Multi-channel migration"
+                        elif limit_count:
+                            warn = "Incremental migration"
+                        elif offset_count:
+                            warn = "Reading offset"
+                        elif batch_size_in:
+                            warn = "Batch reading"
+                        if warn:
+                            warn += (" specified for table having no PKs: "
+                                     f"{session_spots[MigSpot.FROM_RDBMS]}.{source_table}")
                             migration_warnings.append(warn)
                             logger.warning(msg=warn)
 
