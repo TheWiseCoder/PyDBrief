@@ -91,6 +91,8 @@ def service_swagger() -> Response:
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
+    return result
+
 
 @flask_app.route(rule="/version",
                  methods=[HttpMethod.GET])
@@ -307,13 +309,6 @@ def service_sessions(session_id: str = None) -> Response:
     if not errors:
         if session_id:
             # session_id in path
-            reply = deepcopy(x=get_session_registry(session_id=session_id))
-            dict_pop_all(target=reply,
-                         key=DbConfig.PWD)
-            dict_pop_all(target=reply,
-                         key=S3Config.SECRET_KEY)
-        else:
-            # session_id not in path
             session_id = input_params.get(MigSpec.SESSION_ID)
             match request.method:
                 case HttpMethod.DELETE:
@@ -321,8 +316,11 @@ def service_sessions(session_id: str = None) -> Response:
                                       session_id=session_id):
                         reply = {"status": f"Session '{session_id}' deleted"}
                 case HttpMethod.GET:
-                    reply = get_sessions()
-                    reply["client"] = client_id
+                    reply = deepcopy(x=get_session_registry(session_id=session_id))
+                    dict_pop_all(target=reply,
+                                 key=DbConfig.PWD)
+                    dict_pop_all(target=reply,
+                                 key=S3Config.SECRET_KEY)
                 case HttpMethod.PATCH:
                     state: MigrationState = set_session_state(errors=errors,
                                                               input_params=input_params)
@@ -333,6 +331,11 @@ def service_sessions(session_id: str = None) -> Response:
                                       client_id=client_id,
                                       session_id=session_id):
                         reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
+        else:
+            # session_id not in path
+            reply = get_sessions()
+            reply["client"] = client_id
+
     # build the response
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
