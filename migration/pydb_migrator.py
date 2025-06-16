@@ -48,17 +48,14 @@ def migrate(errors: list[str],
     session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
     session_steps: dict[MigStep, bool] = session_registry[MigConfig.STEPS]
     session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPOTS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     from_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(errors=errors,
                                                             session_id=session_id,
                                                             db_engine=session_spots[MigSpot.FROM_RDBMS])
-    from_rdbms["schema"] = session_specs[MigSpec.FROM_SCHEMA]
     to_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(errors=errors,
                                                           session_id=session_id,
                                                           db_engine=session_spots[MigSpot.TO_RDBMS])
-    to_rdbms["schema"] = session_specs[MigSpec.TO_SCHEMA]
-
     # initialize the return variable
     result: dict[StrEnum | str, Any] = {
         "colophon": {
