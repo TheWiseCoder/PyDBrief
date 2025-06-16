@@ -309,7 +309,6 @@ def service_sessions(session_id: str = None) -> Response:
     if not errors:
         if session_id:
             # session_id in path
-            session_id = input_params.get(MigSpec.SESSION_ID)
             match request.method:
                 case HttpMethod.DELETE:
                     if delete_session(errors=errors,
@@ -333,6 +332,7 @@ def service_sessions(session_id: str = None) -> Response:
                         reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
         else:
             # session_id not in path
+            session_id = input_params.get(MigSpec.SESSION_ID)
             reply = get_sessions()
             reply["client"] = client_id
 
