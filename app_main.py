@@ -26,9 +26,7 @@ from pypomes_s3 import S3Engine
 from app_constants import (
     DbConfig, S3Config, MigConfig, MigSpec, MigrationState
 )
-from migration.pydb_common import (
-    get_rdbms_specs, get_s3_specs, get_migration_spots
-)
+from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import (
     get_sessions, get_session_params, get_session_registry, abort_session_migration,
     create_session, delete_session, get_session_state, set_session_state
@@ -308,7 +306,7 @@ def service_sessions(session_id: str = None) -> Response:
     client_id: str = input_params.get(MigSpec.CLIENT_ID)
     if not errors:
         if session_id:
-            # session_id in path
+            # session_id is in path
             match request.method:
                 case HttpMethod.DELETE:
                     if delete_session(errors=errors,
@@ -331,8 +329,7 @@ def service_sessions(session_id: str = None) -> Response:
                                       session_id=session_id):
                         reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
         else:
-            # session_id not in path
-            session_id = input_params.get(MigSpec.SESSION_ID)
+            # session_id is not in path
             reply = get_sessions()
             reply["client"] = client_id
 
@@ -400,15 +397,14 @@ def service_migration() -> Response:
                     }
                 else:
                     # no, display the migration context
-                    reply = get_migration_spots(errors=errors,
-                                                input_params=input_params)
+                    reply = get_session_registry(session_id=session_id)[MigConfig.SPOTS].copy()
                     if reply:
                         reply["status"] = "Migration can be launched"
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
                         # retrieve the migration parameters
-                        reply = get_session_registry(session_id=session_id)[MigConfig.METRICS]
+                        reply = get_session_registry(session_id=session_id)[MigConfig.METRICS].copy()
                     case HttpMethod.PATCH:
                         # establish the migration parameters
                         validate_metrics(errors=errors,

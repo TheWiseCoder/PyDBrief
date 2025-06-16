@@ -38,6 +38,7 @@ from app_constants import (
 #        MigMetric.LOBDATA_CHANNELS: RANGE_LOBDATA_CHANNELS[2],
 #        MigMetric.LOBDATA_CHANNEL_SIZE: RANGW_LOBDATA_CHANNEL_SIZE[2]
 #        MigMetric.PLAINDATA_CHANNELS: RANGE_PLAINDATA_CHANNELS[2],
+#        MigMetric.PLAINDATA_CHANNEL_SIZE: RANGE_PLAINDATA_CHANNEL_SIZE[2],
 #      },
 #      MigConfig.SPECS: {
 #        MigConfig.EXCLUDE_COLUMNS: [

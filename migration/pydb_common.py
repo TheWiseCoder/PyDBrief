@@ -10,9 +10,7 @@ from pypomes_s3 import (
 )
 from typing import Any
 
-from app_constants import (
-    DbConfig, S3Config, MigConfig, MigSpec, MigSpot
-)
+from app_constants import DbConfig, S3Config
 from migration.pydb_sessions import get_session_registry
 
 
@@ -57,48 +55,6 @@ def get_s3_specs(errors: list[str],
                                             s3_engine,
                                             "unknown or unconfigured S3 engine",
                                             f"@{S3Config.ENGINE}"))
-    return result
-
-
-def get_migration_spots(errors: list[str],
-                        input_params: dict[str, str]) -> dict[str, Any]:
-
-    # initialize the return variable
-    result: dict[str, Any] | None = None
-
-    # retrieve the session identification
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
-
-    # retrieve the source RDBMS parameters
-    rdbms: str = input_params.get(MigSpot.FROM_RDBMS)
-    from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
-    from_params: dict[DbConfig, Any] = get_rdbms_specs(errors=errors,
-                                                       session_id=session_id,
-                                                       db_engine=from_rdbms)
-    # retrieve the target RDBMS parameters
-    rdbms = input_params.get(MigSpot.TO_RDBMS)
-    to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
-    to_params: dict[DbConfig, Any] = get_rdbms_specs(errors=errors,
-                                                     session_id=session_id,
-                                                     db_engine=to_rdbms)
-    # retrieve the target S3 parameters
-    s3_params: dict[S3Config, Any] | None = None
-    s3: str = input_params.get(MigSpot.TO_S3)
-    to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
-    if to_s3:
-        s3_params = get_s3_specs(errors=errors,
-                                 session_id=session_id,
-                                 s3_engine=to_s3)
-    # build the return data
-    if not errors:
-        result: dict[str, Any] = {
-            MigConfig.METRICS: get_session_registry(session_id=session_id)[MigConfig.METRICS],
-            MigSpot.FROM_RDBMS: from_params,
-            MigSpot.TO_RDBMS: to_params
-        }
-        if s3_params:
-            result[MigSpot.TO_S3] = s3_params
-
     return result
 
 
