@@ -1,58 +1,61 @@
 import hashlib
 import mimetypes
 import pickle
+from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
     Mimetype,
     file_get_mimetype, file_is_binary, str_from_any
 )
-from pypomes_db import DbEngine, db_stream_lobs
+from pypomes_db import db_stream_lobs
 from pypomes_s3 import (
-    S3Engine,
     s3_data_store, s3_startup, s3_get_client
 )
 from pathlib import Path
 from typing import Any
 
-from app_constants import MetricsConfig
-from migration.pydb_common import assert_abort_state, get_metrics_params
+from app_constants import (
+    MigConfig, MigMetric, MigSpot, MigSpec
+)
+from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
 def s3_migrate_lobs(errors: list[str],
-                    target_s3: S3Engine,
-                    target_rdbms: DbEngine,
+                    session_id: str,
                     target_table: str,
-                    source_rdbms: DbEngine,
                     source_table: str,
                     lob_prefix: Path,
                     lob_column: str,
                     pk_columns: list[str],
                     where_clause: str,
-                    limit_count: int,
                     offset_count: int,
-                    reflect_filetype: bool,
+                    limit_count: int,
                     forced_filetype: str,
                     ret_column: str,
                     source_conn: Any,
-                    session_id: str,
                     logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
 
+    # retrieve the registry data for the session
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+    session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+
     # start the S3 module and obtain the S3 client
     client: Any = None
     if s3_startup(errors=errors,
-                  engine=target_s3,
+                  engine=session_spots[MigSpot.TO_S3],
                   logger=logger):
         client = s3_get_client(errors=errors,
-                               engine=target_s3,
+                               engine=session_spots[MigSpot.TO_S3],
                                logger=logger)
 
     # was the S3 client obtained ?
     if client:
         # yes, proceed
-        chunk_size: int = get_metrics_params(session_id=session_id).get(MetricsConfig.CHUNK_SIZE)
         forced_mimetype: str = mimetypes.types_map.get(forced_filetype)
 
         # initialize the properties
@@ -75,19 +78,19 @@ def s3_migrate_lobs(errors: list[str],
                                        lob_column=lob_column,
                                        pk_columns=pk_columns,
                                        ret_column=ret_column,
-                                       engine=source_rdbms,
+                                       engine=session_spots[MigSpot.FROM_RDBMS],
                                        connection=source_conn,
                                        committable=True,
                                        where_clause=where_clause,
                                        offset_count=offset_count,
                                        limit_count=limit_count,
-                                       chunk_size=chunk_size,
+                                       chunk_size=session_metrics[MigMetric.CHUNK_SIZE],
                                        logger=logger):
 
             # verify whether current migration is marked for abortion
-            assert_abort_state(errors=errors,
-                               session_id=session_id,
-                               logger=logger)
+            assert_session_abort(errors=errors,
+                                 session_id=session_id,
+                                 logger=logger)
             if errors:
                 break
 
@@ -100,7 +103,7 @@ def s3_migrate_lobs(errors: list[str],
                 #   - the lobdata's filename (if 'ref_column' was specified)
                 values: list[Any] = []
                 metadata = {
-                    "rdbms": target_rdbms,
+                    "rdbms": session_spots[MigSpot.TO_RDBMS],
                     "table": target_table
                 }
                 for key, value in sorted(row_data.items()):
@@ -136,7 +139,7 @@ def s3_migrate_lobs(errors: list[str],
                 if lob_data is not None:
                     extension: str = forced_filetype
                     # has filetype reflection been specified ?
-                    if reflect_filetype:
+                    if session_specs[MigSpec.REFLECT_FILETYPE]:
                         # yes, determine LOB's mimetype and file extension
                         mimetype = file_get_mimetype(file_data=lob_data) or \
                                    Mimetype.BINARY if file_is_binary(file_data=lob_data) else Mimetype.TEXT
@@ -156,7 +159,7 @@ def s3_migrate_lobs(errors: list[str],
                                   mimetype=mimetype,
                                   tags=metadata,
                                   prefix=lob_prefix,
-                                  engine=target_s3,
+                                  engine=session_spots[MigSpot.TO_S3],
                                   client=client)
                     lob_count += 1
                     result += 1

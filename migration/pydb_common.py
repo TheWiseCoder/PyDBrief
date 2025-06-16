@@ -1,95 +1,24 @@
 from enum import StrEnum
-from logging import Logger
 from pypomes_core import (
-    validate_bool, validate_int,
-    validate_str, validate_enum, validate_format_error
+    validate_format_error
 )
 from pypomes_db import (
-    DbEngine, db_get_version, db_setup
+    DbEngine, db_get_version
 )
 from pypomes_s3 import (
-    S3Engine, s3_get_version, s3_setup
+    S3Engine, s3_get_version
 )
 from typing import Any
 
 from app_constants import (
-    DbConfig, S3Config, MetricsConfig, MigrationConfig, MigrationState,
-    RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
-    RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
-    RANGE_LOBDATA_CHANNELS, RANGE_PLAINDATA_CHANNELS
+    DbConfig, S3Config, MigConfig, MigSpec, MigSpot
 )
 from migration.pydb_sessions import get_session_registry
 
 
-def get_metrics_params(session_id: str) -> dict[MetricsConfig, int]:
-
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    return session_registry.get(MigrationConfig.METRICS)
-
-
-def set_metrics_params(errors: list[str],
-                       input_params: dict[str, Any]) -> None:
-
-    # validate 'batch-size-in'
-    batch_size_in: int = validate_int(errors=errors,
-                                      source=input_params,
-                                      attr=MetricsConfig.BATCH_SIZE_IN,
-                                      min_val=RANGE_BATCH_SIZE_IN[0],
-                                      max_val=RANGE_BATCH_SIZE_IN[1])
-    # validate 'batch-size-out'
-    batch_size_out = validate_int(errors=errors,
-                                  source=input_params,
-                                  attr=MetricsConfig.BATCH_SIZE_OUT,
-                                  min_val=RANGE_BATCH_SIZE_OUT[0],
-                                  max_val=RANGE_BATCH_SIZE_OUT[1])
-    # validate 'chunk-size'
-    chunk_size: int = validate_int(errors=errors,
-                                   source=input_params,
-                                   attr=MetricsConfig.CHUNK_SIZE,
-                                   min_val=RANGE_CHUNK_SIZE[0],
-                                   max_val=RANGE_CHUNK_SIZE[1])
-    # validate 'incremental-size'
-    incremental_size: int = validate_int(errors=errors,
-                                         source=input_params,
-                                         attr=MetricsConfig.INCREMENTAL_SIZE,
-                                         min_val=RANGE_INCREMENTAL_SIZE[0],
-                                         max_val=RANGE_INCREMENTAL_SIZE[1])
-    # validate 'lobdata-channels'
-    lobdata_channels: int = validate_int(errors=errors,
-                                         source=input_params,
-                                         attr=MetricsConfig.LOBDATA_CHANNELS,
-                                         min_val=RANGE_LOBDATA_CHANNELS[0],
-                                         max_val=RANGE_LOBDATA_CHANNELS[1])
-    # validate 'plaindata-channels'
-    plaindata_channels: int = validate_int(errors=errors,
-                                           source=input_params,
-                                           attr=MetricsConfig.LOBDATA_CHANNELS,
-                                           min_val=RANGE_PLAINDATA_CHANNELS[0],
-                                           max_val=RANGE_PLAINDATA_CHANNELS[1])
-    if not errors:
-        # retrieve the session id
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
-        # retrieve the metrics for the session
-        session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-        metrics: dict[MetricsConfig, int] = session_registry.get(MigrationConfig.METRICS)
-        # set the parameters
-        if batch_size_in:
-            metrics[MetricsConfig.BATCH_SIZE_IN] = batch_size_in
-        if batch_size_out:
-            metrics[MetricsConfig.BATCH_SIZE_OUT] = batch_size_out
-        if chunk_size:
-            metrics[MetricsConfig.CHUNK_SIZE] = chunk_size
-        if incremental_size:
-            metrics[MetricsConfig.INCREMENTAL_SIZE] = incremental_size
-        if lobdata_channels:
-            metrics[MetricsConfig.LOBDATA_CHANNELS] = lobdata_channels
-        if plaindata_channels:
-            metrics[MetricsConfig.PLAINDATA_CHANNELS] = plaindata_channels
-
-
-def get_rdbms_params(errors: list[str],
-                     session_id: str,
-                     db_engine: DbEngine) -> dict[DbConfig, Any] | None:
+def get_rdbms_specs(errors: list[str],
+                    session_id: str,
+                    db_engine: DbEngine) -> dict[DbConfig, Any] | None:
 
     # initialize the return variable
     result: dict[DbConfig, Any] | None = None
@@ -109,76 +38,9 @@ def get_rdbms_params(errors: list[str],
     return result
 
 
-def set_rdbms_params(errors: list[str],
-                     input_params: dict[str, Any]) -> None:
-
-    db_engine: DbEngine = validate_enum(errors=errors,
-                                        source=input_params,
-                                        attr=DbConfig.ENGINE,
-                                        enum_class=DbEngine,
-                                        required=True)
-    db_name: str = validate_str(errors=errors,
-                                source=input_params,
-                                attr=DbConfig.NAME,
-                                required=True)
-    db_host: str = validate_str(errors=errors,
-                                source=input_params,
-                                attr=DbConfig.HOST,
-                                required=True)
-    db_port: int = validate_int(errors=errors,
-                                source=input_params,
-                                attr=DbConfig.PORT,
-                                min_val=1,
-                                required=True)
-    db_user: str = validate_str(errors=errors,
-                                source=input_params,
-                                attr=DbConfig.USER,
-                                required=True)
-    db_pwd: str = validate_str(errors=errors,
-                               source=input_params,
-                               attr=DbConfig.PWD,
-                               required=True)
-    db_client: str = validate_str(errors=errors,
-                                  source=input_params,
-                                  attr=DbConfig.CLIENT)
-    db_driver: str = validate_str(errors=errors,
-                                  source=input_params,
-                                  attr=DbConfig.DRIVER)
-    if not errors:
-        if db_setup(engine=db_engine,
-                    db_name=db_name,
-                    db_host=db_host,
-                    db_port=db_port,
-                    db_user=db_user,
-                    db_pwd=db_pwd,
-                    db_client=db_client,
-                    db_driver=db_driver):
-            # add DB specs to registry
-            db_specs: dict[DbConfig, Any] = {
-                DbConfig.ENGINE: db_engine,
-                DbConfig.NAME: db_name,
-                DbConfig.HOST: db_host,
-                DbConfig.PORT: db_port,
-                DbConfig.USER: db_user,
-                DbConfig.PWD: db_pwd,
-                DbConfig.VERSION: db_get_version(engine=db_engine)
-            }
-            if db_client:
-                db_specs[DbConfig.CLIENT] = db_client
-            if db_driver:
-                db_specs[DbConfig.DRIVER] = db_driver
-            # retrieve the session id and save the DB specs
-            session_id: str = input_params.get(MigrationConfig.SESSION_ID)
-            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-            session_registry[db_engine] = db_specs
-        else:
-            # 145: Invalid, inconsistent, or missing arguments
-            errors.append(validate_format_error(error_id=145))
-
-
-def get_s3_params(errors: list[str],
-                  session_id: str,
-                  s3_engine: S3Engine) -> dict[S3Config, Any] | None:
+def get_s3_specs(errors: list[str],
+                 session_id: str,
+                 s3_engine: S3Engine) -> dict[S3Config, Any] | None:
 
     # initialize the return variable
     result: dict[S3Config, Any] | None = None
@@ -198,80 +60,75 @@ def get_s3_params(errors: list[str],
     return result
 
 
-def set_s3_params(errors: list[str],
-                  input_params: dict[str, Any]) -> None:
-
-    engine: S3Engine = validate_enum(errors=errors,
-                                     source=input_params,
-                                     attr=S3Config.ENGINE,
-                                     enum_class=S3Engine,
-                                     required=True)
-    endpoint_url: str = validate_str(errors=errors,
-                                     source=input_params,
-                                     attr=S3Config.ENDPOINT_URL,
-                                     required=True)
-    bucket_name: str = validate_str(errors=errors,
-                                    source=input_params,
-                                    attr=S3Config.BUCKET_NAME,
-                                    required=True)
-    access_key: str = validate_str(errors=errors,
-                                   source=input_params,
-                                   attr=S3Config.ACCESS_KEY,
-                                   required=True)
-    secret_key: str = validate_str(errors=errors,
-                                   source=input_params,
-                                   attr=S3Config.SECRET_KEY,
-                                   required=True)
-    region_name: str = validate_str(errors=errors,
-                                    source=input_params,
-                                    attr=S3Config.REGION_NAME)
-    secure_access: bool = validate_bool(errors=errors,
-                                        source=input_params,
-                                        attr=S3Config.SECURE_ACCESS)
-    if not errors:
-        if s3_setup(engine=engine,
-                    endpoint_url=endpoint_url,
-                    bucket_name=bucket_name,
-                    access_key=access_key,
-                    secret_key=secret_key,
-                    region_name=region_name,
-                    secure_access=secure_access):
-            # add S3 specs to registry
-            s3_specs: dict[S3Config, Any] = {
-                S3Config.ENGINE: engine,
-                S3Config.ENDPOINT_URL: endpoint_url,
-                S3Config.BUCKET_NAME: bucket_name,
-                S3Config.ACCESS_KEY: access_key,
-                S3Config.SECRET_KEY: secret_key,
-                S3Config.SECURE_ACCESS: secure_access,
-                S3Config.VERSION: s3_get_version(engine=engine)
-            }
-            if region_name:
-                s3_specs[S3Config.REGION_NAME] = region_name
-            # retrieve the session id and save the S3 specs
-            session_id: str = input_params.get(MigrationConfig.SESSION_ID)
-            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-            session_registry[engine] = s3_specs
-        else:
-            # 145: Invalid, inconsistent, or missing arguments
-            errors.append(validate_format_error(error_id=145))
-
-
-def assert_abort_state(errors: list[str],
-                       session_id: str,
-                       logger: Logger) -> bool:
+def get_migration_spots(errors: list[str],
+                        input_params: dict[str, str]) -> dict[str, Any]:
 
     # initialize the return variable
-    result: bool = False
+    result: dict[str, Any] | None = None
 
-    # verify whether current migration is marked for abortion
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    if session_registry.get(MigrationConfig.STATE) == MigrationState.ABORTING:
-        err_msg: str = f"Migration in session '{session_id}' aborted on request"
-        logger.error(msg=err_msg)
-        # 101: {}
-        errors.append(validate_format_error(101,
-                                            err_msg))
-        result = True
+    # retrieve the session identification
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+
+    # retrieve the source RDBMS parameters
+    rdbms: str = input_params.get(MigSpot.FROM_RDBMS)
+    from_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
+    from_params: dict[DbConfig, Any] = get_rdbms_specs(errors=errors,
+                                                       session_id=session_id,
+                                                       db_engine=from_rdbms)
+    # retrieve the target RDBMS parameters
+    rdbms = input_params.get(MigSpot.TO_RDBMS)
+    to_rdbms: DbEngine = DbEngine(rdbms) if rdbms else None
+    to_params: dict[DbConfig, Any] = get_rdbms_specs(errors=errors,
+                                                     session_id=session_id,
+                                                     db_engine=to_rdbms)
+    # retrieve the target S3 parameters
+    s3_params: dict[S3Config, Any] | None = None
+    s3: str = input_params.get(MigSpot.TO_S3)
+    to_s3: S3Engine = S3Engine(s3) if s3 in S3Engine else None
+    if to_s3:
+        s3_params = get_s3_specs(errors=errors,
+                                 session_id=session_id,
+                                 s3_engine=to_s3)
+    # build the return data
+    if not errors:
+        result: dict[str, Any] = {
+            MigConfig.METRICS: get_session_registry(session_id=session_id)[MigConfig.METRICS],
+            MigSpot.FROM_RDBMS: from_params,
+            MigSpot.TO_RDBMS: to_params
+        }
+        if s3_params:
+            result[MigSpot.TO_S3] = s3_params
+
+    return result
+
+
+def build_channel_data(max_channels: int,
+                       channel_size: int,
+                       table_count: int,
+                       offset_count: int,
+                       limit_count: int) -> list[(int, int)]:
+
+    result: list[(int, int)] = []
+
+    max_channels = max(1, max_channels)
+    channel_size = min(channel_size, table_count)
+    limit_count = min(limit_count, table_count)
+    if limit_count < channel_size:
+        channel_size = limit_count
+    elif max_channels * channel_size < limit_count:
+        channel_size = int(limit_count / max_channels)
+
+    total: int = 0
+    while total + channel_size <= limit_count:
+        result.append((channel_size, offset_count))
+        total += channel_size
+        offset_count += channel_size
+
+    remainder: int = limit_count - total
+    if remainder > 0:
+        if len(result) < max_channels:
+            result.append((remainder, offset_count))
+        else:
+            result[-1] = (result[-1][0] + remainder, result[1][1])
 
     return result

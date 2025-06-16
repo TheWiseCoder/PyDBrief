@@ -1,19 +1,18 @@
+import threading
+from enum import StrEnum
 from logging import Logger
 from typing import Any
-from pypomes_db import db_sync_data, DbEngine
+from pypomes_db import db_sync_data
 
-from app_constants import MetricsConfig
+from app_constants import (
+    MigConfig, MigMetric, MigSpot, MigSpec
+)
 from migration import pydb_types
-from migration.pydb_common import assert_abort_state, get_metrics_params
+from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.steps import pydb_database
 
 
 def synchronize_plain(errors: list[str],
-                      source_rdbms: DbEngine,
-                      target_rdbms: DbEngine,
-                      source_schema: str,
-                      target_schema: str,
-                      remove_nulls: list[str],
                       source_conn: Any,
                       target_conn: Any,
                       migrated_tables: dict[str, Any],
@@ -25,20 +24,27 @@ def synchronize_plain(errors: list[str],
     result_inserts: int = 0
     result_updates: int = 0
 
-    # retrieve the input batch size
-    batch_size_in: int = get_metrics_params(session_id=session_id).get(MetricsConfig.BATCH_SIZE_IN)
+    # initialize the thread registration
+    migrated_tables["threads"] = [threading.get_ident()]
+
+    # retrieve the registry data for the session
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+    session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # traverse list of migrated tables to synchronize their plain data
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if assert_abort_state(errors=errors,
-                              session_id=session_id,
-                              logger=logger):
+        if assert_session_abort(errors=errors,
+                                session_id=session_id,
+                                logger=logger):
             break
 
-        source_table: str = f"{source_schema}.{table_name}"
-        target_table: str = f"{target_schema}.{table_name}"
+        source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
+        target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
+        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_NULLS] or [])
 
         # identify identity column and build the lists of PK and sync columns
         op_errors: list[str] = []
@@ -58,9 +64,9 @@ def synchronize_plain(errors: list[str],
                     identity_column = column_name
 
         counts: tuple[int, int, int] = db_sync_data(errors=op_errors,
-                                                    source_engine=source_rdbms,
+                                                    source_engine=session_spots[MigSpot.FROM_RDBMS],
                                                     source_table=source_table,
-                                                    target_engine=target_rdbms,
+                                                    target_engine=session_spots[MigSpot.TO_RDBMS],
                                                     target_table=target_table,
                                                     pk_columns=pk_columns,
                                                     sync_columns=sync_columns,
@@ -69,15 +75,15 @@ def synchronize_plain(errors: list[str],
                                                     source_committable=True,
                                                     target_committable=True,
                                                     identity_column=identity_column,
-                                                    batch_size=batch_size_in,
-                                                    has_nulls=table_name in remove_nulls,
+                                                    batch_size=session_metrics[MigMetric.BATCH_SIZE_IN],
+                                                    has_nulls=has_nulls,
                                                     logger=logger) or (0, 0, 0)
         deletes: int = counts[0]
         inserts: int = counts[1]
         updates: int = counts[2]
         if op_errors:
             pydb_database.check_embedded_nulls(errors=op_errors,
-                                               rdbms=target_rdbms,
+                                               rdbms=session_spots[MigSpot.TO_RDBMS],
                                                table=target_table,
                                                logger=logger)
             errors.extend(op_errors)
@@ -89,8 +95,8 @@ def synchronize_plain(errors: list[str],
         table_data["sync-deletes"] = deletes
         table_data["sync-inserts"] = inserts
         table_data["sync-updates"] = updates
-        logger.debug(msg=(f"Synchronized {source_rdbms}.{source_table} "
-                          f"as per {target_rdbms}.{target_table}, status {status}"))
+        logger.debug(msg=(f"Synchronized {session_spots[MigSpot.FROM_RDBMS]}.{source_table} "
+                          f"as per {session_spots[MigSpot.TO_RDBMS]}.{target_table}, status {status}"))
         result_deletes += deletes
         result_inserts += inserts
         result_updates += updates

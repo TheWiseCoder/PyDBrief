@@ -7,12 +7,85 @@ REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 
 class MigrationState(StrEnum):
+    """
+    Migration states for session.
+    """
     ACTIVE = auto()
     INACTIVE = auto()
     MIGRATING = auto()
     ABORTING = auto()
     ABORTED = auto()
     FINISHED = auto()
+
+
+class MigSpot(StrEnum):
+    """
+    Sources and targets for migration.
+    """
+    FROM_RDBMS = "from-rdbms"
+    TO_RDBMS = "to-rdbms"
+    TO_S3 = "to-s3"
+
+
+class MigStep(StrEnum):
+    """
+    Steps for migration.
+    """
+    MIGRATE_METADATA = "migrate-metadata"
+    MIGRATE_PLAINDATA = "migrate-plaindata"
+    MIGRATE_LOBDATA = "migrate-lobdata"
+    SYNCHRONIZE_PLAINDATA = "synchronize-plaindata"
+
+
+class MigConfig(StrEnum):
+    """
+    Parameters grouping.
+    """
+    METRICS = "metrics"
+    SPECS = "specs"
+    SPOTS = "spots"
+    STEPS = "steps"
+
+
+class MigSpec(StrEnum):
+    """
+    Specs for migration.
+    """
+    CLIENT_ID = "client-id"
+    EXCLUDE_COLUMNS = "exclude-columns"
+    EXCLUDE_CONSTRAINTS = "exclude-constraints"
+    EXCLUDE_RELATIONS = "exclude-relations"
+    FLATTEN_STORAGE = "flatten-storage"
+    FROM_SCHEMA = "from-schema"
+    INCLUDE_RELATIONS = "include-relations"
+    INCREMENTAL_MIGRATIONS = "incremental-migrations"
+    IS_ACTIVE = "is-active"
+    MIGRATION_BADGE = "migration-badge"
+    NAMED_LOBDATA = "named-lobdata"
+    OVERRIDE_COLUMNS = "override-columns"
+    PROCESS_INDEXES = "process-indexes"
+    PROCESS_VIEWS = "process-views"
+    REFLECT_FILETYPE = "reflect-filetype"
+    RELAX_REFLECTION = "relax-reflection"
+    REMOVE_NULLS = "remove-nulls"
+    SESSION_ID = "session-id"
+    SKIP_NONEMPTY = "skip-nonempty"
+    STATE = "state"
+    TO_SCHEMA = "to-schema"
+
+
+class MigMetric(StrEnum):
+    """
+    Metrics for migration.
+    """
+    BATCH_SIZE_IN = "batch-size-in"
+    BATCH_SIZE_OUT = "batch-size-out"
+    CHUNK_SIZE = "chunk-size"
+    INCREMENTAL_SIZE = "incremental-size"
+    LOBDATA_CHANNELS = "lobdata-channels"
+    LOBDATA_CHANNEL_SIZE = "lobdata-channel-size"
+    PLAINDATA_CHANNELS = "plaindata-channels"
+    PLAINDATA_CHANNEL_SIZE = "plaindata-channel-size"
 
 
 class DbConfig(StrEnum):
@@ -44,62 +117,12 @@ class S3Config(StrEnum):
     VERSION = "version"
 
 
-class MetricsConfig(StrEnum):
-    """
-    Metrics for migration.
-    """
-    BATCH_SIZE_IN = "batch-size-in"
-    BATCH_SIZE_OUT = "batch-size-out"
-    CHUNK_SIZE = "chunk-size"
-    INCREMENTAL_SIZE = "incremental-size"
-    LOBDATA_CHANNELS = "lobdata-channels"
-    PLAINDATA_CHANNELS = "plaindata-channels"
-
-
-class MigrationConfig(StrEnum):
-    """
-    Parameters for migration.
-    """
-    # grouping
-    METRICS = "metrics"
-    SPECS = "specs"
-    SPOTS = "spots"
-    STEPS = "steps"
-    # singles
-    CLIENT_ID = "client-id"
-    EXCLUDE_COLUMNS = "exclude-columns"
-    EXCLUDE_CONSTRAINTS = "exclude-constraints"
-    EXCLUDE_RELATIONS = "exclude-relations"
-    FLATTEN_STORAGE = "flatten-storage"
-    FROM_RDBMS = "from-rdbms"
-    FROM_SCHEMA = "from-schema"
-    INCLUDE_RELATIONS = "include-relations"
-    INCREMENTAL_MIGRATIONS = "incremental-migrations"
-    IS_ACTIVE = "is-active"
-    MIGRATION_BADGE = "migration-badge"
-    MIGRATE_METADATA = "migrate-metadata"
-    MIGRATE_PLAINDATA = "migrate-plaindata"
-    MIGRATE_LOBDATA = "migrate-lobdata"
-    NAMED_LOBDATA = "named-lobdata"
-    OVERRIDE_COLUMNS = "override-columns"
-    PROCESS_INDEXES = "process-indexes"
-    PROCESS_VIEWS = "process-views"
-    REFLECT_FILETYPE = "reflect-filetype"
-    RELAX_REFLECTION = "relax-reflection"
-    REMOVE_NULLS = "remove-nulls"
-    SESSION_ID = "session-id"
-    SKIP_NONEMPTY = "skip-nonempty"
-    STATE = "state"
-    SYNCHRONIZE_PLAINDATA = "synchronize-plaindata"
-    TO_S3 = "to-s3"
-    TO_RDBMS = "to-rdbms"
-    TO_SCHEMA = "to-schema"
-
-
 # values are (min, max, default)
 RANGE_BATCH_SIZE_IN: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 RANGE_BATCH_SIZE_OUT: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 RANGE_CHUNK_SIZE: Final[tuple[int, int, int]] = (1024, 16777216, 1048576)
 RANGE_INCREMENTAL_SIZE: Final[tuple[int, int, int]] = (1000, 10000000, 100000)
 RANGE_LOBDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 32, 1)
+RANGE_LOBDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (10000, 1000000, 100000)
 RANGE_PLAINDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 32, 1)
+RANGE_PLAINDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (10000, 1000000, 100000)

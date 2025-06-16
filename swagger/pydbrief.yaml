@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.8.0
+  version: 1.8.1
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -153,6 +153,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/MigrationSessionsSuccess'
   /sessions/{session-id}:
+    get:
+      tags:
+        - migration sessions
+      summary: Display the sessions configuration
+      description: Display the configuration data associated with the given session.
+      operationId: retrieve-session
+      parameters:
+        - $ref: '#/components/parameters/SessionIdPathParam'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MigrationSessionSuccess'
+        '400':
+          description: Unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIdError'
     post:
       tags:
         - migration sessions
@@ -277,7 +298,9 @@ paths:
         - $ref: '#/components/parameters/ChunkSizeParam'
         - $ref: '#/components/parameters/IncrementalSizeParam'
         - $ref: '#/components/parameters/PlaindataChannelsParam'
+        - $ref: '#/components/parameters/PlaindataChannelSizeParam'
         - $ref: '#/components/parameters/LobdataChannelsParam'
+        - $ref: '#/components/parameters/LobdataChannelSizeParam'
         - $ref: '#/components/parameters/SessionIdOptParam'
       responses:
         '200':
@@ -315,7 +338,7 @@ paths:
         - $ref: '#/components/parameters/SkipNonemptyParam'
         - $ref: '#/components/parameters/ReflectFiletypeParam'
         - $ref: '#/components/parameters/FlattenStorageParam'
-        - $ref: '#/components/parameters/IncrementalMigrationParam'
+        - $ref: '#/components/parameters/IncrementalMigrationsParam'
         - $ref: '#/components/parameters/RemoveNullsParam'
         - $ref: '#/components/parameters/IncludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeRelationsParam'
@@ -722,28 +745,48 @@ components:
     PlaindataChannelsParam:
       name: plaindata-channels
       in: query
-      description: Number of channels for simultaneous use in plaindata migrations. Range is [1-32], initial value is 1.
+      description: Maximum number of channels for simultaneous use in plaindata migrations. Range is [1-32], initial value is 1.
       required: false
       schema:
         type: integer
         minimum: 1
         maximum: 32
         default: 1
+    PlaindataChannelSizeParam:
+      name: plaindata-channel-size
+      in: query
+      description: Number of rows per channel to process in plaindata migrations. Range is [10000-10000000], initial value is 100000.
+      required: false
+      schema:
+        type: integer
+        minimum: 10000
+        maximum: 10000000
+        default: 100000
     LobdataChannelsParam:
       name: lobdata-channels
       in: query
-      description: Number of channels for simultaneous use in lobdata migrations. Range is [1-32], initial value is 1.
+      description: Maximum number of channels for simultaneous use in lobdata migrations. Range is [1-32], initial value is 1.
       required: false
       schema:
         type: integer
         minimum: 1
         maximum: 32
         default: 1
+    LobdataChannelSizeParam:
+      name: lobdata-channel-size
+      in: query
+      description: Number of rows per channel to process in lobdata migrations. Range is [10000-10000000], initial value is 100000.
+      required: false
+      schema:
+        type: integer
+        minimum: 10000
+        maximum: 10000000
+        default: 100000
   # migration identification
     MigrationBadgeOptParam:
       name: migration-badge
       in: query
-      description: The optional identification for the migration operation. If specified, it will be used to generate the JSON and log files specific to the  migration, and may be used for aborting the migration operation. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration_01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
+      description: The optional identification for the migration operation. If specified, it will be used to generate the JSON and log files specific to the  migration, and may be used for aborting the migration operation. Make sure to provide a name, or a relative filepath in POSIX notation, acceptable by the host OS for file creation. A value of 'migration-01/pydb_05_02', for example, would cause the generation of the files 'pydb_05_02.json' and 'pydb_05_02.log' on the folder 'migration_01' at the volume mapped to 'PYDB_REGISTRY_HOST'. This mapping is done at the host OS level, and is typically accomplished with an environment variable pointing to a folder.
       required: false
       schema:
         type: string
@@ -949,10 +992,10 @@ components:
         type: array
         items:
           type: string
-    IncrementalMigrationParam:
+    IncrementalMigrationsParam:
       name: incremental-migrations
       in: query
-      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited, '\<size\>' is set to the migration metrics parameter 'incremental-size', and '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
+      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited or set to 0, '\<size\>' is set to the migration metrics parameter 'incremental-size'. If ommitted, '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
       required: false
       explode: false
       schema:
@@ -1051,10 +1094,97 @@ components:
           example: 100000
         plaindata-channels:
           type: integer
-          example: 4
+          example: 
+        plaindata-channel-size:
+          type: integer
+          example: 50000
         lobdata-channels:
           type: integer
           example: 6
+        lobdata-channel-size:
+          type: integer
+          example: 20000
+    MigrationSpots:
+      type: object
+      properties:
+        from-dbms:
+          type: string
+          example: oracle
+        to-rdbms:
+          type: string
+          example: postgres
+        to-s3:
+          type: string
+          example: aws
+    MigrationSteps:
+      type: object
+      properties:
+        migrate-metadata:
+          type: boolean
+          example: true
+        migrate-plaindata:
+          type: boolean
+          example: false
+        migrate-lobdata:
+          type: boolean
+          example: false
+        synchronize-plaindata:
+          type: boolean
+          example: false
+    MigrationSpecs:
+      type: object
+      properties:
+        exclude-columns:
+          type: string
+          example: [<table-name>.<column-name-1>]
+        exclude-constraints:
+          type: string
+          example: [<constraint-name>]
+        exclude-relations:
+          type: string
+          example: [<table-name>,<view-name>,<index-name>]
+        flatten-storage:
+          type: boolean
+          example: false
+        from-schema:
+          type: string
+          example: my-schema
+        include-relations:
+          type: string
+          example: [<table-name>,<view-name>,<index-name>]
+        incremental-migrations:
+          type: string
+          example: [my-table=100000:300000]
+        migration-badge:
+          type: string
+          example: migration-01/pydb_05_02
+        named-lobdata:
+          type: string
+          example: [<table-name>.<table-column>=<names-column>.<extension>]
+        override-columns:
+          type: string
+          example: [<table-name>.<clumn-name>=<type-name>]
+        process-indexes:
+          type: boolean
+          example: false
+        process-views:
+          type: boolean
+          example: false
+        reflect-filetype:
+          type: boolean
+          example: true
+        relax-reflection:
+          type: boolean
+          example: true
+        remove-nulls:
+          type: string
+          example: [<table-name>]
+        to-schema:
+          type: string
+          example: my-schema
+        skip-nonempty:
+          type: boolean
+          example: true
     OracleConfiguration:
       type: object
       properties:
@@ -1139,6 +1269,29 @@ components:
         status:
           type: string
           example: Session 'my-session' deleted
+    MigrationSessionSuccess:
+      type: object
+      properties:
+        client-id:
+          type: string
+          example: 9745693c-3cd45-7830-c124-f15584393f8b
+        state:
+          type: string
+          example: inactive
+        spots:
+          $ref: '#/components/schemas/MigrationSpots'
+        steps:
+          $ref: '#/components/schemas/MigrationSteps'
+        metrics:
+          $ref: '#/components/schemas/MigrationMetrics'
+        specs:
+          $ref: '#/components/schemas/MigrationSpecs'
+        oracle:
+          $ref: '#/components/schemas/OracleConfiguration'
+        postgres:
+          $ref: '#/components/schemas/PostgresConfiguration'
+        aws:
+          $ref: '#/components/schemas/S3Configuration'
     MigrationSessionsSuccess:
       type: object
       properties:

@@ -1,5 +1,6 @@
 import json
 import sys
+from copy import deepcopy
 from enum import StrEnum
 from flask import (
     Blueprint, Flask, Request, Response,
@@ -8,34 +9,35 @@ from flask import (
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
-from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
-    Mimetype, pypomes_versions, dict_clone, exc_format,
-    validate_bool, validate_strs, validate_enum,
-    validate_format_error, validate_format_errors
+    Mimetype, pypomes_versions, dict_clone, dict_pop_all, exc_format,
+    validate_enum, validate_format_error, validate_format_errors
 )
 from pypomes_db import DbEngine
-from pypomes_http import HttpMethod, HttpStatus, http_get_parameter, http_get_parameters
+from pypomes_http import (
+    HttpMethod, HttpStatus, http_get_parameters
+)
 from pypomes_logging import PYPOMES_LOGGER, service_logging
 from pypomes_s3 import S3Engine
 
-from app_constants import DbConfig, S3Config, MigrationConfig, MigrationState
+from app_constants import (
+    DbConfig, S3Config, MigConfig, MigSpec, MigrationState
+)
 from migration.pydb_common import (
-    get_s3_params, set_s3_params,
-    get_rdbms_params, set_rdbms_params,
-    get_metrics_params, set_metrics_params
+    get_rdbms_specs, get_s3_specs, get_migration_spots
 )
 from migration.pydb_sessions import (
-    get_sessions, get_session_params, abort_session_migration,
+    get_sessions, get_session_params, get_session_registry, abort_session_migration,
     create_session, delete_session, get_session_state, set_session_state
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
-    assert_override_columns, assert_incremental_migrations,
-    assert_expected_params, assert_migration, get_migration_context
+    assert_expected_params,
+    validate_metrics, validate_rdbms, validate_s3,
+    validate_spots, validate_steps, validate_specs
 )
 
 # create the Flask application
@@ -160,7 +162,7 @@ def service_rdbms(engine: str = None) -> Response:
 
     reply: dict[StrEnum | str, Any] | None = None
     if not errors:
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+        session_id: str = input_params.get(MigSpec.SESSION_ID)
         if request.method == HttpMethod.GET:
             input_params[DbConfig.ENGINE] = engine
             db_engine: DbEngine = validate_enum(errors=errors,
@@ -170,28 +172,21 @@ def service_rdbms(engine: str = None) -> Response:
                                                 required=True)
             if db_engine:
                 # get RDBMS connection params
-                reply = get_rdbms_params(errors=errors,
-                                         session_id=session_id,
-                                         db_engine=db_engine)
+                reply = get_rdbms_specs(errors=errors,
+                                        session_id=session_id,
+                                        db_engine=db_engine)
                 if reply:
-                    reply[MigrationConfig.SESSION_ID] = session_id
+                    reply[MigSpec.SESSION_ID] = session_id
         else:
-            # validate the session's state
-            state: MigrationState = get_session_state(session_id=session_id)
-            if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
-                # 101: {}
-                errors.append(validate_format_error(101,
-                                                    f"Operation not possible for session with state '{state}'"))
-            else:
-                set_rdbms_params(errors=errors,
-                                 input_params=input_params)
-                if not errors:
-                    engine = input_params.get(DbConfig.ENGINE)
-                    reply = {"status": f"RDBMS '{engine}' configuration updated for session '{session_id}'"}
+            validate_rdbms(errors=errors,
+                           input_params=input_params)
+            if not errors:
+                engine = input_params.get(DbConfig.ENGINE)
+                reply = {"status": f"RDBMS '{engine}' configuration updated for session '{session_id}'"}
 
     # build the response
     result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigrationConfig.CLIENT_ID),
+                                       client_id=input_params.get(MigSpec.CLIENT_ID),
                                        reply=reply)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
@@ -239,7 +234,7 @@ def service_s3(engine: str = None) -> Response:
 
     reply: dict[S3Config | str, Any] | None = None
     if not errors:
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
+        session_id: str = input_params.get(MigSpec.SESSION_ID)
         if request.method == HttpMethod.GET:
             input_params[S3Config.ENGINE] = engine
             s3_engine: S3Engine = validate_enum(errors=errors,
@@ -249,11 +244,11 @@ def service_s3(engine: str = None) -> Response:
                                                 required=True)
             if s3_engine:
                 # get S3 access params
-                reply = get_s3_params(errors=errors,
-                                      session_id=session_id,
-                                      s3_engine=s3_engine)
+                reply = get_s3_specs(errors=errors,
+                                     session_id=session_id,
+                                     s3_engine=s3_engine)
                 if reply:
-                    reply[MigrationConfig.SESSION_ID] = session_id
+                    reply[MigSpec.SESSION_ID] = session_id
         else:
             # validate the session's state
             state: MigrationState = get_session_state(session_id=session_id)
@@ -263,14 +258,14 @@ def service_s3(engine: str = None) -> Response:
                                                     f"Operation not possible for session with state '{state}'"))
             else:
                 # configure the S3 service
-                set_s3_params(errors=errors,
-                              input_params=input_params)
+                validate_s3(errors=errors,
+                            input_params=input_params)
                 if not errors:
                     engine = input_params.get(S3Config.ENGINE)
                     reply = {"status": f"S3 '{engine}' configuration updated for session '{session_id}"}
     # build the response
     result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigrationConfig.CLIENT_ID),
+                                       client_id=input_params.get(MigSpec.CLIENT_ID),
                                        reply=reply)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
@@ -281,7 +276,8 @@ def service_s3(engine: str = None) -> Response:
 @flask_app.route(rule="/sessions",
                  methods=[HttpMethod.GET])
 @flask_app.route(rule="/sessions/<session_id>",
-                 methods=[HttpMethod.DELETE, HttpMethod.PATCH, HttpMethod.POST])
+                 methods=[HttpMethod.DELETE, HttpMethod.GET,
+                          HttpMethod.PATCH, HttpMethod.POST])
 def service_sessions(session_id: str = None) -> Response:
     """
     Entry point for handling migration sessions.
@@ -291,13 +287,6 @@ def service_sessions(session_id: str = None) -> Response:
     """
     # initialize the errors list
     errors: list[str] = []
-
-    # GET on '/sessions' does not have a 'session-id' parameter
-    if request.method == HttpMethod.GET and http_get_parameter(request=request,
-                                                               param=MigrationConfig.SESSION_ID):
-        # 122 Attribute is unknown or invalid in this context
-        errors.append(validate_format_error(122,
-                                            f"@{MigrationConfig.SESSION_ID}"))
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = get_session_params(errors=errors,
@@ -314,27 +303,36 @@ def service_sessions(session_id: str = None) -> Response:
                            input_params=input_params)
 
     reply: dict[str, Any] | None = None
-    client_id: str = input_params.get(MigrationConfig.CLIENT_ID)
+    client_id: str = input_params.get(MigSpec.CLIENT_ID)
     if not errors:
-        session_id = input_params.get(MigrationConfig.SESSION_ID)
-        match request.method:
-            case HttpMethod.DELETE:
-                if delete_session(errors=errors,
-                                  session_id=session_id):
-                    reply = {"status": f"Session '{session_id}' deleted"}
-            case HttpMethod.GET:
-                reply = get_sessions()
-                reply["client"] = client_id
-            case HttpMethod.PATCH:
-                state: MigrationState = set_session_state(errors=errors,
-                                                          input_params=input_params)
-                if state:
-                    reply = {"status": f"Session '{session_id}' set to '{state}'"}
-            case HttpMethod.POST:
-                if create_session(errors=errors,
-                                  client_id=client_id,
-                                  session_id=session_id):
-                    reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
+        if session_id:
+            # session_id in path
+            reply = deepcopy(x=get_session_registry(session_id=session_id))
+            dict_pop_all(target=reply,
+                         key=DbConfig.PWD)
+            dict_pop_all(target=reply,
+                         key=S3Config.SECRET_KEY)
+        else:
+            # session_id not in path
+            session_id = input_params.get(MigSpec.SESSION_ID)
+            match request.method:
+                case HttpMethod.DELETE:
+                    if delete_session(errors=errors,
+                                      session_id=session_id):
+                        reply = {"status": f"Session '{session_id}' deleted"}
+                case HttpMethod.GET:
+                    reply = get_sessions()
+                    reply["client"] = client_id
+                case HttpMethod.PATCH:
+                    state: MigrationState = set_session_state(errors=errors,
+                                                              input_params=input_params)
+                    if state:
+                        reply = {"status": f"Session '{session_id}' set to '{state}'"}
+                case HttpMethod.POST:
+                    if create_session(errors=errors,
+                                      client_id=client_id,
+                                      session_id=session_id):
+                        reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
     # build the response
     result: Response = _build_response(errors=errors,
                                        client_id=client_id,
@@ -377,7 +375,7 @@ def service_migration() -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    client_id: str = input_params.get(MigrationConfig.CLIENT_ID)
+    client_id: str = input_params.get(MigSpec.CLIENT_ID)
     assert_expected_params(errors=errors,
                            service=request.path,
                            method=request.method,
@@ -385,13 +383,12 @@ def service_migration() -> Response:
 
     reply: dict[str, Any] | None = None
     if not errors:
-        session_id = input_params.get(MigrationConfig.SESSION_ID)
+        session_id = input_params.get(MigSpec.SESSION_ID)
         match request.path:
             case "/migration:verify":
                 # assert whether migration is warranted
-                assert_migration(errors=errors,
-                                 input_params=input_params,
-                                 run_mode=False)
+                validate_spots(errors=errors,
+                               input_params=input_params)
                 # errors ?
                 if errors:
                     # yes, report the problem
@@ -400,23 +397,23 @@ def service_migration() -> Response:
                     }
                 else:
                     # no, display the migration context
-                    reply = get_migration_context(errors=errors,
-                                                  input_params=input_params)
+                    reply = get_migration_spots(errors=errors,
+                                                input_params=input_params)
                     if reply:
                         reply["status"] = "Migration can be launched"
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
                         # retrieve the migration parameters
-                        reply = get_metrics_params(session_id=session_id)
+                        reply = get_session_registry(session_id=session_id)[MigConfig.METRICS]
                     case HttpMethod.PATCH:
                         # establish the migration parameters
-                        set_metrics_params(errors=errors,
-                                           input_params=input_params)
+                        validate_metrics(errors=errors,
+                                         input_params=input_params)
                         if not errors:
                             reply = {"status": f"Migration metrics updated"}
         if reply:
-            reply[MigrationConfig.SESSION_ID] = session_id
+            reply[MigSpec.SESSION_ID] = session_id
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -455,13 +452,13 @@ def service_migrate(session_id: str = None) -> Response:
                            method=request.method,
                            input_params=input_params)
 
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
     reply: dict[str, Any] | None = None
     if not errors:
         if request.method == HttpMethod.POST:
             reply = migrate_data(errors=errors,
                                  input_params=input_params)
         else:
-            session_id: str = input_params.get(MigrationConfig.SESSION_ID)
             if abort_session_migration(errors=errors,
                                        session_id=session_id):
                 reply = {
@@ -470,7 +467,7 @@ def service_migrate(session_id: str = None) -> Response:
 
     # build the response
     result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigrationConfig.CLIENT_ID),
+                                       client_id=input_params.get(MigSpec.CLIENT_ID),
                                        reply=reply)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
@@ -526,103 +523,27 @@ def migrate_data(errors: list[str],
     # initialize the return variable
     result: dict[str, Any] | None = None
 
-    # assert whether migration is warranted
-    specs: tuple = assert_migration(errors=errors,
-                                    input_params=input_params,
-                                    run_mode=True)
+    # validate the migration spots
+    validate_spots(errors=errors,
+                   input_params=input_params)
 
-    # assert and retrieve the override columns parameter
-    override_columns: dict[str, Type] = assert_override_columns(errors=errors,
-                                                                input_params=input_params)
-    # assert and retrieve the incremental migrations parameter
-    incremental_migrations: dict[str, tuple[int, int]] = assert_incremental_migrations(errors=errors,
-                                                                                       input_params=input_params)
+    # validate the migration steps
+    validate_steps(errors=errors,
+                   input_params=input_params)
+
+    validate_specs(errors=errors,
+                   input_params=input_params)
+
     # is migration possible ?
     if not errors:
         # yes, proceed
-        source_rdbms: DbEngine = specs[0]
-        target_rdbms: DbEngine = specs[1]
-        target_s3: S3Engine = specs[2]
-        step_metadata: bool = specs[3]
-        step_plaindata: bool = specs[4]
-        step_lobdata: bool = specs[5]
-        step_synchronize: bool = specs[6]
 
         # obtain the remaining migration parameters
-        session_id: str = input_params.get(MigrationConfig.SESSION_ID)
-        migration_badge: str = input_params.get(MigrationConfig.MIGRATION_BADGE)
-        source_schema: str = input_params.get(MigrationConfig.FROM_SCHEMA).lower()
-        target_schema: str = input_params.get(MigrationConfig.TO_SCHEMA).lower()
+        session_id: str = input_params.get(MigSpec.SESSION_ID)
 
-        process_indexes: bool = validate_bool(errors=None,
-                                              source=input_params,
-                                              attr=MigrationConfig.PROCESS_INDEXES)
-        process_views: bool = validate_bool(errors=None,
-                                            source=input_params,
-                                            attr=MigrationConfig.PROCESS_VIEWS)
-        relax_reflection: bool = validate_bool(errors=None,
-                                               source=input_params,
-                                               attr=MigrationConfig.RELAX_REFLECTION)
-        skip_nonempty: bool = validate_bool(errors=None,
-                                            source=input_params,
-                                            attr=MigrationConfig.SKIP_NONEMPTY)
-        reflect_filetype: bool = validate_bool(errors=None,
-                                               source=input_params,
-                                               attr=MigrationConfig.REFLECT_FILETYPE)
-        flatten_storage: bool = validate_bool(errors=None,
-                                              source=input_params,
-                                              attr=MigrationConfig.FLATTEN_STORAGE)
-        remove_nulls: list[str] = [s.lower()
-                                   for s in validate_strs(errors=None,
-                                                          source=input_params,
-                                                          attr=MigrationConfig.REMOVE_NULLS)]
-        include_relations: list[str] = [s.lower()
-                                        for s in validate_strs(errors=None,
-                                                               source=input_params,
-                                                               attr=MigrationConfig.INCLUDE_RELATIONS)]
-        exclude_relations: list[str] = [s.lower()
-                                        for s in validate_strs(errors=None,
-                                                               source=input_params,
-                                                               attr=MigrationConfig.EXCLUDE_RELATIONS)]
-        exclude_columns: list[str] = [s.lower()
-                                      for s in validate_strs(errors=None,
-                                                             source=input_params,
-                                                             attr=MigrationConfig.EXCLUDE_COLUMNS)]
-        exclude_constraints: list[str] = [s.lower()
-                                          for s in validate_strs(errors=None,
-                                                                 source=input_params,
-                                                                 attr=MigrationConfig.EXCLUDE_CONSTRAINTS)]
-        named_lobdata: list[str] = [s.lower()
-                                    for s in validate_strs(errors=None,
-                                                           source=input_params,
-                                                           attr=MigrationConfig.NAMED_LOBDATA)]
         # migrate the data
         result = migrate(errors=errors,
-                         source_rdbms=source_rdbms,
-                         target_rdbms=target_rdbms,
-                         source_schema=source_schema,
-                         target_schema=target_schema,
-                         target_s3=target_s3,
-                         step_metadata=step_metadata,
-                         step_plaindata=step_plaindata,
-                         step_lobdata=step_lobdata,
-                         step_synchronize=step_synchronize,
-                         process_indexes=process_indexes,
-                         process_views=process_views,
-                         relax_reflection=relax_reflection,
-                         skip_nonempty=skip_nonempty,
-                         reflect_filetype=reflect_filetype,
-                         flatten_storage=flatten_storage,
-                         incremental_migrations=incremental_migrations,
-                         remove_nulls=remove_nulls,
-                         include_relations=include_relations,
-                         exclude_relations=exclude_relations,
-                         exclude_columns=exclude_columns,
-                         exclude_constraints=exclude_constraints,
-                         named_lobdata=named_lobdata,
-                         override_columns=override_columns,
                          session_id=session_id,
-                         migration_badge=migration_badge,
                          app_name=APP_NAME,
                          app_version=APP_VERSION,
                          logger=PYPOMES_LOGGER)
