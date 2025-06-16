@@ -32,7 +32,8 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     f"/sessions:{HttpMethod.PATCH}": [MigSpec.IS_ACTIVE],
     f"/rdbms:{HttpMethod.POST}": list(map(str, DbConfig)),
     f"/s3:{HttpMethod.POST}": list(map(str, S3Config)),
-    f"/migrate:{HttpMethod.POST}": list(map(str, MigSpec)),
+    f"/migrate:{HttpMethod.POST}": (list(map(str, MigSpot)) + list(map(str, MigStep)) +
+                                    list(map(str, MigSpec)) + list(map(str, MigMetric))),
     f"/migration/metrics:{HttpMethod.PATCH}":  list(map(str, MigMetric)),
     f"/migration:verify:{HttpMethod.POST}": [
         MigSpot.FROM_RDBMS, MigSpot.TO_RDBMS, MigSpot.TO_S3
@@ -48,7 +49,7 @@ def assert_expected_params(errors: list[str],
     op: str = f"{service}:{method}"
     params: list[StrEnum] = SERVICE_PARAMS.get(op) or []
     params.append(MigSpec.CLIENT_ID)
-    if op != f"/sessions/{HttpMethod.GET}":
+    if op != f"/sessions:{HttpMethod.GET}":
         params.append(MigSpec.SESSION_ID)
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,

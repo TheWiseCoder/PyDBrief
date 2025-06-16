@@ -2,12 +2,8 @@ from enum import StrEnum
 from pypomes_core import (
     validate_format_error
 )
-from pypomes_db import (
-    DbEngine, db_get_version
-)
-from pypomes_s3 import (
-    S3Engine, s3_get_version
-)
+from pypomes_db import DbEngine
+from pypomes_s3 import S3Engine
 from typing import Any
 
 from app_constants import DbConfig, S3Config
@@ -26,7 +22,6 @@ def get_rdbms_specs(errors: list[str],
     if isinstance(rdbms_params, dict):
         result = rdbms_params.copy()
         result.pop(DbConfig.PWD)
-        result[DbConfig.VERSION] = db_get_version(engine=db_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -48,7 +43,6 @@ def get_s3_specs(errors: list[str],
     if isinstance(s3_params, dict):
         result = s3_params.copy()
         result.pop(S3Config.SECRET_KEY)
-        result[S3Config.VERSION] = s3_get_version(engine=s3_engine)
     else:
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,

@@ -18,6 +18,16 @@ class MigrationState(StrEnum):
     FINISHED = auto()
 
 
+class MigConfig(StrEnum):
+    """
+    Parameters grouping.
+    """
+    METRICS = "metrics"
+    SPECS = "specs"
+    SPOTS = "spots"
+    STEPS = "steps"
+
+
 class MigSpot(StrEnum):
     """
     Sources and targets for migration.
@@ -35,16 +45,6 @@ class MigStep(StrEnum):
     MIGRATE_PLAINDATA = "migrate-plaindata"
     MIGRATE_LOBDATA = "migrate-lobdata"
     SYNCHRONIZE_PLAINDATA = "synchronize-plaindata"
-
-
-class MigConfig(StrEnum):
-    """
-    Parameters grouping.
-    """
-    METRICS = "metrics"
-    SPECS = "specs"
-    SPOTS = "spots"
-    STEPS = "steps"
 
 
 class MigSpec(StrEnum):
