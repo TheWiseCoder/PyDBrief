@@ -228,7 +228,7 @@ def migrate_lobs(errors: list[str],
                                                                      logger=logger)
                                 task_futures.append(future)
 
-                            # Wait for all task futures to complete
+                            # wait for all task futures to complete
                             futures.wait(fs=task_futures)
 
                             with _lobdata_lock:
@@ -244,9 +244,9 @@ def migrate_lobs(errors: list[str],
             table_data["lob-status"] = status
             table_data["lob-count"] = count
             table_data["lob-duration"] = duration
-            logger.debug(msg=f"Migrated {count} lobdata from "
-                             f"{session_spots[MigSpot.FROM_RDBMS]}.{source_table} "
-                             f"to {session_spots[MigSpot.TO_RDBMS]}.{target_table}, "
+            logger.debug(msg=f"Migrated {count} lobdata in table {table_name}, "
+                             f"from {session_spots[MigSpot.FROM_RDBMS]} "
+                             f"to {session_spots[MigSpot.TO_RDBMS]}, "
                              f"status {status}, duration {duration}")
             result += count
 

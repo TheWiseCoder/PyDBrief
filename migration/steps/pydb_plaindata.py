@@ -192,7 +192,7 @@ def migrate_plain(errors: list[str],
                                                              logger=logger)
                             task_futures.append(future)
 
-                        # Wait for all task futures to complete
+                        # wait for all task futures to complete
                         futures.wait(fs=task_futures)
 
                         with _plaindata_lock:
@@ -213,9 +213,9 @@ def migrate_plain(errors: list[str],
                 table_data["plain-status"] = status
                 table_data["plain-count"] = count
                 table_data["plain-duration"] = duration
-                logger.debug(msg=f"Migrated {count} plaindata from "
-                                 f"{session_spots[MigSpot.FROM_RDBMS]}.{source_table} "
-                                 f"to {session_spots[MigSpot.TO_RDBMS]}.{target_table}, "
+                logger.debug(msg=f"Migrated {count} plaindata in table {table_name}, "
+                                 f"from {session_spots[MigSpot.FROM_RDBMS]} "
+                                 f"to {session_spots[MigSpot.TO_RDBMS]}, "
                                  f"status {status}, duration {duration}")
                 result += count
 

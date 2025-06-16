@@ -169,7 +169,8 @@ def s3_migrate_lobs(errors: list[str],
                 first_chunk = True
 
         # log the migration
-        logger.debug(msg=f"{lob_count} LOBs migrated from {target_table}.{lob_column} to S3 storage")
+        logger.debug(msg=f"{lob_count} LOBs migrated from "
+                         f"{target_table}.{lob_column} to S3 storage")
 
     return result
 
