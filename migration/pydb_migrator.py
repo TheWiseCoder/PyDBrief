@@ -281,8 +281,8 @@ def migrate(errors: list[str],
         with suppress(Exception):
             target_conn.close()
 
-        result["total-plains"] = plain_count
-        result["total-lobs"] = lob_count
+        result["total-migrated-plains"] = plain_count
+        result["total-migrated-lobs"] = lob_count
 
     # update the session state
     curr_state: MigrationState = session_registry.get(MigrationConfig.STATE)
