@@ -84,15 +84,16 @@ from app_constants import (
 #        MigConfig.SKIP_NONEMPTY: <bool>
 #      },
 #      <DbEngine>: {
-#         DbConfig.ENGINE: <DbEngine>,
-#         DbConfig.HOST: <str>,
-#         DbConfig.NAME: <str>,
-#         DbConfig.PORT: <int>,
-#         DbConfig.PWD: <str>,
-#         DbConfig.USER: <str>,
-#         DbConfig.VERSION: <str>,
-#         DbConfig.DRIVER: <str>,       <- SQLServer, only
-#         DbConfig.CLIENT: <str>        <- Oracle, only
+#        DbConfig.ENGINE: <DbEngine>,
+#        DbConfig.HOST: <str>,
+#        DbConfig.NAME: <str>,
+#        DbConfig.PORT: <int>,
+#        DbConfig.PWD: <str>,
+#        DbConfig.USER: <str>,
+#        DbConfig.VERSION: <str>,
+#        DbConfig.DRIVER: <str>,        <- SQLServer, only
+#        DbConfig.CLIENT: <str>,        <- Oracle, only
+#        DbConfig.VERSION: <str>
 #      },
 #      ...
 #      <S3Engine>: {
@@ -103,7 +104,8 @@ from app_constants import (
 #        S3Config.SECRET_KEY: <str>,
 #        S3Config.SECURE_ACCESS: <str>,
 #        S3Config.VERSION: <str>,
-#        S3Config.REGION_NAME: <str>    <- AWS, only
+#        S3Config.REGION_NAME: <str>,   <- AWS, only
+#        S3Config.VERSION: <str>
 #      },
 #      ...
 #    },

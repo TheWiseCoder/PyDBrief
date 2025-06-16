@@ -401,17 +401,17 @@ def service_migration() -> Response:
                     reply = {
                         MigSpot.FROM_RDBMS: get_rdbms_specs(errors=errors,
                                                             session_id=session_id,
-                                                            db_engine=input_params.get(MigSpot.FROM_RDBMS)),
+                                                            db_engine=input_params[MigSpot.FROM_RDBMS]),
                         MigSpot.TO_RDBMS: get_rdbms_specs(errors=errors,
                                                           session_id=session_id,
-                                                          db_engine=input_params.get(MigSpot.TO_RDBMS)),
+                                                          db_engine=input_params[MigSpot.TO_RDBMS]),
                         "status": "Migration can be launched"
                     }
                     to_s3: S3Engine = input_params.get(MigSpot.TO_S3)
                     if to_s3:
                         reply[MigSpot.TO_S3] = get_s3_specs(errors=errors,
                                                             session_id=session_id,
-                                                            s3_engine=input_params.get(MigSpot.TO_S3))
+                                                            s3_engine=to_s3)
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
