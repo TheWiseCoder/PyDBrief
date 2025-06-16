@@ -97,7 +97,6 @@ def migrate(errors: list[str],
 
     # initialize the thread registration
     migration_threads: list[int] = [threading.get_ident()]
-    migrated_tables["threads"] = []
 
     # proceed, if migration of plain data and/or LOB data has been indicated
     if not errors and migrated_tables and \
