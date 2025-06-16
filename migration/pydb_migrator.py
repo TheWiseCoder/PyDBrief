@@ -73,7 +73,8 @@ def migrate(errors: list[str],
                                            session_id=session_id,
                                            s3_engine=session_spots[MigSpot.TO_S3])
     for key, value in session_specs.items():
-        result[key] = value
+        if value:
+            result[key] = value
     result["logging"] = logging_get_params()
 
     # handle warnings as errors
