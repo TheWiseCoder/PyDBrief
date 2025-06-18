@@ -23,53 +23,34 @@ def schema_create(errors: list[str],
                engine=rdbms,
                logger=logger)
 
+    logger.debug(msg=f"RDBMS {rdbms}, restored session "
+                     "restrictions delaying bulk operations")
+
 
 def session_disable_restrictions(errors: list[str],
                                  rdbms: DbEngine,
                                  conn: Any,
                                  logger: Logger) -> None:
 
-    # disable session restrictions to speed-up bulk operations
+    # disable triggers and rules delaying bulk operations on current session
+    stmt: str | None = None
     match rdbms:
-        case DbEngine.MYSQL:
-            pass
-        case DbEngine.ORACLE:
-            pass
         case DbEngine.POSTGRES:
-            db_execute(errors=errors,
-                       exc_stmt="SET SESSION_REPLICATION_ROLE TO REPLICA",
-                       engine=rdbms,
-                       connection=conn,
-                       logger=logger)
-        case DbEngine.SQLSERVER:
-            pass
-
-    logger.debug(msg=f"RDBMS {rdbms}, disabled session "
-                 "restrictions to speed-up bulk operations")
-
-
-def session_restore_restrictions(errors: list[str],
-                                 rdbms: DbEngine,
-                                 conn: Any,
-                                 logger: Logger) -> None:
-
-    # restore session restrictions delaying bulk operations
-    match rdbms:
+            stmt = f"SET SESSION_REPLICATION_ROLE = REPLICA"
         case DbEngine.MYSQL:
+            stmt = "SET @@SESSION.DISABLE_TRIGGERS = 1"
+        case _:  # Oracle, SQLServer
+            # Oracle and SQLServer do not have session-scope commands for disabling triggers or rules
             pass
-        case DbEngine.ORACLE:
-            pass
-        case DbEngine.POSTGRES:
-            db_execute(errors=errors,
-                       exc_stmt="SET SESSION_REPLICATION_ROLE TO DEFAULT",
-                       engine=rdbms,
-                       connection=conn,
-                       logger=logger)
-        case DbEngine.SQLSERVER:
-            pass
+    if stmt:
+        db_execute(errors=errors,
+                   exc_stmt=stmt,
+                   engine=rdbms,
+                   connection=conn,
+                   logger=logger)
 
-    logger.debug(msg=f"RDBMS {rdbms}, restored session "
-                     "restrictions delaying bulk operations")
+        logger.debug(msg=f"RDBMS {rdbms}, disabled restrictions "
+                         f"delaying bulk operations on current session")
 
 
 def column_set_nullable(errors: list[str],

@@ -32,7 +32,6 @@ def s3_migrate_lobs(errors: list[str],
                     limit_count: int,
                     forced_filetype: str,
                     ret_column: str,
-                    source_conn: Any,
                     logger: Logger) -> int:
 
     # initialize the return variable
@@ -79,8 +78,6 @@ def s3_migrate_lobs(errors: list[str],
                                        pk_columns=pk_columns,
                                        ret_column=ret_column,
                                        engine=session_spots[MigSpot.FROM_RDBMS],
-                                       connection=source_conn,
-                                       committable=True,
                                        where_clause=where_clause,
                                        offset_count=offset_count,
                                        limit_count=limit_count,

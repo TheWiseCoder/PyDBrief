@@ -9,7 +9,7 @@ from pypomes_core import (
 )
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
-    db_count, db_table_exists, db_migrate_data
+    db_connect, db_count, db_table_exists, db_migrate_data
 )
 from typing import Any
 
@@ -19,7 +19,9 @@ from app_constants import (
 from migration.pydb_common import build_channel_data
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob
-from migration.steps.pydb_database import check_embedded_nulls
+from migration.steps.pydb_database import (
+    session_disable_restrictions, check_embedded_nulls
+)
 
 # _plaindata_threads: dict[int, dict[str, Any]] = {
 #   <mother-thread> = {
@@ -43,8 +45,6 @@ _plaindata_lock: threading.Lock = threading.Lock()
 
 def migrate_plain(errors: list[str],
                   session_id: str,
-                  source_conn: Any,
-                  target_conn: Any,
                   incremental_migrations: dict[str, tuple[int, int]],
                   migration_warnings: list[str],
                   migrated_tables: dict[str, Any],
@@ -69,6 +69,10 @@ def migrate_plain(errors: list[str],
     session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
+    # retrieve the source and target RDBMS engines
+    source_engine: DbEngine = session_spots[MigSpot.FROM_RDBMS]
+    target_engine: DbEngine = session_spots[MigSpot.TO_RDBMS]
+
     # retrieve the input and output batch sizes
     batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
     batch_size_out: int = session_metrics[MigMetric.BATCH_SIZE_OUT]
@@ -92,8 +96,7 @@ def migrate_plain(errors: list[str],
         # verify whether the target table exists
         if db_table_exists(errors=errors,
                            table_name=target_table,
-                           engine=session_spots[MigSpot.TO_RDBMS],
-                           connection=target_conn,
+                           engine=target_engine,
                            logger=logger):
             limit_count: int = 0
             offset_count: int = 0
@@ -104,10 +107,9 @@ def migrate_plain(errors: list[str],
             if (session_specs[MigSpec.SKIP_NONEMPTY] and
                     not limit_count and (db_count(errors=errors,
                                                   table=target_table,
-                                                  engine=session_spots[MigSpot.TO_RDBMS],
-                                                  connection=target_conn) or 0) > 0):
+                                                  engine=target_engine) or 0) > 0):
                 # yes, skip it
-                logger.debug(msg=f"Skipped nonempty {session_spots[MigSpot.TO_RDBMS]}.{target_table}")
+                logger.debug(msg=f"Skipped nonempty {target_engine}.{target_table}")
                 table_data["plain-status"] = "skipped"
 
             elif not errors:
@@ -119,8 +121,7 @@ def migrate_plain(errors: list[str],
                 # count migrateable tuples on source table
                 table_count: int = (db_count(errors=errors,
                                              table=source_table,
-                                             engine=session_spots[MigSpot.FROM_RDBMS],
-                                             connection=target_conn) or 0) - offset_count
+                                             engine=source_engine) or 0) - offset_count
                 if table_count > 0:
 
                     identity_column: str | None = None
@@ -135,7 +136,7 @@ def migrate_plain(errors: list[str],
                             features: list[str] = column_data.get("features", [])
                             source_columns.append(column_name)
                             if db_is_reserved_word(word=column_name,
-                                                   engine=session_spots[MigSpot.TO_RDBMS]):
+                                                   engine=target_engine):
                                 target_columns.append(f'"{column_name}"')
                             else:
                                 target_columns.append(column_name)
@@ -155,8 +156,7 @@ def migrate_plain(errors: list[str],
                         elif batch_size_in:
                             warn = "Batch reading"
                         if warn:
-                            warn += (" specified for table having no PKs: "
-                                     f"{session_spots[MigSpot.FROM_RDBMS]}.{source_table}")
+                            warn += f" specified for table having no PKs: {source_engine}.{source_table}"
                             migration_warnings.append(warn)
                             logger.warning(msg=warn)
 
@@ -174,14 +174,12 @@ def migrate_plain(errors: list[str],
                         for channel_datum in channel_data:
                             future: Future = executor.submit(_migrate_plain,
                                                              mother_thread=mother_thread,
-                                                             source_engine=session_spots[MigSpot.FROM_RDBMS],
+                                                             source_engine=source_engine,
                                                              source_table=source_table,
                                                              source_columns=source_columns,
-                                                             target_engine=session_spots[MigSpot.TO_RDBMS],
+                                                             target_engine=target_engine,
                                                              target_table=target_table,
                                                              target_columns=target_columns,
-                                                             source_conn=source_conn,
-                                                             target_conn=target_conn,
                                                              orderby_clause=", ".join(orderby_columns),
                                                              offset_count=channel_datum[1],
                                                              limit_count=channel_datum[0],
@@ -203,7 +201,7 @@ def migrate_plain(errors: list[str],
                                 count = _plaindata_threads[mother_thread][source_table]["table-count"]
                         if status == "error":
                             check_embedded_nulls(errors=errors,
-                                                 rdbms=session_spots[MigSpot.FROM_RDBMS],
+                                                 rdbms=source_engine,
                                                  table=source_table,
                                                  logger=logger)
 
@@ -214,15 +212,14 @@ def migrate_plain(errors: list[str],
                 table_data["plain-count"] = count
                 table_data["plain-duration"] = duration
                 logger.debug(msg=f"Migrated {count} plaindata in table {table_name}, "
-                                 f"from {session_spots[MigSpot.FROM_RDBMS]} "
-                                 f"to {session_spots[MigSpot.TO_RDBMS]}, "
+                                 f"from {source_engine} to {target_engine}, "
                                  f"status {status}, duration {duration}")
                 result += count
 
         elif not errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "
-                            f"Table {session_spots[MigSpot.TO_RDBMS]}.{target_table} was not found")
+                            f"table {target_engine}.{target_table} was not found")
             logger.error(msg=err_msg)
             # 101: {}
             errors.append(validate_format_error(101,
@@ -245,8 +242,6 @@ def _migrate_plain(mother_thread: int,
                    target_engine: DbEngine,
                    target_table: str,
                    target_columns: list[str],
-                   source_conn: Any,
-                   target_conn: Any,
                    orderby_clause: str,
                    limit_count: int,
                    offset_count: int,
@@ -256,30 +251,40 @@ def _migrate_plain(mother_thread: int,
                    has_nulls: bool,
                    logger: Logger) -> None:
 
+    # register the operation thread
     global _plaindata_threads
     with _plaindata_lock:
         _plaindata_threads[mother_thread]["child-threads"].append(threading.get_ident())
 
+    # obtain a connection to the target database
     errors: list[str] = []
-    count: int = db_migrate_data(errors=errors,
-                                 source_engine=source_engine,
-                                 source_table=source_table,
-                                 source_columns=source_columns,
-                                 target_engine=target_engine,
-                                 target_table=target_table,
-                                 target_columns=target_columns,
-                                 source_conn=source_conn,
-                                 target_conn=target_conn,
-                                 source_committable=True,
-                                 target_committable=True,
-                                 orderby_clause=orderby_clause,
-                                 offset_count=offset_count,
-                                 limit_count=limit_count,
-                                 identity_column=identity_column,
-                                 batch_size_in=batch_size_in,
-                                 batch_size_out=batch_size_out,
-                                 has_nulls=has_nulls,
-                                 logger=logger)
+    count: int = 0
+    target_conn: Any = db_connect(errors=errors,
+                                  engine=target_engine)
+    if target_conn:
+        # disable triggers and rules to speed-up migration
+        session_disable_restrictions(errors=errors,
+                                     rdbms=target_engine,
+                                     conn=target_conn,
+                                     logger=logger)
+        if not errors:
+            count = db_migrate_data(errors=errors,
+                                    source_engine=source_engine,
+                                    source_table=source_table,
+                                    source_columns=source_columns,
+                                    target_engine=target_engine,
+                                    target_table=target_table,
+                                    target_columns=target_columns,
+                                    target_conn=target_conn,
+                                    target_committable=True,
+                                    orderby_clause=orderby_clause,
+                                    offset_count=offset_count,
+                                    limit_count=limit_count,
+                                    identity_column=identity_column,
+                                    batch_size_in=batch_size_in,
+                                    batch_size_out=batch_size_out,
+                                    has_nulls=has_nulls,
+                                    logger=logger)
     with _plaindata_lock:
         if errors:
             _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)

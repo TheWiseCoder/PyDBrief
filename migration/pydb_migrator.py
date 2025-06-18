@@ -2,7 +2,6 @@ import json
 import sys
 import threading
 import warnings
-from contextlib import suppress
 from datetime import datetime
 from enum import StrEnum
 from io import BytesIO
@@ -13,9 +12,7 @@ from pypomes_core import (
     dict_jsonify, timestamp_duration, pypomes_versions,
     env_is_docker, str_sanitize, exc_format, validate_format_error
 )
-from pypomes_db import (
-    DbEngine, db_connect, db_count
-)
+from pypomes_db import DbEngine, db_count
 from pypomes_logging import logging_get_entries, logging_get_params
 from typing import Any
 
@@ -26,9 +23,6 @@ from app_constants import (
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
-from migration.steps.pydb_database import (
-    session_disable_restrictions, session_restore_restrictions
-)
 from migration.steps.pydb_lobdata import migrate_lobs
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
@@ -100,99 +94,67 @@ def migrate(errors: list[str],
 
     # proceed, if migration of plain data and/or LOB data has been indicated
     if not errors and migrated_tables and \
-       (session_steps[MigStep.MIGRATE_PLAINDATA] or
-            session_steps[MigStep.MIGRATE_LOBDATA] or
-            session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
+        (session_steps[MigStep.MIGRATE_PLAINDATA] or
+         session_steps[MigStep.MIGRATE_LOBDATA] or
+         session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
 
         # initialize the counters
         plain_count: int = 0
         lob_count: int = 0
 
-        # obtain source and target connections
-        source_conn: Any = db_connect(errors=errors,
-                                      engine=session_spots[MigSpot.FROM_RDBMS],
-                                      logger=logger)
-        target_conn: Any = db_connect(errors=errors,
-                                      engine=session_spots[MigSpot.TO_RDBMS],
-                                      logger=logger)
-        if not errors:
-            # disable target RDBMS restrictions to speed-up bulk operations
-            session_disable_restrictions(
-                errors=errors, rdbms=session_spots[MigSpot.TO_RDBMS], conn=target_conn, logger=logger
-            )
+        # establish incremental migration sizes and offsets
+        incremental_migrations: dict[str, tuple[int, int]] = {}
+        if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
+            incremental_migrations = \
+                __establish_increments(errors=errors,
+                                       migrating_tables=migrated_tables.keys(),
+                                       incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
+                                       target_rdbms=session_spots[MigSpot.TO_RDBMS],
+                                       target_schema=session_specs[MigSpec.TO_SCHEMA],
+                                       incremental_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
+                                       logger=logger)
+        # migrate the plain data
+        if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
+            logger.info("Started migrating the plain data")
+            plain_count = migrate_plain(errors=errors,
+                                        session_id=session_id,
+                                        incremental_migrations=incremental_migrations,
+                                        migration_warnings=migration_warnings,
+                                        migrated_tables=migrated_tables,
+                                        logger=logger)
+            migration_threads.extend(migrated_tables["threads"])
+            logger.info(msg="Finished migrating the plain data")
 
-            # establish incremental migration sizes and offsets
-            incremental_migrations: dict[str, tuple[int, int]] = {}
-            if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
-                incremental_migrations = \
-                    __establish_increments(errors=errors,
-                                           migrating_tables=migrated_tables.keys(),
-                                           incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
-                                           target_rdbms=session_spots[MigSpot.TO_RDBMS],
-                                           target_schema=session_specs[MigSpec.TO_SCHEMA],
-                                           target_conn=target_conn,
-                                           incremental_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
-                                           logger=logger)
-            # migrate the plain data
-            if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
-                logger.info("Started migrating the plain data")
-                plain_count = migrate_plain(errors=errors,
-                                            session_id=session_id,
-                                            source_conn=source_conn,
-                                            target_conn=target_conn,
-                                            incremental_migrations=incremental_migrations,
-                                            migration_warnings=migration_warnings,
-                                            migrated_tables=migrated_tables,
-                                            logger=logger)
-                migration_threads.extend(migrated_tables["threads"])
-                logger.info(msg="Finished migrating the plain data")
+        # migrate the LOB data
+        if not errors and session_steps[MigStep.MIGRATE_LOBDATA]:
+            # ignore warnings from 'boto3' and 'minio' packages
+            # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+            if session_spots[MigSpot.TO_S3]:
+                warnings.filterwarnings(action="ignore")
 
-            # migrate the LOB data
-            if not errors and session_steps[MigStep.MIGRATE_LOBDATA]:
-                # ignore warnings from 'boto3' and 'minio' packages
-                # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
-                if session_spots[MigSpot.TO_S3]:
-                    warnings.filterwarnings(action="ignore")
+            logger.info("Started migrating the LOBs")
+            lob_count = migrate_lobs(errors=errors,
+                                     session_id=session_id,
+                                     incremental_migrations=incremental_migrations,
+                                     # migration_warnings=migration_warnings,
+                                     migrated_tables=migrated_tables,
+                                     logger=logger)
+            migration_threads.extend(migrated_tables["threads"])
+            logger.info(msg="Finished migrating the LOBs")
 
-                logger.info("Started migrating the LOBs")
-                lob_count = migrate_lobs(errors=errors,
-                                         session_id=session_id,
-                                         source_conn=source_conn,
-                                         target_conn=target_conn,
-                                         incremental_migrations=incremental_migrations,
-                                         # migration_warnings=migration_warnings,
-                                         migrated_tables=migrated_tables,
-                                         logger=logger)
-                migration_threads.extend(migrated_tables["threads"])
-                logger.info(msg="Finished migrating the LOBs")
-
-            # synchronize the plain data
-            if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
-                logger.info(msg="Started synchronizing the plain data")
-                counts: tuple[int, int, int] = synchronize_plain(errors=errors,
-                                                                 session_id=session_id,
-                                                                 source_conn=source_conn,
-                                                                 target_conn=target_conn,
-                                                                 # migration_warnings=migration_warnings,
-                                                                 migrated_tables=migrated_tables,
-                                                                 logger=logger)
-                migration_threads.extend(migrated_tables["threads"])
-                result["total-sync-deletes"] = counts[0]
-                result["total-sync-inserts"] = counts[1]
-                result["total-sync-updates"] = counts[2]
-                logger.info(msg="Finished synchronizing the plain data")
-
-            # restore target RDBMS restrictions delaying bulk operations
-            if not errors:
-                session_restore_restrictions(errors=errors,
-                                             rdbms=session_spots[MigSpot.TO_RDBMS],
-                                             conn=target_conn,
-                                             logger=logger)
-        # close source and target connections
-        with suppress(Exception):
-            source_conn.close()
-        with suppress(Exception):
-            target_conn.close()
+        # synchronize the plain data
+        if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
+            logger.info(msg="Started synchronizing the plain data")
+            counts: tuple[int, int, int] = synchronize_plain(errors=errors,
+                                                             session_id=session_id,
+                                                             # migration_warnings=migration_warnings,
+                                                             migrated_tables=migrated_tables,
+                                                             logger=logger)
+            migration_threads.extend(migrated_tables["threads"])
+            result["total-sync-deletes"] = counts[0]
+            result["total-sync-inserts"] = counts[1]
+            result["total-sync-updates"] = counts[2]
+            logger.info(msg="Finished synchronizing the plain data")
 
         result["total-migrated-plains"] = plain_count
         result["total-migrated-lobs"] = lob_count
@@ -235,7 +197,6 @@ def __establish_increments(errors: list[str],
                            incremental_migrations: dict[str, tuple[int, int]],
                            target_rdbms: DbEngine,
                            target_schema: str,
-                           target_conn: Any,
                            incremental_size: int,
                            logger: Logger) -> dict[str, tuple[int, int]]:
 
@@ -256,7 +217,6 @@ def __establish_increments(errors: list[str],
                 offset = db_count(errors=errors,
                                   table=f"{target_schema}.{key}",
                                   engine=target_rdbms,
-                                  connection=target_conn,
                                   committable=True,
                                   logger=logger)
                 if errors:
