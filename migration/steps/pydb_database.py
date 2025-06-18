@@ -111,7 +111,7 @@ def view_get_ddl(errors: list[str],
     return result
 
 
-def check_embedded_nulls(errors: list[str],
+def table_embedded_nulls(errors: list[str],
                          rdbms: DbEngine,
                          table: str,
                          logger: Logger) -> None:
@@ -121,7 +121,7 @@ def check_embedded_nulls(errors: list[str],
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem
         err_msg: str = (f"Table {rdbms}.{table} has NULLs embedded in string data, "
-                        f"which is not accepted by the database. Please add this "
+                        f"which is not accepted by the destination database. Please add this "
                         f"table to the 'remove-nulls' migration parameter, and try again.")
         logger.error(msg=err_msg)
         # 101: {}

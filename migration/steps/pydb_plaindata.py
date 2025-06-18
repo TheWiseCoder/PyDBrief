@@ -20,7 +20,7 @@ from migration.pydb_common import build_channel_data
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob
 from migration.steps.pydb_database import (
-    session_disable_restrictions, check_embedded_nulls
+    session_disable_restrictions, table_embedded_nulls
 )
 
 # _plaindata_threads: dict[int, dict[str, Any]] = {
@@ -200,7 +200,7 @@ def migrate_plain(errors: list[str],
                             else:
                                 count = _plaindata_threads[mother_thread][source_table]["table-count"]
                         if status == "error":
-                            check_embedded_nulls(errors=errors,
+                            table_embedded_nulls(errors=errors,
                                                  rdbms=source_engine,
                                                  table=source_table,
                                                  logger=logger)

@@ -12,7 +12,7 @@ from app_constants import (
 from migration import pydb_types
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.steps.pydb_database import (
-    check_embedded_nulls, session_disable_restrictions
+    table_embedded_nulls, session_disable_restrictions
 )
 
 
@@ -99,7 +99,7 @@ def synchronize_plain(errors: list[str],
                 inserts: int = counts[1]
                 updates: int = counts[2]
                 if op_errors:
-                    check_embedded_nulls(errors=op_errors,
+                    table_embedded_nulls(errors=op_errors,
                                          rdbms=target_engine,
                                          table=target_table,
                                          logger=logger)
