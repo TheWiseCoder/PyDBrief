@@ -30,7 +30,7 @@ from migration.steps.pydb_database import (
 #       ...
 #     ],
 #     "source-table-name": {
-#       "table-counts": <int>,
+#       "table-count": <int>,
 #       "errors": [
 #         <error>,
 #         ...
@@ -83,7 +83,7 @@ def migrate_plain(errors: list[str],
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
         with _plaindata_lock:
             _plaindata_threads[mother_thread][source_table] = {
-                "table-counts": 0,
+                "table-count": 0,
                 "errors": []
             }
 
