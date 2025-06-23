@@ -27,7 +27,8 @@ def synchronize_plain(errors: list[str],
     result_updates: int = 0
 
     # initialize the thread registration
-    migrated_tables["threads"] = [threading.get_ident()]
+    mother_thread: int = threading.get_ident()
+    migrated_tables["threads"] = [mother_thread]
 
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)

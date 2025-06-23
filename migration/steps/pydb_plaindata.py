@@ -54,9 +54,9 @@ def migrate_plain(errors: list[str],
     result: int = 0
 
     # initialize the thread registration
-    migrated_tables["threads"] = [threading.get_ident()]
-
     mother_thread: int = threading.get_ident()
+    migrated_tables["threads"] = [mother_thread]
+
     global _plaindata_threads
     with _plaindata_lock:
         _plaindata_threads[mother_thread] = {
