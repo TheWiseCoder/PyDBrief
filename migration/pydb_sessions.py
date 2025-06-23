@@ -268,32 +268,40 @@ def get_session_params(errors: list[str],
         client_id = str(uuid.uuid4())
     # 'client_id' must be returned, even if error
     result[MigSpec.CLIENT_ID] = client_id
-    op_sessions: bool = request.path.startswith("/sessions")
+
+    # operations handling sessions
+    del_session: bool = request.path.startswith("/sessions") and request.method == HttpMethod.DELETE
+    get_session: bool = request.path.startswith("/sessions") and request.method == HttpMethod.GET
+    new_session: bool = request.path.startswith("/sessions") and request.method == HttpMethod.POST
 
     # obtain the session id
     session_id = (session_id or
                   result.get(MigSpec.SESSION_ID) or
                   get_active_session(client_id=client_id))
     if session_id:
+        # existing 'session_id' must be returned, even if error
         result[MigSpec.SESSION_ID] = session_id
-        if not (op_sessions and request.method == HttpMethod.POST):
-            # session must exist and belong to client, unless it is being created ('POST: /sessions')
+        if not new_session:
+            # session must exist and belong to client, unless it is being created ('POST:/sessions')
             session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
             if client_id != (session_registry or {}).get(MigSpec.CLIENT_ID):
                 # 141: Invalid value {}
                 errors.append(validate_format_error(141,
                                                     session_id,
                                                     f"@{MigSpec.SESSION_ID}"))
-        if not errors and not \
-                (op_sessions and request.method == HttpMethod.GET):
-            # sessions with states 'ABORTING' and 'MIGRATING' are restricted to 'GET: /sessions'
+        if not errors:
             state: MigrationState = get_session_state(session_id=session_id)
-            if state in [MigrationState.ABORTING, MigrationState.MIGRATING]:
-                # 101: {}
-                errors.append(validate_format_error(101,
-                                                    f"Operation not possible for session with state '{state}'"))
-    # 'GET: /sessions' is the only operation not requiring 'session_id'
-    elif not (op_sessions and request.method == HttpMethod.GET):
+            if (state == MigrationState.ABORTING and not get_session) or \
+                    (state == MigrationState.MIGRATING and not (get_session or del_session)):
+                # sessions with state 'ABORTING' are restricted to 'GET:/sessions'
+                # sessions with state 'MIGRATING' are restricted to 'GET:/sessions' and 'DELETE:/sessions'
+                # 142: Invalid value {}: {}
+                errors.append(validate_format_error(141,
+                                                    session_id,
+                                                    f"current state is '{state}'"
+                                                    f"@{MigSpec.SESSION_ID}"))
+    # 'GET:/sessions' is the only operation not requiring 'session_id'
+    elif not get_session:
         # 121: Required attribute
         errors.append(validate_format_error(121,
                                             f"@{MigSpec.SESSION_ID}"))
@@ -324,22 +332,15 @@ def abort_session_migration(errors: list[str],
     result: bool = False
 
     session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
-    match session_registry.get(MigSpec.STATE):
-        case MigrationState.MIGRATING:
-            session_registry[MigSpec.STATE] = MigrationState.ABORTING
-            result = True
-        case MigrationState.ABORTING:
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                session_id,
-                                                "session already marked for abortion",
-                                                f"@{MigSpec.SESSION_ID}"))
-        case _:
-            # 142: Invalid value {}: {}
-            errors.append(validate_format_error(142,
-                                                session_id,
-                                                "session has no ongoing migration",
-                                                f"@{MigSpec.SESSION_ID}"))
+    if session_registry.get(MigSpec.STATE) == MigrationState.MIGRATING:
+        session_registry[MigSpec.STATE] = MigrationState.ABORTING
+        result = True
+    else:
+        # 142: Invalid value {}: {}
+        errors.append(validate_format_error(142,
+                                            session_id,
+                                            "session has no ongoing migration",
+                                            f"@{MigSpec.SESSION_ID}"))
     return result
 
 
