@@ -13,8 +13,8 @@ from typing import Any, Final
 
 from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
 from pypomes_core import (
-    Mimetype, pypomes_versions, dict_clone, dict_pop_all, exc_format,
-    validate_enum, validate_format_error, validate_format_errors
+    Mimetype, pypomes_versions, dict_clone, dict_pop_all,
+    exc_format, validate_enum, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
@@ -29,8 +29,8 @@ from app_constants import (
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import (
-    get_sessions, get_session_params, get_session_registry, abort_session_migration,
-    create_session, delete_session, get_session_state, set_session_state
+    create_session, delete_session, set_session_state,
+    get_sessions, get_session_params, get_session_registry, abort_session_migration
 )
 from migration.pydb_migrator import migrate
 from migration.pydb_validator import (
@@ -176,14 +176,15 @@ def service_rdbms(engine: str = None) -> Response:
                 reply = get_rdbms_specs(errors=errors,
                                         session_id=session_id,
                                         db_engine=db_engine)
-                if reply:
-                    reply[MigSpec.SESSION_ID] = session_id
         else:
             validate_rdbms(errors=errors,
                            input_params=input_params)
             if not errors:
                 engine = input_params.get(DbConfig.ENGINE)
-                reply = {"status": f"RDBMS '{engine}' configuration updated for session '{session_id}'"}
+                reply = {"status": f"RDBMS '{engine}' configuration updated"}
+
+        if reply:
+            reply[MigSpec.SESSION_ID] = session_id
 
     # build the response
     result: Response = _build_response(errors=errors,
@@ -248,22 +249,16 @@ def service_s3(engine: str = None) -> Response:
                 reply = get_s3_specs(errors=errors,
                                      session_id=session_id,
                                      s3_engine=s3_engine)
-                if reply:
-                    reply[MigSpec.SESSION_ID] = session_id
         else:
-            # validate the session's state
-            state: MigrationState = get_session_state(session_id=session_id)
-            if state in [MigrationState.MIGRATING, MigrationState.ABORTING]:
-                # 101: {}
-                errors.append(validate_format_error(101,
-                                                    f"Operation not possible for session with state '{state}'"))
-            else:
-                # configure the S3 service
-                validate_s3(errors=errors,
-                            input_params=input_params)
-                if not errors:
-                    engine = input_params.get(S3Config.ENGINE)
-                    reply = {"status": f"S3 '{engine}' configuration updated for session '{session_id}"}
+            # configure the S3 service
+            validate_s3(errors=errors,
+                        input_params=input_params)
+            if not errors:
+                engine = input_params.get(S3Config.ENGINE)
+                reply = {"status": f"S3 '{engine}' configuration updated"}
+        if reply:
+            reply[MigSpec.SESSION_ID] = session_id
+
     # build the response
     result: Response = _build_response(errors=errors,
                                        client_id=input_params.get(MigSpec.CLIENT_ID),
