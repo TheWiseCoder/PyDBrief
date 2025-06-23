@@ -49,8 +49,7 @@ def assert_expected_params(errors: list[str],
     op: str = f"{service}:{method}"
     params: list[StrEnum] = SERVICE_PARAMS.get(op) or []
     params.append(MigSpec.CLIENT_ID)
-    if op != f"/sessions:{HttpMethod.GET}":
-        params.append(MigSpec.SESSION_ID)
+    params.append(MigSpec.SESSION_ID)
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
                                          f"@{key}") for key in input_params if key not in params])
