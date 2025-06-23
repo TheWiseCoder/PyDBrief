@@ -289,4 +289,4 @@ def _migrate_plain(mother_thread: int,
         if errors:
             _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)
         else:
-            _plaindata_threads[mother_thread][source_table]["table-counts"] += count
+            _plaindata_threads[mother_thread][source_table]["table-count"] += count
