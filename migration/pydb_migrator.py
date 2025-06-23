@@ -242,7 +242,7 @@ def __log_migration(errors: list[str],
                           exist_ok=True)
     # write the log file
     log_entries: BytesIO = logging_get_entries(errors=errors,
-                                               log_threads=map(str, set(threads)))
+                                               log_threads=list(map(str, set(threads))))
     if log_entries:
         log_entries.seek(0)
         with log_file.open("wb") as f:
