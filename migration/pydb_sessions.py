@@ -10,7 +10,8 @@ from typing import Any
 from app_constants import (
     RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
     RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
-    RANGE_PLAINDATA_CHANNELS, RANGE_LOBDATA_CHANNELS,
+    RANGE_LOBDATA_CHANNELS, RANGE_LOBDATA_CHANNEL_SIZE,
+    RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
     MigrationState, MigConfig, MigSpec, MigMetric, MigSpot, MigStep
 )
 
@@ -154,7 +155,9 @@ def create_session(errors: list[str],
                 MigMetric.CHUNK_SIZE: RANGE_CHUNK_SIZE[2],
                 MigMetric.INCREMENTAL_SIZE: RANGE_INCREMENTAL_SIZE[2],
                 MigMetric.LOBDATA_CHANNELS: RANGE_LOBDATA_CHANNELS[2],
-                MigMetric.PLAINDATA_CHANNELS: RANGE_PLAINDATA_CHANNELS[2]
+                MigMetric.LOBDATA_CHANNEL_SIZE: RANGE_LOBDATA_CHANNEL_SIZE[2],
+                MigMetric.PLAINDATA_CHANNELS: RANGE_PLAINDATA_CHANNELS[2],
+                MigMetric.PLAINDATA_CHANNEL_SIZE: RANGE_PLAINDATA_CHANNEL_SIZE[2]
             },
             MigConfig.SPECS: {}
         }

@@ -166,7 +166,7 @@ def migrate(errors: list[str],
     session_registry[MigSpec.STATE] = new_state
 
     finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-    migrated_tables.pop("threads")
+    migrated_tables.pop("threads", None)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started.strftime(format=DatetimeFormat.INV)
