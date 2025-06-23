@@ -33,7 +33,7 @@ from migration.steps.pydb_s3 import s3_migrate_lobs
 #       ...
 #     ],
 #     "source-table-name": {
-#       "table-counts": <int>,
+#       "table-count": <int>,
 #       "errors": [
 #         <error>,
 #         ...
@@ -50,15 +50,16 @@ def migrate_lobs(errors: list[str],
                  session_id: str,
                  incremental_migrations: dict[str, tuple[int, int]],
                  # migration_warnings: list[str],
+                 migration_threads: list[int],
                  migrated_tables: dict[str, Any],
                  logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
 
-    # initialize the thread registration
+    # zadd to the thread registration
     mother_thread: int = threading.get_ident()
-    migrated_tables["threads"] = [mother_thread]
+    migration_threads.append(mother_thread)
 
     global _lobdata_threads
     with _lobdata_lock:
@@ -80,9 +81,6 @@ def migrate_lobs(errors: list[str],
     # retrieve the chunk size
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
-    # initialize the thread registration
-    migrated_tables["threads"] = []
-
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
 
@@ -96,7 +94,7 @@ def migrate_lobs(errors: list[str],
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table] = {
-                "table-counts": 0,
+                "table-count": 0,
                 "errors": []
             }
 
@@ -261,7 +259,7 @@ def migrate_lobs(errors: list[str],
             break
 
     with _lobdata_lock:
-        migrated_tables["threads"].extend(_lobdata_threads[mother_thread]["child-threads"])
+        migration_threads.extend(_lobdata_threads[mother_thread]["child-threads"])
         _lobdata_threads.pop(mother_thread)
 
     return result
@@ -326,7 +324,7 @@ def _db_migrate_lobs(mother_thread: int,
         if errors:
             _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
         else:
-            _lobdata_threads[mother_thread][source_table]["table-counts"] += count
+            _lobdata_threads[mother_thread][source_table]["table-count"] += count
 
 
 def _s3_migrate_lobs(mother_thread: int,
@@ -365,4 +363,4 @@ def _s3_migrate_lobs(mother_thread: int,
         if errors:
             _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
         else:
-            _lobdata_threads[mother_thread][source_table]["table-counts"] += count
+            _lobdata_threads[mother_thread][source_table]["table-count"] += count

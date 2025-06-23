@@ -47,15 +47,16 @@ def migrate_plain(errors: list[str],
                   session_id: str,
                   incremental_migrations: dict[str, tuple[int, int]],
                   migration_warnings: list[str],
+                  migration_threads: list[int],
                   migrated_tables: dict[str, Any],
                   logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
 
-    # initialize the thread registration
+    # add to the thread registration
     mother_thread: int = threading.get_ident()
-    migrated_tables["threads"] = [mother_thread]
+    migration_threads.append(mother_thread)
 
     global _plaindata_threads
     with _plaindata_lock:
@@ -229,7 +230,7 @@ def migrate_plain(errors: list[str],
             break
 
     with _plaindata_lock:
-        migrated_tables["threads"].extend(_plaindata_threads[mother_thread]["child-threads"])
+        migration_threads.extend(_plaindata_threads[mother_thread]["child-threads"])
         _plaindata_threads.pop(mother_thread)
 
     return result

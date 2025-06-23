@@ -120,9 +120,9 @@ def migrate(errors: list[str],
                                         session_id=session_id,
                                         incremental_migrations=incremental_migrations,
                                         migration_warnings=migration_warnings,
+                                        migration_threads=migration_threads,
                                         migrated_tables=migrated_tables,
                                         logger=logger)
-            migration_threads.extend(migrated_tables["threads"])
             logger.info(msg="Finished migrating the plain data")
 
         # migrate the LOB data
@@ -137,9 +137,9 @@ def migrate(errors: list[str],
                                      session_id=session_id,
                                      incremental_migrations=incremental_migrations,
                                      # migration_warnings=migration_warnings,
+                                     migration_threads=migration_threads,
                                      migrated_tables=migrated_tables,
                                      logger=logger)
-            migration_threads.extend(migrated_tables["threads"])
             logger.info(msg="Finished migrating the LOBs")
 
         # synchronize the plain data
@@ -148,9 +148,9 @@ def migrate(errors: list[str],
             counts: tuple[int, int, int] = synchronize_plain(errors=errors,
                                                              session_id=session_id,
                                                              # migration_warnings=migration_warnings,
+                                                             migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              logger=logger)
-            migration_threads.extend(migrated_tables["threads"])
             result["total-sync-deletes"] = counts[0]
             result["total-sync-inserts"] = counts[1]
             result["total-sync-updates"] = counts[2]
@@ -166,7 +166,6 @@ def migrate(errors: list[str],
     session_registry[MigSpec.STATE] = new_state
 
     finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-    migrated_tables.pop("threads", None)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
     result["started"] = started.strftime(format=DatetimeFormat.INV)
