@@ -69,16 +69,20 @@ def build_channel_data(max_channels: int,
     elif max_channels * channel_size < limit_count:
         channel_size = int(limit_count / max_channels)
 
-    total: int = 0
-    while total + channel_size <= limit_count:
+    total_count: int = 0
+    while total_count + channel_size <= limit_count:
         result.append((channel_size, offset_count))
-        total += channel_size
+        total_count += channel_size
         offset_count += channel_size
 
-    remainder: int = limit_count - total
+    remainder: int = limit_count - total_count
     if remainder > 0:
-        if len(result) < max_channels:
+        # a new channel is used, if:
+        #   - one is still available, and
+        #   - the remaining size is greater than 10% of the channel size
+        if len(result) < max_channels and 10 * remainder > channel_size:
             result.append((remainder, offset_count))
+        # otherwise, the remaining rows are added to the last channel
         else:
             result[-1] = (result[-1][0] + remainder, result[1][1])
 

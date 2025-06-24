@@ -58,7 +58,7 @@ def migrate(errors: list[str],
         },
         MigSpec.SESSION_ID: session_id,
         MigConfig.METRICS: session_metrics,
-        "steps": [value for key, value in session_steps.items() if value],
+        "steps": [key for key, value in session_steps.items() if value],
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms
     }

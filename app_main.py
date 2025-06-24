@@ -561,7 +561,7 @@ def handle_exception(exc: Exception) -> Response:
     """
     Handle exceptions raised when responding to requests, but not handled.
 
-    :return: status 500, with JSON containing the errors.
+    :return: status 500, with JSON containing the errors
     """
     # import the needed exception
     from werkzeug.exceptions import NotFound

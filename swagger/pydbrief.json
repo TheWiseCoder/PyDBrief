@@ -1227,19 +1227,19 @@
             "PlaindataChannelsParam": {
                 "name": "plaindata-channels",
                 "in": "query",
-                "description": "Maximum number of channels for simultaneous use in plaindata migrations. Range is [1-32], initial value is 1.",
+                "description": "Maximum number of channels for simultaneous use in plaindata migrations. Range is [1-128], initial value is 1.",
                 "required": false,
                 "schema": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 32,
+                    "maximum": 128,
                     "default": 1
                 }
             },
             "PlaindataChannelSizeParam": {
                 "name": "plaindata-channel-size",
                 "in": "query",
-                "description": "Number of rows per channel to process in plaindata migrations. Range is [10000-10000000], initial value is 100000.",
+                "description": "Suggested number of rows per channel to process in plaindata migrations. Smaller or larger quantities may be used, as directed by the ratio between the total number of rows to migrate, and the maximum number of channels available. Range is [10000-10000000], initial value is 100000.",
                 "required": false,
                 "schema": {
                     "type": "integer",
@@ -1251,19 +1251,19 @@
             "LobdataChannelsParam": {
                 "name": "lobdata-channels",
                 "in": "query",
-                "description": "Maximum number of channels for simultaneous use in lobdata migrations. Range is [1-32], initial value is 1.",
+                "description": "Maximum number of channels for simultaneous use in lobdata migrations. Range is [1-128], initial value is 1.",
                 "required": false,
                 "schema": {
                     "type": "integer",
                     "minimum": 1,
-                    "maximum": 32,
+                    "maximum": 128,
                     "default": 1
                 }
             },
             "LobdataChannelSizeParam": {
                 "name": "lobdata-channel-size",
                 "in": "query",
-                "description": "Number of rows per channel to process in lobdata migrations. Range is [10000-10000000], initial value is 100000.",
+                "description": "Suggested number of rows per channel to process in lobdata migrations. Smaller or larger quantities may be used, as directed by the ratio between the total number of rows to migrate, and the maximum number of channels available. Range is [10000-10000000], initial value is 100000.",
                 "required": false,
                 "schema": {
                     "type": "integer",
