@@ -745,12 +745,12 @@ components:
     PlaindataChannelsParam:
       name: plaindata-channels
       in: query
-      description: Maximum number of channels for simultaneous use in plaindata migrations. Range is [1-32], initial value is 1.
+      description: Maximum number of channels for simultaneous use in plaindata migrations. Range is [1-128], initial value is 1.
       required: false
       schema:
         type: integer
         minimum: 1
-        maximum: 32
+        maximum: 128
         default: 1
     PlaindataChannelSizeParam:
       name: plaindata-channel-size
@@ -765,12 +765,12 @@ components:
     LobdataChannelsParam:
       name: lobdata-channels
       in: query
-      description: Maximum number of channels for simultaneous use in lobdata migrations. Range is [1-32], initial value is 1.
+      description: Maximum number of channels for simultaneous use in lobdata migrations. Range is [1-128], initial value is 1.
       required: false
       schema:
         type: integer
         minimum: 1
-        maximum: 32
+        maximum: 128
         default: 1
     LobdataChannelSizeParam:
       name: lobdata-channel-size

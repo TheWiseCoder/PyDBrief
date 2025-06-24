@@ -10,7 +10,7 @@ pyodbc==5.2.0
 psycopg2-binary==2.9.10
 pycryptodome==3.23.0
 pypomes_core==2.4.1
-pypomes_db==2.3.0
+pypomes_db==2.3.2
 pypomes_http==0.7.2
 pypomes_logging==0.6.6
 pypomes_s3==0.8.7
