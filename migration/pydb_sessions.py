@@ -174,8 +174,7 @@ def delete_session(errors: list[str],
 
     session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
     curr_state: MigrationState = session_registry.get(MigSpec.STATE)
-    if curr_state in [MigrationState.ACTIVE, MigrationState.ABORTED,
-                      MigrationState.ABORTED, MigrationState.INACTIVE,
+    if curr_state in [MigrationState.ACTIVE, MigrationState.INACTIVE,
                       MigrationState.ABORTED, MigrationState.FINISHED]:
         migration_registry.pop(session_id)
         result = True
