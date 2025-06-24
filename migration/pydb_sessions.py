@@ -205,14 +205,7 @@ def get_active_session(client_id: str) -> str | None:
 
 def get_session_state(session_id: str) -> MigrationState | None:
 
-    # initialize the return variable
-    result: MigrationState | None = None
-
-    session_registry = migration_registry.get(session_id)
-    if session_registry:
-        result = session_registry.get(MigSpec.STATE)
-
-    return result
+    return (migration_registry.get(session_id) or {}).get(MigSpec.STATE)
 
 
 def set_session_state(errors: list[str],
