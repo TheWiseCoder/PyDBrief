@@ -63,7 +63,8 @@ def build_channel_data(max_channels: int,
     max_channels = max(1, max_channels)
     channel_size = min(channel_size, table_count)
     # 'limt_count' might be 0, 'table_count' is always greater than 0
-    limit_count = min(max(limit_count, table_count), table_count)
+    if limit_count == 0 or limit_count > table_count:
+        limit_count = table_count
     if limit_count < channel_size:
         channel_size = limit_count
     elif max_channels * channel_size < limit_count:
