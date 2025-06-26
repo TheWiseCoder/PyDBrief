@@ -187,7 +187,14 @@ def migrate_lobs(errors: list[str],
                                                table_count=table_count,
                                                offset_count=offset_count,
                                                limit_count=limit_count)
+                        if len(channel_data) > 1:
+                            target: str = f"S3 storage '{session_spots[MigSpot.TO_S3]}'" \
+                                if session_spots[MigSpot.TO_S3] else f"{target_db}.{target_table}"
+                            logger.debug(msg=f"Started migrating {limit_count} tuples from "
+                                             f"{source_db}.{source_table} to {target}, "
+                                             f"using {len(channel_data)} channels")
 
+                        # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
                             task_futures: list[Future] = []
                             for channel_datum in channel_data:

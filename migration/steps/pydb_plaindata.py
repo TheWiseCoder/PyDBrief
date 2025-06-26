@@ -168,12 +168,12 @@ def migrate_plain(errors: list[str],
                                            table_count=table_count,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
-
-                    # execute tasks concurrently
                     if len(channel_data) > 1:
                         logger.debug(msg=f"Started migrating {limit_count} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
                                          f"using {len(channel_data)} channels")
+
+                    # execute tasks concurrently
                     with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
                         task_futures: list[Future] = []
                         for channel_datum in channel_data:
