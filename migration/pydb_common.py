@@ -88,6 +88,6 @@ def build_channel_data(max_channels: int,
             result.append((remainder, offset_count))
         # otherwise, the remaining rows are added to the last channel
         else:
-            result[-1] = (result[-1][0] + remainder, result[1][1])
+            result[-1] = (result[-1][0] + remainder, result[-1][1])
 
     return result
