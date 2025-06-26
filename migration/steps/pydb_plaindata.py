@@ -169,7 +169,7 @@ def migrate_plain(errors: list[str],
                                            offset_count=offset_count,
                                            limit_count=limit_count)
                     if len(channel_data) > 1:
-                        logger.debug(msg=f"Started migrating {limit_count} tuples from "
+                        logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
                                          f"using {len(channel_data)} channels")
 

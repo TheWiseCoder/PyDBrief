@@ -537,6 +537,7 @@ def migrate_data(errors: list[str],
     validate_steps(errors=errors,
                    input_params=input_params)
 
+    # validate the migration specs
     validate_specs(errors=errors,
                    input_params=input_params)
 
@@ -578,7 +579,8 @@ def handle_exception(exc: Exception) -> Response:
     # is the exception an instance of werkzeug.exceptions.NotFound ?
     if isinstance(exc, NotFound):
         # yes, disregard it
-        # (handles a bug causing the re-submission of a GET request from a browser)
+        #   - handle a bug causing the re-submission of a GET request from a browser
+        #   - ignore a 'GET:/favicon.ico' request from a browser
         result = Response(status=HttpStatus.NO_CONTENT)
     else:
         # no, report the problem

@@ -190,8 +190,8 @@ def migrate_lobs(errors: list[str],
                         if len(channel_data) > 1:
                             target: str = f"S3 storage '{session_spots[MigSpot.TO_S3]}'" \
                                 if session_spots[MigSpot.TO_S3] else f"{target_db}.{target_table}"
-                            logger.debug(msg=f"Started migrating {limit_count} tuples from "
-                                             f"{source_db}.{source_table} to {target}, "
+                            logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
+                                             f"from {source_db}.{source_table} to {target}, "
                                              f"using {len(channel_data)} channels")
 
                         # execute tasks concurrently
