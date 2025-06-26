@@ -463,6 +463,7 @@ def service_migrate(session_id: str = None) -> Response:
     if not errors:
         if request.method == HttpMethod.POST:
             reply = migrate_data(errors=errors,
+                                 session_id=session_id,
                                  input_params=input_params)
         else:
             if abort_session_migration(errors=errors,
@@ -482,6 +483,7 @@ def service_migrate(session_id: str = None) -> Response:
 
 
 def migrate_data(errors: list[str],
+                 session_id: str,
                  input_params: dict[str, Any]) -> dict[str, Any]:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
@@ -499,7 +501,7 @@ def migrate_data(errors: list[str],
       - *migrate-lobdata*: migrate LOBs (large binary objects)
       - *syncronize-plaindata*: make sure tables in target database have the same content as tables in source database
 
-    Migration parameters:
+    Migration specs:
       - *process-indexes*: whether to migrate indexes (defaults to *False*)
       - *process-views*: whether to migrate views (defaults to *False*)
       - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
@@ -524,6 +526,9 @@ def migrate_data(errors: list[str],
       - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
         or have already been, migrated.
 
+    :param errors: incidental errors
+    :param session_id: the session identification
+    :param input_params: the input parameters
     :return: *Response* with the operation outcome
     """
     # initialize the return variable
@@ -543,12 +548,7 @@ def migrate_data(errors: list[str],
 
     # is migration possible ?
     if not errors:
-        # yes, proceed
-
-        # obtain the remaining migration parameters
-        session_id: str = input_params.get(MigSpec.SESSION_ID)
-
-        # migrate the data
+        # yes, migrate the data
         result = migrate(errors=errors,
                          session_id=session_id,
                          app_name=APP_NAME,

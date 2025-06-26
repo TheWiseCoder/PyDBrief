@@ -317,7 +317,7 @@ def abort_session_migration(errors: list[str],
     Abort the ongoing migration for *session_id*.
 
     :param errors: incidental errors
-    :param session_id: the session whose migration is to abort
+    :param session_id: the session whose migration is to be aborted
     :return: the operation outcome
     """
     # initialize the return variable
