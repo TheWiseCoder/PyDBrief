@@ -60,22 +60,25 @@ def build_channel_data(max_channels: int,
 
     result: list[(int, int)] = []
 
-    max_channels = max(1, max_channels)
-    channel_size = min(channel_size, table_count)
     # 'limt_count' might be 0, 'table_count' is always greater than 0
     if limit_count == 0 or limit_count > table_count:
         limit_count = table_count
-    if limit_count < channel_size:
+
+    # normalize 'channel_size'
+    channel_size = min(channel_size, table_count)
+    if channel_size > limit_count:
         channel_size = limit_count
     elif max_channels * channel_size < limit_count:
         channel_size = int(limit_count / max_channels)
 
+    # alocate sizes and offsets for multi-thread use
     total_count: int = 0
     while total_count + channel_size <= limit_count:
         result.append((channel_size, offset_count))
         total_count += channel_size
         offset_count += channel_size
 
+    # process remaining rows
     remainder: int = limit_count - total_count
     if remainder > 0:
         # a new channel is used, if:

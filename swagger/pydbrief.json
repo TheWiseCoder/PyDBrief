@@ -1030,7 +1030,7 @@
             "LogFilepathParam": {
                 "name": "log-filepath",
                 "in": "query",
-                "description": "The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS default temporary folder.",
+                "description": "The path for the log file to obtain the data from. Defaults to 'pydb.log' at the OS default temporary folder. If it is set to the special value 'stdout', the log entries are streamed to the standard output of the OS, rather than written to a file, in which case 'log-filemode' is ignored.",
                 "required": false,
                 "schema": {
                     "type": "string",
@@ -1040,7 +1040,7 @@
             "LogFilemodeParam": {
                 "name": "log-filemode",
                 "in": "query",
-                "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents).",
+                "description": "The mode for log file opening (a- append to the file's existing contents, w- write to the beginning of the file, erasing its existing contents). Ignored if 'log-filepath' is set to the special value 'stdout'.",
                 "required": false,
                 "schema": {
                     "type": "string",
