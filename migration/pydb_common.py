@@ -82,7 +82,7 @@ def build_channel_data(max_channels: int,
     remainder: int = limit_count - total_count
     if remainder > 0:
         # a new channel is used, if:
-        #   - one is still available, and
+        #   - at least one is still available, and
         #   - the remaining size is greater than 10% of the channel size
         if len(result) < max_channels and 10 * remainder > channel_size:
             result.append((remainder, offset_count))
