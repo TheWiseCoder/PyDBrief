@@ -71,7 +71,7 @@ def build_channel_data(max_channels: int,
     elif max_channels * channel_size < limit_count:
         channel_size = int(limit_count / max_channels)
 
-    # alocate sizes and offsets for multi-thread use
+    # allocate sizes and offsets for multi-thread use
     total_count: int = 0
     while total_count + channel_size <= limit_count:
         result.append((channel_size, offset_count))
