@@ -223,13 +223,13 @@ def validate_metrics(errors: list[str],
     # validate 'plaindata-channels'
     plaindata_channels: int = validate_int(errors=errors,
                                            source=input_params,
-                                           attr=MigMetric.LOBDATA_CHANNELS,
+                                           attr=MigMetric.PLAINDATA_CHANNELS,
                                            min_val=RANGE_PLAINDATA_CHANNELS[0],
                                            max_val=RANGE_PLAINDATA_CHANNELS[1])
     # validate 'plaindata-channel-size'
     plaindata_channel_size: int = validate_int(errors=errors,
                                                source=input_params,
-                                               attr=MigMetric.LOBDATA_CHANNEL_SIZE,
+                                               attr=MigMetric.PLAINDATA_CHANNEL_SIZE,
                                                min_val=RANGE_PLAINDATA_CHANNEL_SIZE[0],
                                                max_val=RANGE_PLAINDATA_CHANNEL_SIZE[1])
     if not errors:

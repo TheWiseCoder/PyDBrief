@@ -6,7 +6,7 @@
         "contact": {
             "email": "gtnunes@gmail.com"
         },
-        "version": "1.8.1"
+        "version": "1.8.2"
     },
     "externalDocs": {
         "description": "Known more about PyDBrief",
@@ -1311,7 +1311,7 @@
             "ToS3OptParam": {
                 "name": "to-s3",
                 "in": "query",
-                "description": "The S3 service to migrate the LOB data to. This parameter should be specified both at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to S3 is desired. Otherwise, it should not be specified.",
+                "description": "The S3 service to migrate the LOB data to. This parameter should be specified at the 'migrate-metadata' and 'migrate-lobdata' steps, if migrating the LOBs to S3 is desired. Otherwise, it should not be specified. As a reminder, indication of desired LOB migration to S3 storage must be made at the beginning of the process, so as to prevent the columns holding the LOBs from being created in the corresponding table at the target database.",
                 "required": false,
                 "schema": {
                     "type": "string",
@@ -1480,7 +1480,7 @@
             "SkipNonemptyParam": {
                 "name": "skip-nonempty",
                 "in": "query",
-                "description": "This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination schema that are not empty; 2- to prevent migration of LOBs in columns not listed in 'named-lobdata' to S3 storage, if their respective destination folders (technically known as the object's 'prefix') are not empty. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. Ignored if 'migrate-plaindata', or 'migrate-lobdata' and 'to-s3', are not specified.",
+                "description": "This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination schema that are not empty; 2- to prevent migration of LOBs to S3 storage, if their respective destination folders (technically known as the object's 'prefix') are not empty. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. When migrating LOBs, it is ignored if 'to-s3' is not specified, or if 'flatten-storage' is specified.",
                 "schema": {
                     "type": "boolean",
                     "default": false

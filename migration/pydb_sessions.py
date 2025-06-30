@@ -274,9 +274,12 @@ def get_session_params(errors: list[str],
         # existing 'session_id' must be returned, even if error
         result[MigSpec.SESSION_ID] = session_id
         if not new_session:
-            # session must exist and belong to client, unless it is being created ('POST:/sessions')
+            # if session is not beig created, verify that:
+            #   - session exists, and
+            #   - session belongs to client, or session is being aborted
             session_registry: dict[StrEnum, Any] = migration_registry.get(session_id)
-            if client_id != (session_registry or {}).get(MigSpec.CLIENT_ID):
+            if not session_registry or not \
+                    (client_id == session_registry.get(MigSpec.CLIENT_ID) or del_session):
                 # 141: Invalid value {}
                 errors.append(validate_format_error(141,
                                                     session_id,

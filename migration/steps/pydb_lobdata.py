@@ -13,7 +13,7 @@ from pypomes_db import (
     DbEngine, DbParam,
     db_connect, db_count, db_migrate_lobs, db_table_exists
 )
-from pypomes_s3 import s3_item_exists
+from pypomes_s3 import S3Engine, s3_item_exists
 from typing import Any
 from urlobject import URLObject
 
@@ -76,9 +76,10 @@ def migrate_lobs(errors: list[str],
     # retrieve the source and target DB and S3 engines
     source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
     target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
-    target_s3: DbEngine = session_spots[MigSpot.TO_S3]
+    target_s3: S3Engine = session_spots[MigSpot.TO_S3]
 
-    # retrieve the chunk size
+    # retrieve the database and chunk size
+    db_name: str = session_registry[target_db][DbParam.NAME]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # traverse list of migrated tables to copy the LOB data
@@ -166,6 +167,7 @@ def migrate_lobs(errors: list[str],
                             # 'url.hostname' returns 'None' for 'localhost'
                             lob_prefix = __build_prefix(rdbms=target_db,
                                                         host=url.hostname or str(url),
+                                                        database=db_name,
                                                         schema=target_table[:target_table.index(".")],
                                                         table=target_table[target_table.index(".")+1:],
                                                         column=ret_column or lob_column)
@@ -272,18 +274,6 @@ def migrate_lobs(errors: list[str],
     return result
 
 
-def __build_prefix(rdbms: DbEngine,
-                   host: str,
-                   schema: str,
-                   table: str,
-                   column: str) -> Path:
-
-    return Path(f"{rdbms}@{host}",
-                schema,
-                table,
-                column)
-
-
 def _db_migrate_lobs(mother_thread: int,
                      source_engine: DbEngine,
                      source_table: str,
@@ -371,3 +361,17 @@ def _s3_migrate_lobs(mother_thread: int,
             _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
         else:
             _lobdata_threads[mother_thread][source_table]["table-count"] += count
+
+
+def __build_prefix(rdbms: DbEngine,
+                   host: str,
+                   schema: str,
+                   database: str,
+                   table: str,
+                   column: str) -> Path:
+
+    return Path(f"{rdbms}@{host}",
+                schema,
+                database,
+                table,
+                column)
