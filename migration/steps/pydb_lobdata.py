@@ -79,7 +79,6 @@ def migrate_lobs(errors: list[str],
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
 
     # retrieve the database and chunk size
-    db_name: str = session_registry[target_db][DbConfig.NAME]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # traverse list of migrated tables to copy the LOB data
@@ -91,8 +90,10 @@ def migrate_lobs(errors: list[str],
                                 logger=logger):
             break
 
-        source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
-        target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
+        source_schema: str = session_specs[MigSpec.FROM_SCHEMA]
+        source_table: str = f"{source_schema}.{table_name}"
+        target_schema: str = session_specs[MigSpec.TO_SCHEMA]
+        target_table: str = f"{target_schema}.{table_name}"
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table] = {
                 "table-count": 0,
@@ -165,12 +166,13 @@ def migrate_lobs(errors: list[str],
                         if not session_specs[MigSpec.FLATTEN_STORAGE]:
                             url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
                             # 'url.hostname' returns 'None' for 'localhost'
-                            lob_prefix = __build_prefix(rdbms=target_db,
-                                                        host=url.hostname or str(url),
-                                                        database=db_name,
-                                                        schema=target_table[:target_table.index(".")],
-                                                        table=target_table[target_table.index(".")+1:],
-                                                        column=ret_column or lob_column)
+                            host: str = f"{target_db}@{url.hostname or str(url)}"
+                            column: str = ret_column or lob_column
+                            lob_prefix = Path(host,
+                                              target_db,
+                                              target_schema,
+                                              table_name,
+                                              column)
                             # is a nonempty S3 prefix an issue ?
                             if session_specs[MigSpec.SKIP_NONEMPTY] and \
                                     s3_item_exists(errors=errors,
@@ -368,17 +370,3 @@ def _s3_migrate_lobs(mother_thread: int,
                 _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
             else:
                 _lobdata_threads[mother_thread][source_table]["table-count"] += count
-
-
-def __build_prefix(rdbms: DbEngine,
-                   host: str,
-                   schema: str,
-                   database: str,
-                   table: str,
-                   column: str) -> Path:
-
-    return Path(f"{rdbms}@{host}",
-                schema,
-                database,
-                table,
-                column)
