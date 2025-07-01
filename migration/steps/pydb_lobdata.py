@@ -163,7 +163,7 @@ def migrate_lobs(errors: list[str],
 
                         # obtain a S3 prefix for storing the lobdata
                         if not session_specs[MigSpec.FLATTEN_STORAGE]:
-                            url: URLObject = URLObject(session_spots[target_db][DbParam.HOST])
+                            url: URLObject = URLObject(session_registry[target_db][DbParam.HOST])
                             # 'url.hostname' returns 'None' for 'localhost'
                             lob_prefix = __build_prefix(rdbms=target_db,
                                                         host=url.hostname or str(url),
@@ -190,8 +190,8 @@ def migrate_lobs(errors: list[str],
                                                offset_count=offset_count,
                                                limit_count=limit_count)
                         if len(channel_data) > 1:
-                            target: str = f"S3 storage '{session_spots[MigSpot.TO_S3]}'" \
-                                if session_spots[MigSpot.TO_S3] else f"{target_db}.{target_table}"
+                            target: str = f"S3 storage '{target_s3}'" \
+                                if target_s3 else f"{target_db}.{target_table}"
                             logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
                                              f"from {source_db}.{source_table} to {target}, "
                                              f"using {len(channel_data)} channels")
@@ -200,7 +200,7 @@ def migrate_lobs(errors: list[str],
                         with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
                             task_futures: list[Future] = []
                             for channel_datum in channel_data:
-                                if session_spots[MigSpot.TO_S3]:
+                                if target_s3:
                                     # migration target is S3
                                     future: Future = executor.submit(_s3_migrate_lobs,
                                                                      mother_thread=mother_thread,
