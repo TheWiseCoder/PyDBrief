@@ -10,15 +10,15 @@ from pypomes_core import (
     timestamp_duration, validate_format_error, list_elem_starting_with
 )
 from pypomes_db import (
-    DbEngine, DbParam,
-    db_connect, db_count, db_migrate_lobs, db_table_exists
+    DbEngine, db_connect,
+    db_count, db_migrate_lobs, db_table_exists
 )
 from pypomes_s3 import S3Engine, s3_item_exists, s3_get_client
 from typing import Any
 from urlobject import URLObject
 
 from app_constants import (
-    MigConfig, MigMetric, MigSpec, MigSpot
+    MigConfig, MigMetric, MigSpec, MigSpot, DbConfig
 )
 from migration.pydb_common import build_channel_data
 from migration.pydb_sessions import assert_session_abort, get_session_registry
@@ -70,8 +70,8 @@ def migrate_lobs(errors: list[str],
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
 
     # retrieve the source and target DB and S3 engines
     source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
@@ -79,7 +79,7 @@ def migrate_lobs(errors: list[str],
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
 
     # retrieve the database and chunk size
-    db_name: str = session_registry[target_db][DbParam.NAME]
+    db_name: str = session_registry[target_db][DbConfig.NAME]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # traverse list of migrated tables to copy the LOB data
@@ -163,7 +163,7 @@ def migrate_lobs(errors: list[str],
 
                         # obtain a S3 prefix for storing the lobdata
                         if not session_specs[MigSpec.FLATTEN_STORAGE]:
-                            url: URLObject = URLObject(session_registry[target_db][DbParam.HOST])
+                            url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
                             # 'url.hostname' returns 'None' for 'localhost'
                             lob_prefix = __build_prefix(rdbms=target_db,
                                                         host=url.hostname or str(url),

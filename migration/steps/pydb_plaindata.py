@@ -67,8 +67,8 @@ def migrate_plain(errors: list[str],
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
 
     # retrieve the source and target RDBMS engines
     source_engine: DbEngine = session_spots[MigSpot.FROM_RDBMS]
