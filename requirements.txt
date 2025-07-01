@@ -15,6 +15,7 @@ pypomes_http==0.7.2
 pypomes_logging==0.6.7
 pypomes_s3==0.8.7
 python-dateutil==2.9.0
+python-magic==0.4.27
 SQLAlchemy==2.0.41
 URLObject==2.4.3
 Werkzeug==3.1.3
