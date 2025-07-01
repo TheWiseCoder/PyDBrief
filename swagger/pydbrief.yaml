@@ -775,13 +775,13 @@ components:
     LobdataChannelSizeParam:
       name: lobdata-channel-size
       in: query
-      description: Suggested number of rows per channel to process in lobdata migrations. Smaller or larger quantities may be used, as directed by the ratio between the total number of rows to migrate, and the maximum number of channels available. Range is [10000-10000000], initial value is 100000.
+      description: Suggested number of rows per channel to process in lobdata migrations. Smaller or larger quantities may be used, as directed by the ratio between the total number of rows to migrate, and the maximum number of channels available. Range is [1000-1000000], initial value is 10000.
       required: false
       schema:
         type: integer
-        minimum: 10000
-        maximum: 10000000
-        default: 100000
+        minimum: 1000
+        maximum: 1000000
+        default: 10000
   # migration identification
     MigrationBadgeOptParam:
       name: migration-badge
