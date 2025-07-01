@@ -13,7 +13,7 @@ from pypomes_db import (
     DbEngine, DbParam,
     db_connect, db_count, db_migrate_lobs, db_table_exists
 )
-from pypomes_s3 import S3Engine, s3_item_exists
+from pypomes_s3 import S3Engine, s3_item_exists, s3_get_client
 from typing import Any
 from urlobject import URLObject
 
@@ -205,6 +205,7 @@ def migrate_lobs(errors: list[str],
                                     future: Future = executor.submit(_s3_migrate_lobs,
                                                                      mother_thread=mother_thread,
                                                                      session_id=session_id,
+                                                                     target_s3=target_s3,
                                                                      target_table=target_table,
                                                                      source_table=source_table,
                                                                      lob_prefix=lob_prefix,
@@ -326,6 +327,7 @@ def _db_migrate_lobs(mother_thread: int,
 
 def _s3_migrate_lobs(mother_thread: int,
                      session_id: str,
+                     target_s3: S3Engine,
                      target_table: str,
                      source_table: str,
                      lob_prefix: str,
@@ -343,24 +345,29 @@ def _s3_migrate_lobs(mother_thread: int,
         _lobdata_threads[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
-    count: int = s3_migrate_lobs(errors=errors,
-                                 session_id=session_id,
-                                 target_table=target_table,
-                                 source_table=source_table,
-                                 lob_prefix=lob_prefix,
-                                 lob_column=lob_column,
-                                 pk_columns=pk_columns,
-                                 where_clause=where_clause,
-                                 offset_count=offset_count,
-                                 limit_count=limit_count,
-                                 forced_filetype=forced_filetype,
-                                 ret_column=ret_column,
-                                 logger=logger)
-    with _lobdata_lock:
-        if errors:
-            _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
-        else:
-            _lobdata_threads[mother_thread][source_table]["table-count"] += count
+    s3_client = s3_get_client(errors=errors,
+                              engine=target_s3,
+                              logger=logger)
+    if s3_client:
+        count: int = s3_migrate_lobs(errors=errors,
+                                     session_id=session_id,
+                                     s3_client=s3_client,
+                                     target_table=target_table,
+                                     source_table=source_table,
+                                     lob_prefix=lob_prefix,
+                                     lob_column=lob_column,
+                                     pk_columns=pk_columns,
+                                     where_clause=where_clause,
+                                     offset_count=offset_count,
+                                     limit_count=limit_count,
+                                     forced_filetype=forced_filetype,
+                                     ret_column=ret_column,
+                                     logger=logger)
+        with _lobdata_lock:
+            if errors:
+                _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
+            else:
+                _lobdata_threads[mother_thread][source_table]["table-count"] += count
 
 
 def __build_prefix(rdbms: DbEngine,
