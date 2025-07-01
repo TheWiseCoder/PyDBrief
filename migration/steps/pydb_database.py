@@ -36,7 +36,7 @@ def session_disable_restrictions(errors: list[str],
     stmt: str | None = None
     match rdbms:
         case DbEngine.POSTGRES:
-            stmt = f"SET SESSION_REPLICATION_ROLE = REPLICA"
+            stmt = f"set session_replication_role = replica"
         case DbEngine.MYSQL:
             stmt = "SET @@SESSION.DISABLE_TRIGGERS = 1"
         case _:  # Oracle, SQLServer
