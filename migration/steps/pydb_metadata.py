@@ -34,7 +34,7 @@ def migrate_metadata(errors: list[str],
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-    session_steps: dict[MigSpot, Any] = session_registry[MigConfig.STEPS]
+    session_steps: dict[MigStep, Any] = session_registry[MigConfig.STEPS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # create engines

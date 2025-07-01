@@ -83,7 +83,7 @@ def prune_metadata(source_schema: str,
 
             # mark these constraints as tainted:
             #   - duplicate CK constraints in table
-            #     (would raise error 'check constraint already exists')
+            #     (prevent error 'check constraint already exists')
             #   - constraints listed in 'exclude_constraints'
             table_cks: list[str] = []
             tainted_constraints: list[Constraint] = []
