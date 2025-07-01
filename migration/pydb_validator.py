@@ -539,6 +539,8 @@ def __assert_incremental_migrations(errors: list[str],
 
     # format of 'incremental_tables' is [<table-name>[=<size>[:<offset>],...]
     for incremental_table in incremental_tables:
+        if ":" not in incremental_table:
+            incremental_table += ":"
         # noinspection PyTypeChecker
         terms: tuple[str, str, str] = str_splice(source=incremental_table,
                                                  seps=["=", ":"])
