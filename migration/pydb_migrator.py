@@ -107,7 +107,7 @@ def migrate(errors: list[str],
         if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
             incremental_migrations = \
                 __establish_increments(errors=errors,
-                                       migrating_tables=migrated_tables.keys(),
+                                       migrating_tables=list(migrated_tables.keys()),
                                        incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
                                        target_rdbms=session_spots[MigSpot.TO_RDBMS],
                                        target_schema=session_specs[MigSpec.TO_SCHEMA],
