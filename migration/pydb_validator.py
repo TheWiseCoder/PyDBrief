@@ -460,8 +460,8 @@ def validate_specs(errors: list[str],
     # validate the include and exclude relations lists
     if input_params.get(MigSpec.INCLUDE_RELATIONS) and \
             input_params.get(MigSpec.EXCLUDE_RELATIONS):
-        # 151: Attributes {} cannot be assigned values at the same time
-        errors.append(validate_format_error(151,
+        # 127: Attributes {} cannot be assigned values at the same time
+        errors.append(validate_format_error(127,
                                             f"'({MigSpec.INCLUDE_RELATIONS}, "
                                             f"{MigSpec.EXCLUDE_RELATIONS})'"))
     if errors:
