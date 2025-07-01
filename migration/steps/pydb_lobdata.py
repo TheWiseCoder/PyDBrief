@@ -184,8 +184,8 @@ def migrate_lobs(errors: list[str],
 
                         # build migration channel data
                         channel_data: list[tuple[int, int]] = \
-                            build_channel_data(max_channels=session_metrics[MigMetric.PLAINDATA_CHANNELS],
-                                               channel_size=session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE],
+                            build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                                               channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
                                                table_count=table_count,
                                                offset_count=offset_count,
                                                limit_count=limit_count)
