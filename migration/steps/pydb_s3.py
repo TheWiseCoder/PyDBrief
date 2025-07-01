@@ -3,11 +3,9 @@ import mimetypes
 import pickle
 from enum import StrEnum
 from logging import Logger
-from pypomes_core import (
-    Mimetype, file_get_mimetype, file_get_extension, str_from_any
-)
-from pypomes_db import db_stream_lobs
-from pypomes_s3 import s3_data_store
+from pypomes_core import Mimetype, file_get_mimetype, file_get_extension, str_from_any
+from pypomes_db import db_stream_lobs, DbEngine
+from pypomes_s3 import s3_data_store, S3Engine
 from pathlib import Path
 from typing import Any
 
@@ -38,8 +36,14 @@ def s3_migrate_lobs(errors: list[str],
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
+
+    # retrieve the configuration for the migration
+    source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
+    trget_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
+    target_s3: S3Engine = session_spots[MigSpot.TO_S3]
+    chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # initialize the properties
     forced_mimetype: str = mimetypes.types_map.get(forced_filetype)
@@ -63,11 +67,11 @@ def s3_migrate_lobs(errors: list[str],
                                    lob_column=lob_column,
                                    pk_columns=pk_columns,
                                    ret_column=ret_column,
-                                   engine=session_spots[MigSpot.FROM_RDBMS],
+                                   engine=source_db,
                                    where_clause=where_clause,
                                    offset_count=offset_count,
                                    limit_count=limit_count,
-                                   chunk_size=session_metrics[MigMetric.CHUNK_SIZE],
+                                   chunk_size=chunk_size,
                                    logger=logger):
 
         # verify whether current migration is marked for abortion
@@ -86,7 +90,7 @@ def s3_migrate_lobs(errors: list[str],
             #   - the lobdata's filename (if 'ref_column' was specified)
             values: list[Any] = []
             metadata = {
-                "rdbms": session_spots[MigSpot.TO_RDBMS],
+                "rdbms": trget_db,
                 "table": target_table
             }
             for key, value in sorted(row_data.items()):
@@ -134,7 +138,7 @@ def s3_migrate_lobs(errors: list[str],
                               mimetype=mimetype,
                               tags=metadata,
                               prefix=lob_prefix,
-                              engine=session_spots[MigSpot.TO_S3],
+                              engine=target_s3,
                               client=s3_client)
                 lob_count += 1
                 result += 1
