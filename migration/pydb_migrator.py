@@ -136,7 +136,7 @@ def migrate(errors: list[str],
             lob_count = migrate_lobs(errors=errors,
                                      session_id=session_id,
                                      incremental_migrations=incremental_migrations,
-                                     # migration_warnings=migration_warnings,
+                                     migration_warnings=migration_warnings,
                                      migration_threads=migration_threads,
                                      migrated_tables=migrated_tables,
                                      logger=logger)

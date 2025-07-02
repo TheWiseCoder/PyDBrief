@@ -49,7 +49,7 @@ _lobdata_lock: threading.Lock = threading.Lock()
 def migrate_lobs(errors: list[str],
                  session_id: str,
                  incremental_migrations: dict[str, tuple[int, int]],
-                 # migration_warnings: list[str],
+                 migration_warnings: list[str],
                  migration_threads: list[int],
                  migrated_tables: dict[str, Any],
                  logger: Logger) -> int:
@@ -186,11 +186,12 @@ def migrate_lobs(errors: list[str],
                                     s3_item_exists(errors=errors,
                                                    prefix=lob_prefix):
                                 # yes, skip it
-                                logger.debug(msg=f"Skipped nonempty "
-                                                 f"{target_s3}.{lob_prefix.as_posix()}")
+                                warn: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
+                                migration_warnings.append(warn)
+                                logger.warning(msg=warn)
                                 skip_column = True
 
-                    if not errors:
+                    if not errors and not skip_column:
                         if len(channel_data) > 1:
                             target: str = f"S3 storage '{target_s3}'" \
                                 if target_s3 else f"{target_db}.{target_table}.{lob_column}"
