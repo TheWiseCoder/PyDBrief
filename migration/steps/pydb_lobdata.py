@@ -174,12 +174,12 @@ def migrate_lobs(errors: list[str],
                             url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
                             # 'url.hostname' returns 'None' for 'localhost'
                             host: str = f"{target_db}@{url.hostname or str(url)}"
-                            column: str = ret_column or lob_column
+                            ref_column: str = ret_column or lob_column
                             lob_prefix = Path(host,
                                               session_registry[target_db][DbConfig.NAME],
                                               target_schema,
                                               table_name,
-                                              column)
+                                              ref_column)
                             # is a nonempty S3 prefix an issue ?
                             if session_specs[MigSpec.SKIP_NONEMPTY] and \
                                     s3_item_exists(errors=errors,
