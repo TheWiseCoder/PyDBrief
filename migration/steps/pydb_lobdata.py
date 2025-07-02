@@ -141,6 +141,13 @@ def migrate_lobs(errors: list[str],
                                          table=source_table,
                                          engine=source_db) or 0) - offset_count
             if table_count > 0:
+                # build migration channel data
+                channel_data: list[tuple[int, int]] = \
+                    build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                                       channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
+                                       table_count=table_count,
+                                       offset_count=offset_count,
+                                       limit_count=limit_count)
 
                 # process the existing LOB columns
                 for lob_column in lob_columns:
@@ -169,7 +176,7 @@ def migrate_lobs(errors: list[str],
                             host: str = f"{target_db}@{url.hostname or str(url)}"
                             column: str = ret_column or lob_column
                             lob_prefix = Path(host,
-                                              target_db,
+                                              session_registry[target_db][DbConfig.NAME],
                                               target_schema,
                                               table_name,
                                               column)
@@ -183,19 +190,11 @@ def migrate_lobs(errors: list[str],
                                 status = "skipped"
 
                     if not errors:
-
-                        # build migration channel data
-                        channel_data: list[tuple[int, int]] = \
-                            build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
-                                               channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
-                                               table_count=table_count,
-                                               offset_count=offset_count,
-                                               limit_count=limit_count)
                         if len(channel_data) > 1:
                             target: str = f"S3 storage '{target_s3}'" \
                                 if target_s3 else f"{target_db}.{target_table}"
                             logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
-                                             f"from {source_db}.{source_table} to {target}, "
+                                             f"from {source_db}.{source_table}.{lob_column} to {target}, "
                                              f"using {len(channel_data)} channels")
 
                         # execute tasks concurrently
