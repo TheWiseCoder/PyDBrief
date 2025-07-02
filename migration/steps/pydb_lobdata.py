@@ -57,7 +57,7 @@ def migrate_lobs(errors: list[str],
     # initialize the return variable
     result: int = 0
 
-    # zadd to the thread registration
+    # add to the thread registration
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
 
@@ -78,7 +78,7 @@ def migrate_lobs(errors: list[str],
     target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
 
-    # retrieve the database and chunk size
+    # retrieve the chunk size
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # traverse list of migrated tables to copy the LOB data
@@ -116,161 +116,161 @@ def migrate_lobs(errors: list[str],
             if "primary-key" in features:
                 pk_columns.append(column_name)
 
-        if not pk_columns:
-            err_msg: str = (f"Table {source_db}.{source_table} "
-                            f"is not eligible for LOB migration (no PKs)")
-            logger.error(msg=err_msg)
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
+        if lob_columns:
+            if not pk_columns:
+                err_msg: str = (f"Table {source_db}.{source_table} "
+                                f"is not eligible for LOB migration (no PKs)")
+                logger.error(msg=err_msg)
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    err_msg))
+            elif db_table_exists(errors=errors,
+                                 table_name=target_table,
+                                 engine=target_db,
+                                 logger=logger):
+                # start migrating the source table LOBs
+                started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+                status: str = "ok"
+                count: int = 0
+                limit_count: int = 0
+                offset_count: int = 0
+                if table_name in incremental_migrations:
+                    limit_count, offset_count = incremental_migrations.get(table_name)
 
-        if not errors and lob_columns and db_table_exists(errors=errors,
-                                                          table_name=target_table,
-                                                          engine=target_db,
-                                                          logger=logger):
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-            status: str = "ok"
-            count: int = 0
-            limit_count: int = 0
-            offset_count: int = 0
-            if table_name in incremental_migrations:
-                limit_count, offset_count = incremental_migrations.get(table_name)
+                # count migrateable tuples on source table
+                table_count: int = (db_count(errors=errors,
+                                             table=source_table,
+                                             engine=source_db) or 0) - offset_count
+                if table_count > 0:
+                    # build migration channel data
+                    channel_data: list[tuple[int, int]] = \
+                        build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                                           channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
+                                           table_count=table_count,
+                                           offset_count=offset_count,
+                                           limit_count=limit_count)
 
-            # count migrateable tuples on source table
-            table_count: int = (db_count(errors=errors,
-                                         table=source_table,
-                                         engine=source_db) or 0) - offset_count
-            if table_count > 0:
-                # build migration channel data
-                channel_data: list[tuple[int, int]] = \
-                    build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
-                                       channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
-                                       table_count=table_count,
-                                       offset_count=offset_count,
-                                       limit_count=limit_count)
+                    # process the existing LOB columns
+                    for lob_column in lob_columns:
+                        skip_column: bool = False
+                        where_clause: str = f"{lob_column} IS NOT NULL"
 
-                # process the existing LOB columns
-                for lob_column in lob_columns:
-                    skip_column: bool = False
-                    where_clause: str = f"{lob_column} IS NOT NULL"
+                        # migrate the column's LOBs
+                        lob_prefix: Path | None = None
+                        forced_filetype: str | None = None
+                        ret_column: str | None = None
+                        if target_s3:
+                            # determine if lobdata in 'lob_column' is named in a reference column
+                            for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):
+                                # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
+                                if item.startswith(f"{table_name}.{lob_column}="):
+                                    ret_column = item[item.index("=")+1:]
+                                    pos: int = ret_column.find(".")
+                                    if pos > 0:
+                                        forced_filetype = ret_column[pos:]
+                                        ret_column = ret_column[:pos]
+                                    break
 
-                    # migrate the column's LOBs
-                    lob_prefix: Path | None = None
-                    forced_filetype: str | None = None
-                    ret_column: str | None = None
-                    if target_s3:
-                        # determine if lobdata in 'lob_column' is named in a reference column
-                        for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):
-                            # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
-                            if item.startswith(f"{table_name}.{lob_column}="):
-                                ret_column = item[item.index("=")+1:]
-                                pos: int = ret_column.find(".")
-                                if pos > 0:
-                                    forced_filetype = ret_column[pos:]
-                                    ret_column = ret_column[:pos]
-                                break
+                            # obtain a S3 prefix for storing the lobdata
+                            if not session_specs[MigSpec.FLATTEN_STORAGE]:
+                                url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
+                                # 'url.hostname' returns 'None' for 'localhost'
+                                host: str = f"{target_db}@{url.hostname or str(url)}"
+                                ref_column: str = ret_column or lob_column
+                                lob_prefix = Path(host,
+                                                  session_registry[target_db][DbConfig.NAME],
+                                                  target_schema,
+                                                  table_name,
+                                                  ref_column)
+                                # is a nonempty S3 prefix an issue ?
+                                if session_specs[MigSpec.SKIP_NONEMPTY] and \
+                                        s3_item_exists(errors=errors,
+                                                       prefix=lob_prefix):
+                                    # yes, skip it
+                                    warn: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
+                                    migration_warnings.append(warn)
+                                    logger.warning(msg=warn)
+                                    skip_column = True
 
-                        # obtain a S3 prefix for storing the lobdata
-                        if not session_specs[MigSpec.FLATTEN_STORAGE]:
-                            url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
-                            # 'url.hostname' returns 'None' for 'localhost'
-                            host: str = f"{target_db}@{url.hostname or str(url)}"
-                            ref_column: str = ret_column or lob_column
-                            lob_prefix = Path(host,
-                                              session_registry[target_db][DbConfig.NAME],
-                                              target_schema,
-                                              table_name,
-                                              ref_column)
-                            # is a nonempty S3 prefix an issue ?
-                            if session_specs[MigSpec.SKIP_NONEMPTY] and \
-                                    s3_item_exists(errors=errors,
-                                                   prefix=lob_prefix):
-                                # yes, skip it
-                                warn: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
-                                migration_warnings.append(warn)
-                                logger.warning(msg=warn)
-                                skip_column = True
+                        if not errors and not skip_column:
+                            if len(channel_data) > 1:
+                                target: str = f"S3 storage '{target_s3}'" \
+                                    if target_s3 else f"{target_db}.{target_table}.{lob_column}"
+                                logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
+                                                 f"from {source_db}.{source_table}.{lob_column} to {target}, "
+                                                 f"using {len(channel_data)} channels")
 
-                    if not errors and not skip_column:
-                        if len(channel_data) > 1:
-                            target: str = f"S3 storage '{target_s3}'" \
-                                if target_s3 else f"{target_db}.{target_table}.{lob_column}"
-                            logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
-                                             f"from {source_db}.{source_table}.{lob_column} to {target}, "
-                                             f"using {len(channel_data)} channels")
+                            # execute tasks concurrently
+                            with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
+                                task_futures: list[Future] = []
+                                for channel_datum in channel_data:
+                                    if target_s3:
+                                        # migration target is S3
+                                        future: Future = executor.submit(_s3_migrate_lobs,
+                                                                         mother_thread=mother_thread,
+                                                                         session_id=session_id,
+                                                                         target_s3=target_s3,
+                                                                         target_table=target_table,
+                                                                         source_table=source_table,
+                                                                         lob_prefix=lob_prefix,
+                                                                         lob_column=lob_column,
+                                                                         pk_columns=pk_columns,
+                                                                         where_clause=where_clause,
+                                                                         limit_count=channel_datum[0],
+                                                                         offset_count=channel_datum[1],
+                                                                         forced_filetype=forced_filetype,
+                                                                         ret_column=ret_column,
+                                                                         logger=logger)
+                                    else:
+                                        # migration target is database
+                                        future: Future = executor.submit(_db_migrate_lobs,
+                                                                         mother_thread=mother_thread,
+                                                                         source_engine=source_db,
+                                                                         source_table=source_table,
+                                                                         lob_column=lob_column,
+                                                                         pk_columns=pk_columns,
+                                                                         target_engine=target_db,
+                                                                         target_table=target_table,
+                                                                         where_clause=where_clause,
+                                                                         offset_count=channel_datum[1],
+                                                                         limit_count=channel_datum[0],
+                                                                         chunk_size=chunk_size,
+                                                                         logger=logger)
+                                    task_futures.append(future)
 
-                        # execute tasks concurrently
-                        with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
-                            task_futures: list[Future] = []
-                            for channel_datum in channel_data:
-                                if target_s3:
-                                    # migration target is S3
-                                    future: Future = executor.submit(_s3_migrate_lobs,
-                                                                     mother_thread=mother_thread,
-                                                                     session_id=session_id,
-                                                                     target_s3=target_s3,
-                                                                     target_table=target_table,
-                                                                     source_table=source_table,
-                                                                     lob_prefix=lob_prefix,
-                                                                     lob_column=lob_column,
-                                                                     pk_columns=pk_columns,
-                                                                     where_clause=where_clause,
-                                                                     limit_count=channel_datum[0],
-                                                                     offset_count=channel_datum[1],
-                                                                     forced_filetype=forced_filetype,
-                                                                     ret_column=ret_column,
-                                                                     logger=logger)
-                                else:
-                                    # migration target is database
-                                    future: Future = executor.submit(_db_migrate_lobs,
-                                                                     mother_thread=mother_thread,
-                                                                     source_engine=source_db,
-                                                                     source_table=source_table,
-                                                                     lob_column=lob_column,
-                                                                     pk_columns=pk_columns,
-                                                                     target_engine=target_db,
-                                                                     target_table=target_table,
-                                                                     where_clause=where_clause,
-                                                                     offset_count=channel_datum[1],
-                                                                     limit_count=channel_datum[0],
-                                                                     chunk_size=chunk_size,
-                                                                     logger=logger)
-                                task_futures.append(future)
+                                # wait for all task futures to complete
+                                futures.wait(fs=task_futures)
 
-                            # wait for all task futures to complete
-                            futures.wait(fs=task_futures)
+                                with _lobdata_lock:
+                                    if _lobdata_threads[mother_thread][source_table]["errors"]:
+                                        status = "error"
+                                        errors.extend(_lobdata_threads[mother_thread][source_table]["errors"])
+                                    else:
+                                        count = _lobdata_threads[mother_thread][source_table]["table-count"]
 
-                            with _lobdata_lock:
-                                if _lobdata_threads[mother_thread][source_table]["errors"]:
-                                    status = "error"
-                                    errors.extend(_lobdata_threads[mother_thread][source_table]["errors"])
-                                else:
-                                    count = _lobdata_threads[mother_thread][source_table]["table-count"]
+                finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+                duration: str = timestamp_duration(start=started,
+                                                   finish=finished)
+                table_data["lob-status"] = status
+                table_data["lob-count"] = count
+                table_data["lob-duration"] = duration
+                target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
+                logger.debug(msg=f"Migrated {count} lobdata in table {table_name}, "
+                                 f"from {source_db} to {target}, "
+                                 f"status {status}, duration {duration}")
+                result += count
 
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-            duration: str = timestamp_duration(start=started,
-                                               finish=finished)
-            table_data["lob-status"] = status
-            table_data["lob-count"] = count
-            table_data["lob-duration"] = duration
-            target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
-            logger.debug(msg=f"Migrated {count} lobdata in table {table_name}, "
-                             f"from {source_db} to {target}, "
-                             f"status {status}, duration {duration}")
-            result += count
-
-        elif not errors and lob_columns:
-            # target table does not exist
-            err_msg: str = ("Unable to migrate LOBs, "
-                            f"table {target_db}.{target_table} was not found")
-            logger.error(msg=err_msg)
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
-        # errors ?
-        if errors:
-            # yes, abort the lobdata migration
-            break
+            elif not errors:
+                # target table does not exist
+                err_msg: str = ("Unable to migrate LOBs, "
+                                f"table {target_db}.{target_table} was not found")
+                logger.error(msg=err_msg)
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    err_msg))
+            if errors:
+                # yes, abort the lobdata migration
+                break
 
     with _lobdata_lock:
         migration_threads.extend(_lobdata_threads[mother_thread]["child-threads"])
