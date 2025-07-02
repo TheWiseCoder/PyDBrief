@@ -147,19 +147,19 @@ def migrate_plain(errors: list[str],
                                 orderby_columns.append(column_name)
 
                     if not orderby_columns:
-                        warn: str = ""
+                        warn_msg: str = ""
                         if session_metrics[MigMetric.PLAINDATA_CHANNELS] > 1:
-                            warn = "Multi-channel migration"
+                            warn_msg = "Multi-channel migration"
                         elif limit_count:
-                            warn = "Incremental migration"
+                            warn_msg = "Incremental migration"
                         elif offset_count:
-                            warn = "Reading offset"
+                            warn_msg = "Reading offset"
                         elif batch_size_in:
-                            warn = "Batch reading"
-                        if warn:
-                            warn += f" specified for table having no PKs: {source_engine}.{source_table}"
-                            migration_warnings.append(warn)
-                            logger.warning(msg=warn)
+                            warn_msg = "Batch reading"
+                        if warn_msg:
+                            warn_msg += f" specified for table having no PKs: {source_engine}.{source_table}"
+                            migration_warnings.append(warn_msg)
+                            logger.warning(msg=warn_msg)
 
                     # build migration channel data
                     channel_data: list[tuple[int, int]] = \

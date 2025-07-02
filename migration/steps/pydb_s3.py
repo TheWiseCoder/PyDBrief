@@ -75,10 +75,9 @@ def s3_migrate_lobs(errors: list[str],
                                    logger=logger):
 
         # verify whether current migration is marked for abortion
-        assert_session_abort(errors=errors,
-                             session_id=session_id,
-                             logger=logger)
-        if errors:
+        if errors or assert_session_abort(errors=errors,
+                                          session_id=session_id,
+                                          logger=logger):
             break
 
         # LOB identification

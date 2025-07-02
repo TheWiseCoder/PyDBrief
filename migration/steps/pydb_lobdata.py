@@ -118,10 +118,10 @@ def migrate_lobs(errors: list[str],
 
         if lob_columns:
             if not pk_columns:
-                warn: str = (f"Table {source_db}.{source_table} "
-                             f"is not eligible for LOB migration (no PKs)")
-                migration_warnings.append(warn)
-                logger.warning(msg=warn)
+                warn_msg: str = (f"Table {source_db}.{source_table} "
+                                 f"is not eligible for LOB migration (no PKs)")
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
                 continue
 
             if not db_table_exists(errors=errors,
@@ -129,10 +129,10 @@ def migrate_lobs(errors: list[str],
                                    engine=target_db,
                                    logger=logger):
                 # target table could not be found
-                warn: str = ("Unable to migrate LOBs, "
-                             f"table {target_db}.{target_table} was not found")
-                migration_warnings.append(warn)
-                logger.warning(msg=warn)
+                warn_msg: str = ("Unable to migrate LOBs, "
+                                 f"table {target_db}.{target_table} was not found")
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
                 continue
 
             # start migrating the source table LOBs
@@ -194,9 +194,9 @@ def migrate_lobs(errors: list[str],
                                     s3_item_exists(errors=errors,
                                                    prefix=lob_prefix):
                                 # yes, skip it
-                                warn: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
-                                migration_warnings.append(warn)
-                                logger.warning(msg=warn)
+                                warn_msg: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
+                                migration_warnings.append(warn_msg)
+                                logger.warning(msg=warn_msg)
                                 skip_column = True
 
                     if not errors and not skip_column:
