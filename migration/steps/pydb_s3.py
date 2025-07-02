@@ -78,6 +78,7 @@ def s3_migrate_lobs(errors: list[str],
         if errors or assert_session_abort(errors=errors,
                                           session_id=session_id,
                                           logger=logger):
+            # abort the lobdata streaming
             break
 
         # LOB identification
