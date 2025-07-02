@@ -118,16 +118,15 @@ def migrate_lobs(errors: list[str],
 
         if lob_columns:
             if not pk_columns:
-                err_msg: str = (f"Table {source_db}.{source_table} "
-                                f"is not eligible for LOB migration (no PKs)")
-                logger.error(msg=err_msg)
-                # 101: {}
-                errors.append(validate_format_error(101,
-                                                    err_msg))
-            elif db_table_exists(errors=errors,
-                                 table_name=target_table,
-                                 engine=target_db,
-                                 logger=logger):
+                warn: str = (f"Table {source_db}.{source_table} "
+                             f"is not eligible for LOB migration (no PKs)")
+                migration_warnings.append(warn)
+                logger.warning(msg=warn)
+                continue
+            if db_table_exists(errors=errors,
+                               table_name=target_table,
+                               engine=target_db,
+                               logger=logger):
                 # start migrating the source table LOBs
                 started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
                 status: str = "ok"
