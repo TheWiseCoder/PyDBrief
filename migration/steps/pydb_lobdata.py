@@ -151,6 +151,7 @@ def migrate_lobs(errors: list[str],
 
                 # process the existing LOB columns
                 for lob_column in lob_columns:
+                    skip_column: bool = False
                     where_clause: str = f"{lob_column} IS NOT NULL"
 
                     # migrate the column's LOBs
@@ -187,12 +188,12 @@ def migrate_lobs(errors: list[str],
                                 # yes, skip it
                                 logger.debug(msg=f"Skipped nonempty "
                                                  f"{target_s3}.{lob_prefix.as_posix()}")
-                                status = "skipped"
+                                skip_column = True
 
                     if not errors:
                         if len(channel_data) > 1:
                             target: str = f"S3 storage '{target_s3}'" \
-                                if target_s3 else f"{target_db}.{target_table}"
+                                if target_s3 else f"{target_db}.{target_table}.{lob_column}"
                             logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
                                              f"from {source_db}.{source_table}.{lob_column} to {target}, "
                                              f"using {len(channel_data)} channels")
@@ -251,8 +252,9 @@ def migrate_lobs(errors: list[str],
             table_data["lob-status"] = status
             table_data["lob-count"] = count
             table_data["lob-duration"] = duration
+            target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
             logger.debug(msg=f"Migrated {count} lobdata in table {table_name}, "
-                             f"from {source_db} to {target_db}, "
+                             f"from {source_db} to {target}, "
                              f"status {status}, duration {duration}")
             result += count
 
