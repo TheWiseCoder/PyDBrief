@@ -168,47 +168,64 @@ def migrate_plain(errors: list[str],
                                            table_count=table_count,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
-                    if len(channel_data) > 1:
+                    if len(channel_data) == 1:
+                        # execute single task in current thread
+                        _migrate_plain(mother_thread=mother_thread,
+                                       source_engine=source_engine,
+                                       source_table=source_table,
+                                       source_columns=source_columns,
+                                       target_engine=target_engine,
+                                       target_table=target_table,
+                                       target_columns=target_columns,
+                                       orderby_clause=", ".join(orderby_columns),
+                                       offset_count=channel_datum[1],
+                                       limit_count=channel_datum[0],
+                                       identity_column=identity_column,
+                                       batch_size_in=batch_size_in,
+                                       batch_size_out=batch_size_out,
+                                       has_nulls=False,
+                                       logger=logger)
+                    else:
                         logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
                                          f"using {len(channel_data)} channels")
 
-                    # execute tasks concurrently
-                    with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
-                        task_futures: list[Future] = []
-                        for channel_datum in channel_data:
-                            future: Future = executor.submit(_migrate_plain,
-                                                             mother_thread=mother_thread,
-                                                             source_engine=source_engine,
-                                                             source_table=source_table,
-                                                             source_columns=source_columns,
-                                                             target_engine=target_engine,
-                                                             target_table=target_table,
-                                                             target_columns=target_columns,
-                                                             orderby_clause=", ".join(orderby_columns),
-                                                             offset_count=channel_datum[1],
-                                                             limit_count=channel_datum[0],
-                                                             identity_column=identity_column,
-                                                             batch_size_in=batch_size_in,
-                                                             batch_size_out=batch_size_out,
-                                                             has_nulls=False,
-                                                             logger=logger)
-                            task_futures.append(future)
+                        # execute tasks concurrently
+                        with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
+                            task_futures: list[Future] = []
+                            for channel_datum in channel_data:
+                                future: Future = executor.submit(_migrate_plain,
+                                                                 mother_thread=mother_thread,
+                                                                 source_engine=source_engine,
+                                                                 source_table=source_table,
+                                                                 source_columns=source_columns,
+                                                                 target_engine=target_engine,
+                                                                 target_table=target_table,
+                                                                 target_columns=target_columns,
+                                                                 orderby_clause=", ".join(orderby_columns),
+                                                                 offset_count=channel_datum[1],
+                                                                 limit_count=channel_datum[0],
+                                                                 identity_column=identity_column,
+                                                                 batch_size_in=batch_size_in,
+                                                                 batch_size_out=batch_size_out,
+                                                                 has_nulls=False,
+                                                                 logger=logger)
+                                task_futures.append(future)
 
-                        # wait for all task futures to complete
-                        futures.wait(fs=task_futures)
+                            # wait for all task futures to complete
+                            futures.wait(fs=task_futures)
 
-                        with _plaindata_lock:
-                            if _plaindata_threads[mother_thread][source_table]["errors"]:
-                                status = "error"
-                                errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
-                            else:
-                                count = _plaindata_threads[mother_thread][source_table]["table-count"]
-                        if status == "error":
-                            table_embedded_nulls(errors=errors,
-                                                 rdbms=source_engine,
-                                                 table=source_table,
-                                                 logger=logger)
+                    with _plaindata_lock:
+                        if _plaindata_threads[mother_thread][source_table]["errors"]:
+                            status = "error"
+                            errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
+                        else:
+                            count = _plaindata_threads[mother_thread][source_table]["table-count"]
+                    if status == "error":
+                        table_embedded_nulls(errors=errors,
+                                             rdbms=source_engine,
+                                             table=source_table,
+                                             logger=logger)
 
                 finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
                 duration: str = timestamp_duration(start=started,
@@ -256,7 +273,7 @@ def _migrate_plain(mother_thread: int,
                    has_nulls: bool,
                    logger: Logger) -> None:
 
-    # register the operation thread
+    # register the operation thread (might be same as mother thread)
     global _plaindata_threads
     with _plaindata_lock:
         _plaindata_threads[mother_thread]["child-threads"].append(threading.get_ident())
