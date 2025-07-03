@@ -99,6 +99,7 @@ def migrate_plain(errors: list[str],
                            table_name=target_table,
                            engine=target_engine,
                            logger=logger):
+            # obtain limit and offset
             limit_count: int = 0
             offset_count: int = 0
             if table_name in incremental_migrations:

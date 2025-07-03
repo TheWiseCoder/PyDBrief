@@ -100,7 +100,7 @@ def migrate_lobs(errors: list[str],
                 "errors": []
             }
 
-        # obtaint limit and offset
+        # obtain limit and offset
         limit_count: int = 0
         offset_count: int = 0
         if table_name in incremental_migrations:
@@ -130,7 +130,7 @@ def migrate_lobs(errors: list[str],
                 logger.warning(msg=warn_msg)
                 continue
 
-            if len(lob_columns) > 1 and table_name in incremental_migrations:   
+            if len(lob_columns) > 1 and table_name in incremental_migrations:
                 warn_msg: str = ("Unable to migrate incrementally, "
                                  f"table {target_db}.{target_table} has multiple LOB columns")
                 migration_warnings.append(warn_msg)
