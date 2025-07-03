@@ -41,7 +41,7 @@ def s3_migrate_lobs(errors: list[str],
 
     # retrieve the configuration for the migration
     source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
-    trget_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
+    target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
@@ -90,7 +90,7 @@ def s3_migrate_lobs(errors: list[str],
             #   - the lobdata's filename (if 'ref_column' was specified)
             values: list[Any] = []
             metadata = {
-                "rdbms": trget_db,
+                "rdbms": target_db,
                 "table": target_table
             }
             for key, value in sorted(row_data.items()):

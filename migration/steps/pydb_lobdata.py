@@ -100,13 +100,19 @@ def migrate_lobs(errors: list[str],
                 "errors": []
             }
 
+        # obtaint limit and offset
+        limit_count: int = 0
+        offset_count: int = 0
+        if table_name in incremental_migrations:
+            limit_count, offset_count = incremental_migrations.get(table_name)
+
         # organize the information, using LOB types from the columns list
         pk_columns: list[str] = []
         lob_columns: list[str] = []
         table_columns = table_data.get("columns", {})
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
-            # migrating to S3 requires the lob column be mapped in 'named_lobdata'
+            # migrating to S3 requires the lob column be mapped in 'named-lobdata'
             if is_lob(column_type) and \
                     (not target_s3 or
                      list_elem_starting_with(source=session_specs[MigSpec.NAMED_LOBDATA] or [],
@@ -120,6 +126,13 @@ def migrate_lobs(errors: list[str],
             if not pk_columns:
                 warn_msg: str = (f"Table {source_db}.{source_table} "
                                  f"is not eligible for LOB migration (no PKs)")
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
+                continue
+
+            if len(lob_columns) > 1 and table_name in incremental_migrations:   
+                warn_msg: str = ("Unable to migrate incrementally, "
+                                 f"table {target_db}.{target_table} has multiple LOB columns")
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 continue
@@ -139,29 +152,19 @@ def migrate_lobs(errors: list[str],
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             status: str = "ok"
             count: int = 0
-            limit_count: int = 0
-            offset_count: int = 0
-            if table_name in incremental_migrations:
-                limit_count, offset_count = incremental_migrations.get(table_name)
 
-            # count migrateable tuples on source table
-            table_count: int = (db_count(errors=errors,
-                                         table=source_table,
-                                         engine=source_db) or 0) - offset_count
-            if table_count > 0:
-                # build migration channel data
-                channel_data: list[tuple[int, int]] = \
-                    build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
-                                       channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
-                                       table_count=table_count,
-                                       offset_count=offset_count,
-                                       limit_count=limit_count)
+            # process the existing LOB columns
+            for lob_column in lob_columns:
+                skip_column: bool = False
+                where_clause: str = f"{lob_column} IS NOT NULL"
 
-                # process the existing LOB columns
-                for lob_column in lob_columns:
-                    skip_column: bool = False
-                    where_clause: str = f"{lob_column} IS NOT NULL"
-
+                # count migrateable tuples on source table for 'lob_column'
+                table_count: int = (db_count(errors=errors,
+                                             table=source_table,
+                                             where_clause=where_clause,
+                                             offset_count=offset_count,
+                                             engine=source_db) or 0) - offset_count
+                if table_count > 0:
                     # migrate the column's LOBs
                     lob_prefix: Path | None = None
                     forced_filetype: str | None = None
@@ -200,6 +203,13 @@ def migrate_lobs(errors: list[str],
                                 skip_column = True
 
                     if not errors and not skip_column:
+                        # build migration channel data
+                        channel_data: list[tuple[int, int]] = \
+                            build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                                               channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
+                                               table_count=table_count,
+                                               offset_count=offset_count,
+                                               limit_count=limit_count)
                         if len(channel_data) == 1:
                             # execute single task in mother thread
                             if target_s3:
