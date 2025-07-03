@@ -128,24 +128,20 @@ def migrate_lobs(errors: list[str],
                                  f"is not eligible for LOB migration (no PKs)")
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
+                # skip table migration
                 continue
 
-            if len(lob_columns) > 1 and table_name in incremental_migrations:
-                warn_msg: str = ("Unable to migrate incrementally, "
-                                 f"table {target_db}.{target_table} has multiple LOB columns")
-                migration_warnings.append(warn_msg)
-                logger.warning(msg=warn_msg)
-                continue
-
-            if not db_table_exists(errors=errors,
-                                   table_name=target_table,
-                                   engine=target_db,
-                                   logger=logger):
+            # specific condition for migrating table LOBs to database
+            if not target_s3 and not db_table_exists(errors=errors,
+                                                     table_name=target_table,
+                                                     engine=target_db,
+                                                     logger=logger):
                 # target table could not be found
                 warn_msg: str = ("Unable to migrate LOBs, "
                                  f"table {target_db}.{target_table} was not found")
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
+                # skip table migration
                 continue
 
             # start migrating the source table LOBs
@@ -155,7 +151,6 @@ def migrate_lobs(errors: list[str],
 
             # process the existing LOB columns
             for lob_column in lob_columns:
-                skip_column: bool = False
                 where_clause: str = f"{lob_column} IS NOT NULL"
 
                 # count migrateable tuples on source table for 'lob_column'
@@ -169,6 +164,8 @@ def migrate_lobs(errors: list[str],
                     lob_prefix: Path | None = None
                     forced_filetype: str | None = None
                     ret_column: str | None = None
+
+                    # specific condition for migrating column LOBs to S3
                     if target_s3:
                         # determine if lobdata in 'lob_column' is named in a reference column
                         for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):
@@ -192,6 +189,7 @@ def migrate_lobs(errors: list[str],
                                               target_schema,
                                               table_name,
                                               ref_column)
+
                             # is a nonempty S3 prefix an issue ?
                             if session_specs[MigSpec.SKIP_NONEMPTY] and \
                                     s3_item_exists(errors=errors,
@@ -200,9 +198,10 @@ def migrate_lobs(errors: list[str],
                                 warn_msg: str = f"Skipped nonempty {target_s3}.{lob_prefix.as_posix()}"
                                 migration_warnings.append(warn_msg)
                                 logger.warning(msg=warn_msg)
-                                skip_column = True
+                                # skip column migration
+                                continue
 
-                    if not errors and not skip_column:
+                    if not errors:
                         # build migration channel data
                         channel_data: list[tuple[int, int]] = \
                             build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
@@ -391,6 +390,7 @@ def _s3_migrate_lobs(mother_thread: int,
                               engine=target_s3,
                               logger=logger)
     if s3_client:
+        # 'target_table' is documentational, only
         count: int = s3_migrate_lobs(errors=errors,
                                      session_id=session_id,
                                      s3_client=s3_client,

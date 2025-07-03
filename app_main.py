@@ -122,6 +122,17 @@ def service_version() -> Response:
     return result
 
 
+@flask_app.route(rule="/favicon.ico",
+                 methods=[HttpMethod.GET])
+def service_ignore() -> Response:
+    """
+    Handle irrelevant browser requests.
+
+    :return: status *NO CONTENT*
+    """
+    return Response(status=HttpStatus.NO_CONTENT)
+
+
 @flask_app.route(rule="/rdbms",
                  methods=[HttpMethod.POST])
 @flask_app.route(rule="/rdbms/<engine>",
@@ -579,8 +590,6 @@ def handle_exception(exc: Exception) -> Response:
     # is the exception an instance of werkzeug.exceptions.NotFound ?
     if isinstance(exc, NotFound):
         # yes, disregard it
-        #   - handle a bug causing the re-submission of a GET request from a browser
-        #   - ignore a 'GET:/favicon.ico' request from a browser
         result = Response(status=HttpStatus.NO_CONTENT)
     else:
         # no, report the problem

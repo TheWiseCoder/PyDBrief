@@ -149,7 +149,7 @@ def s3_migrate_lobs(errors: list[str],
 
     # log the migration
     logger.debug(msg=f"{lob_count} LOBs migrated from "
-                     f"{target_table}.{lob_column} to {session_spots[MigSpot.TO_S3]}")
+                     f"{source_table}.{lob_column} to {session_spots[MigSpot.TO_S3]}")
 
     return result
 
