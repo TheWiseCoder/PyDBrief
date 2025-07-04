@@ -213,8 +213,9 @@ def migrate_plain(errors: list[str],
                                                                  logger=logger)
                                 task_futures.append(future)
 
-                            # wait for all task futures to complete
+                            # wait for all task futures to complete, then shutdown down the executor
                             futures.wait(fs=task_futures)
+                            executor.shutdown(wait=False)
 
                     with _plaindata_lock:
                         count = _plaindata_threads[mother_thread][source_table]["table-count"]

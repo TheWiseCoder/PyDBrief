@@ -288,8 +288,9 @@ def migrate_lobs(errors: list[str],
                                                                          logger=logger)
                                     task_futures.append(future)
 
-                                # wait for all task futures to complete
+                                # wait for all task futures to complete, then shutdown down the executor
                                 futures.wait(fs=task_futures)
+                                executor.shutdown(wait=False)
 
                         with _lobdata_lock:
                             count = _lobdata_threads[mother_thread][source_table]["table-count"]
