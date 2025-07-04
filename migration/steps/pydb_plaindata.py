@@ -217,11 +217,10 @@ def migrate_plain(errors: list[str],
                             futures.wait(fs=task_futures)
 
                     with _plaindata_lock:
+                        count = _plaindata_threads[mother_thread][source_table]["table-count"]
                         if _plaindata_threads[mother_thread][source_table]["errors"]:
                             status = "error"
                             errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
-                        else:
-                            count = _plaindata_threads[mother_thread][source_table]["table-count"]
                     if status == "error":
                         table_embedded_nulls(errors=errors,
                                              rdbms=source_engine,

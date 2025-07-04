@@ -290,11 +290,10 @@ def migrate_lobs(errors: list[str],
                                 futures.wait(fs=task_futures)
 
                         with _lobdata_lock:
+                            count = _lobdata_threads[mother_thread][source_table]["table-count"]
                             if _lobdata_threads[mother_thread][source_table]["errors"]:
                                 status = "error"
                                 errors.extend(_lobdata_threads[mother_thread][source_table]["errors"])
-                            else:
-                                count = _lobdata_threads[mother_thread][source_table]["table-count"]
 
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -406,7 +405,6 @@ def _s3_migrate_lobs(mother_thread: int,
                                      ret_column=ret_column,
                                      logger=logger)
         with _lobdata_lock:
+            _lobdata_threads[mother_thread][source_table]["table-count"] += count
             if errors:
                 _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
-            else:
-                _lobdata_threads[mother_thread][source_table]["table-count"] += count

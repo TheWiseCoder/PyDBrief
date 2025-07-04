@@ -53,7 +53,6 @@ def s3_migrate_lobs(errors: list[str],
     lob_data: bytes | None = None
     metadata: dict[str, str] = {}
     first_chunk: bool = True
-    lob_count: int = 0
 
     # get data from the LOB streamer as follows:
     #   - 'row_data' hold the streamed data (LOB identification or LOB payload)
@@ -140,7 +139,6 @@ def s3_migrate_lobs(errors: list[str],
                               prefix=lob_prefix,
                               engine=target_s3,
                               client=s3_client)
-                lob_count += 1
                 result += 1
                 lob_data = None
 
@@ -148,7 +146,7 @@ def s3_migrate_lobs(errors: list[str],
             first_chunk = True
 
     # log the migration
-    logger.debug(msg=f"{lob_count} LOBs migrated from "
+    logger.debug(msg=f"{result} LOBs migrated from "
                      f"{source_table}.{lob_column} to {session_spots[MigSpot.TO_S3]}")
 
     return result
