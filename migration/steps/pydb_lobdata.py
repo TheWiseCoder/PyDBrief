@@ -212,7 +212,7 @@ def migrate_lobs(errors: list[str],
                                                offset_count=offset_count,
                                                limit_count=limit_count)
                         if len(channel_data) == 1:
-                            # execute single task in mother thread
+                            # execute single task in current thread
                             if target_s3:
                                 # migration target is S3
                                 _s3_migrate_lobs(mother_thread=mother_thread,
