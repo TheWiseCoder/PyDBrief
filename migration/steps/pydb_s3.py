@@ -28,10 +28,11 @@ def s3_migrate_lobs(errors: list[str],
                     limit_count: int,
                     forced_filetype: str,
                     ret_column: str,
-                    logger: Logger) -> int:
+                    logger: Logger) -> tuple[int, int]:
 
-    # initialize the return variable
-    result: int = 0
+    # initialize the counters
+    result_count: int = 0
+    result_size: int = 0
 
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
@@ -139,17 +140,18 @@ def s3_migrate_lobs(errors: list[str],
                               prefix=lob_prefix,
                               engine=target_s3,
                               client=s3_client)
-                result += 1
+                result_count += 1
+                result_size += len(lob_data)
                 lob_data = None
 
             # proceed to the next LOB
             first_chunk = True
 
     # log the migration
-    logger.debug(msg=f"{result} LOBs migrated from "
+    logger.debug(msg=f"{result_count} LOBs migrated from "
                      f"{source_table}.{lob_column} to {session_spots[MigSpot.TO_S3]}")
 
-    return result
+    return result_count, result_size
 
 
 def __build_identifier(values: list[Any]) -> str:
