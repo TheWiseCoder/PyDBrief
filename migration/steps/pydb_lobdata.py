@@ -33,7 +33,7 @@ from migration.steps.pydb_s3 import s3_migrate_lobs
 #     ],
 #     "source-table-name": {
 #       "table-count": <int>,
-#       "table-size": <int>,
+#       "table-bytes": <int>,
 #       "errors": [
 #         <error>,
 #         ...
@@ -52,10 +52,11 @@ def migrate_lobs(errors: list[str],
                  migration_warnings: list[str],
                  migration_threads: list[int],
                  migrated_tables: dict[str, Any],
-                 logger: Logger) -> int:
+                 logger: Logger) -> tuple[int, int]:
 
-    # initialize the return variable
-    result: int = 0
+    # initialize the return variables
+    result_count: int = 0
+    result_bytes: int = 0
 
     # add to the thread registration
     mother_thread: int = threading.get_ident()
@@ -98,7 +99,7 @@ def migrate_lobs(errors: list[str],
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table] = {
                 "table-count": 0,
-                "table-size": 0,
+                "table-bytes": 0,
                 "errors": []
             }
 
@@ -149,8 +150,8 @@ def migrate_lobs(errors: list[str],
             # start migrating the source table LOBs
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             status: str = "ok"
-            count: int = 0
-            size: int = 0
+            lob_count: int = 0
+            lob_bytes: int = 0
 
             # process the existing LOB columns
             for lob_column in lob_columns:
@@ -293,8 +294,8 @@ def migrate_lobs(errors: list[str],
                                 executor.shutdown(wait=False)
 
                         with _lobdata_lock:
-                            count = _lobdata_threads[mother_thread][source_table]["table-count"]
-                            size = _lobdata_threads[mother_thread][source_table]["table-size"]
+                            lob_count = _lobdata_threads[mother_thread][source_table]["table-count"]
+                            lob_bytes = _lobdata_threads[mother_thread][source_table]["table-bytes"]
                             op_errors: list[str] = _lobdata_threads[mother_thread][source_table]["errors"]
                             if op_errors:
                                 status = "error"
@@ -305,19 +306,20 @@ def migrate_lobs(errors: list[str],
                                                finish=finished)
             table_data["lob-duration"] = duration
             table_data["lob-status"] = status
-            table_data["lob-count"] = count
-            table_data["lob-size"] = size
+            table_data["lob-count"] = lob_count
+            table_data["lob-bytes"] = lob_bytes
             target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
-            logger.debug(msg=f"Migrated {count} LOBs ({size} bytes) in table "
+            logger.debug(msg=f"Migrated {lob_count} LOBs ({lob_bytes} bytes) in table "
                              f"{table_name}, from {source_db} to {target}, "
                              f"status {status}, duration {duration}")
-            result += count
+            result_count += lob_count
+            result_bytes += lob_bytes
 
     with _lobdata_lock:
         migration_threads.extend(_lobdata_threads[mother_thread]["child-threads"])
         _lobdata_threads.pop(mother_thread)
 
-    return result
+    return result_count, result_bytes
 
 
 def _db_migrate_lobs(mother_thread: int,
@@ -340,8 +342,8 @@ def _db_migrate_lobs(mother_thread: int,
 
     # obtain a connection to the target database
     errors: list[str] = []
-    count: int = 0
-    size: int = 0
+    lob_count: int = 0
+    lob_bytes: int = 0
     target_conn: Any = db_connect(errors=errors,
                                   engine=target_engine)
     if target_conn:
@@ -366,15 +368,15 @@ def _db_migrate_lobs(mother_thread: int,
                                                       chunk_size=chunk_size,
                                                       logger=logger)
             if totals:
-                count = totals[0]
-                size = totals[1]
+                lob_count = totals[0]
+                lob_bytes = totals[1]
 
     with _lobdata_lock:
         if errors:
             _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)
         else:
-            _lobdata_threads[mother_thread][source_table]["table-count"] += count
-            _lobdata_threads[mother_thread][source_table]["table-size"] += size
+            _lobdata_threads[mother_thread][source_table]["table-count"] += lob_count
+            _lobdata_threads[mother_thread][source_table]["table-bytes"] += lob_bytes
 
 
 def _s3_migrate_lobs(mother_thread: int,
@@ -418,6 +420,6 @@ def _s3_migrate_lobs(mother_thread: int,
                                                   logger=logger)
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table]["table-count"] += totals[0]
-            _lobdata_threads[mother_thread][source_table]["table-size"] += totals[1]
+            _lobdata_threads[mother_thread][source_table]["table-bytes"] += totals[1]
             if errors:
                 _lobdata_threads[mother_thread][source_table]["errors"].extend(errors)

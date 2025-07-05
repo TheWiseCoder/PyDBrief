@@ -101,6 +101,7 @@ def migrate(errors: list[str],
         # initialize the counters
         plain_count: int = 0
         lob_count: int = 0
+        lob_bytes: int = 0
 
         # establish incremental migration sizes and offsets
         incremental_migrations: dict[str, tuple[int, int]] = {}
@@ -133,13 +134,13 @@ def migrate(errors: list[str],
                 warnings.filterwarnings(action="ignore")
 
             logger.info("Started migrating the LOBs")
-            lob_count = migrate_lobs(errors=errors,
-                                     session_id=session_id,
-                                     incremental_migrations=incremental_migrations,
-                                     migration_warnings=migration_warnings,
-                                     migration_threads=migration_threads,
-                                     migrated_tables=migrated_tables,
-                                     logger=logger)
+            lob_count, lob_bytes = migrate_lobs(errors=errors,
+                                                session_id=session_id,
+                                                incremental_migrations=incremental_migrations,
+                                                migration_warnings=migration_warnings,
+                                                migration_threads=migration_threads,
+                                                migrated_tables=migrated_tables,
+                                                logger=logger)
             logger.info(msg="Finished migrating the LOBs")
 
         # synchronize the plain data
@@ -156,8 +157,9 @@ def migrate(errors: list[str],
             result["total-sync-updates"] = counts[2]
             logger.info(msg="Finished synchronizing the plain data")
 
-        result["total-migrated-plains"] = plain_count
-        result["total-migrated-lobs"] = lob_count
+        result["total-plain-count"] = plain_count
+        result["total-lob-count"] = lob_count
+        result["total-lob-bytes"] = lob_bytes
 
     # update the session state
     curr_state: MigrationState = session_registry.get(MigSpec.STATE)
