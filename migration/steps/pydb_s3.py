@@ -47,7 +47,7 @@ def s3_migrate_lobs(errors: list[str],
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
     # initialize the properties
-    forced_mimetype: str = mimetypes.types_map.get(forced_filetype)
+    forced_mimetype: str = mimetypes.guess_type(f"name{forced_filetype}")[0]
     identifier: str | None = None
     mimetype: Mimetype | str | None = None
     extension: str | None = None
