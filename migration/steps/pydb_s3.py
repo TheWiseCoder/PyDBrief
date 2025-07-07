@@ -54,9 +54,9 @@ def s3_migrate_lobs(errors: list[str],
         if filetype in Mimetype._member_names_:
             forced_mimetype = Mimetype[filetype]
         else:
-            forced_mimetype = mimetypes.guess_type(f"x.{filetype}")[0]
+            forced_mimetype = mimetypes.guess_type(f"x{forced_filetype}")[0]
             if not forced_mimetype:
-                warn_msg: str = f"Unable fo obtain a mime type for forced filetype '{forced_filetype}'"
+                warn_msg: str = f"Unable fo obtain a mimetype for forced filetype '{forced_filetype}'"
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
 
@@ -162,7 +162,7 @@ def s3_migrate_lobs(errors: list[str],
 
     # log the migration
     logger.debug(msg=f"{result_count} LOBs migrated from "
-                     f"{source_table}.{lob_column} to {session_spots[MigSpot.TO_S3]}")
+                     f"{source_table}.{lob_column} to {target_s3}")
 
     return result_count, result_size
 
