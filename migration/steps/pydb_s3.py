@@ -28,6 +28,7 @@ def s3_migrate_lobs(errors: list[str],
                     limit_count: int,
                     forced_filetype: str,
                     ret_column: str,
+                    migration_warnings: list[str],
                     logger: Logger) -> tuple[int, int]:
 
     # initialize the counters
@@ -46,8 +47,20 @@ def s3_migrate_lobs(errors: list[str],
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
-    # initialize the properties
-    forced_mimetype: str = mimetypes.guess_type(f"name{forced_filetype}")[0]
+    # initialize the file and mime types
+    forced_mimetype: Mimetype | None = None
+    if forced_filetype:
+        filetype: str = forced_filetype[1:].upper()
+        if filetype in Mimetype._member_names_:
+            forced_mimetype = Mimetype[filetype]
+        else:
+            forced_mimetype = mimetypes.guess_type(f"x.{filetype}")[0]
+            if not forced_mimetype:
+                warn_msg: str = f"Unable fo obtain a mime type for forced filetype '{forced_filetype}'"
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
+
+    # initialize the remaining properties
     identifier: str | None = None
     mimetype: Mimetype | str | None = None
     extension: str | None = None
@@ -122,7 +135,7 @@ def s3_migrate_lobs(errors: list[str],
             # send LOB data
             if lob_data is not None:
                 # has filetype reflection been specified ?
-                if not forced_mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
+                if not mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
                     # yes, determine LOB's mimetype and file extension
                     mimetype = file_get_mimetype(file_data=lob_data)
                     extension = file_get_extension(mimetype=mimetype)
@@ -135,7 +148,7 @@ def s3_migrate_lobs(errors: list[str],
                                  identifier=identifier,
                                  data=lob_data,
                                  length=len(lob_data),
-                                 mimetype=mimetype,
+                                 mimetype=mimetype or Mimetype.BINARY,
                                  tags=metadata,
                                  prefix=lob_prefix,
                                  engine=target_s3,

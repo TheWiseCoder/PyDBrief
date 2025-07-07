@@ -229,6 +229,7 @@ def migrate_lobs(errors: list[str],
                                                  offset_count=channel_data[0][1],
                                                  forced_filetype=forced_filetype,
                                                  ret_column=ret_column,
+                                                 migration_warnings=migration_warnings,
                                                  logger=logger)
                             else:
                                 # migration target is database
@@ -271,6 +272,7 @@ def migrate_lobs(errors: list[str],
                                                                          offset_count=channel_datum[1],
                                                                          forced_filetype=forced_filetype,
                                                                          ret_column=ret_column,
+                                                                         migration_warnings=migration_warnings,
                                                                          logger=logger)
                                     else:
                                         # migration target is database
@@ -392,6 +394,7 @@ def _s3_migrate_lobs(mother_thread: int,
                      limit_count: int,
                      forced_filetype: str,
                      ret_column: str,
+                     migration_warnings: list[str],
                      logger: Logger) -> None:
 
     global _lobdata_threads
@@ -417,6 +420,7 @@ def _s3_migrate_lobs(mother_thread: int,
                                                   limit_count=limit_count,
                                                   forced_filetype=forced_filetype,
                                                   ret_column=ret_column,
+                                                  migration_warnings=migration_warnings,
                                                   logger=logger)
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table]["table-count"] += totals[0]
