@@ -131,17 +131,17 @@ def s3_migrate_lobs(errors: list[str],
                     identifier += extension
 
                 # send it to S3
-                s3_data_store(errors=errors,
-                              identifier=identifier,
-                              data=lob_data,
-                              length=len(lob_data),
-                              mimetype=mimetype,
-                              tags=metadata,
-                              prefix=lob_prefix,
-                              engine=target_s3,
-                              client=s3_client)
-                result_count += 1
-                result_size += len(lob_data)
+                if s3_data_store(errors=errors,
+                                 identifier=identifier,
+                                 data=lob_data,
+                                 length=len(lob_data),
+                                 mimetype=mimetype,
+                                 tags=metadata,
+                                 prefix=lob_prefix,
+                                 engine=target_s3,
+                                 client=s3_client):
+                    result_count += 1
+                    result_size += len(lob_data)
                 lob_data = None
 
             # proceed to the next LOB
