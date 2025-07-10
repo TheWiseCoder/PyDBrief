@@ -1,4 +1,4 @@
-boto3==1.39.3
+boto3==1.39.4
 DateTime==5.5
 Flask==3.1.1
 Flask-Cors==6.0.1
@@ -13,7 +13,7 @@ pypomes_core==2.5.0
 pypomes_db==2.3.5
 pypomes_http==0.7.2
 pypomes_logging==0.6.8
-pypomes_s3==0.8.9
+pypomes_s3==0.9.1
 python-dateutil==2.9.0
 python-magic==0.4.27
 SQLAlchemy==2.0.41
