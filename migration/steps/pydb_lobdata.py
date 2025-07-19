@@ -409,7 +409,6 @@ def _s3_migrate_lobs(mother_thread: int,
         # 'target_table' is documentational, only
         totals: tuple[int, int] = s3_migrate_lobs(errors=errors,
                                                   session_id=session_id,
-                                                  target_s3=target_s3,
                                                   s3_client=s3_client,
                                                   target_table=target_table,
                                                   source_table=source_table,

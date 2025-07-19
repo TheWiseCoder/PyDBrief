@@ -17,7 +17,6 @@ from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 def s3_migrate_lobs(errors: list[str],
                     session_id: str,
-                    target_s3: S3Engine,
                     s3_client: Any,
                     target_table: str,
                     source_table: str,
@@ -165,13 +164,6 @@ def s3_migrate_lobs(errors: list[str],
                 if reply:
                     result_count += 1
                     result_size += len(lob_data)
-                    if target_s3 == S3Engine.AWS:
-                        size: int = reply.get("size")
-                        if not size:
-                            warn_msg: str = (f"Received {"no size" if size is None else "size 0"} "
-                                             f"on uploading '{Path(lob_prefix) / identifier}' to {target_s3}")
-                            migration_warnings.append(warn_msg)
-                            logger.warning(msg=warn_msg)
                 elif not errors:
                     warn_msg: str = ("No reply received on uploading "
                                      f"'{Path(lob_prefix) / identifier}' to {target_s3}")
