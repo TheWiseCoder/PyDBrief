@@ -17,6 +17,7 @@ from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 def s3_migrate_lobs(errors: list[str],
                     session_id: str,
+                    target_s3: S3Engine,
                     s3_client: Any,
                     target_table: str,
                     source_table: str,
@@ -52,6 +53,7 @@ def s3_migrate_lobs(errors: list[str],
     if forced_filetype:
         filetype: str = forced_filetype[1:].upper()
         if filetype in Mimetype._member_names_:
+            # noinspection PyTypeChecker
             forced_mimetype = Mimetype[filetype]
         else:
             forced_mimetype = mimetypes.guess_type(f"x{forced_filetype}")[0]
@@ -144,17 +146,37 @@ def s3_migrate_lobs(errors: list[str],
                     identifier += extension
 
                 # send it to S3
-                if s3_data_store(errors=errors,
-                                 identifier=identifier,
-                                 data=lob_data,
-                                 length=len(lob_data),
-                                 mimetype=mimetype or Mimetype.BINARY,
-                                 tags=metadata,
-                                 prefix=lob_prefix,
-                                 engine=target_s3,
-                                 client=s3_client):
+                # expected response:
+                # {
+                #    "object_name": <string>,
+                #    "version_id": <string>,
+                #    "etag": <string>,
+                #    "size": <int>             (AWS only)
+                # }
+                reply: dict[str, Any] = s3_data_store(errors=errors,
+                                                      identifier=identifier,
+                                                      data=lob_data,
+                                                      length=len(lob_data),
+                                                      mimetype=mimetype or Mimetype.BINARY,
+                                                      tags=metadata,
+                                                      prefix=lob_prefix,
+                                                      engine=target_s3,
+                                                      client=s3_client)
+                if reply:
                     result_count += 1
                     result_size += len(lob_data)
+                    if target_s3 == S3Engine.AWS:
+                        size: int = reply.get("size")
+                        if not size:
+                            warn_msg: str = (f"Received {"no size" if size is None else "size 0"} "
+                                             f"on uploading '{Path(lob_prefix) / identifier}' to {target_s3}")
+                            migration_warnings.append(warn_msg)
+                            logger.warning(msg=warn_msg)
+                elif not errors:
+                    warn_msg: str = ("No reply received on uploading "
+                                     f"'{Path(lob_prefix) / identifier}' to {target_s3}")
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
                 lob_data = None
 
             # proceed to the next LOB

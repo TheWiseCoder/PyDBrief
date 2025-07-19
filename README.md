@@ -4,5 +4,5 @@ This is a workbench to bidirectionally migrate data between MySQL, Oracle, Postg
 *** WARNING *** WARNING *** WARNING ***
 
 Please, wait while this code is being fully refactored.
-The release is expected to happen in January, 2025.
+The release is expected to happen soon.
 See you then!!!

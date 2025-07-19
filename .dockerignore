@@ -4,6 +4,7 @@ tmp/
 **/__pycache__
 .gitignore
 .gitlab-ci.yml
+_docker/
 dockertips.txt
 envs.bat
 README.md
