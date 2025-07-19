@@ -285,14 +285,16 @@ def setup_tables(errors: list[str],
             if features:
                 table_columns[column.name]["features"] = features
 
-        # errors ?
+        # register the migrated table
         if not op_errors:
-            # no, register the migrated table
             migrated_table: dict = {
                 "columns": table_columns,
                 "plain-count": 0,
+                "plain-duration": "0h0m0s",
                 "plain-status": "none",
                 "lob-count": 0,
+                "lob-bytes": 0,
+                "lob-duration": "0h0m0s",
                 "lob-status": "none"
             }
             result[target_table.name] = migrated_table

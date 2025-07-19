@@ -35,7 +35,7 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+    migration_started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
 
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
@@ -98,11 +98,6 @@ def migrate(errors: list[str],
          session_steps[MigStep.MIGRATE_LOBDATA] or
          session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
 
-        # initialize the counters
-        plain_count: int = 0
-        lob_count: int = 0
-        lob_bytes: int = 0
-
         # establish incremental migration sizes and offsets
         incremental_migrations: dict[str, tuple[int, int]] = {}
         if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
@@ -117,13 +112,22 @@ def migrate(errors: list[str],
         # migrate the plain data
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
-            plain_count = migrate_plain(errors=errors,
-                                        session_id=session_id,
-                                        incremental_migrations=incremental_migrations,
-                                        migration_warnings=migration_warnings,
-                                        migration_threads=migration_threads,
-                                        migrated_tables=migrated_tables,
-                                        logger=logger)
+            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            count: int = migrate_plain(errors=errors,
+                                       session_id=session_id,
+                                       incremental_migrations=incremental_migrations,
+                                       migration_warnings=migration_warnings,
+                                       migration_threads=migration_threads,
+                                       migrated_tables=migrated_tables,
+                                       logger=logger)
+            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            result["total-plain-count"] = count
+            result["total-plain-duration"] = duration
+            if count > 0:
+                secs: float = (finished - started).total_seconds()
+                result["total-plain-performance"] = f"{count/secs:.2f} tuples/s"
             logger.info(msg="Finished migrating the plain data")
 
         # migrate the LOB data
@@ -134,32 +138,44 @@ def migrate(errors: list[str],
                 warnings.filterwarnings(action="ignore")
 
             logger.info("Started migrating the LOBs")
-            lob_count, lob_bytes = migrate_lobs(errors=errors,
-                                                session_id=session_id,
-                                                incremental_migrations=incremental_migrations,
-                                                migration_warnings=migration_warnings,
-                                                migration_threads=migration_threads,
-                                                migrated_tables=migrated_tables,
-                                                logger=logger)
+            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            counts: tuple[int, int] = migrate_lobs(errors=errors,
+                                                   session_id=session_id,
+                                                   incremental_migrations=incremental_migrations,
+                                                   migration_warnings=migration_warnings,
+                                                   migration_threads=migration_threads,
+                                                   migrated_tables=migrated_tables,
+                                                   logger=logger)
+            lob_count: int = counts[0]
+            lob_bytes: int = counts[1]
+            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            result["total-lob-count"] = lob_count
+            result["total-lob-bytes"] = lob_bytes
+            result["total-lob-duration"] = duration
+            secs: float = (finished - started).total_seconds()
+            result["total-lob-performance"] = f"{lob_count/secs:.2f} LOBs/s, {lob_bytes/secs:.2f} bytes/s"
             logger.info(msg="Finished migrating the LOBs")
 
         # synchronize the plain data
         if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
             logger.info(msg="Started synchronizing the plain data")
+            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             counts: tuple[int, int, int] = synchronize_plain(errors=errors,
                                                              session_id=session_id,
                                                              # migration_warnings=migration_warnings,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              logger=logger)
+            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
             result["total-sync-deletes"] = counts[0]
             result["total-sync-inserts"] = counts[1]
             result["total-sync-updates"] = counts[2]
+            result["total-sync-duration"] = duration
             logger.info(msg="Finished synchronizing the plain data")
-
-        result["total-plain-count"] = plain_count
-        result["total-lob-count"] = lob_count
-        result["total-lob-bytes"] = lob_bytes
 
     # update the session state
     curr_state: MigrationState = session_registry.get(MigSpec.STATE)
@@ -167,13 +183,13 @@ def migrate(errors: list[str],
         if curr_state == MigrationState.MIGRATING else MigrationState.ABORTED
     session_registry[MigSpec.STATE] = new_state
 
-    finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+    migration_finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
     result["total-tables"] = len(migrated_tables)
     result["migrated-tables"] = migrated_tables
-    result["started"] = started.strftime(format=DatetimeFormat.INV)
-    result["finished"] = finished.strftime(format=DatetimeFormat.INV)
-    result["duration"] = timestamp_duration(start=started,
-                                            finish=finished)
+    result["started"] = migration_started.strftime(format=DatetimeFormat.INV)
+    result["finished"] = migration_finished.strftime(format=DatetimeFormat.INV)
+    result["duration"] = timestamp_duration(start=migration_started,
+                                            finish=migration_finished)
     if migration_warnings:
         result["warnings"] = migration_warnings
 
