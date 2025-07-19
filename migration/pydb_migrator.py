@@ -58,18 +58,16 @@ def migrate(errors: list[str],
         },
         MigSpec.SESSION_ID: session_id,
         MigConfig.METRICS: session_metrics,
-        "steps": [key for key, value in session_steps.items() if value],
+        MigConfig.STEPS: session_steps,
+        MigConfig.SPECS: session_specs,
         "source-rdbms": from_rdbms,
-        "target-rdbms": to_rdbms
+        "target-rdbms": to_rdbms,
+        "logging": logging_get_params()
     }
     if session_spots[MigSpot.TO_S3]:
         result["target-s3"] = get_s3_specs(errors=errors,
                                            session_id=session_id,
                                            s3_engine=session_spots[MigSpot.TO_S3])
-    # add the migration specs
-    result.update({k: v for k, v in session_specs.items() if v})
-    result["logging"] = logging_get_params()
-
     # handle warnings as errors
     warnings.filterwarnings(action="error")
     migration_warnings: list[str] = []
@@ -151,11 +149,13 @@ def migrate(errors: list[str],
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
-            result["total-lob-count"] = lob_count
-            result["total-lob-bytes"] = lob_bytes
-            result["total-lob-duration"] = duration
             secs: float = (finished - started).total_seconds()
-            result["total-lob-performance"] = f"{lob_count/secs:.2f} LOBs/s, {lob_bytes/secs:.2f} bytes/s"
+            result.update({
+                "total-lob-count": lob_count,
+                "total-lob-bytes": lob_bytes,
+                "total-lob-duration": duration,
+                "total-lob-performance": f"{lob_count/secs:.2f} LOBs/s, {lob_bytes/secs:.2f} bytes/s"
+            })
             logger.info(msg="Finished migrating the LOBs")
 
         # synchronize the plain data
@@ -171,10 +171,12 @@ def migrate(errors: list[str],
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
-            result["total-sync-deletes"] = counts[0]
-            result["total-sync-inserts"] = counts[1]
-            result["total-sync-updates"] = counts[2]
-            result["total-sync-duration"] = duration
+            result.update({
+                "total-sync-deletes": counts[0],
+                "total-sync-inserts": counts[1],
+                "total-sync-updates": counts[2],
+                "total-sync-duration": duration
+            })
             logger.info(msg="Finished synchronizing the plain data")
 
     # update the session state
@@ -184,12 +186,14 @@ def migrate(errors: list[str],
     session_registry[MigSpec.STATE] = new_state
 
     migration_finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-    result["total-tables"] = len(migrated_tables)
-    result["migrated-tables"] = migrated_tables
-    result["started"] = migration_started.strftime(format=DatetimeFormat.INV)
-    result["finished"] = migration_finished.strftime(format=DatetimeFormat.INV)
-    result["duration"] = timestamp_duration(start=migration_started,
-                                            finish=migration_finished)
+    result.update({
+        "total-tables": len(migrated_tables),
+        "migrated-tables": migrated_tables,
+        "started": migration_started.strftime(format=DatetimeFormat.INV),
+        "finished": migration_finished.strftime(format=DatetimeFormat.INV),
+        "duration": timestamp_duration(start=migration_started,
+                                       finish=migration_finished)
+    })
     if migration_warnings:
         result["warnings"] = migration_warnings
 

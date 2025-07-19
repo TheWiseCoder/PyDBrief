@@ -306,12 +306,14 @@ def migrate_lobs(errors: list[str],
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
-            table_data["lob-status"] = status
-            table_data["lob-count"] = lob_count
-            table_data["lob-bytes"] = lob_bytes
-            table_data["lob-duration"] = duration
             secs: float = (finished - started).total_seconds()
-            table_data["lob-performance"] = f"{lob_count/secs:.2f} LOBs/s, {lob_bytes/secs:.2f} bytes/s"
+            table_data.update({
+                "lob-status": status,
+                "lob-count": lob_count,
+                "lob-bytes": lob_bytes,
+                "lob-duration": duration,
+                "lob-performance": f"{lob_count/secs:.2f} LOBs/s, {lob_bytes/secs:.2f} bytes/s"
+            })
             target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
             logger.debug(msg=f"Migrated {lob_count} LOBs ({lob_bytes} bytes) in table "
                              f"{table_name}, from {source_db} to {target}, "

@@ -231,11 +231,13 @@ def migrate_plain(errors: list[str],
                 finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
                 duration: str = timestamp_duration(start=started,
                                                    finish=finished)
-                table_data["plain-duration"] = duration
-                table_data["plain-status"] = status
-                table_data["plain-count"] = count
                 secs: float = (finished - started).total_seconds()
-                result["plain-performance"] = f"{count/secs:.2f} tuples/s"
+                table_data.update({
+                    "plain-duration": duration,
+                    "plain-status": status,
+                    "plain-count": count,
+                    "plain-performance": f"{count/secs:.2f} tuples/s"
+                })
                 logger.debug(msg=f"Migrated {count} plaindata in table {table_name}, "
                                  f"from {source_engine} to {target_engine}, "
                                  f"status {status}, duration {duration}")
