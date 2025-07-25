@@ -27,7 +27,7 @@ def s3_migrate_lobs(errors: list[str],
                     offset_count: int,
                     limit_count: int,
                     forced_filetype: str,
-                    ret_column: str,
+                    return_column: str,
                     migration_warnings: list[str],
                     logger: Logger) -> tuple[int, int]:
 
@@ -80,7 +80,7 @@ def s3_migrate_lobs(errors: list[str],
                                    table=source_table,
                                    lob_column=lob_column,
                                    pk_columns=pk_columns,
-                                   ret_column=ret_column,
+                                   ret_column=return_column,
                                    engine=source_db,
                                    where_clause=where_clause,
                                    offset_count=offset_count,
@@ -108,7 +108,7 @@ def s3_migrate_lobs(errors: list[str],
                 "table": target_table
             }
             for key, value in sorted(row_data.items()):
-                if key == ret_column:
+                if key == return_column:
                     identifier = value
                 else:
                     values.append(value)

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.8.3
+  version: 1.8.7
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -332,6 +332,7 @@ paths:
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
         - $ref: '#/components/parameters/SynchronizePlainParam'
+        - $ref: '#/components/parameters/SynchronizeLobsParam'
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
@@ -906,7 +907,15 @@ components:
     SynchronizePlainParam:
       name: synchronize-plaindata
       in: query
-      description: Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation cannot be combined with a migration step.
+      description: Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation fully ignores the parameter 'incremental-migrations', and cannot be combined with another migration step.
+      required: false
+      schema:
+        type: boolean
+        default: false
+    SynchronizeLobsParam:
+      name: synchronize-lobdata
+      in: query
+      description: Synchronize the documents in destination folders at the S3 storage with the LOBs in their corresponding source table columns at the database. This process does not consider eventual differences in content between the two items, but makes sure that they both exist simultaneously. Note that this synchronization should not be attempted if LOBs from more than one table column were migrated to the same destination folder, as is the case if 'flatten-storage' was specified during the lobdata migration, and thus it will only operate on columns mapped by the 'named-lobdata' parameter. This operation cannot be combined with another migration step.
       required: false
       schema:
         type: boolean
@@ -995,7 +1004,7 @@ components:
     IncrementalMigrationsParam:
       name: incremental-migrations
       in: query
-      description: Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited or set to 0, '\<size\>' is set to the migration metrics parameter 'incremental-size'. If ommitted, '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
+      description: Optional list of tables for which plaindata migration, LOB migration, and LOB synchronization, are to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If ommited or set to 0, '\<size\>' is set to the migration metrics parameter 'incremental-size'. If ommitted, '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
       required: false
       explode: false
       schema:

@@ -26,7 +26,8 @@ from migration.pydb_sessions import get_session_registry
 from migration.steps.pydb_lobdata import migrate_lobs
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
-from migration.steps.pydb_sync import synchronize_plain
+from migration.steps.pydb_sync_lobdata import synchronize_lobs
+from migration.steps.pydb_sync_plaindata import synchronize_plain
 
 
 def migrate(errors: list[str],
@@ -94,7 +95,8 @@ def migrate(errors: list[str],
     if not errors and migrated_tables and \
         (session_steps[MigStep.MIGRATE_PLAINDATA] or
          session_steps[MigStep.MIGRATE_LOBDATA] or
-         session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
+         session_steps[MigStep.SYNCHRONIZE_PLAINDATA] or
+         session_steps[MigStep.SYNCHRONIZE_LOBDATA]):
 
         # establish incremental migration sizes and offsets
         incremental_migrations: dict[str, tuple[int, int]] = {}
@@ -178,6 +180,28 @@ def migrate(errors: list[str],
                 "total-sync-duration": duration
             })
             logger.info(msg="Finished synchronizing the plain data")
+
+        # synchronize the LOBs
+        if not errors and session_steps[MigStep.SYNCHRONIZE_LOBDATA]:
+            logger.info(msg="Started synchronizing the LOBs")
+            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            counts: tuple[int, int, int] = synchronize_lobs(errors=errors,
+                                                            session_id=session_id,
+                                                            incremental_migrations=incremental_migrations,
+                                                            migration_warnings=migration_warnings,
+                                                            migration_threads=migration_threads,
+                                                            migrated_tables=migrated_tables,
+                                                            logger=logger)
+            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            result.update({
+                "total-sync-count": counts[0],
+                "total-sync-deletes": counts[1],
+                "total-sync-inserts": counts[2],
+                "total-sync-duration": duration
+            })
+            logger.info(msg="Finished synchronizing the LOBs")
 
     # update the session state
     curr_state: MigrationState = session_registry.get(MigSpec.STATE)

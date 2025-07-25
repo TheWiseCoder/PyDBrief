@@ -45,6 +45,7 @@ class MigStep(StrEnum):
     MIGRATE_PLAINDATA = "migrate-plaindata"
     MIGRATE_LOBDATA = "migrate-lobdata"
     SYNCHRONIZE_PLAINDATA = "synchronize-plaindata"
+    SYNCHRONIZE_LOBDATA = "synchronize-lobdata"
 
 
 class MigSpec(StrEnum):

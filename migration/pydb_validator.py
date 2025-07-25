@@ -350,25 +350,34 @@ def validate_steps(errors: list[str],
                                        source=input_params,
                                        attr=MigStep.MIGRATE_LOBDATA,
                                        required=True)
-    step_synchronize: bool = validate_bool(errors=errors,
-                                           source=input_params,
-                                           attr=MigStep.SYNCHRONIZE_PLAINDATA,
-                                           required=False)
+    step_sync_plain: bool = validate_bool(errors=errors,
+                                          source=input_params,
+                                          attr=MigStep.SYNCHRONIZE_PLAINDATA,
+                                          required=False)
+    step_sync_lobs: bool = validate_bool(errors=errors,
+                                         source=input_params,
+                                         attr=MigStep.SYNCHRONIZE_LOBDATA,
+                                         required=False)
     # validate them
     err_msg: str | None = None
     if not (step_metadata or step_lobdata or
-            step_plaindata or step_synchronize):
+            step_plaindata or step_sync_plain or step_sync_lobs):
         err_msg = "At least one migration step must be specified"
-    elif (step_synchronize and
-          (step_metadata or step_plaindata or step_lobdata)):
-        err_msg = "Synchronization can not be combined with another operation"
-    elif step_metadata and step_lobdata and not step_plaindata:
+    elif (step_sync_plain and
+          (step_metadata or step_plaindata or step_lobdata or step_sync_lobs)):
+        err_msg = "Plaindata synchronization can not be combined with another operation"
+    else:
         target_s3: str = validate_str(errors=errors,
                                       source=input_params,
                                       attr=MigSpot.TO_S3,
                                       required=False)
-        if not target_s3:
+        if step_metadata and step_lobdata and not step_plaindata and not target_s3:
             err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
+        elif step_sync_lobs:
+            if step_metadata or step_plaindata or step_lobdata or step_sync_plain:
+                err_msg = "LOB synchronization can not be combined with another operation"
+            elif not target_s3:
+                err_msg = "LOB synchronization requires S3 destination"
 
     if err_msg:
         # 101: {}
@@ -380,7 +389,8 @@ def validate_steps(errors: list[str],
         session_steps[MigStep.MIGRATE_METADATA] = step_metadata
         session_steps[MigStep.MIGRATE_PLAINDATA] = step_plaindata
         session_steps[MigStep.MIGRATE_LOBDATA] = step_lobdata
-        session_steps[MigStep.SYNCHRONIZE_PLAINDATA] = step_synchronize
+        session_steps[MigStep.SYNCHRONIZE_PLAINDATA] = step_sync_plain
+        session_steps[MigStep.SYNCHRONIZE_LOBDATA] = step_sync_lobs
 
 
 def validate_specs(errors: list[str],
