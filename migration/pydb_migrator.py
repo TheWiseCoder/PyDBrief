@@ -71,6 +71,8 @@ def migrate(errors: list[str],
                                            s3_engine=session_spots[MigSpot.TO_S3])
     # handle warnings as errors
     warnings.filterwarnings(action="error")
+
+    # initialize the local warnings list
     migration_warnings: list[str] = []
 
     # log the migration start
@@ -132,12 +134,13 @@ def migrate(errors: list[str],
 
         # migrate the LOB data
         if not errors and session_steps[MigStep.MIGRATE_LOBDATA]:
+            logger.info("Started migrating the LOBs")
+
             # ignore warnings from 'boto3' and 'minio' packages
             # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
             if session_spots[MigSpot.TO_S3]:
                 warnings.filterwarnings(action="ignore")
 
-            logger.info("Started migrating the LOBs")
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             counts: tuple[int, int] = migrate_lobs(errors=errors,
                                                    session_id=session_id,
@@ -184,6 +187,11 @@ def migrate(errors: list[str],
         # synchronize the LOBs
         if not errors and session_steps[MigStep.SYNCHRONIZE_LOBDATA]:
             logger.info(msg="Started synchronizing the LOBs")
+
+            # ignore warnings from 'boto3' and 'minio' packages
+            # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+            warnings.filterwarnings(action="ignore")
+
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             counts: tuple[int, int, int] = synchronize_lobs(errors=errors,
                                                             session_id=session_id,
