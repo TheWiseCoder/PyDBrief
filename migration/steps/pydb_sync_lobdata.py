@@ -198,14 +198,14 @@ def synchronize_lobs(errors: list[str],
                             futures.wait(fs=task_futures)
                             executor.shutdown(wait=False)
 
-                        with _lobdata_lock:
-                            lob_count = _lobdata_threads[mother_thread][source_table]["table-count"]
-                            lob_deletes = _lobdata_threads[mother_thread][source_table]["table-deletes"]
-                            lob_inserts = _lobdata_threads[mother_thread][source_table]["table-inserts"]
-                            op_errors: list[str] = _lobdata_threads[mother_thread][source_table]["errors"]
-                            if op_errors:
-                                status = "error"
-                                errors.extend(op_errors)
+                    with _lobdata_lock:
+                        lob_count = _lobdata_threads[mother_thread][source_table]["table-count"]
+                        lob_deletes = _lobdata_threads[mother_thread][source_table]["table-deletes"]
+                        lob_inserts = _lobdata_threads[mother_thread][source_table]["table-inserts"]
+                        op_errors: list[str] = _lobdata_threads[mother_thread][source_table]["errors"]
+                        if op_errors:
+                            status = "error"
+                            errors.extend(op_errors)
 
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
