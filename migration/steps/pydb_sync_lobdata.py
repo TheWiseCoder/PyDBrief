@@ -101,6 +101,8 @@ def synchronize_lobs(errors: list[str],
         # obtain limit and offset
         limit_count: int = 0
         offset_count: int = 0
+        if table_name in incremental_migrations:
+            limit_count, offset_count = incremental_migrations.get(table_name)
 
         # organize the information, using LOB types from the columns list
         lob_columns: list[tuple[str, str]] = []
