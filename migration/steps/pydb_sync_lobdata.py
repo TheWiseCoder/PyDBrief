@@ -301,9 +301,14 @@ def _compute_lob_lists(mother_thread: int,
                     s3_names: list[str] = []
                     for s3_item in s3_items:
                         name: str = s3_item.get("Key")
+                        # extract the prefix
                         pos: int = name.rfind("/")
                         if pos > 0:
                             name = name[pos+1:]
+                        # extract the extension
+                        pos = name.rfind(".")
+                        if pos > 0:
+                            name = name[:pos]
                         s3_names.append(name)
 
                     correlations: tuple = list_correlate(list_first=db_names,
