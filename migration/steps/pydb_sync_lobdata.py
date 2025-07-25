@@ -93,8 +93,8 @@ def synchronize_lobs(errors: list[str],
         with _lobdata_lock:
             _lobdata_threads[mother_thread][source_table] = {
                 "table-count": 0,
-                "table-deletes": 0,
-                "table_inserts": 0,
+                "table-deletes": [],
+                "table-inserts": [],
                 "errors": []
             }
 
@@ -198,14 +198,14 @@ def synchronize_lobs(errors: list[str],
                             futures.wait(fs=task_futures)
                             executor.shutdown(wait=False)
 
-                    with _lobdata_lock:
-                        lob_count = _lobdata_threads[mother_thread][source_table]["table-count"]
-                        lob_deletes = _lobdata_threads[mother_thread][source_table]["table-deletes"]
-                        lob_inserts = _lobdata_threads[mother_thread][source_table]["table-inserts"]
-                        op_errors: list[str] = _lobdata_threads[mother_thread][source_table]["errors"]
-                        if op_errors:
-                            status = "error"
-                            errors.extend(op_errors)
+                        with _lobdata_lock:
+                            lob_count = _lobdata_threads[mother_thread][source_table]["table-count"]
+                            lob_deletes = _lobdata_threads[mother_thread][source_table]["table-deletes"]
+                            lob_inserts = _lobdata_threads[mother_thread][source_table]["table-inserts"]
+                            op_errors: list[str] = _lobdata_threads[mother_thread][source_table]["errors"]
+                            if op_errors:
+                                status = "error"
+                                errors.extend(op_errors)
 
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -285,15 +285,14 @@ def _compute_lob_lists(mother_thread: int,
                 pos: int = 0
                 start_after: str | None = None
                 if not from_first:
-                    start_after = db_items[0][0]
+                    start_after = (Path(prefix) / db_items[0][0]).as_posix()
                     pos = 1
                 db_names: list[str] = [db_item[0] for db_item in db_items[pos:]]
                 db_items.clear()
 
-                # if there is no 'start_after', the first item will be the folder
                 s3_items: list[dict[str, Any]] = \
                     s3_items_list(errors=errors,
-                                  max_count=limit_count if start_after else limit_count + 1,
+                                  max_count=limit_count,
                                   client=s3_client,
                                   start_after=start_after,
                                   prefix=prefix,
@@ -301,16 +300,11 @@ def _compute_lob_lists(mother_thread: int,
                 if not errors:
                     s3_names: list[str] = []
                     for s3_item in s3_items:
-                        # if there is no 'start_after', skip the first item, which holds the folder
-                        if start_after:
-                            name: str = s3_item.get("Key")
-                            pos: int = name.rfind("/")
-                            if pos > 0:
-                                name = name[pos+1:]
-                            s3_names.append(name)
-                        else:
-                            # any string will do
-                            start_after = "."
+                        name: str = s3_item.get("Key")
+                        pos: int = name.rfind("/")
+                        if pos > 0:
+                            name = name[pos+1:]
+                        s3_names.append(name)
 
                     correlations: tuple = list_correlate(list_first=db_names,
                                                          list_second=s3_names,
