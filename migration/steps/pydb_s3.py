@@ -134,7 +134,9 @@ def s3_migrate_lobs(errors: list[str],
         # no more data
         else:
             # send LOB data
-            if lob_data is not None:
+            if lob_data is None:
+                logger.warning(f"Attempted to migrate empty LOB '{identifier}'")
+            else:
                 # has filetype reflection been specified ?
                 if not mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
                     # yes, determine LOB's mimetype and file extension
