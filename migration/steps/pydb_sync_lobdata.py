@@ -279,7 +279,7 @@ def synchronize_lobs(errors: list[str],
 
             # remove the LOBs in 'table_deletes'
             if not errors:
-                # aggregate all LOBs for removal from S3 storage in 'lob_deletes'
+                # aggregate in 'lob_deletes' all LOBs slotted for removal from S3 storage
                 lob_deletes: list[str] = []
                 for deletes in list(table_deletes.values()):
                     lob_deletes.extend(deletes)
