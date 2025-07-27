@@ -25,30 +25,38 @@ def schema_create(errors: list[str],
     logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
 
 
-def session_disable_restrictions(errors: list[str],
-                                 rdbms: DbEngine,
-                                 conn: Any,
-                                 logger: Logger) -> None:
+def session_setup(errors: list[str],
+                  rdbms: DbEngine,
+                  mode: Literal["source", "target"],
+                  conn: Any,
+                  logger: Logger) -> None:
 
     # disable triggers and rules delaying bulk operations on current session
-    stmt: str | None = None
+    stmts: list[str] = []
     match rdbms:
         case DbEngine.POSTGRES:
-            stmt = "set session_replication_role = replica"
+            if mode == "target":
+                stmts.append("set session_replication_role = replica")
         case DbEngine.MYSQL:
-            stmt = "SET @@SESSION.DISABLE_TRIGGERS = 1"
-        case _:  # Oracle, SQLServer
-            # Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules
+            if mode == "target":
+                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+        case DbEngine.ORACLE:
+            if mode == "source":
+                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
+                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
+            # Oracle does not have session-scope commands for disabling triggers and/or rules
+        case _:  # SQLServer
+            # SQLServer does not have session-scope commands for disabling triggers and/or rules
             pass
-    if stmt:
+    for stmt in stmts:
         db_execute(errors=errors,
                    exc_stmt=stmt,
                    engine=rdbms,
                    connection=conn,
                    logger=logger)
-
-        logger.debug(msg=f"RDBMS {rdbms}, disabled restrictions "
-                         f"delaying bulk operations on current session")
+        if errors:
+            break
+        logger.debug(msg=f"RDBMS {rdbms}, session prepared with {stmt}")
 
 
 def column_set_nullable(errors: list[str],

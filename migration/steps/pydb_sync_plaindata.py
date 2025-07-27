@@ -12,7 +12,7 @@ from app_constants import (
 from migration import pydb_types
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.steps.pydb_database import (
-    table_embedded_nulls, session_disable_restrictions
+    table_embedded_nulls, session_setup
 )
 
 
@@ -37,8 +37,8 @@ def synchronize_plain(errors: list[str],
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # retrieve the source and target RDBMS engines
-    source_engine: DbEngine = session_spots[MigSpot.FROM_RDBMS]
-    target_engine: DbEngine = session_spots[MigSpot.TO_RDBMS]
+    source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
+    target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
 
     # retrieve the input batch size
     batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
@@ -73,50 +73,66 @@ def synchronize_plain(errors: list[str],
                 if "identity" in features:
                     identity_column = column_name
 
-        # obtain a connection to the target DB
-        target_conn: Any = db_connect(errors=op_errors,
-                                      engine=target_engine)
-        if target_conn:
-            # disable triggers and rules to speed-up migration
-            session_disable_restrictions(errors=op_errors,
-                                         rdbms=target_engine,
-                                         conn=target_conn,
-                                         logger=logger)
+        # obtain a connection to the source DB
+        source_conn: Any = db_connect(errors=op_errors,
+                                      engine=source_db,
+                                      logger=logger)
+        if source_conn:
+            # prepare database session
+            session_setup(errors=op_errors,
+                          rdbms=source_db,
+                          mode="source",
+                          conn=source_conn,
+                          logger=logger)
             if not op_errors:
-                counts: tuple[int, int, int] = db_sync_data(errors=op_errors,
-                                                            source_engine=source_engine,
-                                                            source_table=source_table,
-                                                            target_engine=target_engine,
-                                                            target_table=target_table,
-                                                            pk_columns=pk_columns,
-                                                            sync_columns=sync_columns,
-                                                            target_conn=target_conn,
-                                                            target_committable=True,
-                                                            identity_column=identity_column,
-                                                            batch_size=batch_size_in,
-                                                            has_nulls=has_nulls,
-                                                            logger=logger) or (0, 0, 0)
-                deletes: int = counts[0]
-                inserts: int = counts[1]
-                updates: int = counts[2]
-                if op_errors:
-                    table_embedded_nulls(errors=op_errors,
-                                         rdbms=target_engine,
-                                         table=target_table,
-                                         logger=logger)
-                    errors.extend(op_errors)
-                    status: str = "none"
-                else:
-                    status: str = "full"
+                # obtain a connection to the target DB
+                target_conn: Any = db_connect(errors=op_errors,
+                                              engine=target_db,
+                                              logger=logger)
+                if target_conn:
+                    # prepare database session
+                    session_setup(errors=op_errors,
+                                  rdbms=target_db,
+                                  mode="target",
+                                  conn=target_conn,
+                                  logger=logger)
+                    if not op_errors:
+                        counts: tuple[int, int, int] = db_sync_data(errors=op_errors,
+                                                                    source_engine=source_db,
+                                                                    source_table=source_table,
+                                                                    target_engine=target_db,
+                                                                    target_table=target_table,
+                                                                    pk_columns=pk_columns,
+                                                                    sync_columns=sync_columns,
+                                                                    source_conn=source_conn,
+                                                                    target_conn=target_conn,
+                                                                    source_committable=True,
+                                                                    target_committable=True,
+                                                                    identity_column=identity_column,
+                                                                    batch_size=batch_size_in,
+                                                                    has_nulls=has_nulls,
+                                                                    logger=logger) or (0, 0, 0)
+                        deletes: int = counts[0]
+                        inserts: int = counts[1]
+                        updates: int = counts[2]
+                        if op_errors:
+                            table_embedded_nulls(errors=op_errors,
+                                                 rdbms=target_db,
+                                                 table=target_table,
+                                                 logger=logger)
+                            errors.extend(op_errors)
+                            status: str = "none"
+                        else:
+                            status: str = "full"
 
-                table_data["sync-status"] = status
-                table_data["sync-deletes"] = deletes
-                table_data["sync-inserts"] = inserts
-                table_data["sync-updates"] = updates
-                logger.debug(msg=(f"Synchronized {source_engine}.{target_table} "
-                                  f"as per {source_engine}.{target_table}, status {status}"))
-                result_deletes += deletes
-                result_inserts += inserts
-                result_updates += updates
+                        table_data["sync-status"] = status
+                        table_data["sync-deletes"] = deletes
+                        table_data["sync-inserts"] = inserts
+                        table_data["sync-updates"] = updates
+                        logger.debug(msg=(f"Synchronized {source_db}.{target_table} "
+                                          f"as per {source_db}.{target_table}, status {status}"))
+                        result_deletes += deletes
+                        result_inserts += inserts
+                        result_updates += updates
 
     return result_deletes, result_inserts, result_updates

@@ -20,7 +20,7 @@ from app_constants import (
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob
-from migration.steps.pydb_database import session_disable_restrictions
+from migration.steps.pydb_database import session_setup
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
 # structure of the thread register:
@@ -390,39 +390,53 @@ def _db_migrate_lobs(mother_thread: int,
     with lobdata_lock:
         lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
 
-    # initialize the counters
     lob_count: int = 0
     lob_bytes: int = 0
-
-    # obtain a connection to the target database
     errors: list[str] = []
-    target_conn: Any = db_connect(errors=errors,
-                                  engine=target_engine,
+
+    # obtain a connection to the source database
+    source_conn: Any = db_connect(errors=errors,
+                                  engine=source_engine,
                                   logger=logger)
-    if target_conn:
-        # disable triggers and rules to speed-up migration
-        session_disable_restrictions(errors=errors,
-                                     rdbms=target_engine,
-                                     conn=target_conn,
-                                     logger=logger)
+    if source_conn:
+        # prepare database session
+        session_setup(errors=errors,
+                      rdbms=source_engine,
+                      mode="source",
+                      conn=source_conn,
+                      logger=logger)
         if not errors:
-            totals: tuple[int, int] = db_migrate_lobs(errors=errors,
-                                                      source_engine=source_engine,
-                                                      source_table=source_table,
-                                                      source_lob_column=lob_column,
-                                                      source_pk_columns=pk_columns,
-                                                      target_engine=target_engine,
-                                                      target_table=target_table,
-                                                      target_conn=target_conn,
-                                                      target_committable=True,
-                                                      where_clause=where_clause,
-                                                      limit_count=limit_count,
-                                                      offset_count=offset_count,
-                                                      chunk_size=chunk_size,
-                                                      logger=logger)
-            if totals:
-                lob_count = totals[0]
-                lob_bytes = totals[1]
+            # obtain a connection to the target database
+            target_conn: Any = db_connect(errors=errors,
+                                          engine=target_engine,
+                                          logger=logger)
+            if target_conn:
+                # prepare database session
+                session_setup(errors=errors,
+                              rdbms=target_engine,
+                              mode="target",
+                              conn=target_conn,
+                              logger=logger)
+                if not errors:
+                    totals: tuple[int, int] = db_migrate_lobs(errors=errors,
+                                                              source_engine=source_engine,
+                                                              source_table=source_table,
+                                                              source_lob_column=lob_column,
+                                                              source_pk_columns=pk_columns,
+                                                              target_engine=target_engine,
+                                                              target_table=target_table,
+                                                              source_conn=source_conn,
+                                                              target_conn=target_conn,
+                                                              source_committable=True,
+                                                              target_committable=True,
+                                                              where_clause=where_clause,
+                                                              limit_count=limit_count,
+                                                              offset_count=offset_count,
+                                                              chunk_size=chunk_size,
+                                                              logger=logger)
+                    if totals:
+                        lob_count = totals[0]
+                        lob_bytes = totals[1]
 
     with lobdata_lock:
         if errors:
@@ -462,9 +476,17 @@ def _s3_migrate_lobs(mother_thread: int,
     if s3_client:
         # obtain a database connection
         db_conn: Any = db_connect(errors=errors,
+                                  engine=source_db,
                                   logger=logger)
         if db_conn:
-            if isinstance(where_clause, list):
+            # prepare database session
+            session_setup(errors=errors,
+                          rdbms=source_db,
+                          mode="source",
+                          conn=db_conn,
+                          logger=logger)
+
+            if not errors and isinstance(where_clause, list):
                 # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
                 temp_table: str = f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"
                 temp_column: str = f"id_{reference_column}"

@@ -23,6 +23,7 @@ from app_constants import (
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob
+from migration.steps.pydb_database import session_setup
 from migration.steps.pydb_lobdata import migrate_lob_columns
 
 # structure of the thread register:
@@ -317,65 +318,72 @@ def _compute_lob_lists(mother_thread: int,
                               engine=source_db,
                               logger=logger)
     if not errors:
-        # obtain an S3 client
-        s3_client: Any = s3_get_client(errors=errors,
-                                       engine=s3_engine,
-                                       logger=logger)
+        # prepare database session
+        session_setup(errors=errors,
+                      rdbms=source_db,
+                      mode="source",
+                      conn=db_conn,
+                      logger=logger)
         if not errors:
-            # if there is an offset, include the previous tuple to function as 'start_after' afterwards
-            from_first: bool = offset_count == 0
-            db_items: list[tuple[str]] = db_select(errors=errors,
-                                                   sel_stmt=f"SELECT {source_column} FROM {source_table}",
-                                                   where_clause=where_clause,
-                                                   orderby_clause=source_column,
-                                                   offset_count=offset_count if from_first else offset_count - 1,
-                                                   limit_count=limit_count if from_first else limit_count + 1,
-                                                   connection=db_conn,
-                                                   logger=logger)
+            # obtain an S3 client
+            s3_client: Any = s3_get_client(errors=errors,
+                                           engine=s3_engine,
+                                           logger=logger)
             if not errors:
-                pos: int = 0
-                start_after: str | None = None
-                if not from_first:
-                    start_after = (Path(lob_prefix) / db_items[0][0]).as_posix()
-                    pos = 1
-                db_names: list[str] = [db_item[0] for db_item in db_items[pos:]]
-                db_items.clear()
-
-                s3_items: list[dict[str, Any]] = \
-                    s3_prefix_list(errors=errors,
-                                   prefix=lob_prefix,
-                                   max_count=limit_count,
-                                   client=s3_client,
-                                   start_after=start_after,
-                                   logger=logger)
+                # if there is an offset, include the previous tuple to function as 'start_after' afterwards
+                from_first: bool = offset_count == 0
+                db_items: list[tuple[str]] = db_select(errors=errors,
+                                                       sel_stmt=f"SELECT {source_column} FROM {source_table}",
+                                                       where_clause=where_clause,
+                                                       orderby_clause=source_column,
+                                                       offset_count=offset_count if from_first else offset_count - 1,
+                                                       limit_count=limit_count if from_first else limit_count + 1,
+                                                       connection=db_conn,
+                                                       logger=logger)
                 if not errors:
-                    s3_full: dict[str, str] = {}
-                    s3_names: list[str] = []
-                    for s3_item in s3_items:
-                        full_name: str = s3_item.get("Key")
-                        name = full_name
-                        # extract the prefix
-                        pos: int = name.rfind("/")
-                        if pos > 0:
-                            name = name[pos+1:]
-                        # extract the extension
-                        pos = name.rfind(".")
-                        if pos > 0:
-                            name = name[:pos]
-                        s3_names.append(name)
-                        s3_full[name] = full_name
+                    pos: int = 0
+                    start_after: str | None = None
+                    if not from_first:
+                        start_after = (Path(lob_prefix) / db_items[0][0]).as_posix()
+                        pos = 1
+                    db_names: list[str] = [db_item[0] for db_item in db_items[pos:]]
+                    db_items.clear()
 
-                    # obtain lists of tuples to migrate to, and remove from, S3 storage
-                    correlations: tuple = list_correlate(list_first=db_names,
-                                                         list_second=s3_names,
-                                                         only_in_first=True,
-                                                         only_in_second=True,
-                                                         bin_search=True)
-                    lob_count = len(db_names)
-                    lob_inserts = correlations[0]
+                    s3_items: list[dict[str, Any]] = \
+                        s3_prefix_list(errors=errors,
+                                       prefix=lob_prefix,
+                                       max_count=limit_count,
+                                       client=s3_client,
+                                       start_after=start_after,
+                                       logger=logger)
+                    if not errors:
+                        s3_full: dict[str, str] = {}
+                        s3_names: list[str] = []
+                        for s3_item in s3_items:
+                            full_name: str = s3_item.get("Key")
+                            name = full_name
+                            # extract the prefix
+                            pos: int = name.rfind("/")
+                            if pos > 0:
+                                name = name[pos+1:]
+                            # extract the extension
+                            pos = name.rfind(".")
+                            if pos > 0:
+                                name = name[:pos]
+                            s3_names.append(name)
+                            s3_full[name] = full_name
 
-                    # put the full names in the 'lob_deletes' list
-                    lob_deletes = [s3_full.get(name) for name in correlations[1]]
+                        # obtain lists of tuples to migrate to, and remove from, S3 storage
+                        correlations: tuple = list_correlate(list_first=db_names,
+                                                             list_second=s3_names,
+                                                             only_in_first=True,
+                                                             only_in_second=True,
+                                                             bin_search=True)
+                        lob_count = len(db_names)
+                        lob_inserts = correlations[0]
+
+                        # put the full names in the 'lob_deletes' list
+                        lob_deletes = [s3_full.get(name) for name in correlations[1]]
 
     with lob_ctrl.lobdata_lock:
         if errors:
