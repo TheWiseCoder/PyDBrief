@@ -80,6 +80,13 @@ def migrate_plain(errors: list[str],
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
+
+        # verify whether current migration is marked for abortion
+        if assert_session_abort(errors=errors,
+                                session_id=session_id,
+                                logger=logger):
+            break
+
         source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
         with _plaindata_lock:
@@ -87,12 +94,6 @@ def migrate_plain(errors: list[str],
                 "table-count": 0,
                 "errors": []
             }
-
-        # verify whether current migration is marked for abortion
-        if assert_session_abort(errors=errors,
-                                session_id=session_id,
-                                logger=logger):
-            break
 
         # verify whether the target table exists
         if db_table_exists(errors=errors,

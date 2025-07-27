@@ -214,17 +214,17 @@ def migrate_lob_columns(errors: list[str],
     # process the existing LOB columns
     for lob_column, reference_column in lob_columns:
 
-        where_clause: Any
-        table_count: int
-        lob_prefix: Path | None = None
-        forced_filetype: str | None = None
-
         # verify whether current migration is marked for abortion
         if errors or assert_session_abort(errors=errors,
                                           session_id=session_id,
                                           logger=logger):
             # abort the lobdata migration
             break
+
+        where_clause: Any
+        table_count: int
+        lob_prefix: Path | None = None
+        forced_filetype: str | None = None
 
         # specific handlings for migrating 'lob_column' to S3
         if target_s3:

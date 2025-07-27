@@ -228,7 +228,8 @@ def synchronize_lobs(errors: list[str],
                             col_deletes = table_data.get(f"{lob_column}-deletes")
                             col_inserts = table_data.get(f"{lob_column}-inserts")
 
-                    # 'col_inserts' and 'col_deletes' are sorted
+                    col_deletes.sort()
+                    col_inserts.sort()
                     col_inserts, col_deletes = list_correlate(list_first=col_inserts,
                                                               list_second=col_deletes,
                                                               only_in_first=True,
@@ -373,6 +374,8 @@ def _compute_lob_lists(mother_thread: int,
                             s3_full[name] = full_name
 
                         # obtain lists of tuples to migrate to, and remove from, S3 storage
+                        db_names.sort()
+                        s3_names.sort()
                         correlations: tuple = list_correlate(list_first=db_names,
                                                              list_second=s3_names,
                                                              only_in_first=True,
