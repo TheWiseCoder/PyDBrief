@@ -150,7 +150,7 @@ def migrate_lob_tables(errors: list[str],
                                 target_table=target_table,
                                 lob_columns=lob_columns,
                                 pk_columns=pk_columns,
-                                lob_tuples={},
+                                lob_tuples=None,
                                 offset_count=offset_count,
                                 limit_count=limit_count,
                                 migration_warnings=migration_warnings,
@@ -198,7 +198,7 @@ def migrate_lob_columns(errors: list[str],
                         target_table: str,
                         pk_columns: list[str],
                         lob_columns: list[tuple[str, str]],
-                        lob_tuples: dict[str, list[str]],
+                        lob_tuples: dict[str, list[str]] | None,
                         offset_count: int,
                         limit_count: int,
                         migration_warnings: list[str],
@@ -274,16 +274,16 @@ def migrate_lob_columns(errors: list[str],
                 pk_columns = [reference_column]
 
         # count migrateable tuples on source table for 'lob_column'
-        if lob_tuples:
-            # 'where_clause' has the list of 'reference_column' values indicating the LOBs to be migrated
-            where_clause = lob_tuples.get(lob_column)
-            table_count = len(where_clause)
-        else:
+        if lob_tuples is None:
             where_clause = f"{lob_column} IS NOT NULL"
             table_count = (db_count(errors=errors,
                                     table=source_table,
                                     where_clause=where_clause,
                                     engine=source_db) or 0) - offset_count
+        else:
+            # 'where_clause' will have the list of 'reference_column' values indicating the LOBs to be migrated
+            where_clause = lob_tuples.get(lob_column)
+            table_count = len(where_clause)
 
         # migrate the LOBs in 'lob_column'
         if not errors and table_count > 0:
