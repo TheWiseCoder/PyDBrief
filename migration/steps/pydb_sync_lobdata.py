@@ -260,30 +260,32 @@ def synchronize_lobs(errors: list[str],
             result_inserts += insert_count
 
             # migrate the LOBs in 'table_inserts'
-            migrate_lob_columns(errors=errors,
-                                mother_thread=mother_thread,
-                                session_id=session_id,
-                                source_db=source_db,
-                                target_db=target_db,
-                                target_s3=target_s3,
-                                source_table=source_table,
-                                target_table=target_table,
-                                pk_columns=pk_columns,
-                                lob_columns=lob_columns,
-                                lob_tuples=table_inserts,
-                                offset_count=0,
-                                limit_count=0,
-                                migration_warnings=migration_warnings,
-                                logger=logger)
+            if table_inserts:
+                migrate_lob_columns(errors=errors,
+                                    mother_thread=mother_thread,
+                                    session_id=session_id,
+                                    source_db=source_db,
+                                    target_db=target_db,
+                                    target_s3=target_s3,
+                                    source_table=source_table,
+                                    target_table=target_table,
+                                    pk_columns=pk_columns,
+                                    lob_columns=lob_columns,
+                                    lob_tuples=table_inserts,
+                                    offset_count=0,
+                                    limit_count=0,
+                                    migration_warnings=migration_warnings,
+                                    logger=logger)
 
             # remove the LOBs in 'table_deletes'
             if not errors:
                 lob_deletes: list[str] = []
                 for deletes in list(table_deletes.values()):
                     lob_deletes.extend(deletes)
-                s3_items_remove(errors=errors,
-                                identifiers=lob_deletes,
-                                logger=logger)
+                if lob_deletes:
+                    s3_items_remove(errors=errors,
+                                    identifiers=lob_deletes,
+                                    logger=logger)
     with lob_ctrl.lobdata_lock:
         migration_threads.extend(lob_ctrl.lobdata_register[mother_thread]["child-threads"])
         lob_ctrl.lobdata_register.pop(mother_thread)
