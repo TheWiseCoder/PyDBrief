@@ -279,9 +279,11 @@ def synchronize_lobs(errors: list[str],
 
             # remove the LOBs in 'table_deletes'
             if not errors:
+                # aggregate all LOBs for removal from S3 storage in 'lob_deletes'
                 lob_deletes: list[str] = []
                 for deletes in list(table_deletes.values()):
                     lob_deletes.extend(deletes)
+                # remove LOBs
                 if lob_deletes:
                     s3_items_remove(errors=errors,
                                     identifiers=lob_deletes,
