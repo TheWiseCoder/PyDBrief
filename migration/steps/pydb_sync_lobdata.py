@@ -40,8 +40,8 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 #         <error>,
 #         ...
 #       ],
-#       "<lob-column-n>-deletes: list[Any],
-#       "<lob-column-n>-inserts: list[Any],
+#       "<lob-column-n>-deletes: list[str],
+#       "<lob-column-n>-inserts: list[str],
 #       ...
 #     },
 #   },
@@ -138,6 +138,7 @@ def synchronize_lobs(errors: list[str],
             # process the existing LOB columns
             for lob_column, reference_column in lob_columns:
                 where_clause: str = f"{lob_column} IS NOT NULL"
+                # 'reference_column' might contain a forced filetype specification
                 pos: int = reference_column.find(".")
                 if pos > 0:
                     reference_column = reference_column[:pos]

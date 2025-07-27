@@ -234,6 +234,7 @@ def migrate_lob_columns(errors: list[str],
             if reference_column:
                 pos: int = reference_column.find(".")
                 if pos > 0:
+                    # 'forced_filetype' includes the leading dot ('.')
                     forced_filetype = reference_column[pos:]
                     reference_column = reference_column[:pos]
 
@@ -267,7 +268,8 @@ def migrate_lob_columns(errors: list[str],
 
         # count migrateable tuples on source table for 'lob_column'
         if lob_tuples:
-            where_clause = lob_tuples.get(reference_column)
+            # 'where_clause' has the list of 'reference_column' values indicating the LOBs to be migrated
+            where_clause = lob_tuples.get(lob_column)
             table_count = len(where_clause)
         else:
             where_clause = f"{lob_column} IS NOT NULL"
@@ -476,7 +478,7 @@ def _s3_migrate_lobs(mother_thread: int,
                     # the exact sublist of LOBs to be migrated by this thread is inserted
                     db_bulk_insert(errors=errors,
                                    target_table=temp_table,
-                                   insert_attrs=[],
+                                   insert_attrs=[temp_column],
                                    insert_vals=[tuple(where_clause[offset_count:limit_count+offset_count])],
                                    engine=source_db,
                                    connection=db_conn)
@@ -484,7 +486,7 @@ def _s3_migrate_lobs(mother_thread: int,
                         # no offset/limit herefrom, as 'where_clause' alone precisely filters the relevant LOBs
                         offset_count = 0
                         limit_count = 0
-                        where_clause = f"{reference_column} in (SELECT {temp_column} from {temp_table})"
+                        where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
 
         if not errors:
             # 'target_table' is documentational, only
