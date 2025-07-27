@@ -329,7 +329,7 @@ def _compute_lob_lists(mother_thread: int,
                                            engine=s3_engine,
                                            logger=logger)
             if not errors:
-                # if there is an offset, include the previous tuple to function as 'start_after' afterwards
+                # if there is an offset, include the previous tuple to function as 'start_after'
                 from_first: bool = offset_count == 0
                 db_items: list[tuple[str]] = db_select(errors=errors,
                                                        sel_stmt=f"SELECT {source_column} FROM {source_table}",
