@@ -1,10 +1,12 @@
 from enum import StrEnum
+from pathlib import Path
 from pypomes_core import (
     validate_format_error
 )
 from pypomes_db import DbEngine
 from pypomes_s3 import S3Engine
 from typing import Any
+from urlobject import URLObject
 
 from app_constants import DbConfig, S3Config
 from migration.pydb_sessions import get_session_registry
@@ -91,3 +93,19 @@ def build_channel_data(max_channels: int,
             result[-1] = (result[-1][0] + remainder, result[-1][1])
 
     return result
+
+
+def build_lob_prefix(session_registry: dict[StrEnum, Any],
+                     target_db: DbEngine,
+                     target_table: str,
+                     column_name) -> Path:
+
+    url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
+    # 'url.hostname' returns 'None' for 'localhost'
+    host: str = f"{target_db}@{url.hostname or str(url)}"
+    target_schema, table_name = target_table.split(sep=".")
+    return Path(host,
+                session_registry[target_db][DbConfig.NAME],
+                target_schema,
+                table_name,
+                column_name)

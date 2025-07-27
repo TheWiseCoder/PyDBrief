@@ -23,7 +23,7 @@ from app_constants import (
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
-from migration.steps.pydb_lobdata import migrate_lobs
+from migration.steps.pydb_lobdata import migrate_lob_tables
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
 from migration.steps.pydb_sync_lobdata import synchronize_lobs
@@ -142,13 +142,13 @@ def migrate(errors: list[str],
                 warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
-            counts: tuple[int, int] = migrate_lobs(errors=errors,
-                                                   session_id=session_id,
-                                                   incremental_migrations=incremental_migrations,
-                                                   migration_warnings=migration_warnings,
-                                                   migration_threads=migration_threads,
-                                                   migrated_tables=migrated_tables,
-                                                   logger=logger)
+            counts: tuple[int, int] = migrate_lob_tables(errors=errors,
+                                                         session_id=session_id,
+                                                         incremental_migrations=incremental_migrations,
+                                                         migration_warnings=migration_warnings,
+                                                         migration_threads=migration_threads,
+                                                         migrated_tables=migrated_tables,
+                                                         logger=logger)
             lob_count: int = counts[0]
             lob_bytes: int = counts[1]
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)

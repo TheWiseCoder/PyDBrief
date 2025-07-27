@@ -17,9 +17,10 @@ from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 def s3_migrate_lobs(errors: list[str],
                     session_id: str,
+                    db_conn: Any,
                     s3_client: Any,
-                    target_table: str,
                     source_table: str,
+                    target_table: str,
                     lob_prefix: Path,
                     lob_column: str,
                     pk_columns: list[str],
@@ -27,7 +28,7 @@ def s3_migrate_lobs(errors: list[str],
                     offset_count: int,
                     limit_count: int,
                     forced_filetype: str,
-                    return_column: str,
+                    reference_column: str,
                     migration_warnings: list[str],
                     logger: Logger) -> tuple[int, int]:
 
@@ -80,8 +81,9 @@ def s3_migrate_lobs(errors: list[str],
                                    table=source_table,
                                    lob_column=lob_column,
                                    pk_columns=pk_columns,
-                                   ret_column=return_column,
+                                   ret_column=reference_column,
                                    engine=source_db,
+                                   connection=db_conn,
                                    where_clause=where_clause,
                                    offset_count=offset_count,
                                    limit_count=limit_count,
@@ -108,7 +110,7 @@ def s3_migrate_lobs(errors: list[str],
                 "table": target_table
             }
             for key, value in sorted(row_data.items()):
-                if key == return_column:
+                if key == reference_column:
                     identifier = value
                 else:
                     values.append(value)

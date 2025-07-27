@@ -101,7 +101,7 @@ class DbConfig(StrEnum):
     PORT = "db-port"
     PWD = "db-pwd"
     USER = "db-user"
-    VERSION = "version"
+    VERSION = "db-version"
 
 
 class S3Config(StrEnum):
@@ -115,7 +115,7 @@ class S3Config(StrEnum):
     REGION_NAME = "s3-region-name"
     SECRET_KEY = "s3-secret-key"
     SECURE_ACCESS = "s3-secure-access"
-    VERSION = "version"
+    VERSION = "s3-version"
 
 
 # values are (min, max, default)

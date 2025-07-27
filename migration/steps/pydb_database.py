@@ -1,8 +1,7 @@
 from logging import Logger
 from pypomes_core import validate_format_error
 from pypomes_db import (
-    DbEngine, DbParam,
-    db_get_param, db_get_view_ddl, db_execute
+    DbEngine, DbParam, db_get_param, db_get_view_ddl, db_execute
 )
 from typing import Any, Literal
 
@@ -23,8 +22,7 @@ def schema_create(errors: list[str],
                engine=rdbms,
                logger=logger)
 
-    logger.debug(msg=f"RDBMS {rdbms}, restored session "
-                     "restrictions delaying bulk operations")
+    logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
 
 
 def session_disable_restrictions(errors: list[str],
@@ -36,11 +34,11 @@ def session_disable_restrictions(errors: list[str],
     stmt: str | None = None
     match rdbms:
         case DbEngine.POSTGRES:
-            stmt = f"set session_replication_role = replica"
+            stmt = "set session_replication_role = replica"
         case DbEngine.MYSQL:
             stmt = "SET @@SESSION.DISABLE_TRIGGERS = 1"
         case _:  # Oracle, SQLServer
-            # Oracle and SQLServer do not have session-scope commands for disabling triggers or rules
+            # Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules
             pass
     if stmt:
         db_execute(errors=errors,
@@ -116,7 +114,7 @@ def table_embedded_nulls(errors: list[str],
                          table: str,
                          logger: Logger) -> None:
 
-    # did a 'ValueError' exception on NULLs in strings occur ?
+    # was a 'ValueError' exception on NULLs in strings raised ?
     # ("A string literal cannot contain NUL (0x00) characters.")
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem

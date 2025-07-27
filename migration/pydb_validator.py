@@ -6,13 +6,11 @@ from pypomes_core import (
     validate_str, validate_strs, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, db_assert_access, db_setup,
-    db_get_engines, db_get_version
+    DbEngine, DbParam, db_setup, db_assert_access, db_get_param, db_get_engines
 )
 from pypomes_http import HttpMethod
 from pypomes_s3 import (
-    S3Engine, s3_assert_access, s3_setup,
-    s3_get_engines, s3_get_version
+    S3Engine, S3Param, s3_setup, s3_startup, s3_get_param, s3_get_engines
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
@@ -107,7 +105,7 @@ def validate_rdbms(errors: list[str],
                 DbConfig.PORT: db_port,
                 DbConfig.USER: db_user,
                 DbConfig.PWD: db_pwd,
-                DbConfig.VERSION: db_get_version(engine=db_engine)
+                DbConfig.VERSION: ""
             }
             if db_client:
                 db_specs[DbConfig.CLIENT] = db_client
@@ -168,7 +166,7 @@ def validate_s3(errors: list[str],
                 S3Config.ACCESS_KEY: access_key,
                 S3Config.SECRET_KEY: secret_key,
                 S3Config.SECURE_ACCESS: secure_access,
-                S3Config.VERSION: s3_get_version(engine=engine)
+                S3Config.VERSION: ""
             }
             if region_name:
                 s3_specs[S3Config.REGION_NAME] = region_name
@@ -257,6 +255,9 @@ def validate_metrics(errors: list[str],
 def validate_spots(errors: list[str],
                    input_params: dict[str, str]) -> None:
 
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+
     # validate source RDBMS
     from_rdbms: DbEngine = validate_enum(errors=errors,
                                          source=input_params,
@@ -301,34 +302,49 @@ def validate_spots(errors: list[str],
                                     enum_class=S3Engine)
     if to_s3 and to_s3 not in s3_get_engines():
         # 142: Invalid value {}: {}
-        errors.append(validate_format_error(142,
-                                            to_s3,
+        errors.append(validate_format_error(142, to_s3,
                                             "unknown or unconfigured S3 engine",
                                             f"@{MigSpot.TO_S3}"))
     if not errors:
-        # verify  database runtime capabilities
-        if from_rdbms and not db_assert_access(errors=errors,
-                                               engine=from_rdbms):
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Source database '{from_rdbms}' "
-                                                "is not accessible as configured"))
-        if to_rdbms and not db_assert_access(errors=errors,
-                                             engine=to_rdbms):
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Target database '{to_rdbms}' "
-                                                "is not accessible as configured"))
-        if to_s3 and not s3_assert_access(errors=errors,
-                                          engine=to_s3):
-            # 101: {}
-            errors.append(validate_format_error(101,
-                                                f"Target S3 '{to_s3}' "
-                                                "is not accessible as configured"))
+        # verify source database runtime access
+        if from_rdbms:
+            if not session_registry[from_rdbms].get(DbConfig.VERSION):
+                if db_assert_access(errors=errors,
+                                    engine=from_rdbms):
+                    session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
+                                                                                  engine=from_rdbms)
+                else:
+                    # 101: {}
+                    errors.append(validate_format_error(101,
+                                                        f"Source database '{from_rdbms}' "
+                                                        "is not accessible as configured"))
+        # verify target database runtime access
+        if to_rdbms:
+            if not session_registry[to_rdbms].get(DbConfig.VERSION):
+                if db_assert_access(errors=errors,
+                                    engine=to_rdbms):
+                    session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
+                                                                                  engine=to_rdbms)
+                else:
+                    # 101: {}
+                    errors.append(validate_format_error(101,
+                                                        f"Target database '{from_rdbms}' "
+                                                        "is not accessible as configured"))
+        # verify target S3 runtime access
+        if to_s3:
+            if not session_registry[to_s3].get(S3Config.VERSION):
+                if s3_startup(errors=errors,
+                              engine=to_s3):
+                    session_registry[to_s3][S3Config.VERSION] = s3_get_param(key=S3Param.VERSION,
+                                                                             engine=to_s3)
+                else:
+                    # 101: {}
+                    errors.append(validate_format_error(101,
+                                                        f"Target S3 '{to_s3}' "
+                                                        "is not accessible as configured"))
     if not errors:
         # set the spots for the session
-        session_id: str = input_params.get(MigSpec.SESSION_ID)
-        session_spots: dict[MigSpot, Any] = get_session_registry(session_id=session_id)[MigConfig.SPOTS]
+        session_spots: dict[MigSpot, Any] = session_registry.get(MigConfig.SPOTS)
         session_spots[MigSpot.FROM_RDBMS] = from_rdbms
         session_spots[MigSpot.TO_RDBMS] = to_rdbms
         session_spots[MigSpot.TO_S3] = to_s3
