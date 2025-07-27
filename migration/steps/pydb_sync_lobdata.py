@@ -259,22 +259,29 @@ def synchronize_lobs(errors: list[str],
             result_deletes += delete_count
             result_inserts += insert_count
 
+            # clean up 'lob_columns' and 'table_inserts'
+            for lob_column, return_column in lob_columns.copy():
+                if len(table_inserts.get(lob_column)) == 0:
+                    lob_columns.remove((lob_column, return_column))
+                    table_inserts.pop(lob_column)
+
             # migrate the LOBs in 'table_inserts'
-            migrate_lob_columns(errors=errors,
-                                mother_thread=mother_thread,
-                                session_id=session_id,
-                                source_db=source_db,
-                                target_db=target_db,
-                                target_s3=target_s3,
-                                source_table=source_table,
-                                target_table=target_table,
-                                pk_columns=pk_columns,
-                                lob_columns=lob_columns,
-                                lob_tuples=table_inserts,
-                                offset_count=0,
-                                limit_count=0,
-                                migration_warnings=migration_warnings,
-                                logger=logger)
+            if lob_columns:
+                migrate_lob_columns(errors=errors,
+                                    mother_thread=mother_thread,
+                                    session_id=session_id,
+                                    source_db=source_db,
+                                    target_db=target_db,
+                                    target_s3=target_s3,
+                                    source_table=source_table,
+                                    target_table=target_table,
+                                    pk_columns=pk_columns,
+                                    lob_columns=lob_columns,
+                                    lob_tuples=table_inserts,
+                                    offset_count=0,
+                                    limit_count=0,
+                                    migration_warnings=migration_warnings,
+                                    logger=logger)
 
             # process LOBs in 'table_deletes'
             if not errors:
@@ -333,24 +340,19 @@ def _compute_lob_lists(mother_thread: int,
                                            engine=s3_engine,
                                            logger=logger)
             if not errors:
-                # if there is an offset, include the previous tuple to function as 'start_after'
-                from_first: bool = offset_count == 0
                 db_items: list[tuple[str]] = db_select(errors=errors,
                                                        sel_stmt=f"SELECT {source_column} FROM {source_table}",
                                                        where_clause=where_clause,
                                                        orderby_clause=source_column,
-                                                       offset_count=offset_count if from_first else offset_count - 1,
-                                                       limit_count=limit_count if from_first else limit_count + 1,
+                                                       offset_count=offset_count,
+                                                       limit_count=limit_count,
                                                        connection=db_conn,
                                                        committable=True,
                                                        logger=logger)
                 if not errors:
-                    pos: int = 0
-                    start_after: str | None = None
-                    if not from_first:
-                        start_after = (Path(lob_prefix) / db_items[0][0]).as_posix()
-                        pos = 1
-                    db_names: list[str] = [db_item[0] for db_item in db_items[pos:]]
+                    db_names: list[str] = [db_item[0] for db_item in db_items]
+                    # HAZARD: 'start_after' is actually 'start_at'
+                    start_after: str = (Path(lob_prefix) / db_names[0]).as_posix()
                     db_items.clear()
 
                     s3_items: list[dict[str, Any]] = s3_prefix_list(errors=errors,
