@@ -349,13 +349,12 @@ def _compute_lob_lists(mother_thread: int,
                     db_names: list[str] = [db_item[0] for db_item in db_items[pos:]]
                     db_items.clear()
 
-                    s3_items: list[dict[str, Any]] = \
-                        s3_prefix_list(errors=errors,
-                                       prefix=lob_prefix,
-                                       max_count=limit_count,
-                                       client=s3_client,
-                                       start_after=start_after,
-                                       logger=logger)
+                    s3_items: list[dict[str, Any]] = s3_prefix_list(errors=errors,
+                                                                    prefix=lob_prefix,
+                                                                    max_count=limit_count,
+                                                                    client=s3_client,
+                                                                    start_after=start_after,
+                                                                    logger=logger)
                     if not errors:
                         s3_full: dict[str, str] = {}
                         s3_names: list[str] = []
