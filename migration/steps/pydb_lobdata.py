@@ -246,7 +246,8 @@ def migrate_lob_columns(errors: list[str],
                     reference_column = reference_column[:pos]
 
             # obtain an S3 prefix for storing the lobdata
-            if not session_specs[MigSpec.FLATTEN_STORAGE]:
+            if session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] or \
+                    not session_specs[MigSpec.FLATTEN_STORAGE]:
                 lob_prefix = build_lob_prefix(session_registry=session_registry,
                                               target_db=target_db,
                                               target_table=target_table,

@@ -260,22 +260,21 @@ def synchronize_lobs(errors: list[str],
             result_inserts += insert_count
 
             # migrate the LOBs in 'table_inserts'
-            if table_inserts:
-                migrate_lob_columns(errors=errors,
-                                    mother_thread=mother_thread,
-                                    session_id=session_id,
-                                    source_db=source_db,
-                                    target_db=target_db,
-                                    target_s3=target_s3,
-                                    source_table=source_table,
-                                    target_table=target_table,
-                                    pk_columns=pk_columns,
-                                    lob_columns=lob_columns,
-                                    lob_tuples=table_inserts,
-                                    offset_count=0,
-                                    limit_count=0,
-                                    migration_warnings=migration_warnings,
-                                    logger=logger)
+            migrate_lob_columns(errors=errors,
+                                mother_thread=mother_thread,
+                                session_id=session_id,
+                                source_db=source_db,
+                                target_db=target_db,
+                                target_s3=target_s3,
+                                source_table=source_table,
+                                target_table=target_table,
+                                pk_columns=pk_columns,
+                                lob_columns=lob_columns,
+                                lob_tuples=table_inserts,
+                                offset_count=0,
+                                limit_count=0,
+                                migration_warnings=migration_warnings,
+                                logger=logger)
 
             # process LOBs in 'table_deletes'
             if not errors:
