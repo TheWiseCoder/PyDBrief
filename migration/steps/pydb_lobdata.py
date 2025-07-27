@@ -11,7 +11,7 @@ from pypomes_db import (
     db_migrate_lobs, db_table_exists, db_bulk_insert,
     db_create_session_table, db_get_session_table_prefix
 )
-from pypomes_s3 import S3Engine, s3_item_exists, s3_get_client
+from pypomes_s3 import S3Engine, s3_get_client, s3_item_exists
 from typing import Any
 
 from app_constants import (
@@ -249,7 +249,7 @@ def migrate_lob_columns(errors: list[str],
                 if (not session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] and
                     session_specs[MigSpec.SKIP_NONEMPTY] and
                     s3_item_exists(errors=errors,
-                                   prefix=lob_prefix)):
+                                   identifier=lob_prefix.as_posix())):
                     # yes, skip it
                     warn_msg: str = ("Skipped migrating LOBs in column "
                                      f"{source_db}.{source_table}.{lob_column}: "
@@ -483,11 +483,10 @@ def _s3_migrate_lobs(mother_thread: int,
                                    engine=source_db,
                                    connection=db_conn)
                     if not errors:
-                        # no offset/limit herefrom, as 'where_clause' alone precisely filters the relevant LOBs
+                        # no offset/limit apply herefrom, as 'where_clause' precisely filters the needed LOBs
                         offset_count = 0
                         limit_count = 0
                         where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
-
         if not errors:
             # 'target_table' is documentational, only
             totals: tuple[int, int] = s3_migrate_lobs(errors=errors,

@@ -12,7 +12,7 @@ from pypomes_db import (
     DbEngine, db_connect, db_count, db_select
 )
 from pypomes_s3 import (
-    S3Engine, s3_get_client, s3_items_list, s3_item_remove
+    S3Engine, s3_get_client, s3_prefix_list, s3_items_remove
 )
 from typing import Any
 
@@ -276,15 +276,12 @@ def synchronize_lobs(errors: list[str],
 
             # remove the LOBs in 'table_deletes'
             if not errors:
-                for lob_deletes in list(table_deletes.values()):
-                    for lob_delete in lob_deletes:
-                        s3_item_remove(errors=errors,
-                                       identifier=lob_delete,
-                                       engine=target_s3,
-                                       logger=logger)
-                        if errors:
-                            break
-
+                lob_deletes: list[str] = []
+                for deletes in list(table_deletes.values()):
+                    lob_deletes.extend(deletes)
+                s3_items_remove(errors=errors,
+                                identifiers=lob_deletes,
+                                logger=logger)
     with lob_ctrl.lobdata_lock:
         migration_threads.extend(lob_ctrl.lobdata_register[mother_thread]["child-threads"])
         lob_ctrl.lobdata_register.pop(mother_thread)
@@ -345,12 +342,12 @@ def _compute_lob_lists(mother_thread: int,
                 db_items.clear()
 
                 s3_items: list[dict[str, Any]] = \
-                    s3_items_list(errors=errors,
-                                  max_count=limit_count,
-                                  client=s3_client,
-                                  start_after=start_after,
-                                  prefix=lob_prefix,
-                                  logger=logger)
+                    s3_prefix_list(errors=errors,
+                                   prefix=lob_prefix,
+                                   max_count=limit_count,
+                                   client=s3_client,
+                                   start_after=start_after,
+                                   logger=logger)
                 if not errors:
                     s3_full: dict[str, str] = {}
                     s3_names: list[str] = []
