@@ -277,7 +277,7 @@ def synchronize_lobs(errors: list[str],
                                     migration_warnings=migration_warnings,
                                     logger=logger)
 
-            # remove the LOBs in 'table_deletes'
+            # process LOBs in 'table_deletes'
             if not errors:
                 # aggregate in 'lob_deletes' all LOBs slotted for removal from S3 storage
                 lob_deletes: list[str] = []
