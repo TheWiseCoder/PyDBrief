@@ -314,7 +314,6 @@ def _compute_lob_lists(mother_thread: int,
     # obtain a connection to the database
     errors: list[str] = []
     db_conn: Any = db_connect(errors=errors,
-                              autocommit=True,
                               engine=source_db,
                               logger=logger)
     if not errors:
@@ -339,6 +338,7 @@ def _compute_lob_lists(mother_thread: int,
                                                        offset_count=offset_count if from_first else offset_count - 1,
                                                        limit_count=limit_count if from_first else limit_count + 1,
                                                        connection=db_conn,
+                                                       committable=True,
                                                        logger=logger)
                 if not errors:
                     pos: int = 0
