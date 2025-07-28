@@ -36,6 +36,7 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 #     ],
 #     "source-table-name": {
 #       "table-count": <int>,
+#       "table-bytes": <int>,
 #       "table-deletes": <int>,
 #       "table-inserts": <int>,
 #       "errors": [
@@ -100,6 +101,7 @@ def synchronize_lobs(errors: list[str],
         with lob_ctrl.lobdata_lock:
             lob_ctrl.lobdata_register[mother_thread][source_table] = {
                 "table-count": 0,
+                "table-bytes": 0,
                 "errors": []
             }
 
@@ -388,6 +390,7 @@ def _compute_lob_lists(mother_thread: int,
                                 name = name[:pos]
                             lobs_s3_names.append(name)
                             lobs_s3_full[name] = full_name
+                        s3_items.clear()
 
     with lob_ctrl.lobdata_lock:
         table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]
