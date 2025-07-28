@@ -391,6 +391,17 @@ def _compute_lob_lists(mother_thread: int,
                             lobs_s3_names.append(name)
                             lobs_s3_full[name] = full_name
                         s3_items.clear()
+                        # no need to keep items existing in both lists
+                        correlations: tuple = list_correlate(list_first=lobs_db_names,
+                                                             list_second=lobs_s3_names,
+                                                             only_in_first=True,
+                                                             only_in_second=True,
+                                                             is_sorted=True)
+                        lobs_db_names = correlations[0]
+                        lobs_s3_names = correlations[1]
+                        # keep only needed items in 'lobs_s3_full'
+                        if len(lobs_s3_names) < len(lobs_s3_full):
+                            lobs_s3_full = {k: v for k, v in lobs_s3_full.items() if k in lobs_s3_names}
 
     with lob_ctrl.lobdata_lock:
         table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]

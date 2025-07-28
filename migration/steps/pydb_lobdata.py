@@ -511,7 +511,7 @@ def _s3_migrate_lobs(mother_thread: int,
                                         column_data=[f"{temp_column} VARCHAR2(64) PRIMARY KEY"],
                                         logger=logger)
                 if not errors:
-                    # the exact sublist of LOBs to be migrated by this thread is inserted
+                    # insert the exact sublist of LOBs to be migrated by this thread
                     insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
                                                if limit_count else [tuple(where_clause[offset_count:])]
                     db_bulk_insert(errors=errors,

@@ -6,7 +6,7 @@
         "contact": {
             "email": "gtnunes@gmail.com"
         },
-        "version": "1.8.3"
+        "version": "1.8.8"
     },
     "externalDocs": {
         "description": "Known more about PyDBrief",
@@ -596,6 +596,9 @@
                     },
                     {
                         "$ref": "#/components/parameters/SynchronizePlainParam"
+                    },
+                    {
+                        "$ref": "#/components/parameters/SynchronizeLobsParam"
                     },
                     {
                         "$ref": "#/components/parameters/ProcessIndexesParam"
@@ -1440,7 +1443,17 @@
             "SynchronizePlainParam": {
                 "name": "synchronize-plaindata",
                 "in": "query",
-                "description": "Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation cannot be combined with a migration step.",
+                "description": "Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation ignores the parameter 'incremental-migrations', and cannot be combined with another migration step.",
+                "required": false,
+                "schema": {
+                    "type": "boolean",
+                    "default": false
+                }
+            },
+            "SynchronizeLobsParam": {
+                "name": "synchronize-lobdata",
+                "in": "query",
+                "description": "Synchronize the documents with given prefixes at the S3 storage with the LOBs in their corresponding source table columns at the database. This process does not consider eventual differences in content between the two items, but makes sure that they both exist simultaneously. Note that this synchronization should not be attempted if LOBs from more than one table column were migrated with the same prefix, as is the case if 'flatten-storage' was specified during the lobdata migration, and thus it will only operate on columns mapped on the 'named-lobdata' parameter. This operation ignores parameters 'incremental-migrations' and 'flatten-storage', and cannot be combined with another migration step.",
                 "required": false,
                 "schema": {
                     "type": "boolean",
@@ -1480,7 +1493,7 @@
             "SkipNonemptyParam": {
                 "name": "skip-nonempty",
                 "in": "query",
-                "description": "This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination schema that are not empty; 2- to prevent migration of LOBs to S3 storage, if their respective destination folders (technically known as the object's 'prefix') are not empty. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. When migrating LOBs, it is ignored if 'to-s3' is not specified, or if 'flatten-storage' is specified.",
+                "description": "This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination database schema that are not empty; 2- to prevent migration of LOBs to S3 storage, if their respective destination prefixes are already in use. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. When migrating LOBs, it is ignored if 'to-s3' is not specified, or if 'flatten-storage' is specified.",
                 "schema": {
                     "type": "boolean",
                     "default": false
@@ -1554,7 +1567,7 @@
             "IncrementalMigrationsParam": {
                 "name": "incremental-migrations",
                 "in": "query",
-                "description": "Optional list of tables for which migration is to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\\<table-name\\>[=[\\<size\\>][:\\<offset\\>]]', where '\\<size\\>' is the maximum number of rows to migrate, and '\\<offset\\>' is the offset into the source table. If ommited or set to 0, '\\<size\\>' is set to the migration metrics parameter 'incremental-size'. If ommitted, '\\<offset\\>' is set to 0. If '\\<size\\>' is set to -1, migration is to include all rows to the end of the table. If '\\<offset\\>' is set to -1, it is set to the value of a count operation on the target table.",
+                "description": "Optional list of tables for which plaindata migration and LOB migration are to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\\<table-name\\>[=[\\<size\\>][:\\<offset\\>]]', where '\\<size\\>' is the maximum number of rows to migrate, and '\\<offset\\>' is the offset into the source table. If ommited or set to 0, '\\<size\\>' is set to the migration metrics parameter 'incremental-size'. If ommitted, '\\<offset\\>' is set to 0. If '\\<size\\>' is set to -1, migration is to include all rows to the end of the table. If '\\<offset\\>' is set to -1, it is set to the value of a count operation on the target table.",
                 "required": false,
                 "explode": false,
                 "schema": {
