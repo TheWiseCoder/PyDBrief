@@ -221,7 +221,7 @@ def migrate_lob_columns(errors: list[str],
             # abort the lobdata migration
             break
 
-        where_clause: Any
+        where_clause: str | list[str]
         table_count: int
         lob_prefix: Path | None = None
         forced_filetype: str | None = None
@@ -283,7 +283,7 @@ def migrate_lob_columns(errors: list[str],
                                     engine=source_db) or 0) - offset_count
         else:
             # 'where_clause' will have the list of 'reference_column' values indicating the LOBs to be migrated
-            where_clause = lob_tuples.get(lob_column)
+            where_clause = lob_tuples.get(reference_column)
             table_count = len(where_clause)
 
         # migrate the LOBs in 'lob_column'
@@ -463,7 +463,7 @@ def _s3_migrate_lobs(mother_thread: int,
                      lob_prefix: Path,
                      lob_column: str,
                      pk_columns: list[str],
-                     where_clause: Any,
+                     where_clause: str | list[str],
                      offset_count: int,
                      limit_count: int,
                      forced_filetype: str,
@@ -506,14 +506,17 @@ def _s3_migrate_lobs(mother_thread: int,
                                         logger=logger)
                 if not errors:
                     # the exact sublist of LOBs to be migrated by this thread is inserted
+                    insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
+                                               if limit_count else [tuple(where_clause[offset_count:])]
                     db_bulk_insert(errors=errors,
                                    target_table=temp_table,
                                    insert_attrs=[temp_column],
-                                   insert_vals=[tuple(where_clause[offset_count:limit_count+offset_count])],
+                                   insert_vals=insert_vals,
                                    engine=source_db,
-                                   connection=db_conn)
+                                   connection=db_conn,
+                                   logger=logger)
                     if not errors:
-                        # no offset/limit apply herefrom, as 'where_clause' precisely filters the needed LOBs
+                        # no offset/limit apply herefrom, as 'where_clause' precisely filters the appropriate LOBs
                         offset_count = 0
                         limit_count = 0
                         where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
