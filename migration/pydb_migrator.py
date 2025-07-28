@@ -195,7 +195,6 @@ def migrate(errors: list[str],
             started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             counts: tuple[int, int, int] = synchronize_lobs(errors=errors,
                                                             session_id=session_id,
-                                                            incremental_migrations=incremental_migrations,
                                                             migration_warnings=migration_warnings,
                                                             migration_threads=migration_threads,
                                                             migrated_tables=migrated_tables,

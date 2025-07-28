@@ -6,7 +6,8 @@ from enum import StrEnum
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    TIMEZONE_LOCAL, timestamp_duration, list_correlate
+    TIMEZONE_LOCAL,
+    timestamp_duration, list_correlate, list_remove_duplicates
 )
 from pypomes_db import (
     DbEngine, db_connect, db_count, db_select
@@ -41,8 +42,9 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 #         <error>,
 #         ...
 #       ],
-#       "<lob-column-n>-deletes: list[str],
-#       "<lob-column-n>-inserts: list[str],
+#       "<reference-column-n>-db-names: list[str],
+#       "<reference-column-n>-s3-names: list[str],
+#       "<reference-column-n>-s3-full: dict[str, str],
 #       ...
 #     },
 #   },
@@ -52,7 +54,6 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 
 def synchronize_lobs(errors: list[str],
                      session_id: str,
-                     incremental_migrations: dict[str, tuple[int, int]],
                      migration_warnings: list[str],
                      migration_threads: list[int],
                      migrated_tables: dict[str, Any],
@@ -102,13 +103,6 @@ def synchronize_lobs(errors: list[str],
                 "errors": []
             }
 
-        # obtain limit and offset
-        limit_count: int = 0
-        offset_count: int = 0
-        # ----------- to be removed
-        if table_name in incremental_migrations:
-            limit_count, offset_count = incremental_migrations.get(table_name)
-
         # organize the information, using LOB types from the columns list
         pk_columns: list[str] = []
         lob_columns: list[tuple[str, str]] = []
@@ -145,10 +139,10 @@ def synchronize_lobs(errors: list[str],
                     reference_column = reference_column[:pos]
 
                 # count synchronizeable tuples on source table for 'lob_column'
-                table_count: int = (db_count(errors=errors,
-                                             table=source_table,
-                                             where_clause=where_clause,
-                                             engine=source_db) or 0) - offset_count
+                table_count: int = db_count(errors=errors,
+                                            table=source_table,
+                                            where_clause=where_clause,
+                                            engine=source_db) or 0
                 if table_count > 0:
                     warn_msg: str = ("Expecting an index to exist on column "
                                      f"{source_db}.{source_table}.{reference_column}")
@@ -158,32 +152,34 @@ def synchronize_lobs(errors: list[str],
                     # start synchronizing 'lob_column'
                     with lob_ctrl.lobdata_lock:
                         lob_ctrl.lobdata_register[mother_thread][source_table].update({
-                            f"{lob_column}-deletes": [],
-                            f"{lob_column}-inserts": []
+                            f"{reference_column}-db-names": [],
+                            f"{reference_column}-s3-names": [],
+                            f"{reference_column}-s3-full": {}
                         })
                     # obtain an S3 prefix for storing the lobdata
                     lob_prefix = build_lob_prefix(session_registry=session_registry,
                                                   target_db=target_db,
                                                   target_table=target_table,
                                                   column_name=reference_column)
-                    # build migration channel data
+                    # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
                         build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
                                            channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
                                            table_count=table_count,
-                                           offset_count=offset_count,
-                                           limit_count=limit_count)
+                                           offset_count=0,
+                                           limit_count=0)
+                    # remove the limit on the last channel
+                    channel_data[-1] = (channel_data[-1][0], 0)
                     if len(channel_data) == 1:
                         # execute single task in current thread
                         _compute_lob_lists(mother_thread=mother_thread,
                                            source_db=source_db,
                                            source_table=source_table,
-                                           source_column=reference_column,
-                                           lob_column=lob_column,
+                                           reference_column=reference_column,
                                            where_clause=where_clause,
                                            s3_engine=target_s3,
-                                           limit_count=channel_data[0][0],
-                                           offset_count=channel_data[0][1],
+                                           offset_count=channel_data[0][0],
+                                           limit_count=channel_data[0][1],
                                            lob_prefix=lob_prefix,
                                            logger=logger)
                     else:
@@ -201,13 +197,12 @@ def synchronize_lobs(errors: list[str],
                                                                  mother_thread=mother_thread,
                                                                  source_db=source_db,
                                                                  source_table=source_table,
-                                                                 source_column=reference_column,
-                                                                 lob_column=lob_column,
+                                                                 reference_column=reference_column,
                                                                  where_clause=where_clause,
                                                                  s3_engine=target_s3,
                                                                  lob_prefix=lob_prefix,
-                                                                 limit_count=channel_datum[0],
-                                                                 offset_count=channel_datum[1],
+                                                                 offset_count=channel_datum[0],
+                                                                 limit_count=channel_datum[1],
                                                                  logger=logger)
                                 task_futures.append(future)
 
@@ -215,8 +210,10 @@ def synchronize_lobs(errors: list[str],
                             futures.wait(fs=task_futures)
                             executor.shutdown(wait=False)
 
-                    col_deletes: list[str] = []
-                    col_inserts: list[str] = []
+                    # coaslesce 'lob_column' data
+                    col_db_names: list[str] = []
+                    col_s3_names: list[str] = []
+                    col_s3_full: dict[str, str] = {}
                     with lob_ctrl.lobdata_lock:
                         table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]
                         op_errors: list[str] = table_data.get("errors")
@@ -224,21 +221,28 @@ def synchronize_lobs(errors: list[str],
                             status = "error"
                             errors.extend(op_errors)
                         else:
-                            lob_count += table_data.get("table-count")
-                            col_deletes = table_data.get(f"{lob_column}-deletes")
-                            col_inserts = table_data.get(f"{lob_column}-inserts")
+                            lob_count = table_data.get("table-count")
+                            col_db_names = table_data.get(f"{reference_column}-db-names")
+                            col_s3_names = table_data.get(f"{reference_column}-s3-names")
+                            col_s3_full = table_data.get(f"{reference_column}-s3-full")
 
-                    col_deletes.sort()
-                    col_inserts.sort()
-                    col_inserts, col_deletes = list_correlate(list_first=col_inserts,
-                                                              list_second=col_deletes,
-                                                              only_in_first=True,
-                                                              only_in_second=True,
-                                                              bin_search=True)
+                    col_db_names.sort()
+                    list_remove_duplicates(target=col_db_names,
+                                           is_sorted=True)
+                    col_s3_names.sort()
+                    list_remove_duplicates(target=col_s3_names,
+                                           is_sorted=True)
+                    correlations: tuple = list_correlate(list_first=col_db_names,
+                                                         list_second=col_s3_names,
+                                                         only_in_first=True,
+                                                         only_in_second=True,
+                                                         is_sorted=True)
+                    col_deletes: list[str] = correlations[1]
+                    col_inserts: list[str] = correlations[0]
                     delete_count += len(col_deletes)
                     insert_count += len(col_inserts)
-                    table_deletes[lob_column] = col_deletes
-                    table_inserts[lob_column] = col_inserts
+                    table_inserts[reference_column] = col_inserts
+                    table_deletes[reference_column] = [col_s3_full.get(i) for i in col_deletes]
 
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -260,10 +264,14 @@ def synchronize_lobs(errors: list[str],
             result_inserts += insert_count
 
             # clean up 'lob_columns' and 'table_inserts'
-            for lob_column, return_column in lob_columns.copy():
-                if len(table_inserts.get(lob_column)) == 0:
-                    lob_columns.remove((lob_column, return_column))
-                    table_inserts.pop(lob_column)
+            for lob_column, reference_column in lob_columns.copy():
+                # 'reference_column' might contain a forced filetype specification
+                pos: int = reference_column.rfind(".")
+                if pos > 0:
+                    reference_column = reference_column[:pos]
+                if len(table_inserts.get(reference_column)) == 0:
+                    lob_columns.remove((lob_column, reference_column))
+                    table_inserts.pop(reference_column)
 
             # migrate the LOBs in 'table_inserts'
             if lob_columns:
@@ -291,6 +299,9 @@ def synchronize_lobs(errors: list[str],
                     lob_deletes.extend(deletes)
                 # remove LOBs
                 if lob_deletes:
+                    lob_deletes.sort()
+                    list_remove_duplicates(target=lob_deletes,
+                                           is_sorted=True)
                     s3_items_remove(errors=errors,
                                     identifiers=lob_deletes,
                                     logger=logger)
@@ -304,13 +315,12 @@ def synchronize_lobs(errors: list[str],
 def _compute_lob_lists(mother_thread: int,
                        source_db: DbEngine,
                        source_table: str,
-                       source_column: str,
-                       lob_column: str,
+                       reference_column: str,
                        where_clause: str,
                        s3_engine: S3Engine,
                        lob_prefix: Path,
-                       limit_count: int,
                        offset_count: int,
+                       limit_count: int,
                        logger: Logger) -> None:
 
     # register the operation thread (might be same as the mother thread)
@@ -319,8 +329,9 @@ def _compute_lob_lists(mother_thread: int,
 
     # initialize the counter and the lists
     lob_count: int = 0
-    lob_deletes: list[str] = []
-    lob_inserts: list[str] = []
+    lobs_db_names: list[str] = []
+    lobs_s3_names: list[str] = []
+    lobs_s3_full: dict[str, str] = {}
 
     # obtain a connection to the database
     errors: list[str] = []
@@ -341,18 +352,19 @@ def _compute_lob_lists(mother_thread: int,
                                            logger=logger)
             if not errors:
                 db_items: list[tuple[str]] = db_select(errors=errors,
-                                                       sel_stmt=f"SELECT {source_column} FROM {source_table}",
+                                                       sel_stmt=f"SELECT {reference_column} FROM {source_table}",
                                                        where_clause=where_clause,
-                                                       orderby_clause=source_column,
+                                                       orderby_clause=reference_column,
                                                        offset_count=offset_count,
                                                        limit_count=limit_count,
                                                        connection=db_conn,
                                                        committable=True,
                                                        logger=logger)
                 if not errors:
-                    db_names: list[str] = [db_item[0] for db_item in db_items]
+                    lobs_db_names = [db_item[0] for db_item in db_items]
+                    lob_count = len(lobs_db_names)
                     # HAZARD: 'start_after' is actually 'start_at'
-                    start_after: str = (Path(lob_prefix) / db_names[0]).as_posix()
+                    start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix()
                     db_items.clear()
 
                     s3_items: list[dict[str, Any]] = s3_prefix_list(errors=errors,
@@ -362,11 +374,9 @@ def _compute_lob_lists(mother_thread: int,
                                                                     start_after=start_after,
                                                                     logger=logger)
                     if not errors:
-                        s3_full: dict[str, str] = {}
-                        s3_names: list[str] = []
                         for s3_item in s3_items:
-                            full_name: str = s3_item.get("Key")
-                            name = full_name
+                            full_name = s3_item.get("Key")
+                            name: str = full_name
                             # extract the prefix
                             pos: int = name.rfind("/")
                             if pos > 0:
@@ -375,27 +385,14 @@ def _compute_lob_lists(mother_thread: int,
                             pos = name.rfind(".")
                             if pos > 0:
                                 name = name[:pos]
-                            s3_names.append(name)
-                            s3_full[name] = full_name
-
-                        # obtain lists of tuples to migrate to, and remove from, S3 storage
-                        db_names.sort()
-                        s3_names.sort()
-                        correlations: tuple = list_correlate(list_first=db_names,
-                                                             list_second=s3_names,
-                                                             only_in_first=True,
-                                                             only_in_second=True,
-                                                             bin_search=True)
-                        lob_count = len(db_names)
-                        lob_inserts = correlations[0]
-
-                        # put the full names in the 'lob_deletes' list
-                        lob_deletes = [s3_full.get(name) for name in correlations[1]]
+                            lobs_s3_names.append(name)
+                            lobs_s3_full[name] = full_name
 
     with lob_ctrl.lobdata_lock:
         if errors:
             lob_ctrl.lobdata_register[mother_thread][source_table]["errors"].extend(errors)
         else:
-            lob_ctrl.lobdata_register[mother_thread][source_table]["table-count"] += lob_count
-            lob_ctrl.lobdata_register[mother_thread][source_table][f"{lob_column}-deletes"].extend(lob_deletes)
-            lob_ctrl.lobdata_register[mother_thread][source_table][f"{lob_column}-inserts"].extend(lob_inserts)
+            lob_ctrl.lobdata_register[mother_thread][source_table]["table-count"] = lob_count
+            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-db-names"] = lobs_db_names
+            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-s3-names"] = lobs_s3_names
+            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-s3-full"] = lobs_s3_full

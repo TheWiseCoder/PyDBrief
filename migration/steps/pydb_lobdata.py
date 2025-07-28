@@ -97,9 +97,9 @@ def migrate_lob_tables(errors: list[str],
                 "errors": []
             }
 
-        # obtain limit and offset
-        limit_count: int = 0
+        # obtain offset and limit
         offset_count: int = 0
+        limit_count: int = 0
         if table_name in incremental_migrations:
             limit_count, offset_count = incremental_migrations.get(table_name)
 
@@ -239,7 +239,7 @@ def migrate_lob_columns(errors: list[str],
 
             # define a forced file type
             if reference_column:
-                pos: int = reference_column.find(".")
+                pos: int = reference_column.rfind(".")
                 if pos > 0:
                     # 'forced_filetype' includes the leading dot ('.')
                     forced_filetype = reference_column[pos:]
@@ -288,7 +288,7 @@ def migrate_lob_columns(errors: list[str],
 
         # migrate the LOBs in 'lob_column'
         if not errors and table_count > 0:
-            # build migration channel data
+            # build migration channel data ([(offset, limit),...])
             channel_data: list[tuple[int, int]] = build_channel_data(max_channels=channel_count,
                                                                      channel_size=channel_size,
                                                                      table_count=table_count,
@@ -308,8 +308,8 @@ def migrate_lob_columns(errors: list[str],
                                      lob_column=lob_column,
                                      pk_columns=pk_columns,
                                      where_clause=where_clause,
-                                     limit_count=channel_data[0][0],
-                                     offset_count=channel_data[0][1],
+                                     offset_count=channel_data[0][0],
+                                     limit_count=channel_data[0][1],
                                      forced_filetype=forced_filetype,
                                      reference_column=reference_column,
                                      migration_warnings=migration_warnings,
@@ -324,8 +324,8 @@ def migrate_lob_columns(errors: list[str],
                                      target_engine=target_db,
                                      target_table=target_table,
                                      where_clause=where_clause,
-                                     limit_count=channel_data[0][0],
-                                     offset_count=channel_data[0][1],
+                                     offset_count=channel_data[0][0],
+                                     limit_count=channel_data[0][1],
                                      chunk_size=chunk_size,
                                      logger=logger)
             else:
@@ -352,8 +352,8 @@ def migrate_lob_columns(errors: list[str],
                                                              lob_column=lob_column,
                                                              pk_columns=pk_columns,
                                                              where_clause=where_clause,
-                                                             limit_count=channel_datum[0],
-                                                             offset_count=channel_datum[1],
+                                                             offset_count=channel_datum[0],
+                                                             limit_count=channel_datum[1],
                                                              forced_filetype=forced_filetype,
                                                              reference_column=reference_column,
                                                              migration_warnings=migration_warnings,
@@ -369,8 +369,8 @@ def migrate_lob_columns(errors: list[str],
                                                              target_engine=target_db,
                                                              target_table=target_table,
                                                              where_clause=where_clause,
-                                                             limit_count=channel_datum[0],
-                                                             offset_count=channel_datum[1],
+                                                             offset_count=channel_datum[0],
+                                                             limit_count=channel_datum[1],
                                                              chunk_size=chunk_size,
                                                              logger=logger)
                         task_futures.append(future)
@@ -388,8 +388,8 @@ def _db_migrate_lobs(mother_thread: int,
                      target_engine: DbEngine,
                      target_table: str,
                      where_clause: str,
-                     limit_count: int,
                      offset_count: int,
+                     limit_count: int,
                      chunk_size: int,
                      logger: Logger) -> None:
 
@@ -438,8 +438,8 @@ def _db_migrate_lobs(mother_thread: int,
                                                               source_committable=True,
                                                               target_committable=True,
                                                               where_clause=where_clause,
-                                                              limit_count=limit_count,
                                                               offset_count=offset_count,
+                                                              limit_count=limit_count,
                                                               chunk_size=chunk_size,
                                                               logger=logger)
                     if totals:
@@ -464,8 +464,8 @@ def _s3_migrate_lobs(mother_thread: int,
                      lob_column: str,
                      pk_columns: list[str],
                      where_clause: Any,
-                     limit_count: int,
                      offset_count: int,
+                     limit_count: int,
                      forced_filetype: str,
                      reference_column: str,
                      migration_warnings: list[str],

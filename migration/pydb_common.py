@@ -60,6 +60,7 @@ def build_channel_data(max_channels: int,
                        offset_count: int,
                        limit_count: int) -> list[(int, int)]:
 
+    # initialize the return variable
     result: list[(int, int)] = []
 
     # 'limt_count' might be 0, 'table_count' is always greater than 0
@@ -76,7 +77,7 @@ def build_channel_data(max_channels: int,
     # allocate sizes and offsets for multi-thread use
     total_count: int = 0
     while total_count + channel_size <= limit_count:
-        result.append((channel_size, offset_count))
+        result.append((offset_count, channel_size))
         total_count += channel_size
         offset_count += channel_size
 
@@ -87,10 +88,10 @@ def build_channel_data(max_channels: int,
         #   - at least one is still available, and
         #   - the remaining size is greater than 10% of the channel size
         if len(result) < max_channels and 10 * remainder > channel_size:
-            result.append((remainder, offset_count))
+            result.append((offset_count, remainder))
         # otherwise, the remaining rows are added to the last channel
         else:
-            result[-1] = (result[-1][0] + remainder, result[-1][1])
+            result[-1] = (result[-1][0], result[-1][1] + remainder)
 
     return result
 
