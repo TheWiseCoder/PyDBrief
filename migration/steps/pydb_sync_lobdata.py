@@ -390,10 +390,11 @@ def _compute_lob_lists(mother_thread: int,
                             lobs_s3_full[name] = full_name
 
     with lob_ctrl.lobdata_lock:
+        table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]
         if errors:
-            lob_ctrl.lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+            table_data["errors"].extend(errors)
         else:
-            lob_ctrl.lobdata_register[mother_thread][source_table]["table-count"] = lob_count
-            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-db-names"] = lobs_db_names
-            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-s3-names"] = lobs_s3_names
-            lob_ctrl.lobdata_register[mother_thread][source_table][f"{reference_column}-s3-full"] = lobs_s3_full
+            table_data["table-count"] += lob_count
+            table_data[f"{reference_column}-db-names"].extend(lobs_db_names)
+            table_data[f"{reference_column}-s3-names"].extend(lobs_s3_names)
+            table_data[f"{reference_column}-s3-full"].update(lobs_s3_full)
