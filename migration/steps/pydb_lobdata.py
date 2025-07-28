@@ -501,9 +501,9 @@ def _s3_migrate_lobs(mother_thread: int,
 
             if not errors and isinstance(where_clause, list):
                 # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
-                temp_table: str = (f"{source_schema}."
-                                   f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}")
-                temp_column: str = f"id_{reference_column}"
+                temp_table: str = f"{source_schema}." + \
+                                  f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
+                temp_column: str = f"id_{reference_column}"[:30]
                 db_create_session_table(errors=errors,
                                         engine=source_db,
                                         connection=db_conn,
