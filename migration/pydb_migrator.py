@@ -154,16 +154,17 @@ def migrate(errors: list[str],
             finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
-            secs: float = (finished - started).total_seconds()
+            mins: float = (finished - started).total_seconds() / 60
             result.update({
                 "total-lob-count": lob_count,
                 "total-lob-bytes": lob_bytes,
                 "total-lob-duration": duration,
-                "total-lob-performance": f"{lob_count/secs:.2f} LOBs/s, "
-                                         f"{lob_bytes/secs:.2f} bytes/s, "
-                                         f"{(60 * (lob_bytes/(1024 * 1024))/secs):.2f} GBytes/min"
+                "total-lob-performance": f"{lob_count/mins:.2f} LOBs/min, "
+                                         f"{(lob_bytes/(1024 * 1024 * mins)):.2f} GBytes/min"
             })
-            logger.info(msg="Finished migrating the LOBs")
+            logger.debug(msg=f"Finished migrating {lob_count} LOBs ({lob_count/mins:.2f} LOBs/min), "
+                             f"{lob_bytes} bytes ({(lob_bytes/(1024 * 1024 * mins)):.2f} GBytes/min), "
+                             f"duration {duration}")
 
         # synchronize the plain data
         if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
