@@ -175,7 +175,7 @@ def migrate_lob_tables(errors: list[str],
                 "lob-duration": duration,
                 "lob-performance": f"{lob_count/secs:.2f} LOBs/s, "
                                    f"{lob_bytes/secs:.2f} bytes/s, "
-                                   f"{((lob_bytes/(1024 * 1024))/(60 * secs)):.2f} GBytes/min"
+                                   f"{(60 * (lob_bytes/(1024 * 1024))/secs):.2f} GBytes/min"
             })
             target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
             logger.debug(msg=f"Migrated {lob_count} LOBs ({lob_bytes} bytes) in table "

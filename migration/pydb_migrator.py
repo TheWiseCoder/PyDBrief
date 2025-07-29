@@ -161,7 +161,7 @@ def migrate(errors: list[str],
                 "total-lob-duration": duration,
                 "total-lob-performance": f"{lob_count/secs:.2f} LOBs/s, "
                                          f"{lob_bytes/secs:.2f} bytes/s, "
-                                         f"{((lob_bytes/(1024 * 1024))/(60 * secs)):.2f} GBytes/min"
+                                         f"{(60 * (lob_bytes/(1024 * 1024))/secs):.2f} GBytes/min"
             })
             logger.info(msg="Finished migrating the LOBs")
 
