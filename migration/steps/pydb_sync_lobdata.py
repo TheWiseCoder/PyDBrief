@@ -367,7 +367,7 @@ def _compute_lob_lists(mother_thread: int,
                     lobs_db_names = [db_item[0] for db_item in db_items]
                     lob_count = len(lobs_db_names)
                     # HAZARD: 'start_after' is actually 'start_at'
-                    start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix()
+                    start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix() if offset_count > 0 else None
                     db_items.clear()
 
                     s3_items: list[dict[str, Any]] = s3_prefix_list(errors=errors,
