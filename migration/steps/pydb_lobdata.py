@@ -168,18 +168,18 @@ def migrate_lob_tables(errors: list[str],
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             mins: float = (finished - started).total_seconds() / 60
+            performance: str = (f"{lob_count/mins:.2f} LOBs/min, "
+                                f"{lob_bytes/(mins * 1024 ** 2):.2f} MBytes/min")
             table_data.update({
                 "lob-status": status,
                 "lob-count": lob_count,
                 "lob-bytes": lob_bytes,
                 "lob-duration": duration,
-                "lob-performance": f"{lob_count/mins:.2f} LOBs/min, "
-                                   f"{(lob_bytes/(1024 * 1024 * mins)):.2f} GBytes/min"
+                "lob-performance": performance
             })
-            target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
-            logger.debug(msg=f"Migrated {lob_count} LOBs ({lob_count/mins:.2f} LOBs/min), "
-                             f"{lob_bytes} bytes ({(lob_bytes/(1024 * 1024 * mins)):.2f} GBytes/min) in table "
-                             f"{table_name}, from {source_db} to {target}, status {status}, duration {duration}")
+            target: str = f"S3 storage '{target_s3}'" if target_s3 else f"{target_db}.{table_name}"
+            logger.debug(msg=f"Migrated {lob_count} LOBs, {lob_bytes} bytes, in {duration} ({performance}), "
+                             f"from {source_db}.{table_name} to {target}, status {status}")
             result_count += lob_count
             result_bytes += lob_bytes
 
