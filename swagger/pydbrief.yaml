@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.8.8
+  version: 1.8.9
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -1004,7 +1004,7 @@ components:
     IncrementalMigrationsParam:
       name: incremental-migrations
       in: query
-      description: Optional list of tables for which plaindata migration and LOB migration are to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If omitted or set to 0, '\<size\>' is set to the migration metrics parameter 'incremental-size'. If omitted, '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table.
+      description: Optional list of tables for which plaindata migration and LOB migration are to be carried out incrementally. This parameter takes a list of comma-separated tables with the syntax '\<table-name\>[=[\<size\>][:\<offset\>]]', where '\<size\>' is the maximum number of rows to migrate, and '\<offset\>' is the offset into the source table. If omitted or set to 0, '\<size\>' is set to the migration metrics parameter 'incremental-size'. If omitted, '\<offset\>' is set to 0. If '\<size\>' is set to -1, migration is to include all rows to the end of the table. If '\<offset\>' is set to -1, it is set to the value of a count operation on the target table, for migration to another database, or to 0, for migration to S3 storage.
       required: false
       explode: false
       schema:

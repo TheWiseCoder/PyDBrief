@@ -107,7 +107,8 @@ def migrate(errors: list[str],
                 __establish_increments(errors=errors,
                                        migrating_tables=list(migrated_tables.keys()),
                                        incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
-                                       target_rdbms=session_spots[MigSpot.TO_RDBMS],
+                                       target_rdbms=(None if session_spots[MigSpot.TO_S3]
+                                                     else session_spots[MigSpot.TO_RDBMS]),
                                        target_schema=session_specs[MigSpec.TO_SCHEMA],
                                        incremental_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
                                        logger=logger)
@@ -250,7 +251,7 @@ def migrate(errors: list[str],
 def __establish_increments(errors: list[str],
                            migrating_tables: list[str],
                            incremental_migrations: dict[str, tuple[int, int]],
-                           target_rdbms: DbEngine,
+                           target_rdbms: DbEngine | None,
                            target_schema: str,
                            incremental_size: int,
                            logger: Logger) -> dict[str, tuple[int, int]]:
@@ -269,13 +270,16 @@ def __establish_increments(errors: list[str],
             if not offset:
                 offset = 0
             elif offset == -1:
-                offset = db_count(errors=errors,
-                                  table=f"{target_schema}.{key}",
-                                  engine=target_rdbms,
-                                  committable=True,
-                                  logger=logger)
-                if errors:
-                    break
+                if target_rdbms:
+                    offset = db_count(errors=errors,
+                                      table=f"{target_schema}.{key}",
+                                      engine=target_rdbms,
+                                      committable=True,
+                                      logger=logger)
+                    if errors:
+                        break
+                else:
+                    offset = 0
             result[key] = (size, offset)
         else:
             result.pop(key)
