@@ -335,7 +335,7 @@ def migrate_lob_columns(errors: list[str],
             else:
                 target: str = f"S3 storage '{target_s3}'" \
                     if target_s3 else f"{target_db}.{target_table}.{lob_column}"
-                logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} LOBs "
+                logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} LOBs "
                              f"from {source_db}.{source_table}.{lob_column} to {target}, "
                              f"using {len(channel_data)} channels")
 
