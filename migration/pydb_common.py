@@ -60,7 +60,7 @@ def build_channel_data(channel_size: int,
                        limit_count: int) -> list[(int, int)]:
 
     # initialize the return variable
-    result: list[(int, int)] = []
+    result: list[tuple[int, int]] = []
 
     # 'limt_count' might be 0, 'table_count' is always greater than 0
     if limit_count == 0 or limit_count > table_count:
@@ -98,7 +98,7 @@ def build_channel_data_prev(max_channels: int,
                             limit_count: int) -> list[(int, int)]:
 
     # initialize the return variable
-    result: list[(int, int)] = []
+    result: list[tuple[int, int]] = []
 
     # 'limt_count' might be 0, 'table_count' is always greater than 0
     if limit_count == 0 or limit_count > table_count:
