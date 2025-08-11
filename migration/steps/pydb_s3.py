@@ -132,7 +132,7 @@ def s3_migrate_lobs(errors: list[str],
             if isinstance(row_data, bytes):
                 lob_data += row_data
             else:
-                lob_data += bytes(row_data)
+                lob_data += bytes(row_data, "utf-8")
 
         # no more data
         else:

@@ -165,7 +165,7 @@ def synchronize_lobs(errors: list[str],
                                                   column_name=reference_column)
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                        build_channel_data(  # max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
                                            channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=0,

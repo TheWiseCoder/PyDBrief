@@ -210,7 +210,7 @@ def migrate_lob_columns(errors: list[str],
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
     session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+    # channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
     channel_size: int = session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
@@ -270,13 +270,6 @@ def migrate_lob_columns(errors: list[str],
                     # skip column migration
                     continue
 
-            if not pk_columns:
-                warn_msg: str = ("Expecting an index to exist on column "
-                                 f"{source_db}.{source_table}.{reference_column}, as table has no PKs")
-                migration_warnings.append(warn_msg)
-                logger.warning(msg=warn_msg)
-                pk_columns = [reference_column]
-
         # count migrateable tuples on source table for 'lob_column'
         if lob_tuples is None:
             where_clause = f"{lob_column} IS NOT NULL"
@@ -292,7 +285,7 @@ def migrate_lob_columns(errors: list[str],
         # migrate the LOBs in 'lob_column'
         if not errors and table_count > 0:
             # build migration channel data ([(offset, limit),...])
-            channel_data: list[tuple[int, int]] = build_channel_data(max_channels=channel_count,
+            channel_data: list[tuple[int, int]] = build_channel_data(  # max_channels=channel_count,
                                                                      channel_size=channel_size,
                                                                      table_count=table_count,
                                                                      offset_count=offset_count,
@@ -310,7 +303,7 @@ def migrate_lob_columns(errors: list[str],
                                      target_table=target_table,
                                      lob_prefix=lob_prefix,
                                      lob_column=lob_column,
-                                     pk_columns=pk_columns,
+                                     pk_columns=pk_columns or [reference_column],
                                      where_clause=where_clause,
                                      offset_count=channel_data[0][0],
                                      limit_count=channel_data[0][1],
@@ -324,7 +317,7 @@ def migrate_lob_columns(errors: list[str],
                                      source_engine=source_db,
                                      source_table=source_table,
                                      lob_column=lob_column,
-                                     pk_columns=pk_columns,
+                                     pk_columns=pk_columns or [reference_column],
                                      target_engine=target_db,
                                      target_table=target_table,
                                      where_clause=where_clause,
@@ -355,7 +348,7 @@ def migrate_lob_columns(errors: list[str],
                                                              target_table=target_table,
                                                              lob_prefix=lob_prefix,
                                                              lob_column=lob_column,
-                                                             pk_columns=pk_columns,
+                                                             pk_columns=pk_columns or [reference_column],
                                                              where_clause=where_clause,
                                                              offset_count=channel_datum[0],
                                                              limit_count=channel_datum[1],
@@ -370,7 +363,7 @@ def migrate_lob_columns(errors: list[str],
                                                              source_engine=source_db,
                                                              source_table=source_table,
                                                              lob_column=lob_column,
-                                                             pk_columns=pk_columns,
+                                                             pk_columns=pk_columns or [reference_column],
                                                              target_engine=target_db,
                                                              target_table=target_table,
                                                              where_clause=where_clause,
