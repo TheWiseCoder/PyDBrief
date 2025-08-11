@@ -210,7 +210,7 @@ def migrate_lob_columns(errors: list[str],
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
     session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    # channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
     channel_size: int = session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
@@ -285,7 +285,7 @@ def migrate_lob_columns(errors: list[str],
         # migrate the LOBs in 'lob_column'
         if not errors and table_count > 0:
             # build migration channel data ([(offset, limit),...])
-            channel_data: list[tuple[int, int]] = build_channel_data(  # max_channels=channel_count,
+            channel_data: list[tuple[int, int]] = build_channel_data(max_channels=channel_count,
                                                                      channel_size=channel_size,
                                                                      table_count=table_count,
                                                                      offset_count=offset_count,
