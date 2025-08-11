@@ -6,8 +6,8 @@ from enum import StrEnum
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    TIMEZONE_LOCAL,
-    timestamp_duration, list_correlate, list_remove_duplicates
+    TZ_LOCAL,
+    timestamp_duration, list_correlate, list_prune_duplicates
 )
 from pypomes_db import (
     DbEngine, db_connect, db_count, db_select
@@ -124,7 +124,7 @@ def synchronize_lobs(errors: list[str],
 
         if lob_columns:
             # start synchronizing the LOBs in the S3 folder with its corresponding source table column
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             status: str = "ok"
             lob_count: int = 0
             delete_count: int = 0
@@ -229,11 +229,11 @@ def synchronize_lobs(errors: list[str],
                             col_s3_full = table_data.get(f"{reference_column}-s3-full")
 
                     col_db_names.sort()
-                    list_remove_duplicates(target=col_db_names,
-                                           is_sorted=True)
+                    list_prune_duplicates(target=col_db_names,
+                                          is_sorted=True)
                     col_s3_names.sort()
-                    list_remove_duplicates(target=col_s3_names,
-                                           is_sorted=True)
+                    list_prune_duplicates(target=col_s3_names,
+                                          is_sorted=True)
                     correlations: tuple = list_correlate(list_first=col_db_names,
                                                          list_second=col_s3_names,
                                                          only_in_first=True,
@@ -246,7 +246,7 @@ def synchronize_lobs(errors: list[str],
                     table_inserts[reference_column] = col_inserts
                     table_deletes[reference_column] = [col_s3_full.get(i) for i in col_deletes]
 
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             secs: float = (finished - started).total_seconds()
@@ -303,8 +303,8 @@ def synchronize_lobs(errors: list[str],
                 # remove LOBs
                 if lob_deletes:
                     lob_deletes.sort()
-                    list_remove_duplicates(target=lob_deletes,
-                                           is_sorted=True)
+                    list_prune_duplicates(target=lob_deletes,
+                                          is_sorted=True)
                     s3_items_remove(errors=errors,
                                     identifiers=lob_deletes,
                                     logger=logger)

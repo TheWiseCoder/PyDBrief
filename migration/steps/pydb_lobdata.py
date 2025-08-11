@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from logging import Logger
 from pathlib import Path
-from pypomes_core import TIMEZONE_LOCAL, timestamp_duration
+from pypomes_core import TZ_LOCAL, timestamp_duration
 from pypomes_db import (
     DbEngine, db_connect, db_count,
     db_migrate_lobs, db_table_exists, db_bulk_insert,
@@ -138,7 +138,7 @@ def migrate_lob_tables(errors: list[str],
                 continue
 
             # start migrating the source table LOBs
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             status: str = "ok"
             migrate_lob_columns(errors=errors,
                                 mother_thread=mother_thread,
@@ -164,7 +164,7 @@ def migrate_lob_tables(errors: list[str],
                     status = "error"
                     errors.extend(op_errors)
 
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             mins: float = (finished - started).total_seconds() / 60

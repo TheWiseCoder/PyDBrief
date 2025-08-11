@@ -8,7 +8,7 @@ from io import BytesIO
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    TIMEZONE_LOCAL, DatetimeFormat,
+    TZ_LOCAL, DatetimeFormat,
     dict_jsonify, timestamp_duration, pypomes_versions,
     env_is_docker, str_sanitize, exc_format, validate_format_error
 )
@@ -36,7 +36,7 @@ def migrate(errors: list[str],
             app_version: str,
             logger: Logger) -> dict[str, Any]:
 
-    migration_started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+    migration_started: datetime = datetime.now(tz=TZ_LOCAL)
 
     # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
@@ -115,7 +115,7 @@ def migrate(errors: list[str],
         # migrate the plain data
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             count: int = migrate_plain(errors=errors,
                                        session_id=session_id,
                                        incremental_migrations=incremental_migrations,
@@ -123,7 +123,7 @@ def migrate(errors: list[str],
                                        migration_threads=migration_threads,
                                        migrated_tables=migrated_tables,
                                        logger=logger)
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             result["total-plain-count"] = count
@@ -142,7 +142,7 @@ def migrate(errors: list[str],
             if session_spots[MigSpot.TO_S3]:
                 warnings.filterwarnings(action="ignore")
 
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int] = migrate_lob_tables(errors=errors,
                                                          session_id=session_id,
                                                          incremental_migrations=incremental_migrations,
@@ -152,7 +152,7 @@ def migrate(errors: list[str],
                                                          logger=logger)
             lob_count: int = counts[0]
             lob_bytes: int = counts[1]
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             mins: float = (finished - started).total_seconds() / 60
@@ -170,14 +170,14 @@ def migrate(errors: list[str],
         # synchronize the plain data
         if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
             logger.info(msg="Started synchronizing the plain data")
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_plain(errors=errors,
                                                              session_id=session_id,
                                                              # migration_warnings=migration_warnings,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              logger=logger)
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             result.update({
@@ -196,14 +196,14 @@ def migrate(errors: list[str],
             # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
             warnings.filterwarnings(action="ignore")
 
-            started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_lobs(errors=errors,
                                                             session_id=session_id,
                                                             migration_warnings=migration_warnings,
                                                             migration_threads=migration_threads,
                                                             migrated_tables=migrated_tables,
                                                             logger=logger)
-            finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             result.update({
@@ -220,7 +220,7 @@ def migrate(errors: list[str],
         if curr_state == MigrationState.MIGRATING else MigrationState.ABORTED
     session_registry[MigSpec.STATE] = new_state
 
-    migration_finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+    migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     result.update({
         "total-tables": len(migrated_tables),
         "migrated-tables": migrated_tables,

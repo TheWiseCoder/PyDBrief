@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
-    TIMEZONE_LOCAL, timestamp_duration, validate_format_error
+    TZ_LOCAL, timestamp_duration, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
@@ -119,7 +119,7 @@ def migrate_plain(errors: list[str],
                 # no, proceed
                 count: int = 0
                 status: str = "ok"
-                started: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+                started: datetime = datetime.now(tz=TZ_LOCAL)
 
                 # count migrateable tuples on source table
                 table_count: int = (db_count(errors=errors,
@@ -229,7 +229,7 @@ def migrate_plain(errors: list[str],
                                              table=source_table,
                                              logger=logger)
 
-                finished: datetime = datetime.now(tz=TIMEZONE_LOCAL)
+                finished: datetime = datetime.now(tz=TZ_LOCAL)
                 duration: str = timestamp_duration(start=started,
                                                    finish=finished)
                 secs: float = (finished - started).total_seconds()
