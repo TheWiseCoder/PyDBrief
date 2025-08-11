@@ -711,6 +711,6 @@ def type_to_name(rdbms: DbEngine,
     return key.replace(prefix, "")
 
 
-def is_lob(col_type: str) -> bool:
+def is_lob_column(col_type: str) -> bool:
 
     return col_type in LOBS

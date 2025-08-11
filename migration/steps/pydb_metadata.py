@@ -15,7 +15,7 @@ from app_constants import (
     MigConfig, MigStep, MigSpec, MigSpot
 )
 from migration.pydb_sessions import get_session_registry
-from migration.pydb_types import is_lob
+from migration.pydb_types import is_lob_column
 from migration.steps.pydb_database import column_set_nullable, view_get_ddl
 from migration.steps.pydb_migration import (
     prune_metadata, setup_schema, setup_tables
@@ -28,7 +28,7 @@ def migrate_metadata(errors: list[str],
                      # migration_warnings: list[str],
                      logger: Logger) -> dict[str, Any]:
 
-    # iinitialize the return variable
+    # initialize the return variable
     result: dict[str, Any] | None = None
 
     # retrieve the registry data for the session
@@ -68,11 +68,11 @@ def migrate_metadata(errors: list[str],
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
             def assert_relation(rel: str, _md: MetaData) -> bool:
-                result: bool = ((not session_specs[MigSpec.EXCLUDE_RELATIONS] or
-                                 rel not in session_specs[MigSpec.EXCLUDE_RELATIONS]) and
-                                rel not in schema_views and
-                                (not session_specs[MigSpec.INCLUDE_RELATIONS] or
-                                 rel in session_specs[MigSpec.INCLUDE_RELATIONS]))
+                result = ((not session_specs[MigSpec.EXCLUDE_RELATIONS] or
+                           rel not in session_specs[MigSpec.EXCLUDE_RELATIONS]) and
+                          rel not in schema_views and
+                          (not session_specs[MigSpec.INCLUDE_RELATIONS] or
+                           rel in session_specs[MigSpec.INCLUDE_RELATIONS]))
                 logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
                 return result
 
@@ -194,7 +194,7 @@ def migrate_metadata(errors: list[str],
                                         # (SQLAlchemy fails at that, in certain sitations)
                                         columns_props: dict = result.get(target_table.name).get("columns")
                                         for name, props in columns_props.items():
-                                            if is_lob(col_type=props.get("source-type")) and \
+                                            if is_lob_column(col_type=props.get("source-type")) and \
                                                "nullable" not in props.get("features", []):
                                                 props["features"] = props.get("features", [])
                                                 props["features"].append("nullable")

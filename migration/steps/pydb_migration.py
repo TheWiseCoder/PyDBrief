@@ -12,7 +12,7 @@ from sys import exc_info
 from typing import Any
 
 from migration.pydb_types import (
-    establish_equivalences, is_lob, migrate_column
+    establish_equivalences, is_lob_column, migrate_column
 )
 from migration.steps.pydb_database import schema_create
 
@@ -233,7 +233,7 @@ def setup_tables(errors: list[str],
                 "source-type": column_type
             }
             # mark LOB column for S3 migration
-            if target_s3 and is_lob(column_type):
+            if target_s3 and is_lob_column(col_type=column_type):
                 s3_columns.append(column)
                 table_columns[column.name]["target-type"] = target_s3.value
 

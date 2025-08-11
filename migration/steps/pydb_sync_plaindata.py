@@ -64,7 +64,7 @@ def synchronize_plain(errors: list[str],
         for column_name, column_data in table_data["columns"].items():
             # exclude LOB (large binary objects) types
             column_type: str = column_data.get("source-type")
-            if not pydb_types.is_lob(col_type=column_type):
+            if not pydb_types.is_lob_column(col_type=column_type):
                 features: list[str] = column_data.get("features", [])
                 if "primary-key" in features:
                     pk_columns.append(column_name)

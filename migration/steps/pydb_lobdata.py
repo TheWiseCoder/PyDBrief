@@ -19,7 +19,7 @@ from app_constants import (
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
-from migration.pydb_types import is_lob
+from migration.pydb_types import is_lob_column
 from migration.steps.pydb_database import session_setup
 from migration.steps.pydb_s3 import s3_migrate_lobs
 
@@ -110,7 +110,7 @@ def migrate_lob_tables(errors: list[str],
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
             # migrating to S3 requires the lob column be mapped in 'named-lobdata'
-            if is_lob(column_type):
+            if is_lob_column(col_type=column_type):
                 reference_column: str | None = None
                 # determine if lobdata in 'lob_column' has its filename defined 'named-lobdata'
                 for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):

@@ -18,7 +18,7 @@ from app_constants import (
 )
 from migration.pydb_common import build_channel_data
 from migration.pydb_sessions import assert_session_abort, get_session_registry
-from migration.pydb_types import is_lob
+from migration.pydb_types import is_lob_column
 from migration.steps.pydb_database import (
     session_setup, table_embedded_nulls
 )
@@ -135,7 +135,7 @@ def migrate_plain(errors: list[str],
                     # setup source and target columns
                     for column_name, column_data in table_data["columns"].items():
                         column_type: str = column_data.get("source-type")
-                        if not is_lob(col_type=column_type):
+                        if not is_lob_column(col_type=column_type):
                             features: list[str] = column_data.get("features", [])
                             source_columns.append(column_name)
                             if db_is_reserved_word(word=column_name,
