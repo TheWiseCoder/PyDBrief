@@ -57,12 +57,12 @@ def get_s3_specs(errors: list[str],
 def build_channel_data(channel_size: int,
                        table_count: int,
                        offset_count: int,
-                       limit_count: int) -> list[(int, int)]:
+                       limit_count: int) -> list[tuple[int, int]]:
 
     # initialize the return variable
     result: list[tuple[int, int]] = []
 
-    # 'limt_count' might be 0, 'table_count' is always greater than 0
+    # 'limit_count' might be 0, 'table_count' is always greater than 0
     if limit_count == 0 or limit_count > table_count:
         limit_count = table_count
 
@@ -95,12 +95,12 @@ def build_channel_data_prev(max_channels: int,
                             channel_size: int,
                             table_count: int,
                             offset_count: int,
-                            limit_count: int) -> list[(int, int)]:
+                            limit_count: int) -> list[tuple[int, int]]:
 
     # initialize the return variable
     result: list[tuple[int, int]] = []
 
-    # 'limt_count' might be 0, 'table_count' is always greater than 0
+    # 'limit_count' might be 0, 'table_count' is always greater than 0
     if limit_count == 0 or limit_count > table_count:
         limit_count = table_count
 
