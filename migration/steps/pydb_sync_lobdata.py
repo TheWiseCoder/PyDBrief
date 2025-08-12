@@ -84,6 +84,9 @@ def synchronize_lobs(errors: list[str],
     target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
     target_s3: S3Engine = session_spots[MigSpot.TO_S3]
 
+    # retrieve the channel count
+    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
 
@@ -165,14 +168,15 @@ def synchronize_lobs(errors: list[str],
                                                   column_name=reference_column)
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(  # max_channels=session_metrics[MigMetric.LOBDATA_CHANNELS],
+                        build_channel_data(  # max_channels=channel_count,
                                            channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=0,
                                            limit_count=0)
                     # remove the limit on the last channel
                     channel_data[-1] = (channel_data[-1][0], 0)
-                    if len(channel_data) == 1:
+                    max_workers: int = min(channel_count, len(channel_data))
+                    if max_workers == 1:
                         # execute single task in current thread
                         _compute_lob_lists(mother_thread=mother_thread,
                                            source_db=source_db,
@@ -189,10 +193,10 @@ def synchronize_lobs(errors: list[str],
                             if target_s3 else f"{target_db}.{target_table}.{lob_column}"
                         logger.debug(msg=f"Started synchronizing {sum(c[0] for c in channel_data)} LOBs "
                                          f"in {target} with {source_db}.{source_table}.{lob_column}, "
-                                         f"using {len(channel_data)} channels")
+                                         f"using {max_workers} channels")
 
                         # execute tasks concurrently
-                        with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
+                        with ThreadPoolExecutor(max_workers=max_workers) as executor:
                             task_futures: list[Future] = []
                             for channel_datum in channel_data:
                                 future: Future = executor.submit(_compute_lob_lists,

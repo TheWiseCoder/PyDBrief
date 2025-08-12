@@ -74,7 +74,8 @@ def migrate_plain(errors: list[str],
     source_engine: DbEngine = session_spots[MigSpot.FROM_RDBMS]
     target_engine: DbEngine = session_spots[MigSpot.TO_RDBMS]
 
-    # retrieve the input and output batch sizes
+    # retrieve the channel and batch specs
+    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
     batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
     batch_size_out: int = session_metrics[MigMetric.BATCH_SIZE_OUT]
 
@@ -165,12 +166,13 @@ def migrate_plain(errors: list[str],
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(  # max_channels=session_metrics[MigMetric.PLAINDATA_CHANNELS],
+                        build_channel_data(  # max_channels=channel_count,
                                            channel_size=session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
-                    if len(channel_data) == 1:
+                    max_workers: int = min(channel_count, len(channel_data))
+                    if max_workers == 1:
                         # execute single task in current thread
                         _migrate_plain(mother_thread=mother_thread,
                                        source_engine=source_engine,
@@ -190,10 +192,10 @@ def migrate_plain(errors: list[str],
                     else:
                         logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
-                                         f"using {len(channel_data)} channels")
+                                         f"using {max_workers} channels")
 
                         # execute tasks concurrently
-                        with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
+                        with ThreadPoolExecutor(max_workers=max_workers) as executor:
                             task_futures: list[Future] = []
                             for channel_datum in channel_data:
                                 future: Future = executor.submit(_migrate_plain,

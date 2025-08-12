@@ -207,10 +207,13 @@ def migrate_lob_columns(errors: list[str],
                         migration_warnings: list[str],
                         logger: Logger) -> None:
 
+    # retrieve the registry data for the session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
     session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    # channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+
+    # retrieve the channel and chunk specs
+    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
     channel_size: int = session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE]
     chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
 
@@ -290,7 +293,8 @@ def migrate_lob_columns(errors: list[str],
                                                                      table_count=table_count,
                                                                      offset_count=offset_count,
                                                                      limit_count=limit_count)
-            if len(channel_data) == 1:
+            max_workers: int = min(channel_count, len(channel_data))
+            if max_workers == 1:
                 # execute single task in current thread
                 if target_s3:
                     # migration target is S3
@@ -330,10 +334,10 @@ def migrate_lob_columns(errors: list[str],
                     if target_s3 else f"{target_db}.{target_table}.{lob_column}"
                 logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} LOBs "
                              f"from {source_db}.{source_table}.{lob_column} to {target}, "
-                             f"using {len(channel_data)} channels")
+                             f"using {max_workers} channels")
 
                 # execute tasks concurrently
-                with ThreadPoolExecutor(max_workers=len(channel_data)) as executor:
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     task_futures: list[Future] = []
                     for channel_datum in channel_data:
                         if target_s3:
