@@ -67,9 +67,7 @@ def build_channel_data(channel_size: int,
         limit_count = table_count
 
     # normalize 'channel_size'
-    channel_size = min(channel_size, table_count)
-    if channel_size > limit_count:
-        channel_size = limit_count
+    channel_size = min(channel_size, table_count, limit_count)
 
     # allocate sizes and offsets for multi-thread use
     total_count: int = 0
