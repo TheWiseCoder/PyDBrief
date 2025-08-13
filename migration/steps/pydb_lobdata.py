@@ -112,12 +112,17 @@ def migrate_lob_tables(errors: list[str],
             # migrating to S3 requires the lob column be mapped in 'named-lobdata'
             if is_lob_column(col_type=column_type):
                 reference_column: str | None = None
-                # determine if lobdata in 'lob_column' has its filename defined 'named-lobdata'
+                # determine if lobdata in 'lob_column' has its filename defined in 'named-lobdata'
                 for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):
                     # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
                     if item.startswith(f"{table_name}.{column_name}="):
                         reference_column = item[item.index("=")+1:]
                         break
+                if target_s3 and not reference_column:
+                    warn_msg: str = ("No mappping found in 'named-lobdata' for column "
+                                     f"{source_db}.{source_table}.{column_name}")
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
                 lob_columns.append((column_name, reference_column))
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
@@ -257,7 +262,7 @@ def migrate_lob_columns(errors: list[str],
                 lob_prefix = build_lob_prefix(session_registry=session_registry,
                                               target_db=target_db,
                                               target_table=target_table,
-                                              column_name=reference_column)
+                                              column_name=reference_column or lob_column)
 
                 # is a nonempty S3 prefix an issue ?
                 if (not session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] and

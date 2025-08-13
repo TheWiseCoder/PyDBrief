@@ -60,7 +60,7 @@ def migrate(errors: list[str],
         MigSpec.SESSION_ID: session_id,
         MigConfig.METRICS: session_metrics,
         MigConfig.STEPS: session_steps,
-        MigConfig.SPECS: session_specs,
+        MigConfig.SPECS: {k: v for k, v in session_specs.items() if v},
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms,
         "logging": logging_get_params()
