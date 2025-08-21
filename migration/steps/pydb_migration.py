@@ -11,10 +11,10 @@ from sqlalchemy.sql.elements import Type
 from sys import exc_info
 from typing import Any
 
+from migration.pydb_database import schema_create
 from migration.pydb_types import (
     establish_equivalences, is_lob_column, migrate_column
 )
-from migration.steps.pydb_database import schema_create
 
 
 def prune_metadata(source_schema: str,
@@ -175,7 +175,7 @@ def setup_schema(errors: list[str],
                       schema=target_schema,
                       rdbms=target_rdbms,
                       logger=logger)
-        # SANITY CHECK: errorless schema creation failure has happened
+        # SANITY CHECK: errorless schema creation failure might happen
         if op_errors:
             errors.extend(op_errors)
         else:

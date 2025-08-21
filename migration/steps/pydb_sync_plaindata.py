@@ -10,10 +10,8 @@ from app_constants import (
     MigConfig, MigMetric, MigSpot, MigSpec
 )
 from migration import pydb_types
+from migration.pydb_database import table_embedded_nulls, session_setup
 from migration.pydb_sessions import assert_session_abort, get_session_registry
-from migration.steps.pydb_database import (
-    table_embedded_nulls, session_setup
-)
 
 
 def synchronize_plain(errors: list[str],

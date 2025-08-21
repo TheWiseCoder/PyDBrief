@@ -16,7 +16,7 @@ from app_constants import (
 )
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import is_lob_column
-from migration.steps.pydb_database import column_set_nullable, view_get_ddl
+from migration.pydb_database import column_set_nullable, view_get_ddl
 from migration.steps.pydb_migration import (
     prune_metadata, setup_schema, setup_tables
 )

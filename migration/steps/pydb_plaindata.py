@@ -17,11 +17,9 @@ from app_constants import (
     MigConfig, MigSpot, MigSpec, MigMetric
 )
 from migration.pydb_common import build_channel_data
+from migration.pydb_database import session_setup, table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
-from migration.steps.pydb_database import (
-    session_setup, table_embedded_nulls
-)
 
 # _plaindata_threads: dict[int, dict[str, Any]] = {
 #   <mother-thread> = {

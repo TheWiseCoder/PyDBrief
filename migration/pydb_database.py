@@ -1,9 +1,35 @@
 from logging import Logger
 from pypomes_core import validate_format_error
 from pypomes_db import (
-    DbEngine, DbParam, db_get_param, db_get_view_ddl, db_execute
+    DbEngine, DbParam, DbConnectionPool, DbPoolEvent,
+    get_pool, db_get_param, db_get_view_ddl, db_execute
 )
 from typing import Any, Literal
+
+
+def db_pool_setup(rdbms: DbEngine,
+                  logger: Logger) -> None:
+
+    pool: DbConnectionPool = get_pool(engine=rdbms)
+    if not pool:
+        pool = DbConnectionPool(engine=rdbms,
+                                logger=logger)
+        stmts: list[str] = []
+        # fine-tune all database sessions, as needed
+        # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
+        match rdbms:
+            case DbEngine.MYSQL:
+                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+            case DbEngine.ORACLE:
+                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
+                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
+            case DbEngine.POSTGRES:
+                stmts.append("set session_replication_role = replica")
+            case DbEngine.SQLSERVER:
+                pass
+        if stmts:
+            pool.on_event_actions(event=DbPoolEvent.CREATE,
+                                  stmts=stmts)
 
 
 def schema_create(errors: list[str],
@@ -31,32 +57,33 @@ def session_setup(errors: list[str],
                   conn: Any,
                   logger: Logger) -> None:
 
-    # disable triggers and rules delaying bulk operations on current session
-    stmts: list[str] = []
-    match rdbms:
-        case DbEngine.POSTGRES:
-            if mode == "target":
-                stmts.append("set session_replication_role = replica")
-        case DbEngine.MYSQL:
-            if mode == "target":
-                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
-        case DbEngine.ORACLE:
-            if mode == "source":
-                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
-                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
-            # Oracle does not have session-scope commands for disabling triggers and/or rules
-        case _:  # SQLServer
-            # SQLServer does not have session-scope commands for disabling triggers and/or rules
-            pass
-    for stmt in stmts:
-        db_execute(errors=errors,
-                   exc_stmt=stmt,
-                   engine=rdbms,
-                   connection=conn,
-                   logger=logger)
-        if errors:
-            break
-        logger.debug(msg=f"RDBMS {rdbms}, session prepared with {stmt}")
+    pass
+    # # disable triggers and rules delaying bulk operations on current session
+    # stmts: list[str] = []
+    # match rdbms:
+    #     case DbEngine.POSTGRES:
+    #         if mode == "target":
+    #             stmts.append("set session_replication_role = replica")
+    #     case DbEngine.MYSQL:
+    #         if mode == "target":
+    #             stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+    #     case DbEngine.ORACLE:
+    #         if mode == "source":
+    #             stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
+    #             stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
+    #         # Oracle does not have session-scope commands for disabling triggers and/or rules
+    #     case _:  # SQLServer
+    #         # SQLServer does not have session-scope commands for disabling triggers and/or rules
+    #         pass
+    # for stmt in stmts:
+    #     db_execute(errors=errors,
+    #                exc_stmt=stmt,
+    #                engine=rdbms,
+    #                connection=conn,
+    #                logger=logger)
+    #     if errors:
+    #         break
+    #     logger.debug(msg=f"RDBMS {rdbms}, session prepared with {stmt}")
 
 
 def column_set_nullable(errors: list[str],
@@ -97,9 +124,8 @@ def view_get_ddl(errors: list[str],
                                   view_name=f"{source_schema}.{view_name}",
                                   engine=source_rdbms,
                                   logger=logger)
-    # has the script been retrieved ?
     if result:
-        # yes, create the view in the target schema
+        # script has been retrieved, create the view in the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
                                .replace(f'"{source_schema}".', f'"{target_schema}".')
         if source_rdbms == DbEngine.ORACLE:
@@ -107,7 +133,7 @@ def view_get_ddl(errors: list[str],
             result = result.replace("force editionable ", "")
         # errors ?
     else:
-        # no, report the problem
+        # script has not been retrieved, report the problem
         err_msg: str = ("unable to retrieve creation script "
                         f"for view {source_rdbms}.{source_schema}.{view_name}")
         logger.error(msg=err_msg)

@@ -22,9 +22,9 @@ from app_constants import (
     MigConfig, MigMetric, MigSpec, MigSpot
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
+from migration.pydb_database import session_setup
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
-from migration.steps.pydb_database import session_setup
 from migration.steps.pydb_lobdata import migrate_lob_columns
 
 # structure of the thread register:

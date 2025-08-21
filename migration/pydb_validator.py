@@ -6,11 +6,14 @@ from pypomes_core import (
     validate_str, validate_strs, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, DbParam, db_setup, db_assert_access, db_get_param, db_get_engines
+    DbEngine, DbParam, db_setup,
+    db_assert_access, db_get_param, db_get_engines
 )
 from pypomes_http import HttpMethod
+from pypomes_logging import PYPOMES_LOGGER
 from pypomes_s3 import (
-    S3Engine, S3Param, s3_setup, s3_startup, s3_get_param, s3_get_engines
+    S3Engine, S3Param, s3_setup,
+    s3_startup, s3_get_param, s3_get_engines
 )
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
@@ -23,6 +26,7 @@ from app_constants import (
     RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
     RANGE_LOBDATA_CHANNELS, RANGE_LOBDATA_CHANNEL_SIZE
 )
+from migration.pydb_database import db_pool_setup
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import name_to_type
 
@@ -115,6 +119,9 @@ def validate_rdbms(errors: list[str],
             session_id: str = input_params.get(MigSpec.SESSION_ID)
             session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[db_engine] = db_specs
+            # build the connection pool
+            db_pool_setup(rdbms=db_engine,
+                          logger=PYPOMES_LOGGER)
         else:
             # 145: Invalid, inconsistent, or missing arguments
             errors.append(validate_format_error(error_id=145))

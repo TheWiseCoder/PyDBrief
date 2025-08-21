@@ -128,7 +128,7 @@ def service_ignore() -> Response:
     """
     Handle irrelevant browser requests.
 
-    :return: status *NO CONTENT*
+    :return: *Response* with status *NO CONTENT*
     """
     return Response(status=HttpStatus.NO_CONTENT)
 
