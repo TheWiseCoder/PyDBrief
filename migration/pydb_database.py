@@ -57,24 +57,23 @@ def session_setup(errors: list[str],
                   conn: Any,
                   logger: Logger) -> None:
 
-    pass
-    # # disable triggers and rules delaying bulk operations on current session
-    # stmts: list[str] = []
-    # match rdbms:
-    #     case DbEngine.POSTGRES:
-    #         if mode == "target":
-    #             stmts.append("set session_replication_role = replica")
-    #     case DbEngine.MYSQL:
-    #         if mode == "target":
-    #             stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
-    #     case DbEngine.ORACLE:
-    #         if mode == "source":
-    #             stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
-    #             stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
-    #         # Oracle does not have session-scope commands for disabling triggers and/or rules
-    #     case _:  # SQLServer
-    #         # SQLServer does not have session-scope commands for disabling triggers and/or rules
-    #         pass
+    # disable triggers and rules delaying bulk operations on current session
+    stmts: list[str] = []
+    match rdbms:
+        case DbEngine.POSTGRES:
+            if mode == "target":
+                stmts.append("set session_replication_role = replica")
+        case DbEngine.MYSQL:
+            if mode == "target":
+                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+        case DbEngine.ORACLE:
+            if mode == "source":
+                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
+                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
+            # Oracle does not have session-scope commands for disabling triggers and/or rules
+        case _:  # SQLServer
+            # SQLServer does not have session-scope commands for disabling triggers and/or rules
+            pass
     # for stmt in stmts:
     #     db_execute(errors=errors,
     #                exc_stmt=stmt,
