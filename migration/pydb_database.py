@@ -2,7 +2,7 @@ from logging import Logger
 from pypomes_core import validate_format_error
 from pypomes_db import (
     DbEngine, DbParam, DbConnectionPool, DbPoolEvent,
-    get_pool, db_get_param, db_get_view_ddl, db_execute
+    db_get_pool, db_get_param, db_get_view_ddl, db_execute
 )
 from typing import Any, Literal
 
@@ -10,7 +10,7 @@ from typing import Any, Literal
 def db_pool_setup(rdbms: DbEngine,
                   logger: Logger) -> None:
 
-    pool: DbConnectionPool = get_pool(engine=rdbms)
+    pool: DbConnectionPool = db_get_pool(engine=rdbms)
     if not pool:
         pool = DbConnectionPool(engine=rdbms,
                                 logger=logger)
