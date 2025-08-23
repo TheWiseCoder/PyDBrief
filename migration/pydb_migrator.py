@@ -30,10 +30,10 @@ from migration.steps.pydb_sync_lobdata import synchronize_lobs
 from migration.steps.pydb_sync_plaindata import synchronize_plain
 
 
-def migrate(errors: list[str],
-            session_id: str,
+def migrate(session_id: str,
             app_name: str,
             app_version: str,
+            errors: list[str],
             logger: Logger) -> dict[str, Any]:
 
     migration_started: datetime = datetime.now(tz=TZ_LOCAL)
@@ -45,12 +45,12 @@ def migrate(errors: list[str],
     session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
-    from_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(errors=errors,
-                                                            session_id=session_id,
-                                                            db_engine=session_spots[MigSpot.FROM_RDBMS])
-    to_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(errors=errors,
-                                                          session_id=session_id,
-                                                          db_engine=session_spots[MigSpot.TO_RDBMS])
+    from_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(session_id=session_id,
+                                                            db_engine=session_spots[MigSpot.FROM_RDBMS],
+                                                            errors=errors)
+    to_rdbms: dict[DbConfig | str, Any] = get_rdbms_specs(session_id=session_id,
+                                                          db_engine=session_spots[MigSpot.TO_RDBMS],
+                                                          errors=errors)
     # initialize the return variable
     result: dict[StrEnum | str, Any] = {
         "colophon": {
@@ -66,9 +66,9 @@ def migrate(errors: list[str],
         "logging": logging_get_params()
     }
     if session_spots[MigSpot.TO_S3]:
-        result["target-s3"] = get_s3_specs(errors=errors,
-                                           session_id=session_id,
-                                           s3_engine=session_spots[MigSpot.TO_S3])
+        result["target-s3"] = get_s3_specs(session_id=session_id,
+                                           s3_engine=session_spots[MigSpot.TO_S3],
+                                           errors=errors)
     # handle warnings as errors
     warnings.filterwarnings(action="error")
 
@@ -84,9 +84,9 @@ def migrate(errors: list[str],
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     session_registry[MigSpec.STATE] = MigrationState.MIGRATING
 
-    migrated_tables: dict[str, Any] = migrate_metadata(errors=errors,
-                                                       session_id=session_id,
+    migrated_tables: dict[str, Any] = migrate_metadata(session_id=session_id,
                                                        # migration_warnings=migration_warnings,
+                                                       errors=errors,
                                                        logger=logger) or {}
     logger.info(msg="Finished discovering the metadata")
 
@@ -104,24 +104,24 @@ def migrate(errors: list[str],
         incremental_migrations: dict[str, tuple[int, int]] = {}
         if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
             incremental_migrations = \
-                __establish_increments(errors=errors,
-                                       migrating_tables=list(migrated_tables.keys()),
+                __establish_increments(migrating_tables=list(migrated_tables.keys()),
                                        incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
                                        target_rdbms=(None if session_spots[MigSpot.TO_S3]
                                                      else session_spots[MigSpot.TO_RDBMS]),
                                        target_schema=session_specs[MigSpec.TO_SCHEMA],
                                        incremental_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
+                                       errors=errors,
                                        logger=logger)
         # migrate the plain data
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            count: int = migrate_plain(errors=errors,
-                                       session_id=session_id,
+            count: int = migrate_plain(session_id=session_id,
                                        incremental_migrations=incremental_migrations,
                                        migration_warnings=migration_warnings,
                                        migration_threads=migration_threads,
                                        migrated_tables=migrated_tables,
+                                       errors=errors,
                                        logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -143,12 +143,12 @@ def migrate(errors: list[str],
                 warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int] = migrate_lob_tables(errors=errors,
-                                                         session_id=session_id,
+            counts: tuple[int, int] = migrate_lob_tables(session_id=session_id,
                                                          incremental_migrations=incremental_migrations,
                                                          migration_warnings=migration_warnings,
                                                          migration_threads=migration_threads,
                                                          migrated_tables=migrated_tables,
+                                                         errors=errors,
                                                          logger=logger)
             lob_count: int = counts[0]
             lob_bytes: int = counts[1]
@@ -171,11 +171,11 @@ def migrate(errors: list[str],
         if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
             logger.info(msg="Started synchronizing the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int, int] = synchronize_plain(errors=errors,
-                                                             session_id=session_id,
+            counts: tuple[int, int, int] = synchronize_plain(session_id=session_id,
                                                              # migration_warnings=migration_warnings,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
+                                                             errors=errors,
                                                              logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -197,11 +197,11 @@ def migrate(errors: list[str],
             warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int, int] = synchronize_lobs(errors=errors,
-                                                            session_id=session_id,
+            counts: tuple[int, int, int] = synchronize_lobs(session_id=session_id,
                                                             migration_warnings=migration_warnings,
                                                             migration_threads=migration_threads,
                                                             migrated_tables=migrated_tables,
+                                                            errors=errors,
                                                             logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -234,9 +234,9 @@ def migrate(errors: list[str],
 
     if session_specs[MigSpec.MIGRATION_BADGE]:
         try:
-            __log_migration(errors=errors,
-                            badge=session_specs[MigSpec.MIGRATION_BADGE],
+            __log_migration(badge=session_specs[MigSpec.MIGRATION_BADGE],
                             threads=migration_threads,
+                            errors=errors,
                             log_json=result)
         except Exception as e:
             exc_err: str = str_sanitize(source=exc_format(exc=e,
@@ -248,12 +248,12 @@ def migrate(errors: list[str],
     return result
 
 
-def __establish_increments(errors: list[str],
-                           migrating_tables: list[str],
+def __establish_increments(migrating_tables: list[str],
                            incremental_migrations: dict[str, tuple[int, int]],
                            target_rdbms: DbEngine | None,
                            target_schema: str,
                            incremental_size: int,
+                           errors: list[str],
                            logger: Logger) -> dict[str, tuple[int, int]]:
 
     # a shallow copy suffices, as tuples are immutable objects
@@ -271,10 +271,10 @@ def __establish_increments(errors: list[str],
                 offset = 0
             elif offset == -1:
                 if target_rdbms:
-                    offset = db_count(errors=errors,
-                                      table=f"{target_schema}.{key}",
+                    offset = db_count(table=f"{target_schema}.{key}",
                                       engine=target_rdbms,
                                       committable=True,
+                                      errors=errors,
                                       logger=logger)
                     if errors:
                         break
@@ -287,10 +287,10 @@ def __establish_increments(errors: list[str],
     return result
 
 
-def __log_migration(errors: list[str],
-                    badge: str,
+def __log_migration(badge: str,
                     threads: list[int],
-                    log_json: dict[str, Any]) -> None:
+                    log_json: dict[str, Any],
+                    errors: list[str]) -> None:
 
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
@@ -301,8 +301,8 @@ def __log_migration(errors: list[str],
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
     # write the log file
-    log_entries: BytesIO = logging_get_entries(errors=errors,
-                                               log_threads=list(map(str, set(threads))))
+    log_entries: BytesIO = logging_get_entries(log_threads=list(map(str, set(threads))),
+                                               errors=errors)
     if log_entries:
         log_entries.seek(0)
         with log_file.open("wb") as f:

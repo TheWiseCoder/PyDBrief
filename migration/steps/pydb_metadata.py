@@ -23,9 +23,9 @@ from migration.steps.pydb_migration import (
 from migration.steps.pydb_engine import build_engine
 
 
-def migrate_metadata(errors: list[str],
-                     session_id: str,
+def migrate_metadata(session_id: str,
                      # migration_warnings: list[str],
+                     errors: list[str],
                      logger: Logger) -> dict[str, Any]:
 
     # initialize the return variable
@@ -38,11 +38,11 @@ def migrate_metadata(errors: list[str],
     session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
 
     # create engines
-    source_engine: Engine = build_engine(errors=errors,
-                                         rdbms=session_spots[MigSpot.FROM_RDBMS],
+    source_engine: Engine = build_engine(rdbms=session_spots[MigSpot.FROM_RDBMS],
+                                         errors=errors,
                                          logger=logger)
-    target_engine: Engine = build_engine(errors=errors,
-                                         rdbms=session_spots[MigSpot.TO_RDBMS],
+    target_engine: Engine = build_engine(rdbms=session_spots[MigSpot.TO_RDBMS],
+                                         errors=errors,
                                          logger=logger)
     # were both engines created ?
     if source_engine and target_engine:
@@ -150,13 +150,13 @@ def migrate_metadata(errors: list[str],
                     # no, proceed
                     if session_steps[MigStep.MIGRATE_METADATA]:
                         # migrate the schema
-                        to_schema: str = setup_schema(errors=errors,
-                                                      target_rdbms=session_spots[MigSpot.TO_RDBMS],
+                        to_schema: str = setup_schema(target_rdbms=session_spots[MigSpot.TO_RDBMS],
                                                       target_schema=session_specs[MigSpec.TO_SCHEMA],
                                                       target_engine=target_engine,
                                                       target_tables=target_tables,
                                                       target_views=target_views,
                                                       mat_views=mat_views,
+                                                      errors=errors,
                                                       logger=logger)
                         if not to_schema:
                             err_msg: str = f"Unable to migrate schema to RDBMS {session_spots[MigSpot.TO_RDBMS]}"
@@ -170,8 +170,7 @@ def migrate_metadata(errors: list[str],
                     # errors ?
                     if not errors:
                         # no, migrate tables' metadata (not applicable for views)
-                        result = setup_tables(errors=errors,
-                                              source_rdbms=session_spots[MigSpot.FROM_RDBMS],
+                        result = setup_tables(source_rdbms=session_spots[MigSpot.FROM_RDBMS],
                                               target_rdbms=session_spots[MigSpot.TO_RDBMS],
                                               source_schema=from_schema,
                                               target_schema=to_schema,
@@ -179,6 +178,7 @@ def migrate_metadata(errors: list[str],
                                               target_tables=target_tables,
                                               override_columns=session_specs[MigSpec.OVERRIDE_COLUMNS] or {},
                                               step_metadata=session_steps[MigStep.MIGRATE_METADATA],
+                                              errors=errors,
                                               logger=logger)
 
                         # proceed, if migrating the metadata was indicated
@@ -198,11 +198,11 @@ def migrate_metadata(errors: list[str],
                                                "nullable" not in props.get("features", []):
                                                 props["features"] = props.get("features", [])
                                                 props["features"].append("nullable")
-                                                column_set_nullable(errors=errors,
-                                                                    rdbms=session_spots[MigSpot.TO_RDBMS],
+                                                column_set_nullable(rdbms=session_spots[MigSpot.TO_RDBMS],
                                                                     table=f"{session_specs[MigSpec.TO_SCHEMA]}."
                                                                           f"{target_table.name}",
                                                                     column=name,
+                                                                    errors=errors,
                                                                     logger=logger)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
@@ -215,17 +215,18 @@ def migrate_metadata(errors: list[str],
                             # migrate the views, one at a time
                             for target_view in target_views:
                                 op_errors: list[str] = []
-                                view_ddl: str = view_get_ddl(errors=errors,
-                                                             view_name=target_view,
+                                view_ddl: str = view_get_ddl(view_name=target_view,
                                                              view_type="M" if target_view in mat_views else "P",
                                                              source_rdbms=session_spots[MigSpot.FROM_RDBMS],
                                                              source_schema=from_schema,
                                                              target_schema=to_schema,
+                                                             errors=errors,
                                                              logger=logger)
                                 if view_ddl:
-                                    db_execute(errors=op_errors,
-                                               exc_stmt=view_ddl,
-                                               engine=session_spots[MigSpot.TO_RDBMS])
+                                    db_execute(exc_stmt=view_ddl,
+                                               engine=session_spots[MigSpot.TO_RDBMS],
+                                               errors=op_errors,
+                                               logger=logger)
                                 # errors ?
                                 if op_errors:
                                     # yes, report them

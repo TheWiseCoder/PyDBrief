@@ -5,8 +5,8 @@ from pypomes_db import DbEngine, db_get_connection_string
 from sqlalchemy import Engine, create_engine, Result, TextClause, text, RootTransaction
 
 
-def build_engine(errors: list[str],
-                 rdbms: DbEngine,
+def build_engine(rdbms: DbEngine,
+                 errors: list[str],
                  logger: Logger) -> Engine:
 
     # initialize the return variable
@@ -29,10 +29,10 @@ def build_engine(errors: list[str],
     return result
 
 
-def excecute_stmt(errors: list[str],
-                  rdbms: DbEngine,
+def excecute_stmt(rdbms: DbEngine,
                   engine: Engine,
                   stmt: str,
+                  errors: list[str],
                   logger: Logger) -> Result:
 
     result: Result | None = None

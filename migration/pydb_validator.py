@@ -43,10 +43,10 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
 }
 
 
-def assert_expected_params(errors: list[str],
-                           service: str,
+def assert_expected_params(service: str,
                            method: str,
-                           input_params: dict[str, str]) -> None:
+                           input_params: dict[str, str],
+                           errors: list[str]) -> None:
 
     op: str = f"{service}:{method}"
     params: list[StrEnum] = SERVICE_PARAMS.get(op) or []
@@ -57,41 +57,41 @@ def assert_expected_params(errors: list[str],
                                          f"@{key}") for key in input_params if key not in params])
 
 
-def validate_rdbms(errors: list[str],
-                   input_params: dict[str, Any]) -> None:
+def validate_rdbms(input_params: dict[str, Any],
+                   errors: list[str]) -> None:
 
-    db_engine: DbEngine = validate_enum(errors=errors,
-                                        source=input_params,
+    db_engine: DbEngine = validate_enum(source=input_params,
                                         attr=DbConfig.ENGINE,
                                         enum_class=DbEngine,
-                                        required=True)
-    db_name: str = validate_str(errors=errors,
-                                source=input_params,
+                                        required=True,
+                                        errors=errors)
+    db_name: str = validate_str(source=input_params,
                                 attr=DbConfig.NAME,
-                                required=True)
-    db_host: str = validate_str(errors=errors,
-                                source=input_params,
+                                required=True,
+                                errors=errors)
+    db_host: str = validate_str(source=input_params,
                                 attr=DbConfig.HOST,
-                                required=True)
-    db_port: int = validate_int(errors=errors,
-                                source=input_params,
+                                required=True,
+                                errors=errors)
+    db_port: int = validate_int(source=input_params,
                                 attr=DbConfig.PORT,
                                 min_val=1,
-                                required=True)
-    db_user: str = validate_str(errors=errors,
-                                source=input_params,
+                                required=True,
+                                errors=errors)
+    db_user: str = validate_str(source=input_params,
                                 attr=DbConfig.USER,
-                                required=True)
-    db_pwd: str = validate_str(errors=errors,
-                               source=input_params,
+                                required=True,
+                                errors=errors)
+    db_pwd: str = validate_str(source=input_params,
                                attr=DbConfig.PWD,
-                               required=True)
-    db_client: str = validate_str(errors=errors,
-                                  source=input_params,
-                                  attr=DbConfig.CLIENT)
-    db_driver: str = validate_str(errors=errors,
-                                  source=input_params,
-                                  attr=DbConfig.DRIVER)
+                               required=True,
+                               errors=errors)
+    db_client: str = validate_str(source=input_params,
+                                  attr=DbConfig.CLIENT,
+                                  errors=errors)
+    db_driver: str = validate_str(source=input_params,
+                                  attr=DbConfig.DRIVER,
+                                  errors=errors)
     if not errors:
         if db_setup(engine=db_engine,
                     db_name=db_name,
@@ -127,36 +127,36 @@ def validate_rdbms(errors: list[str],
             errors.append(validate_format_error(error_id=145))
 
 
-def validate_s3(errors: list[str],
-                input_params: dict[str, Any]) -> None:
+def validate_s3(input_params: dict[str, Any],
+                errors: list[str]) -> None:
 
-    engine: S3Engine = validate_enum(errors=errors,
-                                     source=input_params,
+    engine: S3Engine = validate_enum(source=input_params,
                                      attr=S3Config.ENGINE,
                                      enum_class=S3Engine,
-                                     required=True)
-    endpoint_url: str = validate_str(errors=errors,
-                                     source=input_params,
+                                     required=True,
+                                     errors=errors)
+    endpoint_url: str = validate_str(source=input_params,
                                      attr=S3Config.ENDPOINT_URL,
-                                     required=True)
-    bucket_name: str = validate_str(errors=errors,
-                                    source=input_params,
+                                     required=True,
+                                     errors=errors)
+    bucket_name: str = validate_str(source=input_params,
                                     attr=S3Config.BUCKET_NAME,
-                                    required=True)
-    access_key: str = validate_str(errors=errors,
-                                   source=input_params,
+                                    required=True,
+                                    errors=errors)
+    access_key: str = validate_str(source=input_params,
                                    attr=S3Config.ACCESS_KEY,
-                                   required=True)
-    secret_key: str = validate_str(errors=errors,
-                                   source=input_params,
+                                   required=True,
+                                   errors=errors)
+    secret_key: str = validate_str(source=input_params,
                                    attr=S3Config.SECRET_KEY,
-                                   required=True)
-    region_name: str = validate_str(errors=errors,
-                                    source=input_params,
-                                    attr=S3Config.REGION_NAME)
-    secure_access: bool = validate_bool(errors=errors,
-                                        source=input_params,
-                                        attr=S3Config.SECURE_ACCESS)
+                                   required=True,
+                                   errors=errors)
+    region_name: str = validate_str(source=input_params,
+                                    attr=S3Config.REGION_NAME,
+                                    errors=errors)
+    secure_access: bool = validate_bool(source=input_params,
+                                        attr=S3Config.SECURE_ACCESS,
+                                        errors=errors)
     if not errors:
         if s3_setup(engine=engine,
                     endpoint_url=endpoint_url,
@@ -186,27 +186,27 @@ def validate_s3(errors: list[str],
             errors.append(validate_format_error(error_id=145))
 
 
-def validate_metrics(errors: list[str],
-                     input_params: dict[str, Any]) -> None:
+def validate_metrics(input_params: dict[str, Any],
+                     errors: list[str]) -> None:
 
     # validate 'batch-size-in'
-    batch_size_in: int = validate_int(errors=errors,
-                                      source=input_params,
+    batch_size_in: int = validate_int(source=input_params,
                                       attr=MigMetric.BATCH_SIZE_IN,
                                       min_val=RANGE_BATCH_SIZE_IN[0],
-                                      max_val=RANGE_BATCH_SIZE_IN[1])
+                                      max_val=RANGE_BATCH_SIZE_IN[1],
+                                      errors=errors)
     # validate 'batch-size-out'
-    batch_size_out = validate_int(errors=errors,
-                                  source=input_params,
+    batch_size_out = validate_int(source=input_params,
                                   attr=MigMetric.BATCH_SIZE_OUT,
                                   min_val=RANGE_BATCH_SIZE_OUT[0],
-                                  max_val=RANGE_BATCH_SIZE_OUT[1])
+                                  max_val=RANGE_BATCH_SIZE_OUT[1],
+                                  errors=errors)
     # validate 'chunk-size'
-    chunk_size: int = validate_int(errors=errors,
-                                   source=input_params,
+    chunk_size: int = validate_int(source=input_params,
                                    attr=MigMetric.CHUNK_SIZE,
                                    min_val=RANGE_CHUNK_SIZE[0],
-                                   max_val=RANGE_CHUNK_SIZE[1])
+                                   max_val=RANGE_CHUNK_SIZE[1],
+                                   errors=errors)
     # validate 'incremental-size'
     incremental_size: int = validate_int(errors=errors,
                                          source=input_params,
@@ -214,29 +214,29 @@ def validate_metrics(errors: list[str],
                                          min_val=RANGE_INCREMENTAL_SIZE[0],
                                          max_val=RANGE_INCREMENTAL_SIZE[1])
     # validate 'lobdata-channels'
-    lobdata_channels: int = validate_int(errors=errors,
-                                         source=input_params,
+    lobdata_channels: int = validate_int(source=input_params,
                                          attr=MigMetric.LOBDATA_CHANNELS,
                                          min_val=RANGE_LOBDATA_CHANNELS[0],
-                                         max_val=RANGE_LOBDATA_CHANNELS[1])
+                                         max_val=RANGE_LOBDATA_CHANNELS[1],
+                                         errors=errors)
     # validate 'lobdata-channel-size'
-    lobdata_channel_size: int = validate_int(errors=errors,
-                                             source=input_params,
+    lobdata_channel_size: int = validate_int(source=input_params,
                                              attr=MigMetric.LOBDATA_CHANNEL_SIZE,
                                              min_val=RANGE_LOBDATA_CHANNEL_SIZE[0],
-                                             max_val=RANGE_LOBDATA_CHANNEL_SIZE[1])
+                                             max_val=RANGE_LOBDATA_CHANNEL_SIZE[1],
+                                             errors=errors)
     # validate 'plaindata-channels'
-    plaindata_channels: int = validate_int(errors=errors,
-                                           source=input_params,
+    plaindata_channels: int = validate_int(source=input_params,
                                            attr=MigMetric.PLAINDATA_CHANNELS,
                                            min_val=RANGE_PLAINDATA_CHANNELS[0],
-                                           max_val=RANGE_PLAINDATA_CHANNELS[1])
+                                           max_val=RANGE_PLAINDATA_CHANNELS[1],
+                                           errors=errors)
     # validate 'plaindata-channel-size'
-    plaindata_channel_size: int = validate_int(errors=errors,
-                                               source=input_params,
+    plaindata_channel_size: int = validate_int(source=input_params,
                                                attr=MigMetric.PLAINDATA_CHANNEL_SIZE,
                                                min_val=RANGE_PLAINDATA_CHANNEL_SIZE[0],
-                                               max_val=RANGE_PLAINDATA_CHANNEL_SIZE[1])
+                                               max_val=RANGE_PLAINDATA_CHANNEL_SIZE[1],
+                                               errors=errors)
     if not errors:
         # set the metrics for the session
         session_id: str = input_params.get(MigSpec.SESSION_ID)
@@ -259,18 +259,18 @@ def validate_metrics(errors: list[str],
             session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE] = plaindata_channel_size
 
 
-def validate_spots(errors: list[str],
-                   input_params: dict[str, str]) -> None:
+def validate_spots(input_params: dict[str, str],
+                   errors: list[str]) -> None:
 
     session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # validate source RDBMS
-    from_rdbms: DbEngine = validate_enum(errors=errors,
-                                         source=input_params,
+    from_rdbms: DbEngine = validate_enum(source=input_params,
                                          attr=MigSpot.FROM_RDBMS,
                                          enum_class=DbEngine,
-                                         required=True)
+                                         required=True,
+                                         errors=errors)
     if not errors and from_rdbms not in db_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -278,11 +278,11 @@ def validate_spots(errors: list[str],
                                             "unknown or unconfigured DB engine",
                                             f"@{MigSpot.FROM_RDBMS}"))
     # validate target RDBMS
-    to_rdbms: DbEngine = validate_enum(errors=errors,
-                                       source=input_params,
+    to_rdbms: DbEngine = validate_enum(source=input_params,
                                        attr=MigSpot.TO_RDBMS,
                                        enum_class=DbEngine,
-                                       required=True)
+                                       required=True,
+                                       errors=errors)
     if not errors and to_rdbms not in db_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142,
@@ -303,10 +303,10 @@ def validate_spots(errors: list[str],
                                             f"The migration path '{from_rdbms} -> {to_rdbms}' "
                                             "has not been validated yet. For details, please email the developer."))
     # validate S3
-    to_s3: S3Engine = validate_enum(errors=errors,
-                                    source=input_params,
+    to_s3: S3Engine = validate_enum(source=input_params,
                                     attr=MigSpot.TO_S3,
-                                    enum_class=S3Engine)
+                                    enum_class=S3Engine,
+                                    errors=errors)
     if to_s3 and to_s3 not in s3_get_engines():
         # 142: Invalid value {}: {}
         errors.append(validate_format_error(142, to_s3,
@@ -316,8 +316,8 @@ def validate_spots(errors: list[str],
         # verify source database runtime access
         if from_rdbms:
             if not session_registry[from_rdbms].get(DbConfig.VERSION):
-                if db_assert_access(errors=errors,
-                                    engine=from_rdbms):
+                if db_assert_access(engine=from_rdbms,
+                                    errors=errors):
                     session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                                   engine=from_rdbms)
                 else:
@@ -328,8 +328,8 @@ def validate_spots(errors: list[str],
         # verify target database runtime access
         if to_rdbms:
             if not session_registry[to_rdbms].get(DbConfig.VERSION):
-                if db_assert_access(errors=errors,
-                                    engine=to_rdbms):
+                if db_assert_access(engine=to_rdbms,
+                                    errors=errors):
                     session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                                   engine=to_rdbms)
                 else:
@@ -340,8 +340,8 @@ def validate_spots(errors: list[str],
         # verify target S3 runtime access
         if to_s3:
             if not session_registry[to_s3].get(S3Config.VERSION):
-                if s3_startup(errors=errors,
-                              engine=to_s3):
+                if s3_startup(engine=to_s3,
+                              errors=errors):
                     session_registry[to_s3][S3Config.VERSION] = s3_get_param(key=S3Param.VERSION,
                                                                              engine=to_s3)
                 else:
@@ -357,30 +357,28 @@ def validate_spots(errors: list[str],
         session_spots[MigSpot.TO_S3] = to_s3
 
 
-def validate_steps(errors: list[str],
-                   input_params: dict[str, str]) -> None:
+def validate_steps(input_params: dict[str, str],
+                   errors: list[str]) -> None:
 
     # retrieve the migration steps
-    step_metadata: bool = validate_bool(errors=errors,
-                                        source=input_params,
+    step_metadata: bool = validate_bool(source=input_params,
                                         attr=MigStep.MIGRATE_METADATA,
-                                        required=True)
-    step_plaindata: bool = validate_bool(errors=errors,
-                                         source=input_params,
+                                        required=True,
+                                        errors=errors)
+    step_plaindata: bool = validate_bool(source=input_params,
                                          attr=MigStep.MIGRATE_PLAINDATA,
-                                         required=True)
-    step_lobdata: bool = validate_bool(errors=errors,
-                                       source=input_params,
+                                         required=True,
+                                         errors=errors)
+    step_lobdata: bool = validate_bool(source=input_params,
                                        attr=MigStep.MIGRATE_LOBDATA,
-                                       required=True)
-    step_sync_plain: bool = validate_bool(errors=errors,
-                                          source=input_params,
+                                       required=True,
+                                       errors=errors)
+    step_sync_plain: bool = validate_bool(source=input_params,
                                           attr=MigStep.SYNCHRONIZE_PLAINDATA,
-                                          required=False)
-    step_sync_lobs: bool = validate_bool(errors=errors,
-                                         source=input_params,
+                                          errors=errors)
+    step_sync_lobs: bool = validate_bool(source=input_params,
                                          attr=MigStep.SYNCHRONIZE_LOBDATA,
-                                         required=False)
+                                         errors=errors)
     # validate them
     err_msg: str | None = None
     if not (step_metadata or step_lobdata or
@@ -390,10 +388,9 @@ def validate_steps(errors: list[str],
           (step_metadata or step_plaindata or step_lobdata or step_sync_lobs)):
         err_msg = "Plaindata synchronization can not be combined with another operation"
     else:
-        target_s3: str = validate_str(errors=errors,
-                                      source=input_params,
+        target_s3: str = validate_str(source=input_params,
                                       attr=MigSpot.TO_S3,
-                                      required=False)
+                                      errors=errors)
         if step_metadata and step_lobdata and not step_plaindata and not target_s3:
             err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
         elif step_sync_lobs:
@@ -416,8 +413,8 @@ def validate_steps(errors: list[str],
         session_steps[MigStep.SYNCHRONIZE_LOBDATA] = step_sync_lobs
 
 
-def validate_specs(errors: list[str],
-                   input_params: dict[str, str]) -> None:
+def validate_specs(input_params: dict[str, str],
+                   errors: list[str]) -> None:
 
     # obtain the session registry
     session_id: str = input_params.get(MigSpec.SESSION_ID)
@@ -427,69 +424,69 @@ def validate_specs(errors: list[str],
     migration_badge: str = input_params.get(MigSpec.MIGRATION_BADGE)
 
     # assert and retrieve the source schema
-    from_schema: str = (validate_str(errors=errors,
-                                     source=input_params,
+    from_schema: str = (validate_str(source=input_params,
                                      attr=MigSpec.FROM_SCHEMA,
-                                     required=True) or "").lower()
+                                     required=True,
+                                     errors=errors) or "").lower()
 
     # assert and retrieve the target schema
-    to_schema: str = (validate_str(errors=errors,
-                                   source=input_params,
+    to_schema: str = (validate_str(source=input_params,
                                    attr=MigSpec.TO_SCHEMA,
-                                   required=True) or "").lower()
+                                   required=True,
+                                   errors=errors) or "").lower()
 
     # assert and retrieve the override columns parameter
     override_columns: dict[str, Type] = \
-        __assert_override_columns(errors=errors,
-                                  input_params=input_params,
-                                  rdbms=session_registry[MigConfig.SPOTS][MigSpot.TO_RDBMS])
+        __assert_override_columns(input_params=input_params,
+                                  rdbms=session_registry[MigConfig.SPOTS][MigSpot.TO_RDBMS],
+                                  errors=errors)
     # assert and retrieve the incremental migrations parameter
     incremental_migrations: dict[str, tuple[int, int]] = \
-        __assert_incremental_migrations(errors=errors,
-                                        input_params=input_params,
-                                        def_size=session_registry[MigConfig.METRICS][MigMetric.INCREMENTAL_SIZE])
-    process_indexes: bool = validate_bool(errors=None,
-                                          source=input_params,
-                                          attr=MigSpec.PROCESS_INDEXES)
-    process_views: bool = validate_bool(errors=None,
-                                        source=input_params,
-                                        attr=MigSpec.PROCESS_VIEWS)
-    relax_reflection: bool = validate_bool(errors=None,
-                                           source=input_params,
-                                           attr=MigSpec.RELAX_REFLECTION)
-    skip_nonempty: bool = validate_bool(errors=None,
-                                        source=input_params,
-                                        attr=MigSpec.SKIP_NONEMPTY)
-    reflect_filetype: bool = validate_bool(errors=None,
-                                           source=input_params,
-                                           attr=MigSpec.REFLECT_FILETYPE)
-    flatten_storage: bool = validate_bool(errors=None,
-                                          source=input_params,
-                                          attr=MigSpec.FLATTEN_STORAGE)
+        __assert_incremental_migrations(input_params=input_params,
+                                        def_size=session_registry[MigConfig.METRICS][MigMetric.INCREMENTAL_SIZE],
+                                        errors=errors)
+    process_indexes: bool = validate_bool(source=input_params,
+                                          attr=MigSpec.PROCESS_INDEXES,
+                                          errors=None)
+    process_views: bool = validate_bool(source=input_params,
+                                        attr=MigSpec.PROCESS_VIEWS,
+                                        errors=None)
+    relax_reflection: bool = validate_bool(source=input_params,
+                                           attr=MigSpec.RELAX_REFLECTION,
+                                           errors=None)
+    skip_nonempty: bool = validate_bool(source=input_params,
+                                        attr=MigSpec.SKIP_NONEMPTY,
+                                        errors=None)
+    reflect_filetype: bool = validate_bool(source=input_params,
+                                           attr=MigSpec.REFLECT_FILETYPE,
+                                           errors=None)
+    flatten_storage: bool = validate_bool(source=input_params,
+                                          attr=MigSpec.FLATTEN_STORAGE,
+                                          errors=None)
     remove_nulls: list[str] = [s.lower()
-                               for s in validate_strs(errors=None,
-                                                      source=input_params,
-                                                      attr=MigSpec.REMOVE_NULLS)]
+                               for s in validate_strs(source=input_params,
+                                                      attr=MigSpec.REMOVE_NULLS,
+                                                      errors=None)]
     include_relations: list[str] = [s.lower()
-                                    for s in validate_strs(errors=None,
-                                                           source=input_params,
-                                                           attr=MigSpec.INCLUDE_RELATIONS)]
+                                    for s in validate_strs(source=input_params,
+                                                           attr=MigSpec.INCLUDE_RELATIONS,
+                                                           errors=None)]
     exclude_relations: list[str] = [s.lower()
-                                    for s in validate_strs(errors=None,
-                                                           source=input_params,
-                                                           attr=MigSpec.EXCLUDE_RELATIONS)]
+                                    for s in validate_strs(source=input_params,
+                                                           attr=MigSpec.EXCLUDE_RELATIONS,
+                                                           errors=None)]
     exclude_columns: list[str] = [s.lower()
-                                  for s in validate_strs(errors=None,
-                                                         source=input_params,
-                                                         attr=MigSpec.EXCLUDE_COLUMNS)]
+                                  for s in validate_strs(source=input_params,
+                                                         attr=MigSpec.EXCLUDE_COLUMNS,
+                                                         errors=None)]
     exclude_constraints: list[str] = [s.lower()
-                                      for s in validate_strs(errors=None,
-                                                             source=input_params,
-                                                             attr=MigSpec.EXCLUDE_CONSTRAINTS)]
+                                      for s in validate_strs(source=input_params,
+                                                             attr=MigSpec.EXCLUDE_CONSTRAINTS,
+                                                             errors=None)]
     named_lobdata: list[str] = [s.lower()
-                                for s in validate_strs(errors=None,
-                                                       source=input_params,
-                                                       attr=MigSpec.NAMED_LOBDATA)]
+                                for s in validate_strs(source=input_params,
+                                                       attr=MigSpec.NAMED_LOBDATA,
+                                                       errors=None)]
     # validate the include and exclude relations lists
     if input_params.get(MigSpec.INCLUDE_RELATIONS) and \
             input_params.get(MigSpec.EXCLUDE_RELATIONS):
@@ -521,18 +518,18 @@ def validate_specs(errors: list[str],
         session_specs[MigSpec.SKIP_NONEMPTY] = skip_nonempty
 
 
-def __assert_override_columns(errors: list[str],
-                              input_params: dict[str, str],
-                              rdbms: DbEngine) -> dict[str, Type]:
+def __assert_override_columns(input_params: dict[str, str],
+                              rdbms: DbEngine,
+                              errors: list[str]) -> dict[str, Type]:
 
     # initialize the return variable
     result: dict[str, Type] = {}
 
     # process the foreign columns list
     override_columns: list[str] = [s.lower()
-                                   for s in validate_strs(errors=errors,
-                                                          source=input_params,
-                                                          attr=MigSpec.OVERRIDE_COLUMNS) or []]
+                                   for s in validate_strs(source=input_params,
+                                                          attr=MigSpec.OVERRIDE_COLUMNS,
+                                                          errors=errors) or []]
     try:
         for override_column in override_columns:
             # format of 'override_column' is <column_name>=<column_type>
@@ -557,18 +554,18 @@ def __assert_override_columns(errors: list[str],
     return result
 
 
-def __assert_incremental_migrations(errors: list[str],
-                                    input_params: dict[str, Any],
-                                    def_size: int) -> dict[str, tuple[int, int]]:
+def __assert_incremental_migrations(input_params: dict[str, Any],
+                                    def_size: int,
+                                    errors: list[str]) -> dict[str, tuple[int, int]]:
 
     # initialize the return variable
     result: dict[str, tuple[int, int]] = {}
 
     # process the foreign columns list
     incremental_tables: list[str] = [s.lower()
-                                     for s in validate_strs(errors=errors,
-                                                            source=input_params,
-                                                            attr=MigSpec.INCREMENTAL_MIGRATIONS) or []]
+                                     for s in validate_strs(source=input_params,
+                                                            attr=MigSpec.INCREMENTAL_MIGRATIONS,
+                                                            errors=errors) or []]
 
     # format of 'incremental_tables' is [<table-name>[=<size>[:<offset>],...]
     for incremental_table in incremental_tables:

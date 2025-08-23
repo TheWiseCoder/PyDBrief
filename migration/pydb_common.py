@@ -12,9 +12,9 @@ from app_constants import DbConfig, S3Config
 from migration.pydb_sessions import get_session_registry
 
 
-def get_rdbms_specs(errors: list[str],
-                    session_id: str,
-                    db_engine: DbEngine) -> dict[DbConfig, Any] | None:
+def get_rdbms_specs(session_id: str,
+                    db_engine: DbEngine,
+                    errors: list[str]) -> dict[DbConfig, Any] | None:
 
     # initialize the return variable
     result: dict[DbConfig, Any] | None = None
@@ -33,9 +33,9 @@ def get_rdbms_specs(errors: list[str],
     return result
 
 
-def get_s3_specs(errors: list[str],
-                 session_id: str,
-                 s3_engine: S3Engine) -> dict[S3Config, Any] | None:
+def get_s3_specs(session_id: str,
+                 s3_engine: S3Engine,
+                 errors: list[str]) -> dict[S3Config, Any] | None:
 
     # initialize the return variable
     result: dict[S3Config, Any] | None = None

@@ -115,9 +115,9 @@ from app_constants import (
 migration_registry: dict[str, dict[StrEnum, Any]] = {}
 
 
-def create_session(errors: list[str],
-                   client_id: str,
-                   session_id: str) -> bool:
+def create_session(client_id: str,
+                   session_id: str,
+                   errors: list[str]) -> bool:
 
     # initialize the return variable
     result: bool = False
@@ -166,8 +166,8 @@ def create_session(errors: list[str],
     return result
 
 
-def delete_session(errors: list[str],
-                   session_id: str) -> bool:
+def delete_session(session_id: str,
+                   errors: list[str]) -> bool:
 
     # initialize the return variable
     result: bool = False
@@ -207,16 +207,16 @@ def get_session_state(session_id: str) -> MigrationState | None:
     return (migration_registry.get(session_id) or {}).get(MigSpec.STATE)
 
 
-def set_session_state(errors: list[str],
-                      input_params: dict[str, Any]) -> MigrationState | None:
+def set_session_state(input_params: dict[str, Any],
+                      errors: list[str]) -> MigrationState | None:
 
     # initialize the return variable
     result: MigrationState | None = None
 
-    is_active: bool = validate_bool(errors=errors,
-                                    source=input_params,
+    is_active: bool = validate_bool(source=input_params,
                                     attr=MigSpec.IS_ACTIVE,
-                                    required=True)
+                                    required=True,
+                                    errors=errors)
     if isinstance(is_active, bool):
         new_state = MigrationState.ACTIVE if is_active else MigrationState.INACTIVE
         session_id: str = input_params.get(MigSpec.SESSION_ID)
@@ -247,9 +247,9 @@ def get_session_registry(session_id: str) -> dict[StrEnum, Any]:
     return migration_registry.get(session_id)
 
 
-def get_session_params(errors: list[str],
-                       request: Request,
-                       session_id: str = None) -> dict[str, Any]:
+def get_session_params(request: Request,
+                       session_id: str | None,
+                       errors: list[str]) -> dict[str, Any]:
 
     # initialize the return variable
     result: dict[str, Any] = http_get_parameters(request=request)
@@ -314,8 +314,8 @@ def get_sessions() -> dict[str, list[dict[str, str]]]:
     return {"sessions": sessions}
 
 
-def abort_session_migration(errors: list[str],
-                            session_id: str) -> bool:
+def abort_session_migration(session_id: str,
+                            errors: list[str]) -> bool:
     """
     Abort the ongoing migration for *session_id*.
 
@@ -339,8 +339,8 @@ def abort_session_migration(errors: list[str],
     return result
 
 
-def assert_session_abort(errors: list[str],
-                         session_id: str,
+def assert_session_abort(session_id: str,
+                         errors: list[str],
                          logger: Logger) -> bool:
 
     # initialize the return variable

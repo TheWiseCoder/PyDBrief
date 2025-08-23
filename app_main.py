@@ -158,8 +158,9 @@ def service_rdbms(engine: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = get_session_params(errors=errors,
-                                                      request=request)
+    input_params: dict[str, Any] = get_session_params(request=request,
+                                                      session_id=None,
+                                                      errors=errors)
     # log the request
     msg: str = __log_init(request=request,
                           input_params=dict_clone(source=input_params,
@@ -231,8 +232,9 @@ def service_s3(engine: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = get_session_params(errors=errors,
-                                                      request=request)
+    input_params: dict[str, Any] = get_session_params(request=request,
+                                                      session_id=None,
+                                                      errors=errors)
     # log the request
     msg: str = __log_init(request=request,
                           input_params=dict_clone(source=input_params,
@@ -375,8 +377,9 @@ def service_migration() -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = get_session_params(errors=errors,
-                                                      request=request)
+    input_params: dict[str, Any] = get_session_params(request=request,
+                                                      session_id=None,
+                                                      errors=errors)
     # log the request
     msg: str = __log_init(request=request,
                           input_params=input_params)
@@ -607,9 +610,9 @@ def handle_exception(exc: Exception) -> Response:
     return result
 
 
-def _build_response(errors: list[str],
-                    client_id: str,
-                    reply: dict) -> Response:
+def _build_response(client_id: str,
+                    reply: dict,
+                    errors: list[str]) -> Response:
 
     # declare the return variable
     result: Response

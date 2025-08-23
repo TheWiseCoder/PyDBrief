@@ -126,13 +126,13 @@ def prune_metadata(source_schema: str,
             source_metadata.remove(table=source_table)
 
 
-def setup_schema(errors: list[str],
-                 target_rdbms: DbEngine,
+def setup_schema(target_rdbms: DbEngine,
                  target_schema: str,
                  target_engine: Engine,
                  target_tables: list[Table],
                  target_views: list[str],
                  mat_views: list[str],
+                 errors: list[str],
                  logger: Logger) -> str:
 
     # initialize the return variable
@@ -155,25 +155,25 @@ def setup_schema(errors: list[str],
         # yes, drop existing tables and views
         for target_view in target_views:
             table_name: str = f"{target_schema}.{target_view}"
-            db_drop_view(errors=errors,
-                         view_name=table_name,
+            db_drop_view(view_name=table_name,
                          view_type="M" if target_view in mat_views else "P",
                          engine=target_rdbms,
+                         errors=errors,
                          logger=logger)
 
         # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
             table_name: str = f"{target_schema}.{target_table.name}"
-            db_drop_table(errors=errors,
-                          table_name=table_name,
+            db_drop_table(table_name=table_name,
                           engine=target_rdbms,
+                          errors=errors,
                           logger=logger)
     else:
         # no, create the target schema
         op_errors: list[str] = []
-        schema_create(errors=op_errors,
-                      schema=target_schema,
+        schema_create(schema=target_schema,
                       rdbms=target_rdbms,
+                      errors=op_errors,
                       logger=logger)
         # SANITY CHECK: errorless schema creation failure might happen
         if op_errors:
@@ -191,8 +191,7 @@ def setup_schema(errors: list[str],
     return result
 
 
-def setup_tables(errors: list[str],
-                 source_rdbms: DbEngine,
+def setup_tables(source_rdbms: DbEngine,
                  target_rdbms: DbEngine,
                  source_schema: str,
                  target_schema: str,
@@ -200,6 +199,7 @@ def setup_tables(errors: list[str],
                  target_tables: list[Table],
                  override_columns: dict[str, Type],
                  step_metadata: bool,
+                 errors: list[str],
                  logger: Logger) -> dict[str, Any]:
 
     # iinitialize the return variable
@@ -245,8 +245,7 @@ def setup_tables(errors: list[str],
 
         # migrate the columns
         if step_metadata:
-            setup_columns(errors=op_errors,
-                          target_columns=columns,
+            setup_columns(target_columns=columns,
                           source_rdbms=source_rdbms,
                           target_rdbms=target_rdbms,
                           source_schema=source_schema,
@@ -255,6 +254,7 @@ def setup_tables(errors: list[str],
                           reference_ordinal=reference_ordinal,
                           nat_equivalences=nat_equivalences,
                           override_columns=override_columns,
+                          errors=op_errors,
                           logger=logger)
             errors.extend(op_errors)
 
@@ -302,8 +302,7 @@ def setup_tables(errors: list[str],
     return result
 
 
-def setup_columns(errors: list[str],
-                  target_columns: Iterable[Column],
+def setup_columns(target_columns: Iterable[Column],
                   source_rdbms: DbEngine,
                   target_rdbms: DbEngine,
                   source_schema: str,
@@ -312,6 +311,7 @@ def setup_columns(errors: list[str],
                   reference_ordinal: int,
                   nat_equivalences: list[tuple],
                   override_columns: dict[str, Type],
+                  errors: list[str],
                   logger: Logger) -> None:
 
     # set the target columns

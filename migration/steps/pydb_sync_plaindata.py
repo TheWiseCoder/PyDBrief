@@ -14,10 +14,10 @@ from migration.pydb_database import table_embedded_nulls, session_setup
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
-def synchronize_plain(errors: list[str],
-                      migration_threads: list[int],
+def synchronize_plain(migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       session_id: str,
+                      errors: list[str],
                       logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
@@ -45,8 +45,8 @@ def synchronize_plain(errors: list[str],
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if assert_session_abort(errors=errors,
-                                session_id=session_id,
+        if assert_session_abort(session_id=session_id,
+                                errors=errors,
                                 logger=logger):
             break
 
@@ -72,8 +72,8 @@ def synchronize_plain(errors: list[str],
                     identity_column = column_name
 
         # obtain a connection to the source DB
-        source_conn: Any = db_connect(errors=op_errors,
-                                      engine=source_db,
+        source_conn: Any = db_connect(engine=source_db,
+                                      errors=op_errors,
                                       logger=logger)
         if source_conn:
             # prepare database session
@@ -84,19 +84,18 @@ def synchronize_plain(errors: list[str],
                           logger=logger)
             if not op_errors:
                 # obtain a connection to the target DB
-                target_conn: Any = db_connect(errors=op_errors,
-                                              engine=target_db,
+                target_conn: Any = db_connect(engine=target_db,
+                                              errors=op_errors,
                                               logger=logger)
                 if target_conn:
                     # prepare database session
-                    session_setup(errors=op_errors,
-                                  rdbms=target_db,
+                    session_setup(rdbms=target_db,
                                   mode="target",
                                   conn=target_conn,
+                                  errors=op_errors,
                                   logger=logger)
                     if not op_errors:
-                        counts: tuple[int, int, int] = db_sync_data(errors=op_errors,
-                                                                    source_engine=source_db,
+                        counts: tuple[int, int, int] = db_sync_data(source_engine=source_db,
                                                                     source_table=source_table,
                                                                     target_engine=target_db,
                                                                     target_table=target_table,
@@ -109,14 +108,15 @@ def synchronize_plain(errors: list[str],
                                                                     identity_column=identity_column,
                                                                     batch_size=batch_size_in,
                                                                     has_nulls=has_nulls,
+                                                                    errors=op_errors,
                                                                     logger=logger) or (0, 0, 0)
                         deletes: int = counts[0]
                         inserts: int = counts[1]
                         updates: int = counts[2]
                         if op_errors:
-                            table_embedded_nulls(errors=op_errors,
-                                                 rdbms=target_db,
+                            table_embedded_nulls(rdbms=target_db,
                                                  table=target_table,
+                                                 errors=op_errors,
                                                  logger=logger)
                             errors.extend(op_errors)
                             status: str = "none"

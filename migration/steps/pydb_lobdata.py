@@ -7,9 +7,8 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import TZ_LOCAL, timestamp_duration
 from pypomes_db import (
-    DbEngine, db_connect, db_count,
-    db_migrate_lobs, db_table_exists, db_bulk_insert,
-    db_create_session_table, db_get_session_table_prefix
+    DbEngine, db_connect, db_count, db_migrate_lobs, db_table_exists,
+    db_bulk_insert, db_create_session_table, db_get_session_table_prefix, db_close
 )
 from pypomes_s3 import S3Engine, s3_get_client, s3_item_exists
 from typing import Any
@@ -45,12 +44,12 @@ lobdata_register: dict[int, dict[str, Any]] = {}
 lobdata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_lob_tables(errors: list[str],
-                       session_id: str,
+def migrate_lob_tables(session_id: str,
                        incremental_migrations: dict[str, tuple[int, int]],
                        migration_warnings: list[str],
                        migration_threads: list[int],
                        migrated_tables: dict[str, Any],
+                       errors: list[str],
                        logger: Logger) -> tuple[int, int]:
 
     # initialize the return variables
@@ -80,8 +79,8 @@ def migrate_lob_tables(errors: list[str],
     for table_name, table_data in migrated_tables.items():
 
         # error may come from previous iteration
-        if errors or assert_session_abort(errors=errors,
-                                          session_id=session_id,
+        if errors or assert_session_abort(session_id=session_id,
+                                          errors=errors,
                                           logger=logger):
             # abort the lobdata migration
             break
@@ -130,9 +129,9 @@ def migrate_lob_tables(errors: list[str],
 
         if lob_columns:
             # specific condition for migrating table LOBs to database
-            if not target_s3 and not db_table_exists(errors=errors,
-                                                     table_name=target_table,
+            if not target_s3 and not db_table_exists(table_name=target_table,
                                                      engine=target_db,
+                                                     errors=errors,
                                                      logger=logger):
                 # target table could not be found (might be due to error)
                 warn_msg: str = ("Unable to migrate LOBs, "
@@ -145,8 +144,7 @@ def migrate_lob_tables(errors: list[str],
             # start migrating the source table LOBs
             started: datetime = datetime.now(tz=TZ_LOCAL)
             status: str = "ok"
-            migrate_lob_columns(errors=errors,
-                                mother_thread=mother_thread,
+            migrate_lob_columns(mother_thread=mother_thread,
                                 session_id=session_id,
                                 source_db=source_db,
                                 target_db=target_db,
@@ -160,6 +158,7 @@ def migrate_lob_tables(errors: list[str],
                                 offset_count=offset_count,
                                 limit_count=limit_count,
                                 migration_warnings=migration_warnings,
+                                errors=errors,
                                 logger=logger)
             with lobdata_lock:
                 lob_count: int = lobdata_register[mother_thread][source_table]["table-count"]
@@ -195,8 +194,7 @@ def migrate_lob_tables(errors: list[str],
     return result_count, result_bytes
 
 
-def migrate_lob_columns(errors: list[str],
-                        mother_thread: int,
+def migrate_lob_columns(mother_thread: int,
                         session_id: str,
                         source_db: DbEngine,
                         target_db: DbEngine,
@@ -210,6 +208,7 @@ def migrate_lob_columns(errors: list[str],
                         offset_count: int,
                         limit_count: int,
                         migration_warnings: list[str],
+                        errors: list[str],
                         logger: Logger) -> None:
 
     # retrieve the registry data for the session
@@ -226,8 +225,8 @@ def migrate_lob_columns(errors: list[str],
     for lob_column, reference_column in lob_columns:
 
         # verify whether current migration is marked for abortion
-        if errors or assert_session_abort(errors=errors,
-                                          session_id=session_id,
+        if errors or assert_session_abort(session_id=session_id,
+                                          errors=errors,
                                           logger=logger):
             # abort the lobdata migration
             break
@@ -267,8 +266,8 @@ def migrate_lob_columns(errors: list[str],
                 # is a nonempty S3 prefix an issue ?
                 if (not session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] and
                     session_specs[MigSpec.SKIP_NONEMPTY] and
-                    s3_item_exists(errors=errors,
-                                   identifier=lob_prefix.as_posix())):
+                    s3_item_exists(identifier=lob_prefix.as_posix(),
+                                   errors=errors)):
                     # yes, skip it
                     warn_msg: str = ("Skipped migrating LOBs in column "
                                      f"{source_db}.{source_table}.{lob_column}: "
@@ -281,10 +280,10 @@ def migrate_lob_columns(errors: list[str],
         # count migrateable tuples on source table for 'lob_column'
         if lob_tuples is None:
             where_clause = f"{lob_column} IS NOT NULL"
-            table_count = (db_count(errors=errors,
-                                    table=source_table,
+            table_count = (db_count(table=source_table,
                                     where_clause=where_clause,
-                                    engine=source_db) or 0) - offset_count
+                                    engine=source_db,
+                                    errors=errors) or 0) - offset_count
         else:
             # 'where_clause' will have the list of 'reference_column' values indicating the LOBs to be migrated
             where_clause = lob_tuples.get(reference_column)
@@ -410,31 +409,30 @@ def _db_migrate_lobs(mother_thread: int,
     errors: list[str] = []
 
     # obtain a connection to the source database
-    source_conn: Any = db_connect(errors=errors,
-                                  engine=source_engine,
+    source_conn: Any = db_connect(engine=source_engine,
+                                  errors=errors,
                                   logger=logger)
     if source_conn:
         # prepare database session
-        session_setup(errors=errors,
-                      rdbms=source_engine,
+        session_setup(rdbms=source_engine,
                       mode="source",
                       conn=source_conn,
+                      errors=errors,
                       logger=logger)
         if not errors:
             # obtain a connection to the target database
-            target_conn: Any = db_connect(errors=errors,
-                                          engine=target_engine,
+            target_conn: Any = db_connect(engine=target_engine,
+                                          errors=errors,
                                           logger=logger)
             if target_conn:
                 # prepare database session
-                session_setup(errors=errors,
-                              rdbms=target_engine,
+                session_setup(rdbms=target_engine,
                               mode="target",
                               conn=target_conn,
+                              errors=errors,
                               logger=logger)
                 if not errors:
-                    totals: tuple[int, int] = db_migrate_lobs(errors=errors,
-                                                              source_engine=source_engine,
+                    totals: tuple[int, int] = db_migrate_lobs(source_engine=source_engine,
                                                               source_table=source_table,
                                                               source_lob_column=lob_column,
                                                               source_pk_columns=pk_columns,
@@ -448,10 +446,15 @@ def _db_migrate_lobs(mother_thread: int,
                                                               offset_count=offset_count,
                                                               limit_count=limit_count,
                                                               chunk_size=chunk_size,
+                                                              errors=errors,
                                                               logger=logger)
                     if totals:
                         lob_count = totals[0]
                         lob_bytes = totals[1]
+                db_close(connection=target_conn,
+                         logger=logger)
+        db_close(connection=source_conn,
+                 logger=logger)
 
     with lobdata_lock:
         if errors:
@@ -486,20 +489,20 @@ def _s3_migrate_lobs(mother_thread: int,
 
     # obtain an S3 client
     errors: list[str] = []
-    s3_client = s3_get_client(errors=errors,
-                              engine=target_s3,
+    s3_client = s3_get_client(engine=target_s3,
+                              errors=errors,
                               logger=logger)
     if s3_client:
         # obtain a database connection
-        db_conn: Any = db_connect(errors=errors,
-                                  engine=source_db,
+        db_conn: Any = db_connect(engine=source_db,
+                                  errors=errors,
                                   logger=logger)
         if db_conn:
             # prepare database session
-            session_setup(errors=errors,
-                          rdbms=source_db,
+            session_setup(rdbms=source_db,
                           mode="source",
                           conn=db_conn,
+                          errors=errors,
                           logger=logger)
 
             if not errors and isinstance(where_clause, list):
@@ -507,22 +510,22 @@ def _s3_migrate_lobs(mother_thread: int,
                 temp_table: str = f"{source_schema}." + \
                                   f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
                 temp_column: str = f"id_{reference_column}"[:30]
-                db_create_session_table(errors=errors,
-                                        engine=source_db,
+                db_create_session_table(engine=source_db,
                                         connection=db_conn,
                                         table_name=temp_table,
                                         column_data=[f"{temp_column} VARCHAR2(64) PRIMARY KEY"],
+                                        errors=errors,
                                         logger=logger)
                 if not errors:
                     # insert the exact sublist of LOBs to be migrated by this thread
                     insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
                                                if limit_count else [tuple(where_clause[offset_count:])]
-                    db_bulk_insert(errors=errors,
-                                   target_table=temp_table,
+                    db_bulk_insert(target_table=temp_table,
                                    insert_attrs=[temp_column],
                                    insert_vals=insert_vals,
                                    engine=source_db,
                                    connection=db_conn,
+                                   errors=errors,
                                    logger=logger)
                     if not errors:
                         # no offset/limit apply herefrom, as 'where_clause' precisely filters the appropriate LOBs
@@ -531,8 +534,7 @@ def _s3_migrate_lobs(mother_thread: int,
                         where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
         if not errors:
             # 'target_table' is documentational, only
-            totals: tuple[int, int] = s3_migrate_lobs(errors=errors,
-                                                      session_id=session_id,
+            totals: tuple[int, int] = s3_migrate_lobs(session_id=session_id,
                                                       db_conn=db_conn,
                                                       s3_client=s3_client,
                                                       target_table=target_table,
@@ -546,6 +548,7 @@ def _s3_migrate_lobs(mother_thread: int,
                                                       forced_filetype=forced_filetype,
                                                       reference_column=reference_column,
                                                       migration_warnings=migration_warnings,
+                                                      errors=errors,
                                                       logger=logger)
             with lobdata_lock:
                 lobdata_register[mother_thread][source_table]["table-count"] += totals[0]

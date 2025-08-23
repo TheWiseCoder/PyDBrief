@@ -32,9 +32,9 @@ def db_pool_setup(rdbms: DbEngine,
                                   stmts=stmts)
 
 
-def schema_create(errors: list[str],
-                  schema: str,
+def schema_create(schema: str,
                   rdbms: DbEngine,
+                  errors: list[str],
                   logger: Logger) -> None:
 
     if rdbms == DbEngine.ORACLE:
@@ -43,18 +43,18 @@ def schema_create(errors: list[str],
         user: str = db_get_param(key=DbParam.USER,
                                  engine=rdbms)
         stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
-    db_execute(errors=errors,
-               exc_stmt=stmt,
+    db_execute(exc_stmt=stmt,
                engine=rdbms,
+               errors=errors,
                logger=logger)
 
     logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
 
 
-def session_setup(errors: list[str],
-                  rdbms: DbEngine,
+def session_setup(rdbms: DbEngine,
                   mode: Literal["source", "target"],
                   conn: Any,
+                  errors: list[str],
                   logger: Logger) -> None:
 
     # disable triggers and rules delaying bulk operations on current session
@@ -75,20 +75,20 @@ def session_setup(errors: list[str],
             # SQLServer does not have session-scope commands for disabling triggers and/or rules
             pass
     # for stmt in stmts:
-    #     db_execute(errors=errors,
-    #                exc_stmt=stmt,
+    #     db_execute(exc_stmt=stmt,
     #                engine=rdbms,
     #                connection=conn,
+    #                errors=errors,
     #                logger=logger)
     #     if errors:
     #         break
     #     logger.debug(msg=f"RDBMS {rdbms}, session prepared with {stmt}")
 
 
-def column_set_nullable(errors: list[str],
-                        rdbms: DbEngine,
+def column_set_nullable(rdbms: DbEngine,
                         table: str,
                         column: str,
+                        errors: list[str],
                         logger: Logger) -> None:
 
     # build the statement
@@ -103,25 +103,25 @@ def column_set_nullable(errors: list[str],
             alter_stmt = (f"ALTER TABLE {table} "
                           f"ALTER COLUMN {column} DROP NOT NULL")
     # execute it
-    db_execute(errors=errors,
-               exc_stmt=alter_stmt,
+    db_execute(exc_stmt=alter_stmt,
                engine=rdbms,
+               errors=errors,
                logger=logger)
 
 
-def view_get_ddl(errors: list[str],
-                 view_name: str,
+def view_get_ddl(view_name: str,
                  view_type: Literal["M", "P"],
                  source_rdbms: DbEngine,
                  source_schema: str,
                  target_schema: str,
+                 errors: list[str],
                  logger: Logger) -> str:
 
     # obtain the script used to create the view
-    result: str = db_get_view_ddl(errors=errors,
-                                  view_type=view_type,
+    result: str = db_get_view_ddl(view_type=view_type,
                                   view_name=f"{source_schema}.{view_name}",
                                   engine=source_rdbms,
+                                  errors=errors,
                                   logger=logger)
     if result:
         # script has been retrieved, create the view in the target schema
@@ -142,9 +142,9 @@ def view_get_ddl(errors: list[str],
     return result
 
 
-def table_embedded_nulls(errors: list[str],
-                         rdbms: DbEngine,
+def table_embedded_nulls(rdbms: DbEngine,
                          table: str,
+                         errors: list[str],
                          logger: Logger) -> None:
 
     # was a 'ValueError' exception on NULLs in strings raised ?

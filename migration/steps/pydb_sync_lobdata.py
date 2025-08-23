@@ -53,11 +53,11 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 # }
 
 
-def synchronize_lobs(errors: list[str],
-                     session_id: str,
+def synchronize_lobs(session_id: str,
                      migration_warnings: list[str],
                      migration_threads: list[int],
                      migrated_tables: dict[str, Any],
+                     errors: list[str],
                      logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
@@ -342,30 +342,30 @@ def _compute_lob_lists(mother_thread: int,
 
     # obtain a connection to the database
     errors: list[str] = []
-    db_conn: Any = db_connect(errors=errors,
-                              engine=source_db,
+    db_conn: Any = db_connect(engine=source_db,
+                              errors=errors,
                               logger=logger)
     if not errors:
         # prepare database session
-        session_setup(errors=errors,
-                      rdbms=source_db,
+        session_setup(rdbms=source_db,
                       mode="source",
                       conn=db_conn,
+                      errors=errors,
                       logger=logger)
         if not errors:
             # obtain an S3 client
-            s3_client: Any = s3_get_client(errors=errors,
-                                           engine=s3_engine,
+            s3_client: Any = s3_get_client(engine=s3_engine,
+                                           errors=errors,
                                            logger=logger)
             if not errors:
-                db_items: list[tuple[str]] = db_select(errors=errors,
-                                                       sel_stmt=f"SELECT {reference_column} FROM {source_table}",
+                db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
                                                        where_clause=where_clause,
                                                        orderby_clause=reference_column,
                                                        offset_count=offset_count,
                                                        limit_count=limit_count,
                                                        connection=db_conn,
                                                        committable=True,
+                                                       errors=errors,
                                                        logger=logger)
                 if not errors:
                     lobs_db_names = [db_item[0] for db_item in db_items]
@@ -374,11 +374,11 @@ def _compute_lob_lists(mother_thread: int,
                     start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix() if offset_count > 0 else None
                     db_items.clear()
 
-                    s3_items: list[dict[str, Any]] = s3_prefix_list(errors=errors,
-                                                                    prefix=lob_prefix,
+                    s3_items: list[dict[str, Any]] = s3_prefix_list(prefix=lob_prefix,
                                                                     max_count=limit_count,
                                                                     client=s3_client,
                                                                     start_after=start_after,
+                                                                    errors=errors,
                                                                     logger=logger)
                     if not errors:
                         for s3_item in s3_items:

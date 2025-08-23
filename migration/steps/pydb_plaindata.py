@@ -41,12 +41,12 @@ _plaindata_threads: dict[int, dict[str, Any]] = {}
 _plaindata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_plain(errors: list[str],
-                  session_id: str,
+def migrate_plain(session_id: str,
                   incremental_migrations: dict[str, tuple[int, int]],
                   migration_warnings: list[str],
                   migration_threads: list[int],
                   migrated_tables: dict[str, Any],
+                  errors: list[str],
                   logger: Logger) -> int:
 
     # initialize the return variable
@@ -81,8 +81,8 @@ def migrate_plain(errors: list[str],
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if assert_session_abort(errors=errors,
-                                session_id=session_id,
+        if assert_session_abort(session_id=session_id,
+                                errors=errors,
                                 logger=logger):
             break
 
@@ -95,9 +95,9 @@ def migrate_plain(errors: list[str],
             }
 
         # verify whether the target table exists
-        if db_table_exists(errors=errors,
-                           table_name=target_table,
+        if db_table_exists(table_name=target_table,
                            engine=target_engine,
+                           errors=errors,
                            logger=logger):
             # obtain limit and offset
             limit_count: int = 0
@@ -107,9 +107,10 @@ def migrate_plain(errors: list[str],
 
             # is a nonempty target table an issue ?
             if (session_specs[MigSpec.SKIP_NONEMPTY] and
-                    not limit_count and (db_count(errors=errors,
-                                                  table=target_table,
-                                                  engine=target_engine) or 0) > 0):
+                    not limit_count and (db_count(table=target_table,
+                                                  engine=target_engine,
+                                                  errors=errors,
+                                                  logger=logger) or 0) > 0):
                 # yes, skip it
                 logger.debug(msg=f"Skipped nonempty {target_engine}.{target_table}")
                 table_data["plain-status"] = "skipped"
@@ -121,9 +122,10 @@ def migrate_plain(errors: list[str],
                 started: datetime = datetime.now(tz=TZ_LOCAL)
 
                 # count migrateable tuples on source table
-                table_count: int = (db_count(errors=errors,
-                                             table=source_table,
-                                             engine=source_engine) or 0) - offset_count
+                table_count: int = (db_count(table=source_table,
+                                             engine=source_engine,
+                                             errors=errors,
+                                             logger=logger) or 0) - offset_count
                 if table_count > 0:
 
                     identity_column: str | None = None
@@ -224,9 +226,9 @@ def migrate_plain(errors: list[str],
                             status = "error"
                             errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
                     if status == "error":
-                        table_embedded_nulls(errors=errors,
-                                             rdbms=source_engine,
+                        table_embedded_nulls(rdbms=source_engine,
                                              table=source_table,
+                                             errors=errors,
                                              logger=logger)
 
                 finished: datetime = datetime.now(tz=TZ_LOCAL)
@@ -288,31 +290,30 @@ def _migrate_plain(mother_thread: int,
     count: int = 0
 
     # obtain a connection to the source database
-    source_conn: Any = db_connect(errors=errors,
-                                  engine=source_engine,
+    source_conn: Any = db_connect(engine=source_engine,
+                                  errors=errors,
                                   logger=logger)
     if source_conn:
         # prepare database session
-        session_setup(errors=errors,
-                      rdbms=source_engine,
+        session_setup(rdbms=source_engine,
                       mode="source",
                       conn=source_conn,
+                      errors=errors,
                       logger=logger)
         if not errors:
             # obtain a connection to the target database
-            target_conn: Any = db_connect(errors=errors,
-                                          engine=target_engine,
+            target_conn: Any = db_connect(engine=target_engine,
+                                          errors=errors,
                                           logger=logger)
             if target_conn:
                 # prepare database session
-                session_setup(errors=errors,
-                              rdbms=target_engine,
+                session_setup(rdbms=target_engine,
                               mode="target",
                               conn=target_conn,
+                              errors=errors,
                               logger=logger)
                 if not errors:
-                    count = db_migrate_data(errors=errors,
-                                            source_engine=source_engine,
+                    count = db_migrate_data(source_engine=source_engine,
                                             source_table=source_table,
                                             source_columns=source_columns,
                                             target_engine=target_engine,
@@ -328,6 +329,7 @@ def _migrate_plain(mother_thread: int,
                                             batch_size_in=batch_size_in,
                                             batch_size_out=batch_size_out,
                                             has_nulls=has_nulls,
+                                            errors=errors,
                                             logger=logger)
     with _plaindata_lock:
         if errors:

@@ -15,8 +15,7 @@ from app_constants import (
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
-def s3_migrate_lobs(errors: list[str],
-                    session_id: str,
+def s3_migrate_lobs(session_id: str,
                     db_conn: Any,
                     s3_client: Any,
                     source_table: str,
@@ -30,6 +29,7 @@ def s3_migrate_lobs(errors: list[str],
                     forced_filetype: str,
                     reference_column: str,
                     migration_warnings: list[str],
+                    errors: list[str],
                     logger: Logger) -> tuple[int, int]:
 
     # initialize the counters
@@ -77,8 +77,7 @@ def s3_migrate_lobs(errors: list[str],
     #   - if the LOB is empty, one empty and one null payload follow in sequence, terminating the LOB
     #   - if the LOB has data, multiple payloads follow, until a null payload terminates the LOB
     # noinspection PyTypeChecker
-    for row_data in db_stream_lobs(errors=errors,
-                                   table=source_table,
+    for row_data in db_stream_lobs(table=source_table,
                                    lob_column=lob_column,
                                    pk_columns=pk_columns,
                                    ret_column=reference_column,
@@ -89,11 +88,12 @@ def s3_migrate_lobs(errors: list[str],
                                    offset_count=offset_count,
                                    limit_count=limit_count,
                                    chunk_size=chunk_size,
+                                   errors=errors,
                                    logger=logger):
 
         # verify whether current migration is marked for abortion
-        if errors or assert_session_abort(errors=errors,
-                                          session_id=session_id,
+        if errors or assert_session_abort(session_id=session_id,
+                                          errors=errors,
                                           logger=logger):
             # abort the lobdata streaming
             break
@@ -157,15 +157,15 @@ def s3_migrate_lobs(errors: list[str],
                 #    "etag": <string>,
                 #    "size": <int>             (AWS only)
                 # }
-                reply: dict[str, Any] = s3_data_store(errors=errors,
-                                                      identifier=identifier,
+                reply: dict[str, Any] = s3_data_store(identifier=identifier,
                                                       data=lob_data,
                                                       length=len(lob_data),
                                                       mimetype=mimetype or Mimetype.BINARY,
                                                       tags=metadata,
                                                       prefix=lob_prefix,
                                                       engine=target_s3,
-                                                      client=s3_client)
+                                                      client=s3_client,
+                                                      errors=errors)
                 if reply:
                     result_count += 1
                     result_size += len(lob_data)
