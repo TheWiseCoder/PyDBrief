@@ -9,7 +9,7 @@ from pypomes_core import (
 )
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
-    db_connect, db_count, db_table_exists, db_migrate_data
+    db_connect, db_close, db_count, db_table_exists, db_migrate_data
 )
 from typing import Any
 
@@ -321,6 +321,7 @@ def _migrate_plain(mother_thread: int,
                                             target_columns=target_columns,
                                             source_conn=source_conn,
                                             target_conn=target_conn,
+                                            source_committable=True,
                                             target_committable=True,
                                             orderby_clause=orderby_clause,
                                             offset_count=offset_count,
@@ -331,6 +332,11 @@ def _migrate_plain(mother_thread: int,
                                             has_nulls=has_nulls,
                                             errors=errors,
                                             logger=logger)
+            db_close(connection=target_conn,
+                     logger=logger)
+        db_close(connection=source_conn,
+                 logger=logger)
+
     with _plaindata_lock:
         if errors:
             _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)

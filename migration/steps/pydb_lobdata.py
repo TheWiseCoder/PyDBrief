@@ -451,8 +451,10 @@ def _db_migrate_lobs(mother_thread: int,
                     if totals:
                         lob_count = totals[0]
                         lob_bytes = totals[1]
+
                 db_close(connection=target_conn,
                          logger=logger)
+
         db_close(connection=source_conn,
                  logger=logger)
 
@@ -517,9 +519,14 @@ def _s3_migrate_lobs(mother_thread: int,
                                         errors=errors,
                                         logger=logger)
                 if not errors:
+                    # no offset/limit apply herefrom, as 'where_clause' precisely filters the appropriate LOBs
+                    offset_count = 0
+                    limit_count = 0
+                    where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
+
                     # insert the exact sublist of LOBs to be migrated by this thread
                     insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
-                                               if limit_count else [tuple(where_clause[offset_count:])]
+                        if limit_count else [tuple(where_clause[offset_count:])]
                     db_bulk_insert(target_table=temp_table,
                                    insert_attrs=[temp_column],
                                    insert_vals=insert_vals,
@@ -527,31 +534,30 @@ def _s3_migrate_lobs(mother_thread: int,
                                    connection=db_conn,
                                    errors=errors,
                                    logger=logger)
-                    if not errors:
-                        # no offset/limit apply herefrom, as 'where_clause' precisely filters the appropriate LOBs
-                        offset_count = 0
-                        limit_count = 0
-                        where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
-        if not errors:
-            # 'target_table' is documentational, only
-            totals: tuple[int, int] = s3_migrate_lobs(session_id=session_id,
-                                                      db_conn=db_conn,
-                                                      s3_client=s3_client,
-                                                      target_table=target_table,
-                                                      source_table=source_table,
-                                                      lob_prefix=lob_prefix,
-                                                      lob_column=lob_column,
-                                                      pk_columns=pk_columns,
-                                                      where_clause=where_clause,
-                                                      offset_count=offset_count,
-                                                      limit_count=limit_count,
-                                                      forced_filetype=forced_filetype,
-                                                      reference_column=reference_column,
-                                                      migration_warnings=migration_warnings,
-                                                      errors=errors,
-                                                      logger=logger)
-            with lobdata_lock:
-                lobdata_register[mother_thread][source_table]["table-count"] += totals[0]
-                lobdata_register[mother_thread][source_table]["table-bytes"] += totals[1]
-                if errors:
-                    lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+
+            if not errors:
+                # 'target_table' is documentational, only
+                totals: tuple[int, int] = s3_migrate_lobs(session_id=session_id,
+                                                          db_conn=db_conn,
+                                                          s3_client=s3_client,
+                                                          target_table=target_table,
+                                                          source_table=source_table,
+                                                          lob_prefix=lob_prefix,
+                                                          lob_column=lob_column,
+                                                          pk_columns=pk_columns,
+                                                          where_clause=where_clause,
+                                                          offset_count=offset_count,
+                                                          limit_count=limit_count,
+                                                          forced_filetype=forced_filetype,
+                                                          reference_column=reference_column,
+                                                          migration_warnings=migration_warnings,
+                                                          errors=errors,
+                                                          logger=logger)
+                with lobdata_lock:
+                    lobdata_register[mother_thread][source_table]["table-count"] += totals[0]
+                    lobdata_register[mother_thread][source_table]["table-bytes"] += totals[1]
+                    if errors:
+                        lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+
+            db_close(connection=db_conn,
+                     logger=logger)
