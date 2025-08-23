@@ -446,47 +446,35 @@ def validate_specs(input_params: dict[str, str],
                                         def_size=session_registry[MigConfig.METRICS][MigMetric.INCREMENTAL_SIZE],
                                         errors=errors)
     process_indexes: bool = validate_bool(source=input_params,
-                                          attr=MigSpec.PROCESS_INDEXES,
-                                          errors=None)
+                                          attr=MigSpec.PROCESS_INDEXES)
     process_views: bool = validate_bool(source=input_params,
-                                        attr=MigSpec.PROCESS_VIEWS,
-                                        errors=None)
+                                        attr=MigSpec.PROCESS_VIEWS)
     relax_reflection: bool = validate_bool(source=input_params,
-                                           attr=MigSpec.RELAX_REFLECTION,
-                                           errors=None)
+                                           attr=MigSpec.RELAX_REFLECTION)
     skip_nonempty: bool = validate_bool(source=input_params,
-                                        attr=MigSpec.SKIP_NONEMPTY,
-                                        errors=None)
+                                        attr=MigSpec.SKIP_NONEMPTY)
     reflect_filetype: bool = validate_bool(source=input_params,
-                                           attr=MigSpec.REFLECT_FILETYPE,
-                                           errors=None)
+                                           attr=MigSpec.REFLECT_FILETYPE)
     flatten_storage: bool = validate_bool(source=input_params,
-                                          attr=MigSpec.FLATTEN_STORAGE,
-                                          errors=None)
+                                          attr=MigSpec.FLATTEN_STORAGE)
     remove_nulls: list[str] = [s.lower()
                                for s in validate_strs(source=input_params,
-                                                      attr=MigSpec.REMOVE_NULLS,
-                                                      errors=None)]
+                                                      attr=MigSpec.REMOVE_NULLS)]
     include_relations: list[str] = [s.lower()
                                     for s in validate_strs(source=input_params,
-                                                           attr=MigSpec.INCLUDE_RELATIONS,
-                                                           errors=None)]
+                                                           attr=MigSpec.INCLUDE_RELATIONS)]
     exclude_relations: list[str] = [s.lower()
                                     for s in validate_strs(source=input_params,
-                                                           attr=MigSpec.EXCLUDE_RELATIONS,
-                                                           errors=None)]
+                                                           attr=MigSpec.EXCLUDE_RELATIONS)]
     exclude_columns: list[str] = [s.lower()
                                   for s in validate_strs(source=input_params,
-                                                         attr=MigSpec.EXCLUDE_COLUMNS,
-                                                         errors=None)]
+                                                         attr=MigSpec.EXCLUDE_COLUMNS)]
     exclude_constraints: list[str] = [s.lower()
                                       for s in validate_strs(source=input_params,
-                                                             attr=MigSpec.EXCLUDE_CONSTRAINTS,
-                                                             errors=None)]
+                                                             attr=MigSpec.EXCLUDE_CONSTRAINTS)]
     named_lobdata: list[str] = [s.lower()
                                 for s in validate_strs(source=input_params,
-                                                       attr=MigSpec.NAMED_LOBDATA,
-                                                       errors=None)]
+                                                       attr=MigSpec.NAMED_LOBDATA)]
     # validate the include and exclude relations lists
     if input_params.get(MigSpec.INCLUDE_RELATIONS) and \
             input_params.get(MigSpec.EXCLUDE_RELATIONS):
