@@ -458,23 +458,23 @@ def validate_specs(input_params: dict[str, str],
     flatten_storage: bool = validate_bool(source=input_params,
                                           attr=MigSpec.FLATTEN_STORAGE)
     remove_nulls: list[str] = [s.lower()
-                               for s in validate_strs(source=input_params,
-                                                      attr=MigSpec.REMOVE_NULLS)]
+                               for s in (validate_strs(source=input_params,
+                                                       attr=MigSpec.REMOVE_NULLS) or [])]
     include_relations: list[str] = [s.lower()
-                                    for s in validate_strs(source=input_params,
-                                                           attr=MigSpec.INCLUDE_RELATIONS)]
+                                    for s in (validate_strs(source=input_params,
+                                                            attr=MigSpec.INCLUDE_RELATIONS) or [])]
     exclude_relations: list[str] = [s.lower()
-                                    for s in validate_strs(source=input_params,
-                                                           attr=MigSpec.EXCLUDE_RELATIONS)]
+                                    for s in (validate_strs(source=input_params,
+                                                            attr=MigSpec.EXCLUDE_RELATIONS) or [])]
     exclude_columns: list[str] = [s.lower()
-                                  for s in validate_strs(source=input_params,
-                                                         attr=MigSpec.EXCLUDE_COLUMNS)]
+                                  for s in (validate_strs(source=input_params,
+                                                          attr=MigSpec.EXCLUDE_COLUMNS) or [])]
     exclude_constraints: list[str] = [s.lower()
-                                      for s in validate_strs(source=input_params,
-                                                             attr=MigSpec.EXCLUDE_CONSTRAINTS)]
+                                      for s in (validate_strs(source=input_params,
+                                                              attr=MigSpec.EXCLUDE_CONSTRAINTS) or [])]
     named_lobdata: list[str] = [s.lower()
-                                for s in validate_strs(source=input_params,
-                                                       attr=MigSpec.NAMED_LOBDATA)]
+                                for s in (validate_strs(source=input_params,
+                                                        attr=MigSpec.NAMED_LOBDATA) or [])]
     # validate the include and exclude relations lists
     if input_params.get(MigSpec.INCLUDE_RELATIONS) and \
             input_params.get(MigSpec.EXCLUDE_RELATIONS):
