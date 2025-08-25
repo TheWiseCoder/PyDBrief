@@ -2,15 +2,13 @@ import threading
 from enum import StrEnum
 from logging import Logger
 from typing import Any
-from pypomes_db import (
-    DbEngine, db_connect, db_sync_data
-)
+from pypomes_db import DbEngine, db_sync_data
 
 from app_constants import (
     MigConfig, MigMetric, MigSpot, MigSpec
 )
 from migration import pydb_types
-from migration.pydb_database import table_embedded_nulls, session_setup
+from migration.pydb_database import table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
@@ -71,66 +69,38 @@ def synchronize_plain(migration_threads: list[int],
                 if "identity" in features:
                     identity_column = column_name
 
-        # obtain a connection to the source DB
-        source_conn: Any = db_connect(engine=source_db,
-                                      errors=op_errors,
-                                      logger=logger)
-        if source_conn:
-            # prepare database session
-            session_setup(errors=op_errors,
-                          rdbms=source_db,
-                          mode="source",
-                          conn=source_conn,
-                          logger=logger)
-            if not op_errors:
-                # obtain a connection to the target DB
-                target_conn: Any = db_connect(engine=target_db,
-                                              errors=op_errors,
-                                              logger=logger)
-                if target_conn:
-                    # prepare database session
-                    session_setup(rdbms=target_db,
-                                  mode="target",
-                                  conn=target_conn,
-                                  errors=op_errors,
-                                  logger=logger)
-                    if not op_errors:
-                        counts: tuple[int, int, int] = db_sync_data(source_engine=source_db,
-                                                                    source_table=source_table,
-                                                                    target_engine=target_db,
-                                                                    target_table=target_table,
-                                                                    pk_columns=pk_columns,
-                                                                    sync_columns=sync_columns,
-                                                                    source_conn=source_conn,
-                                                                    target_conn=target_conn,
-                                                                    source_committable=True,
-                                                                    target_committable=True,
-                                                                    identity_column=identity_column,
-                                                                    batch_size=batch_size_in,
-                                                                    has_nulls=has_nulls,
-                                                                    errors=op_errors,
-                                                                    logger=logger) or (0, 0, 0)
-                        deletes: int = counts[0]
-                        inserts: int = counts[1]
-                        updates: int = counts[2]
-                        if op_errors:
-                            table_embedded_nulls(rdbms=target_db,
-                                                 table=target_table,
-                                                 errors=op_errors,
-                                                 logger=logger)
-                            errors.extend(op_errors)
-                            status: str = "none"
-                        else:
-                            status: str = "full"
+        counts: tuple[int, int, int] = db_sync_data(source_engine=source_db,
+                                                    source_table=source_table,
+                                                    target_engine=target_db,
+                                                    target_table=target_table,
+                                                    pk_columns=pk_columns,
+                                                    sync_columns=sync_columns,
+                                                    identity_column=identity_column,
+                                                    batch_size=batch_size_in,
+                                                    has_nulls=has_nulls,
+                                                    errors=op_errors,
+                                                    logger=logger) or (0, 0, 0)
+        deletes: int = counts[0]
+        inserts: int = counts[1]
+        updates: int = counts[2]
+        if op_errors:
+            table_embedded_nulls(rdbms=target_db,
+                                 table=target_table,
+                                 errors=op_errors,
+                                 logger=logger)
+            errors.extend(op_errors)
+            status: str = "none"
+        else:
+            status: str = "full"
 
-                        table_data["sync-status"] = status
-                        table_data["sync-deletes"] = deletes
-                        table_data["sync-inserts"] = inserts
-                        table_data["sync-updates"] = updates
-                        logger.debug(msg=(f"Synchronized {source_db}.{target_table} "
-                                          f"as per {source_db}.{target_table}, status {status}"))
-                        result_deletes += deletes
-                        result_inserts += inserts
-                        result_updates += updates
+        table_data["sync-status"] = status
+        table_data["sync-deletes"] = deletes
+        table_data["sync-inserts"] = inserts
+        table_data["sync-updates"] = updates
+        logger.debug(msg=(f"Synchronized {source_db}.{target_table} "
+                          f"as per {source_db}.{target_table}, status {status}"))
+        result_deletes += deletes
+        result_inserts += inserts
+        result_updates += updates
 
     return result_deletes, result_inserts, result_updates

@@ -9,7 +9,7 @@ from pypomes_core import (
 )
 from pypomes_db import (
     DbEngine, db_is_reserved_word,
-    db_connect, db_close, db_count, db_table_exists, db_migrate_data
+    db_count, db_table_exists, db_migrate_data
 )
 from typing import Any
 
@@ -17,7 +17,7 @@ from app_constants import (
     MigConfig, MigSpot, MigSpec, MigMetric
 )
 from migration.pydb_common import build_channel_data
-from migration.pydb_database import session_setup, table_embedded_nulls
+from migration.pydb_database import table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
 
@@ -287,56 +287,21 @@ def _migrate_plain(mother_thread: int,
         _plaindata_threads[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
-    count: int = 0
-
-    # obtain a connection to the source database
-    source_conn: Any = db_connect(engine=source_engine,
-                                  errors=errors,
-                                  logger=logger)
-    if source_conn:
-        # prepare database session
-        session_setup(rdbms=source_engine,
-                      mode="source",
-                      conn=source_conn,
-                      errors=errors,
-                      logger=logger)
-        if not errors:
-            # obtain a connection to the target database
-            target_conn: Any = db_connect(engine=target_engine,
-                                          errors=errors,
-                                          logger=logger)
-            if target_conn:
-                # prepare database session
-                session_setup(rdbms=target_engine,
-                              mode="target",
-                              conn=target_conn,
-                              errors=errors,
-                              logger=logger)
-                if not errors:
-                    count = db_migrate_data(source_engine=source_engine,
-                                            source_table=source_table,
-                                            source_columns=source_columns,
-                                            target_engine=target_engine,
-                                            target_table=target_table,
-                                            target_columns=target_columns,
-                                            source_conn=source_conn,
-                                            target_conn=target_conn,
-                                            source_committable=True,
-                                            target_committable=True,
-                                            orderby_clause=orderby_clause,
-                                            offset_count=offset_count,
-                                            limit_count=limit_count,
-                                            identity_column=identity_column,
-                                            batch_size_in=batch_size_in,
-                                            batch_size_out=batch_size_out,
-                                            has_nulls=has_nulls,
-                                            errors=errors,
-                                            logger=logger)
-            db_close(connection=target_conn,
-                     logger=logger)
-        db_close(connection=source_conn,
-                 logger=logger)
-
+    count: int = db_migrate_data(source_engine=source_engine,
+                                 source_table=source_table,
+                                 source_columns=source_columns,
+                                 target_engine=target_engine,
+                                 target_table=target_table,
+                                 target_columns=target_columns,
+                                 orderby_clause=orderby_clause,
+                                 offset_count=offset_count,
+                                 limit_count=limit_count,
+                                 identity_column=identity_column,
+                                 batch_size_in=batch_size_in,
+                                 batch_size_out=batch_size_out,
+                                 has_nulls=has_nulls,
+                                 errors=errors,
+                                 logger=logger)
     with _plaindata_lock:
         if errors:
             _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)

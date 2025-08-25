@@ -7,8 +7,9 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import TZ_LOCAL, timestamp_duration
 from pypomes_db import (
-    DbEngine, db_connect, db_count, db_migrate_lobs, db_table_exists,
-    db_bulk_insert, db_create_session_table, db_get_session_table_prefix, db_close
+    DbEngine, db_connect, db_count, db_close,
+    db_migrate_lobs, db_table_exists, db_drop_table,
+    db_bulk_insert, db_create_session_table, db_get_session_table_prefix
 )
 from pypomes_s3 import S3Engine, s3_get_client, s3_item_exists
 from typing import Any
@@ -17,7 +18,6 @@ from app_constants import (
     MigConfig, MigMetric, MigSpec, MigSpot, MigStep
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
-from migration.pydb_database import session_setup
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_s3 import s3_migrate_lobs
@@ -408,55 +408,21 @@ def _db_migrate_lobs(mother_thread: int,
     lob_bytes: int = 0
     errors: list[str] = []
 
-    # obtain a connection to the source database
-    source_conn: Any = db_connect(engine=source_engine,
-                                  errors=errors,
-                                  logger=logger)
-    if source_conn:
-        # prepare database session
-        session_setup(rdbms=source_engine,
-                      mode="source",
-                      conn=source_conn,
-                      errors=errors,
-                      logger=logger)
-        if not errors:
-            # obtain a connection to the target database
-            target_conn: Any = db_connect(engine=target_engine,
-                                          errors=errors,
-                                          logger=logger)
-            if target_conn:
-                # prepare database session
-                session_setup(rdbms=target_engine,
-                              mode="target",
-                              conn=target_conn,
-                              errors=errors,
-                              logger=logger)
-                if not errors:
-                    totals: tuple[int, int] = db_migrate_lobs(source_engine=source_engine,
-                                                              source_table=source_table,
-                                                              source_lob_column=lob_column,
-                                                              source_pk_columns=pk_columns,
-                                                              target_engine=target_engine,
-                                                              target_table=target_table,
-                                                              source_conn=source_conn,
-                                                              target_conn=target_conn,
-                                                              source_committable=True,
-                                                              target_committable=True,
-                                                              where_clause=where_clause,
-                                                              offset_count=offset_count,
-                                                              limit_count=limit_count,
-                                                              chunk_size=chunk_size,
-                                                              errors=errors,
-                                                              logger=logger)
-                    if totals:
-                        lob_count = totals[0]
-                        lob_bytes = totals[1]
-
-                db_close(connection=target_conn,
-                         logger=logger)
-
-        db_close(connection=source_conn,
-                 logger=logger)
+    totals: tuple[int, int] = db_migrate_lobs(source_engine=source_engine,
+                                              source_table=source_table,
+                                              source_lob_column=lob_column,
+                                              source_pk_columns=pk_columns,
+                                              target_engine=target_engine,
+                                              target_table=target_table,
+                                              where_clause=where_clause,
+                                              offset_count=offset_count,
+                                              limit_count=limit_count,
+                                              chunk_size=chunk_size,
+                                              errors=errors,
+                                              logger=logger)
+    if not errors:
+        lob_count = totals[0]
+        lob_bytes = totals[1]
 
     with lobdata_lock:
         if errors:
@@ -495,22 +461,17 @@ def _s3_migrate_lobs(mother_thread: int,
                               errors=errors,
                               logger=logger)
     if s3_client:
-        # obtain a database connection
-        db_conn: Any = db_connect(engine=source_db,
-                                  errors=errors,
-                                  logger=logger)
-        if db_conn:
-            # prepare database session
-            session_setup(rdbms=source_db,
-                          mode="source",
-                          conn=db_conn,
-                          errors=errors,
-                          logger=logger)
-
-            if not errors and isinstance(where_clause, list):
+        db_conn: Any = None
+        temp_table: str | None = None
+        if isinstance(where_clause, list):
+            # obtain a database connection
+            db_conn = db_connect(engine=source_db,
+                                 errors=errors,
+                                 logger=logger)
+            if db_conn:
                 # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
-                temp_table: str = f"{source_schema}." + \
-                                  f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
+                temp_table = f"{source_schema}." + \
+                             f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
                 temp_column: str = f"id_{reference_column}"[:30]
                 db_create_session_table(engine=source_db,
                                         connection=db_conn,
@@ -534,30 +495,34 @@ def _s3_migrate_lobs(mother_thread: int,
                                    connection=db_conn,
                                    errors=errors,
                                    logger=logger)
-
-            if not errors:
-                # 'target_table' is documentational, only
-                totals: tuple[int, int] = s3_migrate_lobs(session_id=session_id,
-                                                          db_conn=db_conn,
-                                                          s3_client=s3_client,
-                                                          target_table=target_table,
-                                                          source_table=source_table,
-                                                          lob_prefix=lob_prefix,
-                                                          lob_column=lob_column,
-                                                          pk_columns=pk_columns,
-                                                          where_clause=where_clause,
-                                                          offset_count=offset_count,
-                                                          limit_count=limit_count,
-                                                          forced_filetype=forced_filetype,
-                                                          reference_column=reference_column,
-                                                          migration_warnings=migration_warnings,
-                                                          errors=errors,
-                                                          logger=logger)
-                with lobdata_lock:
+        if not errors:
+            # 'target_table' is documentational, only
+            totals: tuple[int, int] = s3_migrate_lobs(session_id=session_id,
+                                                      db_conn=db_conn,
+                                                      s3_client=s3_client,
+                                                      target_table=target_table,
+                                                      source_table=source_table,
+                                                      lob_prefix=lob_prefix,
+                                                      lob_column=lob_column,
+                                                      pk_columns=pk_columns,
+                                                      where_clause=where_clause,
+                                                      offset_count=offset_count,
+                                                      limit_count=limit_count,
+                                                      forced_filetype=forced_filetype,
+                                                      reference_column=reference_column,
+                                                      migration_warnings=migration_warnings,
+                                                      errors=errors,
+                                                      logger=logger)
+            with lobdata_lock:
+                if errors:
+                    lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+                else:
                     lobdata_register[mother_thread][source_table]["table-count"] += totals[0]
                     lobdata_register[mother_thread][source_table]["table-bytes"] += totals[1]
-                    if errors:
-                        lobdata_register[mother_thread][source_table]["errors"].extend(errors)
-
+        if db_conn:
+            db_drop_table(table_name=temp_table,
+                          connection=db_conn,
+                          committable=True,
+                          logger=logger)
             db_close(connection=db_conn,
                      logger=logger)

@@ -9,9 +9,7 @@ from pypomes_core import (
     TZ_LOCAL,
     timestamp_duration, list_correlate, list_prune_duplicates
 )
-from pypomes_db import (
-    DbEngine, db_connect, db_count, db_select
-)
+from pypomes_db import DbEngine, db_count, db_select
 from pypomes_s3 import (
     S3Engine, s3_get_client, s3_prefix_list, s3_items_remove
 )
@@ -22,7 +20,6 @@ from app_constants import (
     MigConfig, MigMetric, MigSpec, MigSpot
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
-from migration.pydb_database import session_setup
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_lobdata import migrate_lob_columns
@@ -179,7 +176,6 @@ def synchronize_lobs(session_id: str,
                     if max_workers == 1:
                         # execute single task in current thread
                         _compute_lob_lists(mother_thread=mother_thread,
-                                           source_db=source_db,
                                            source_table=source_table,
                                            reference_column=reference_column,
                                            where_clause=where_clause,
@@ -201,7 +197,6 @@ def synchronize_lobs(session_id: str,
                             for channel_datum in channel_data:
                                 future: Future = executor.submit(_compute_lob_lists,
                                                                  mother_thread=mother_thread,
-                                                                 source_db=source_db,
                                                                  source_table=source_table,
                                                                  reference_column=reference_column,
                                                                  where_clause=where_clause,
@@ -320,7 +315,6 @@ def synchronize_lobs(session_id: str,
 
 
 def _compute_lob_lists(mother_thread: int,
-                       source_db: DbEngine,
                        source_table: str,
                        reference_column: str,
                        where_clause: str,
@@ -340,72 +334,58 @@ def _compute_lob_lists(mother_thread: int,
     lobs_s3_names: list[str] = []
     lobs_s3_full: dict[str, str] = {}
 
-    # obtain a connection to the database
+    # obtain an S3 client
     errors: list[str] = []
-    db_conn: Any = db_connect(engine=source_db,
-                              errors=errors,
-                              logger=logger)
+    s3_client: Any = s3_get_client(engine=s3_engine,
+                                   errors=errors,
+                                   logger=logger)
     if not errors:
-        # prepare database session
-        session_setup(rdbms=source_db,
-                      mode="source",
-                      conn=db_conn,
-                      errors=errors,
-                      logger=logger)
+        db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
+                                               where_clause=where_clause,
+                                               orderby_clause=reference_column,
+                                               offset_count=offset_count,
+                                               limit_count=limit_count,
+                                               errors=errors,
+                                               logger=logger)
         if not errors:
-            # obtain an S3 client
-            s3_client: Any = s3_get_client(engine=s3_engine,
-                                           errors=errors,
-                                           logger=logger)
-            if not errors:
-                db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
-                                                       where_clause=where_clause,
-                                                       orderby_clause=reference_column,
-                                                       offset_count=offset_count,
-                                                       limit_count=limit_count,
-                                                       connection=db_conn,
-                                                       committable=True,
-                                                       errors=errors,
-                                                       logger=logger)
-                if not errors:
-                    lobs_db_names = [db_item[0] for db_item in db_items]
-                    lob_count = len(lobs_db_names)
-                    # HAZARD: 'start_after' is actually 'start_at'
-                    start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix() if offset_count > 0 else None
-                    db_items.clear()
+            lobs_db_names = [db_item[0] for db_item in db_items]
+            lob_count = len(lobs_db_names)
+            # HAZARD: 'start_after' might be 'start_at', depending on context
+            start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix() if offset_count > 0 else None
+            db_items.clear()
 
-                    s3_items: list[dict[str, Any]] = s3_prefix_list(prefix=lob_prefix,
-                                                                    max_count=limit_count,
-                                                                    client=s3_client,
-                                                                    start_after=start_after,
-                                                                    errors=errors,
-                                                                    logger=logger)
-                    if not errors:
-                        for s3_item in s3_items:
-                            full_name = s3_item.get("Key")
-                            name: str = full_name
-                            # extract the prefix
-                            pos: int = name.rfind("/")
-                            if pos > 0:
-                                name = name[pos+1:]
-                            # extract the extension
-                            pos = name.rfind(".")
-                            if pos > 0:
-                                name = name[:pos]
-                            lobs_s3_names.append(name)
-                            lobs_s3_full[name] = full_name
-                        s3_items.clear()
-                        # no need to keep items existing in both lists
-                        correlations: tuple = list_correlate(list_first=lobs_db_names,
-                                                             list_second=lobs_s3_names,
-                                                             only_in_first=True,
-                                                             only_in_second=True,
-                                                             is_sorted=True)
-                        lobs_db_names = correlations[0]
-                        lobs_s3_names = correlations[1]
-                        # keep only needed items in 'lobs_s3_full'
-                        if len(lobs_s3_names) < len(lobs_s3_full):
-                            lobs_s3_full = {k: v for k, v in lobs_s3_full.items() if k in lobs_s3_names}
+            s3_items: list[dict[str, Any]] = s3_prefix_list(prefix=lob_prefix,
+                                                            max_count=limit_count,
+                                                            client=s3_client,
+                                                            start_after=start_after,
+                                                            errors=errors,
+                                                            logger=logger)
+            if not errors:
+                for s3_item in s3_items:
+                    full_name = s3_item.get("Key")
+                    name: str = full_name
+                    # extract the prefix
+                    pos: int = name.rfind("/")
+                    if pos > 0:
+                        name = name[pos+1:]
+                    # extract the extension
+                    pos = name.rfind(".")
+                    if pos > 0:
+                        name = name[:pos]
+                    lobs_s3_names.append(name)
+                    lobs_s3_full[name] = full_name
+                s3_items.clear()
+                # no need to keep items existing in both lists
+                correlations: tuple = list_correlate(list_first=lobs_db_names,
+                                                     list_second=lobs_s3_names,
+                                                     only_in_first=True,
+                                                     only_in_second=True,
+                                                     is_sorted=True)
+                lobs_db_names = correlations[0]
+                lobs_s3_names = correlations[1]
+                # keep only needed items in 'lobs_s3_full'
+                if len(lobs_s3_names) < len(lobs_s3_full):
+                    lobs_s3_full = {k: v for k, v in lobs_s3_full.items() if k in lobs_s3_names}
 
     with lob_ctrl.lobdata_lock:
         table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]

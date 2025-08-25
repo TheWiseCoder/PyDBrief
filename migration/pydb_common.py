@@ -89,48 +89,6 @@ def build_channel_data(channel_size: int,
     return result
 
 
-def build_channel_data_prev(max_channels: int,
-                            channel_size: int,
-                            table_count: int,
-                            offset_count: int,
-                            limit_count: int) -> list[tuple[int, int]]:
-
-    # initialize the return variable
-    result: list[tuple[int, int]] = []
-
-    # 'limit_count' might be 0, 'table_count' is always greater than 0
-    if limit_count == 0 or limit_count > table_count:
-        limit_count = table_count
-
-    # normalize 'channel_size'
-    channel_size = min(channel_size, table_count)
-    if channel_size > limit_count:
-        channel_size = limit_count
-    elif max_channels * channel_size < limit_count:
-        channel_size = int(limit_count / max_channels)
-
-    # allocate sizes and offsets for multi-thread use
-    total_count: int = 0
-    while total_count + channel_size <= limit_count:
-        result.append((offset_count, channel_size))
-        total_count += channel_size
-        offset_count += channel_size
-
-    # process remaining rows
-    remainder: int = limit_count - total_count
-    if remainder > 0:
-        # a new channel is used, if:
-        #   - at least one is still available, and
-        #   - the remaining size is greater than 10% of the channel size
-        if len(result) < max_channels and 10 * remainder > channel_size:
-            result.append((offset_count, remainder))
-        # otherwise, the remaining rows are added to the last channel
-        else:
-            result[-1] = (result[-1][0], result[-1][1] + remainder)
-
-    return result
-
-
 def build_lob_prefix(session_registry: dict[StrEnum, Any],
                      target_db: DbEngine,
                      target_table: str,

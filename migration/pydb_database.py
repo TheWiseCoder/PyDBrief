@@ -4,7 +4,7 @@ from pypomes_db import (
     DbEngine, DbParam, DbConnectionPool, DbPoolEvent,
     db_get_pool, db_get_param, db_get_view_ddl, db_execute
 )
-from typing import Any, Literal
+from typing import Literal
 
 
 def db_pool_setup(rdbms: DbEngine,
@@ -49,40 +49,6 @@ def schema_create(schema: str,
                logger=logger)
 
     logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
-
-
-def session_setup(rdbms: DbEngine,
-                  mode: Literal["source", "target"],
-                  conn: Any,
-                  errors: list[str],
-                  logger: Logger) -> None:
-
-    # disable triggers and rules delaying bulk operations on current session
-    stmts: list[str] = []
-    match rdbms:
-        case DbEngine.POSTGRES:
-            if mode == "target":
-                stmts.append("set session_replication_role = replica")
-        case DbEngine.MYSQL:
-            if mode == "target":
-                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
-        case DbEngine.ORACLE:
-            if mode == "source":
-                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
-                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
-            # Oracle does not have session-scope commands for disabling triggers and/or rules
-        case _:  # SQLServer
-            # SQLServer does not have session-scope commands for disabling triggers and/or rules
-            pass
-    # for stmt in stmts:
-    #     db_execute(exc_stmt=stmt,
-    #                engine=rdbms,
-    #                connection=conn,
-    #                errors=errors,
-    #                logger=logger)
-    #     if errors:
-    #         break
-    #     logger.debug(msg=f"RDBMS {rdbms}, session prepared with {stmt}")
 
 
 def column_set_nullable(rdbms: DbEngine,
