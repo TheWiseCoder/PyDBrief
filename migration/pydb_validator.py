@@ -515,9 +515,9 @@ def __assert_override_columns(input_params: dict[str, str],
 
     # process the foreign columns list
     override_columns: list[str] = [s.lower()
-                                   for s in validate_strs(source=input_params,
-                                                          attr=MigSpec.OVERRIDE_COLUMNS,
-                                                          errors=errors) or []]
+                                   for s in (validate_strs(source=input_params,
+                                                           attr=MigSpec.OVERRIDE_COLUMNS,
+                                                           errors=errors) or [])]
     try:
         for override_column in override_columns:
             # format of 'override_column' is <column_name>=<column_type>
@@ -551,9 +551,9 @@ def __assert_incremental_migrations(input_params: dict[str, Any],
 
     # process the foreign columns list
     incremental_tables: list[str] = [s.lower()
-                                     for s in validate_strs(source=input_params,
-                                                            attr=MigSpec.INCREMENTAL_MIGRATIONS,
-                                                            errors=errors) or []]
+                                     for s in (validate_strs(source=input_params,
+                                                             attr=MigSpec.INCREMENTAL_MIGRATIONS,
+                                                             errors=errors) or [])]
 
     # format of 'incremental_tables' is [<table-name>[=<size>[:<offset>],...]
     for incremental_table in incremental_tables:
