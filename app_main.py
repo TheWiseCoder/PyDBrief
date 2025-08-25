@@ -168,29 +168,30 @@ def service_rdbms(engine: str = None) -> Response:
                                                                 if key != DbConfig.PWD]))
     PYPOMES_LOGGER.info(msg=msg)
 
-    assert_expected_params(errors=errors,
-                           service="/rdbms",
+    assert_expected_params(service="/rdbms",
                            method=request.method,
-                           input_params=input_params)
+                           input_params=input_params,
+                           errors=errors)
 
     reply: dict[StrEnum | str, Any] | None = None
     if not errors:
         session_id: str = input_params.get(MigSpec.SESSION_ID)
         if request.method == HttpMethod.GET:
             input_params[DbConfig.ENGINE] = engine
-            db_engine: DbEngine = validate_enum(errors=errors,
-                                                source=input_params,
+            db_engine: DbEngine = validate_enum(source=input_params,
                                                 attr=DbConfig.ENGINE,
                                                 enum_class=DbEngine,
-                                                required=True)
+                                                required=True,
+                                                errors=errors)
             if db_engine:
                 # get RDBMS connection params
-                reply = get_rdbms_specs(errors=errors,
-                                        session_id=session_id,
-                                        db_engine=db_engine)
+                reply = get_rdbms_specs(session_id=session_id,
+                                        db_engine=db_engine,
+                                        errors=errors)
         else:
-            validate_rdbms(errors=errors,
-                           input_params=input_params)
+            validate_rdbms(input_params=input_params,
+                           errors=errors,
+                           logger=PYPOMES_LOGGER)
             if not errors:
                 engine = input_params.get(DbConfig.ENGINE)
                 reply = {"status": f"RDBMS '{engine}' configuration updated"}
@@ -199,9 +200,9 @@ def service_rdbms(engine: str = None) -> Response:
             reply[MigSpec.SESSION_ID] = session_id
 
     # build the response
-    result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigSpec.CLIENT_ID),
-                                       reply=reply)
+    result: Response = _build_response(client_id=input_params.get(MigSpec.CLIENT_ID),
+                                       reply=reply,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
@@ -242,30 +243,30 @@ def service_s3(engine: str = None) -> Response:
                                                                 if key != S3Config.SECRET_KEY]))
     PYPOMES_LOGGER.info(msg=msg)
 
-    assert_expected_params(errors=errors,
-                           service="/s3",
+    assert_expected_params(service="/s3",
                            method=request.method,
-                           input_params=input_params)
+                           input_params=input_params,
+                           errors=errors)
 
     reply: dict[S3Config | str, Any] | None = None
     if not errors:
         session_id: str = input_params.get(MigSpec.SESSION_ID)
         if request.method == HttpMethod.GET:
             input_params[S3Config.ENGINE] = engine
-            s3_engine: S3Engine = validate_enum(errors=errors,
-                                                source=input_params,
+            s3_engine: S3Engine = validate_enum(source=input_params,
                                                 attr=S3Config.ENGINE,
                                                 enum_class=S3Engine,
-                                                required=True)
+                                                required=True,
+                                                errors=errors)
             if s3_engine:
                 # get S3 access params
-                reply = get_s3_specs(errors=errors,
-                                     session_id=session_id,
-                                     s3_engine=s3_engine)
+                reply = get_s3_specs(session_id=session_id,
+                                     s3_engine=s3_engine,
+                                     errors=errors)
         else:
             # configure the S3 service
-            validate_s3(errors=errors,
-                        input_params=input_params)
+            validate_s3(input_params=input_params,
+                        errors=errors)
             if not errors:
                 engine = input_params.get(S3Config.ENGINE)
                 reply = {"status": f"S3 '{engine}' configuration updated"}
@@ -273,9 +274,9 @@ def service_s3(engine: str = None) -> Response:
             reply[MigSpec.SESSION_ID] = session_id
 
     # build the response
-    result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigSpec.CLIENT_ID),
-                                       reply=reply)
+    result: Response = _build_response(client_id=input_params.get(MigSpec.CLIENT_ID),
+                                       reply=reply,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
@@ -298,18 +299,18 @@ def service_sessions(session_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = get_session_params(errors=errors,
-                                                      request=request,
-                                                      session_id=session_id)
+    input_params: dict[str, Any] = get_session_params(request=request,
+                                                      session_id=session_id,
+                                                      errors=errors)
     # log the request
     msg: str = __log_init(request=request,
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    assert_expected_params(errors=errors,
-                           service="/sessions",
+    assert_expected_params(service="/sessions",
                            method=request.method,
-                           input_params=input_params)
+                           input_params=input_params,
+                           errors=errors)
 
     reply: dict[str, Any] | None = None
     client_id: str = input_params.get(MigSpec.CLIENT_ID)
@@ -318,8 +319,8 @@ def service_sessions(session_id: str = None) -> Response:
             # session_id is in path
             match request.method:
                 case HttpMethod.DELETE:
-                    if delete_session(errors=errors,
-                                      session_id=session_id):
+                    if delete_session(session_id=session_id,
+                                      errors=errors):
                         reply = {"status": f"Session '{session_id}' deleted"}
                 case HttpMethod.GET:
                     reply = deepcopy(x=get_session_registry(session_id=session_id))
@@ -328,14 +329,14 @@ def service_sessions(session_id: str = None) -> Response:
                     dict_pop_all(target=reply,
                                  key=S3Config.SECRET_KEY)
                 case HttpMethod.PATCH:
-                    state: MigrationState = set_session_state(errors=errors,
-                                                              input_params=input_params)
+                    state: MigrationState = set_session_state(input_params=input_params,
+                                                              errors=errors)
                     if state:
                         reply = {"status": f"Session '{session_id}' set to '{state}'"}
                 case HttpMethod.POST:
-                    if create_session(errors=errors,
-                                      client_id=client_id,
-                                      session_id=session_id):
+                    if create_session(client_id=client_id,
+                                      session_id=session_id,
+                                      errors=errors):
                         reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
         else:
             # session_id is not in path
@@ -343,9 +344,9 @@ def service_sessions(session_id: str = None) -> Response:
             reply["client"] = client_id
 
     # build the response
-    result: Response = _build_response(errors=errors,
-                                       client_id=client_id,
-                                       reply=reply)
+    result: Response = _build_response(client_id=client_id,
+                                       reply=reply,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
@@ -386,10 +387,10 @@ def service_migration() -> Response:
     PYPOMES_LOGGER.info(msg=msg)
 
     client_id: str = input_params.get(MigSpec.CLIENT_ID)
-    assert_expected_params(errors=errors,
-                           service=request.path,
+    assert_expected_params(service=request.path,
                            method=request.method,
-                           input_params=input_params)
+                           input_params=input_params,
+                           errors=errors)
 
     reply: dict[str, Any] | None = None
     if not errors:
@@ -397,8 +398,9 @@ def service_migration() -> Response:
         match request.path:
             case "/migration:verify":
                 # assert whether migration is warranted
-                validate_spots(errors=errors,
-                               input_params=input_params)
+                validate_spots(input_params=input_params,
+                               errors=errors,
+                               logger=PYPOMES_LOGGER)
                 # errors ?
                 if errors:
                     # yes, report the problem
@@ -408,19 +410,19 @@ def service_migration() -> Response:
                 else:
                     # no, build the migration context
                     reply = {
-                        MigSpot.FROM_RDBMS: get_rdbms_specs(errors=errors,
-                                                            session_id=session_id,
-                                                            db_engine=input_params[MigSpot.FROM_RDBMS]),
-                        MigSpot.TO_RDBMS: get_rdbms_specs(errors=errors,
-                                                          session_id=session_id,
-                                                          db_engine=input_params[MigSpot.TO_RDBMS]),
+                        MigSpot.FROM_RDBMS: get_rdbms_specs(session_id=session_id,
+                                                            db_engine=input_params[MigSpot.FROM_RDBMS],
+                                                            errors=errors),
+                        MigSpot.TO_RDBMS: get_rdbms_specs(session_id=session_id,
+                                                          db_engine=input_params[MigSpot.TO_RDBMS],
+                                                          errors=errors),
                         "status": "Migration can be launched"
                     }
                     to_s3: S3Engine = input_params.get(MigSpot.TO_S3)
                     if to_s3:
-                        reply[MigSpot.TO_S3] = get_s3_specs(errors=errors,
-                                                            session_id=session_id,
-                                                            s3_engine=to_s3)
+                        reply[MigSpot.TO_S3] = get_s3_specs(session_id=session_id,
+                                                            s3_engine=to_s3,
+                                                            errors=errors)
             case "/migration/metrics":
                 match request.method:
                     case HttpMethod.GET:
@@ -428,17 +430,17 @@ def service_migration() -> Response:
                         reply = get_session_registry(session_id=session_id)[MigConfig.METRICS].copy()
                     case HttpMethod.PATCH:
                         # establish the metrics parameters
-                        validate_metrics(errors=errors,
-                                         input_params=input_params)
+                        validate_metrics(input_params=input_params,
+                                         errors=errors)
                         if not errors:
                             reply = {"status": f"Migration metrics updated"}
         if reply:
             reply[MigSpec.SESSION_ID] = session_id
 
     # build the response
-    result: Response = _build_response(errors=errors,
-                                       client_id=client_id,
-                                       reply=reply)
+    result: Response = _build_response(client_id=client_id,
+                                       reply=reply,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
@@ -459,26 +461,26 @@ def service_migrate(session_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, str] = get_session_params(errors=errors,
-                                                      request=request,
-                                                      session_id=session_id)
+    input_params: dict[str, str] = get_session_params(request=request,
+                                                      session_id=session_id,
+                                                      errors=errors)
     # log the request
     msg: str = __log_init(request=request,
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    assert_expected_params(errors=errors,
-                           service="/migrate",
+    assert_expected_params(service="/migrate",
                            method=request.method,
-                           input_params=input_params)
+                           input_params=input_params,
+                           errors=errors)
 
     session_id: str = input_params.get(MigSpec.SESSION_ID)
     reply: dict[str, Any] | None = None
     if not errors:
         if request.method == HttpMethod.POST:
-            reply = migrate_data(errors=errors,
-                                 session_id=session_id,
-                                 input_params=input_params)
+            reply = migrate_data(session_id=session_id,
+                                 input_params=input_params,
+                                 errors=errors)
         else:
             if abort_session_migration(errors=errors,
                                        session_id=session_id):
@@ -487,9 +489,9 @@ def service_migrate(session_id: str = None) -> Response:
                 }
 
     # build the response
-    result: Response = _build_response(errors=errors,
-                                       client_id=input_params.get(MigSpec.CLIENT_ID),
-                                       reply=reply)
+    result: Response = _build_response(client_id=input_params.get(MigSpec.CLIENT_ID),
+                                       reply=reply,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
@@ -550,24 +552,25 @@ def migrate_data(errors: list[str],
     result: dict[str, Any] | None = None
 
     # validate the migration spots
-    validate_spots(errors=errors,
-                   input_params=input_params)
+    validate_spots(input_params=input_params,
+                   errors=errors,
+                   logger=PYPOMES_LOGGER)
 
     # validate the migration steps
-    validate_steps(errors=errors,
-                   input_params=input_params)
+    validate_steps(input_params=input_params,
+                   errors=errors)
 
     # validate the migration specs
-    validate_specs(errors=errors,
-                   input_params=input_params)
+    validate_specs(input_params=input_params,
+                   errors=errors)
 
     # is migration possible ?
     if not errors:
         # yes, migrate the data
-        result = migrate(errors=errors,
-                         session_id=session_id,
+        result = migrate(session_id=session_id,
                          app_name=APP_NAME,
                          app_version=APP_VERSION,
+                         errors=errors,
                          logger=PYPOMES_LOGGER)
     return result
 

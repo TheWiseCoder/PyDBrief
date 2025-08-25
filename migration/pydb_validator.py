@@ -1,5 +1,6 @@
 import sys
 from enum import StrEnum
+from logging import Logger
 from pypomes_core import (
     str_sanitize, str_splice, str_is_int,
     exc_format, validate_int, validate_bool, validate_enum,
@@ -10,7 +11,6 @@ from pypomes_db import (
     db_assert_access, db_get_param, db_get_engines
 )
 from pypomes_http import HttpMethod
-from pypomes_logging import PYPOMES_LOGGER
 from pypomes_s3 import (
     S3Engine, S3Param, s3_setup,
     s3_startup, s3_get_param, s3_get_engines
@@ -58,7 +58,8 @@ def assert_expected_params(service: str,
 
 
 def validate_rdbms(input_params: dict[str, Any],
-                   errors: list[str]) -> None:
+                   errors: list[str],
+                   logger: Logger) -> None:
 
     db_engine: DbEngine = validate_enum(source=input_params,
                                         attr=DbConfig.ENGINE,
@@ -121,7 +122,7 @@ def validate_rdbms(input_params: dict[str, Any],
             session_registry[db_engine] = db_specs
             # build the connection pool
             db_pool_setup(rdbms=db_engine,
-                          logger=PYPOMES_LOGGER)
+                          logger=logger)
         else:
             # 145: Invalid, inconsistent, or missing arguments
             errors.append(validate_format_error(error_id=145))
@@ -260,7 +261,8 @@ def validate_metrics(input_params: dict[str, Any],
 
 
 def validate_spots(input_params: dict[str, str],
-                   errors: list[str]) -> None:
+                   errors: list[str],
+                   logger: Logger) -> None:
 
     session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
@@ -317,7 +319,8 @@ def validate_spots(input_params: dict[str, str],
         if from_rdbms:
             if not session_registry[from_rdbms].get(DbConfig.VERSION):
                 if db_assert_access(engine=from_rdbms,
-                                    errors=errors):
+                                    errors=errors,
+                                    logger=logger):
                     session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                                   engine=from_rdbms)
                 else:
@@ -329,7 +332,8 @@ def validate_spots(input_params: dict[str, str],
         if to_rdbms:
             if not session_registry[to_rdbms].get(DbConfig.VERSION):
                 if db_assert_access(engine=to_rdbms,
-                                    errors=errors):
+                                    errors=errors,
+                                    logger=logger):
                     session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                                   engine=to_rdbms)
                 else:
