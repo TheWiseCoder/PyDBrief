@@ -226,8 +226,8 @@ def migrate_plain(session_id: str,
                             status = "error"
                             errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
                     if status == "error":
-                        table_embedded_nulls(rdbms=source_engine,
-                                             table=source_table,
+                        table_embedded_nulls(rdbms=target_engine,
+                                             table=target_table,
                                              errors=errors,
                                              logger=logger)
 
