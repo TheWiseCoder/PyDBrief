@@ -291,8 +291,7 @@ def migrate_lob_columns(mother_thread: int,
         # migrate the LOBs in 'lob_column'
         if not errors and table_count > 0:
             # build migration channel data ([(offset, limit),...])
-            channel_data: list[tuple[int, int]] = build_channel_data(  # max_channels=channel_count,
-                                                                     channel_size=channel_size,
+            channel_data: list[tuple[int, int]] = build_channel_data(channel_size=channel_size,
                                                                      table_count=table_count,
                                                                      offset_count=offset_count,
                                                                      limit_count=limit_count)

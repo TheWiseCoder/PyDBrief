@@ -34,8 +34,6 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 #     "source-table-name": {
 #       "table-count": <int>,
 #       "table-bytes": <int>,
-#       "table-deletes": <int>,
-#       "table-inserts": <int>,
 #       "errors": [
 #         <error>,
 #         ...

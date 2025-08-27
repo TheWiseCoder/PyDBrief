@@ -165,8 +165,7 @@ def migrate_plain(session_id: str,
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(  # max_channels=channel_count,
-                                           channel_size=session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE],
+                        build_channel_data(channel_size=session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
