@@ -481,8 +481,8 @@ def service_migrate(session_id: str = None) -> Response:
             reply = migrate_data(session_id=session_id,
                                  input_params=input_params,
                                  errors=errors)
-        elif abort_session_migration(errors=errors,
-                                     session_id=session_id):
+        elif abort_session_migration(session_id=session_id,
+                                     errors=errors):
             reply = {
                 "status": f"Migration in session '{session_id}' marked for abortion"
             }
@@ -497,9 +497,9 @@ def service_migrate(session_id: str = None) -> Response:
     return result
 
 
-def migrate_data(errors: list[str],
-                 session_id: str,
-                 input_params: dict[str, Any]) -> dict[str, Any]:
+def migrate_data(session_id: str,
+                 input_params: dict[str, Any],
+                 errors: list[str]) -> dict[str, Any]:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
 
@@ -542,9 +542,9 @@ def migrate_data(errors: list[str],
       - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
         or have already been, migrated.
 
-    :param errors: incidental errors
     :param session_id: the session identification
     :param input_params: the input parameters
+    :param errors: incidental errors
     :return: *Response* with the operation outcome
     """
     # initialize the return variable

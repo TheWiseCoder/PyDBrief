@@ -209,11 +209,11 @@ def validate_metrics(input_params: dict[str, Any],
                                    max_val=RANGE_CHUNK_SIZE[1],
                                    errors=errors)
     # validate 'incremental-size'
-    incremental_size: int = validate_int(errors=errors,
-                                         source=input_params,
+    incremental_size: int = validate_int(source=input_params,
                                          attr=MigMetric.INCREMENTAL_SIZE,
                                          min_val=RANGE_INCREMENTAL_SIZE[0],
-                                         max_val=RANGE_INCREMENTAL_SIZE[1])
+                                         max_val=RANGE_INCREMENTAL_SIZE[1],
+                                         errors=errors)
     # validate 'lobdata-channels'
     lobdata_channels: int = validate_int(source=input_params,
                                          attr=MigMetric.LOBDATA_CHANNELS,

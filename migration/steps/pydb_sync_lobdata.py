@@ -88,8 +88,8 @@ def synchronize_lobs(session_id: str,
     for table_name, table_data in migrated_tables.items():
 
         # error may come from previous iteration
-        if errors or assert_session_abort(errors=errors,
-                                          session_id=session_id,
+        if errors or assert_session_abort(session_id=session_id,
+                                          errors=errors,
                                           logger=logger):
             # abort the lobdata synchronization
             break
@@ -141,10 +141,11 @@ def synchronize_lobs(session_id: str,
                     reference_column = reference_column[:pos]
 
                 # count synchronizeable tuples on source table for 'lob_column'
-                table_count: int = db_count(errors=errors,
-                                            table=source_table,
+                table_count: int = db_count(table=source_table,
                                             where_clause=where_clause,
-                                            engine=source_db) or 0
+                                            engine=source_db,
+                                            errors=errors,
+                                            logger=logger) or 0
                 if table_count > 0:
                     warn_msg: str = ("Expecting an index to exist on column "
                                      f"{source_db}.{source_table}.{reference_column}")
@@ -165,8 +166,7 @@ def synchronize_lobs(session_id: str,
                                                   column_name=reference_column)
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(  # max_channels=channel_count,
-                                           channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
+                        build_channel_data(channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=0,
                                            limit_count=0)
@@ -276,8 +276,7 @@ def synchronize_lobs(session_id: str,
 
             # migrate the LOBs in 'table_inserts'
             if lob_columns:
-                migrate_lob_columns(errors=errors,
-                                    mother_thread=mother_thread,
+                migrate_lob_columns(mother_thread=mother_thread,
                                     session_id=session_id,
                                     source_db=source_db,
                                     target_db=target_db,
@@ -291,6 +290,7 @@ def synchronize_lobs(session_id: str,
                                     offset_count=0,
                                     limit_count=0,
                                     migration_warnings=migration_warnings,
+                                    errors=errors,
                                     logger=logger)
 
             # process LOBs in 'table_deletes'
@@ -304,8 +304,8 @@ def synchronize_lobs(session_id: str,
                     lob_deletes.sort()
                     list_prune_duplicates(target=lob_deletes,
                                           is_sorted=True)
-                    s3_items_remove(errors=errors,
-                                    identifiers=lob_deletes,
+                    s3_items_remove(identifiers=lob_deletes,
+                                    errors=errors,
                                     logger=logger)
     with lob_ctrl.lobdata_lock:
         migration_threads.extend(lob_ctrl.lobdata_register[mother_thread]["child-threads"])
