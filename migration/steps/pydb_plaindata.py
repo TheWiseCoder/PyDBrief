@@ -56,7 +56,6 @@ def migrate_plain(session_id: str,
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
 
-    global _plaindata_threads
     with _plaindata_lock:
         _plaindata_threads[mother_thread] = {
             "child-threads": []
@@ -282,7 +281,6 @@ def _migrate_plain(mother_thread: int,
                    logger: Logger) -> None:
 
     # register the operation thread (might be same as mother thread)
-    global _plaindata_threads
     with _plaindata_lock:
         _plaindata_threads[mother_thread]["child-threads"].append(threading.get_ident())
 

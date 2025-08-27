@@ -21,7 +21,7 @@ def get_rdbms_specs(session_id: str,
 
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     rdbms_params: dict[DbConfig, Any] = session_registry.get(db_engine)
-    if isinstance(rdbms_params, dict):
+    if rdbms_params:
         result = rdbms_params.copy()
         result.pop(DbConfig.PWD)
     else:
@@ -42,7 +42,7 @@ def get_s3_specs(session_id: str,
 
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
     s3_params: dict[S3Config, Any] = session_registry.get(s3_engine)
-    if isinstance(s3_params, dict):
+    if s3_params:
         result = s3_params.copy()
         result.pop(S3Config.SECRET_KEY)
     else:

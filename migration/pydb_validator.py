@@ -316,43 +316,40 @@ def validate_spots(input_params: dict[str, str],
                                             f"@{MigSpot.TO_S3}"))
     if not errors:
         # verify source database runtime access
-        if from_rdbms:
-            if not session_registry[from_rdbms].get(DbConfig.VERSION):
-                if db_assert_access(engine=from_rdbms,
-                                    errors=errors,
-                                    logger=logger):
-                    session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
-                                                                                  engine=from_rdbms)
-                else:
-                    # 101: {}
-                    errors.append(validate_format_error(101,
-                                                        f"Source database '{from_rdbms}' "
-                                                        "is not accessible as configured"))
+        if from_rdbms and not session_registry[from_rdbms].get(DbConfig.VERSION):
+            if db_assert_access(engine=from_rdbms,
+                                errors=errors,
+                                logger=logger):
+                session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
+                                                                              engine=from_rdbms)
+            else:
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    f"Source database '{from_rdbms}' "
+                                                    "is not accessible as configured"))
         # verify target database runtime access
-        if to_rdbms:
-            if not session_registry[to_rdbms].get(DbConfig.VERSION):
-                if db_assert_access(engine=to_rdbms,
-                                    errors=errors,
-                                    logger=logger):
-                    session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
-                                                                                  engine=to_rdbms)
-                else:
-                    # 101: {}
-                    errors.append(validate_format_error(101,
-                                                        f"Target database '{from_rdbms}' "
-                                                        "is not accessible as configured"))
+        if to_rdbms and not session_registry[to_rdbms].get(DbConfig.VERSION):
+            if db_assert_access(engine=to_rdbms,
+                                errors=errors,
+                                logger=logger):
+                session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
+                                                                              engine=to_rdbms)
+            else:
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    f"Target database '{from_rdbms}' "
+                                                    "is not accessible as configured"))
         # verify target S3 runtime access
-        if to_s3:
-            if not session_registry[to_s3].get(S3Config.VERSION):
-                if s3_startup(engine=to_s3,
-                              errors=errors):
-                    session_registry[to_s3][S3Config.VERSION] = s3_get_param(key=S3Param.VERSION,
-                                                                             engine=to_s3)
-                else:
-                    # 101: {}
-                    errors.append(validate_format_error(101,
-                                                        f"Target S3 '{to_s3}' "
-                                                        "is not accessible as configured"))
+        if to_s3 and not session_registry[to_s3].get(S3Config.VERSION):
+            if s3_startup(engine=to_s3,
+                          errors=errors):
+                session_registry[to_s3][S3Config.VERSION] = s3_get_param(key=S3Param.VERSION,
+                                                                         engine=to_s3)
+            else:
+                # 101: {}
+                errors.append(validate_format_error(101,
+                                                    f"Target S3 '{to_s3}' "
+                                                    "is not accessible as configured"))
     if not errors:
         # set the spots for the session
         session_spots: dict[MigSpot, Any] = session_registry.get(MigConfig.SPOTS)
