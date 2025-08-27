@@ -70,7 +70,6 @@ lint.select = [
 ]
 lint.ignore = [
     "ANN002",   # missing type annotation for *kargs
-    "ANN101",   # missing type annotation for 'self' in method
     "ANN401",   # dynamically typed expressions (typing.Any) are disallowed
     "COM812",   # checks for the absence of trailing commas
     "COM819",   # prohibited trailing commas
