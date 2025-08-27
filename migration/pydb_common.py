@@ -92,7 +92,7 @@ def build_channel_data(channel_size: int,
 def build_lob_prefix(session_registry: dict[StrEnum, Any],
                      target_db: DbEngine,
                      target_table: str,
-                     column_name) -> Path:
+                     column_name: str) -> Path:
 
     url: URLObject = URLObject(session_registry[target_db][DbConfig.HOST])
     # 'url.hostname' returns 'None' for 'localhost'

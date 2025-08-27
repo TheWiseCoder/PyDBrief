@@ -59,7 +59,6 @@ def migrate_lob_tables(session_id: str,
     # add to the thread register
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
-    global lobdata_register
     with lobdata_lock:
         lobdata_register[mother_thread] = {
             "child-threads": []
@@ -400,7 +399,6 @@ def _db_migrate_lobs(mother_thread: int,
                      logger: Logger) -> None:
 
     # register the operation thread (might be same as the mother thread)
-    global lobdata_register
     with lobdata_lock:
         lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
 
@@ -451,7 +449,6 @@ def _s3_migrate_lobs(mother_thread: int,
                      logger: Logger) -> None:
 
     # register the operation thread (might be same as the mother thread)
-    global lobdata_register
     with lobdata_lock:
         lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
 

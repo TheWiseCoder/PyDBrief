@@ -92,6 +92,7 @@ lint.ignore = [
     "PLC0415",  # 'import' should be at the top-level of a file
     "PLR2004",  # magic value used in comparison, consider replacing it with a constant variable
     "PLW0603",  # using the global statement to update a variable is discouraged
+    "PLW2901",  # 'for' loop variable overwritten by assignment target
     "PTH118",   # os.{module}.join() should be replaced by Path with / operator
     "RUF013",   # implicit Optional in type annotations when the default parameter value is None
     "RUF022",   # __all__ is not sorted
