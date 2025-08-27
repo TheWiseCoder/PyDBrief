@@ -89,6 +89,7 @@ lint.ignore = [
     "N815",     # Variable in class scope should not be mixedCase
     "PERF203",  # try-except within a loop incurs performance overhead (not applicable for Python >= 3.11)
     "PGH004",   # use specific rule codes when using 'noqa'
+    "PLC0415",  # 'import' should be at the top-level of a file
     "PLR2004",  # magic value used in comparison, consider replacing it with a constant variable
     "PLW0603",  # using the global statement to update a variable is discouraged
     "PTH118",   # os.{module}.join() should be replaced by Path with / operator

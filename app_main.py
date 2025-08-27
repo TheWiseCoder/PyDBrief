@@ -433,7 +433,7 @@ def service_migration() -> Response:
                         validate_metrics(input_params=input_params,
                                          errors=errors)
                         if not errors:
-                            reply = {"status": f"Migration metrics updated"}
+                            reply = {"status": "Migration metrics updated"}
         if reply:
             reply[MigSpec.SESSION_ID] = session_id
 
@@ -481,12 +481,11 @@ def service_migrate(session_id: str = None) -> Response:
             reply = migrate_data(session_id=session_id,
                                  input_params=input_params,
                                  errors=errors)
-        else:
-            if abort_session_migration(errors=errors,
-                                       session_id=session_id):
-                reply = {
-                    "status": f"Migration in session '{session_id}' marked for abortion"
-                }
+        elif abort_session_migration(errors=errors,
+                                     session_id=session_id):
+            reply = {
+                "status": f"Migration in session '{session_id}' marked for abortion"
+            }
 
     # build the response
     result: Response = _build_response(client_id=input_params.get(MigSpec.CLIENT_ID),
