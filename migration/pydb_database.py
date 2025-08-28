@@ -8,28 +8,31 @@ from typing import Literal
 
 
 def db_pool_setup(rdbms: DbEngine,
+                  errors: list[str],
                   logger: Logger) -> None:
 
     pool: DbConnectionPool = db_get_pool(engine=rdbms)
     if not pool:
         pool = DbConnectionPool(engine=rdbms,
+                                errors=errors,
                                 logger=logger)
-        stmts: list[str] = []
-        # fine-tune all database sessions, as needed
-        # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
-        match rdbms:
-            case DbEngine.MYSQL:
-                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
-            case DbEngine.ORACLE:
-                stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
-                stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
-            case DbEngine.POSTGRES:
-                stmts.append("set session_replication_role = replica")
-            case DbEngine.SQLSERVER:
-                pass
-        if stmts:
-            pool.on_event_actions(event=DbPoolEvent.CREATE,
-                                  stmts=stmts)
+        if not errors:
+            stmts: list[str] = []
+            # fine-tune all database sessions, as needed
+            # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
+            match rdbms:
+                case DbEngine.MYSQL:
+                    stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+                case DbEngine.ORACLE:
+                    stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
+                    stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
+                case DbEngine.POSTGRES:
+                    stmts.append("set session_replication_role = replica")
+                case DbEngine.SQLSERVER:
+                    pass
+            if stmts:
+                pool.on_event_actions(event=DbPoolEvent.CREATE,
+                                      stmts=stmts)
 
 
 def schema_create(schema: str,

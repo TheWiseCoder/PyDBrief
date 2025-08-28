@@ -162,6 +162,7 @@ def synchronize_lobs(session_id: str,
                                                   target_db=target_db,
                                                   target_table=target_table,
                                                   column_name=reference_column)
+
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
                         build_channel_data(channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],

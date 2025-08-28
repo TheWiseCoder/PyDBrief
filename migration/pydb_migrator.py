@@ -18,7 +18,7 @@ from typing import Any
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    DbConfig, MigrationState,
+    DbConfig, SessionState,
     MigConfig, MigMetric, MigSpot, MigStep, MigSpec
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
@@ -82,7 +82,7 @@ def migrate(session_id: str,
 
     # set state for session
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    session_registry[MigSpec.STATE] = MigrationState.MIGRATING
+    session_registry[MigSpec.STATE] = SessionState.MIGRATING
 
     migrated_tables: dict[str, Any] = migrate_metadata(session_id=session_id,
                                                        # migration_warnings=migration_warnings,
@@ -215,9 +215,9 @@ def migrate(session_id: str,
             logger.info(msg="Finished synchronizing the LOBs")
 
     # update the session state
-    curr_state: MigrationState = session_registry.get(MigSpec.STATE)
-    new_state: MigrationState = MigrationState.FINISHED \
-        if curr_state == MigrationState.MIGRATING else MigrationState.ABORTED
+    curr_state: SessionState = session_registry.get(MigSpec.STATE)
+    new_state: SessionState = SessionState.FINISHED \
+        if curr_state == SessionState.MIGRATING else SessionState.ABORTED
     session_registry[MigSpec.STATE] = new_state
 
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)

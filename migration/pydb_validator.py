@@ -122,6 +122,7 @@ def validate_rdbms(input_params: dict[str, Any],
             session_registry[db_engine] = db_specs
             # build the connection pool
             db_pool_setup(rdbms=db_engine,
+                          errors=errors,
                           logger=logger)
         else:
             # 145: Invalid, inconsistent, or missing arguments

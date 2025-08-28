@@ -6,18 +6,6 @@ REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 
 
-class MigrationState(StrEnum):
-    """
-    Migration states for session.
-    """
-    ACTIVE = auto()
-    INACTIVE = auto()
-    MIGRATING = auto()
-    ABORTING = auto()
-    ABORTED = auto()
-    FINISHED = auto()
-
-
 class MigConfig(StrEnum):
     """
     Parameters grouping.
@@ -116,6 +104,18 @@ class S3Config(StrEnum):
     SECRET_KEY = "s3-secret-key"
     SECURE_ACCESS = "s3-secure-access"
     VERSION = "s3-version"
+
+
+class SessionState(StrEnum):
+    """
+    Possible states for a session.
+    """
+    ACTIVE = auto()
+    INACTIVE = auto()
+    MIGRATING = auto()
+    ABORTING = auto()
+    ABORTED = auto()
+    FINISHED = auto()
 
 
 # values are (min, max, default)

@@ -24,7 +24,7 @@ from pypomes_logging import PYPOMES_LOGGER, service_logging
 from pypomes_s3 import S3Engine
 
 from app_constants import (
-    DbConfig, S3Config, MigrationState,
+    DbConfig, S3Config, SessionState,
     MigConfig, MigSpec, MigSpot
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
@@ -329,15 +329,15 @@ def service_sessions(session_id: str = None) -> Response:
                     dict_pop_all(target=reply,
                                  key=S3Config.SECRET_KEY)
                 case HttpMethod.PATCH:
-                    state: MigrationState = set_session_state(input_params=input_params,
-                                                              errors=errors)
+                    state: SessionState = set_session_state(input_params=input_params,
+                                                            errors=errors)
                     if state:
                         reply = {"status": f"Session '{session_id}' set to '{state}'"}
                 case HttpMethod.POST:
                     if create_session(client_id=client_id,
                                       session_id=session_id,
                                       errors=errors):
-                        reply = {"status": f"Session '{session_id}' created and set to '{MigrationState.ACTIVE}'"}
+                        reply = {"status": f"Session '{session_id}' created and set to '{SessionState.ACTIVE}'"}
         else:
             # session_id is not in path
             reply = get_sessions()

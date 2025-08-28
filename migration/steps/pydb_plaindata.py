@@ -126,7 +126,6 @@ def migrate_plain(session_id: str,
                                              errors=errors,
                                              logger=logger) or 0) - offset_count
                 if table_count > 0:
-
                     identity_column: str | None = None
                     orderby_columns: list[str] = []
                     source_columns: list[str] = []
