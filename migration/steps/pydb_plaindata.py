@@ -87,6 +87,7 @@ def migrate_plain(session_id: str,
 
         source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
+        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_NULLS] or [])
         with _plaindata_lock:
             _plaindata_threads[mother_thread][source_table] = {
                 "table-count": 0,
@@ -184,7 +185,7 @@ def migrate_plain(session_id: str,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
-                                       has_nulls=False,
+                                       has_nulls=has_nulls,
                                        logger=logger)
                     else:
                         logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} tuples from "
@@ -209,7 +210,7 @@ def migrate_plain(session_id: str,
                                                                  identity_column=identity_column,
                                                                  batch_size_in=batch_size_in,
                                                                  batch_size_out=batch_size_out,
-                                                                 has_nulls=False,
+                                                                 has_nulls=has_nulls,
                                                                  logger=logger)
                                 task_futures.append(future)
 
