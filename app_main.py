@@ -537,8 +537,7 @@ def migrate_data(session_id: str,
 
     These are noteworthy:
       - the parameters *include-relations* and *exclude-relations* are mutually exclusive
-      - if *migrate-plaindata* is set, it is assumed that metadata is also being migrated,
-        or that all targeted tables in destination schema exist
+      - if *migrate-plaindata* is set, it is assumed that metadata is also being, or has already been, migrated
       - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
         or have already been, migrated.
 
