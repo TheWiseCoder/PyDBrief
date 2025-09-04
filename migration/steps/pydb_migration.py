@@ -25,6 +25,7 @@ def prune_metadata(source_schema: str,
                    exclude_relations: list[str],
                    exclude_columns: list[str],
                    exclude_constraints: list[str],
+                   step_metadata: bool,
                    logger: Logger) -> None:
 
     # build list of prunable tables
@@ -48,6 +49,25 @@ def prune_metadata(source_schema: str,
             (table_name in include_relations or
              (not include_relations and source_table.schema == source_schema))):
 
+            # prune table
+            if source_table.name in prunable_tables:
+                # look for columns to exclude
+                # noinspection PyProtectedMember
+                # ruff: noqa: SLF001 (checks for accesses on "private" class members)
+                excluded_columns: list[Column] = [column for column in source_table._columns
+                                                  if f"{source_table.name}.{column.name}" in exclude_columns]
+                # traverse the list of columns to exclude
+                for excluded_column in excluded_columns:
+                    # remove the column from table's metadata and log the event
+                    # noinspection PyProtectedMember
+                    # ruff: noqa: SLF001 (checks for accesses on "private" class members)
+                    source_table._columns.remove(excluded_column)
+                    logger.info(msg=f"Column '{excluded_column.name}' "
+                                    f"removed from table '{source_table.name}'")
+            if not step_metadata:
+                # nothing else to be done here for 'table_name', as metadata are not being migrated
+                break
+
             # handle indexes for 'source_table'
             if process_indexes:
                 # build list of tainted indexes - 'index' is tainted if:
@@ -64,22 +84,6 @@ def prune_metadata(source_schema: str,
                         source_table.indexes.remove(tainted_index)
             else:
                 source_table.indexes.clear()
-
-            # prune table
-            if source_table.name in prunable_tables:
-                # look for columns to exclude
-                # noinspection PyProtectedMember
-                # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-                excluded_columns: list[Column] = [column for column in source_table._columns
-                                                  if f"{source_table.name}.{column.name}" in exclude_columns]
-                # traverse the list of columns to exclude
-                for excluded_column in excluded_columns:
-                    # remove the column from table's metadata and log the event
-                    # noinspection PyProtectedMember
-                    # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-                    source_table._columns.remove(excluded_column)
-                    logger.info(msg=f"Column '{excluded_column.name}' "
-                                    f"removed from table '{source_table.name}'")
 
             # mark these constraints as tainted:
             #   - duplicate CK constraints in table

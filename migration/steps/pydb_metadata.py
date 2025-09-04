@@ -125,6 +125,7 @@ def migrate_metadata(session_id: str,
                                exclude_relations=session_specs[MigSpec.EXCLUDE_RELATIONS] or [],
                                exclude_columns=session_specs[MigSpec.EXCLUDE_COLUMNS] or [],
                                exclude_constraints=session_specs[MigSpec.EXCLUDE_CONSTRAINTS] or [],
+                               step_metadata=session_steps[MigStep.MIGRATE_METADATA],
                                logger=logger)
 
                 # proceed with the appropriate tables
