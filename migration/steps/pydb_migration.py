@@ -65,7 +65,7 @@ def prune_metadata(source_schema: str,
                     logger.info(msg=f"Column '{excluded_column.name}' "
                                     f"removed from table '{source_table.name}'")
             if not step_metadata:
-                # nothing else to be done here for 'table_name', as metadata are not being migrated
+                # nothing else to do here for 'table_name', as metadata are not being migrated
                 break
 
             # handle indexes for 'source_table'
