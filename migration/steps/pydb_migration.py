@@ -66,7 +66,7 @@ def prune_metadata(source_schema: str,
                                     f"removed from table '{source_table.name}'")
             if not step_metadata:
                 # nothing else to do here for 'table_name', as metadata are not being migrated
-                break
+                continue
 
             # handle indexes for 'source_table'
             if process_indexes:
