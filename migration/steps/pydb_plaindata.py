@@ -14,7 +14,7 @@ from pypomes_db import (
 from typing import Any
 
 from app_constants import (
-    MigConfig, MigSpot, MigSpec, MigMetric
+    MigConfig, MigSpot, MigSpec, MigMetric, MigIncremental
 )
 from migration.pydb_common import build_channel_data
 from migration.pydb_database import table_embedded_nulls
@@ -42,7 +42,7 @@ _plaindata_lock: threading.Lock = threading.Lock()
 
 
 def migrate_plain(session_id: str,
-                  incremental_migrations: dict[str, tuple[int, int]],
+                  incr_migrations: dict[str, dict[MigIncremental, int]],
                   migration_warnings: list[str],
                   migration_threads: list[int],
                   migrated_tables: dict[str, Any],
@@ -102,8 +102,9 @@ def migrate_plain(session_id: str,
             # obtain limit and offset
             limit_count: int = 0
             offset_count: int = 0
-            if table_name in incremental_migrations:
-                limit_count, offset_count = incremental_migrations.get(table_name)
+            if table_name in incr_migrations:
+                limit_count = incr_migrations[table_name].get(MigIncremental.COUNT)
+                offset_count = incr_migrations[table_name].get(MigIncremental.OFFSET)
 
             # is a nonempty target table an issue ?
             if (session_specs[MigSpec.SKIP_NONEMPTY] and
@@ -188,9 +189,9 @@ def migrate_plain(session_id: str,
                                        has_nulls=has_nulls,
                                        logger=logger)
                     else:
-                        logger.debug(msg=f"Started migrating {sum(c[0] for c in channel_data)} tuples from "
+                        logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
-                                         f"using {max_workers} channels")
+                                         f"in {len(channel_data)} steps, using {max_workers} channels")
 
                         # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=max_workers) as executor:

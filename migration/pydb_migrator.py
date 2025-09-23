@@ -7,6 +7,7 @@ from enum import StrEnum
 from io import BytesIO
 from logging import Logger
 from pathlib import Path
+
 from pypomes_core import (
     TZ_LOCAL, DatetimeFormat,
     dict_jsonify, timestamp_duration, pypomes_versions,
@@ -19,7 +20,7 @@ from typing import Any
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
     DbConfig, SessionState,
-    MigConfig, MigMetric, MigSpot, MigStep, MigSpec
+    MigConfig, MigMetric, MigSpot, MigStep, MigSpec, MigIncremental
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
@@ -101,23 +102,22 @@ def migrate(session_id: str,
          session_steps[MigStep.SYNCHRONIZE_LOBDATA]):
 
         # establish incremental migration sizes and offsets
-        incremental_migrations: dict[str, tuple[int, int]] = {}
-        if not errors and session_specs[MigSpec.INCREMENTAL_MIGRATIONS]:
-            incremental_migrations = \
-                __establish_increments(migrating_tables=list(migrated_tables.keys()),
-                                       incremental_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
-                                       target_rdbms=(None if session_spots[MigSpot.TO_S3]
-                                                     else session_spots[MigSpot.TO_RDBMS]),
-                                       target_schema=session_specs[MigSpec.TO_SCHEMA],
-                                       incremental_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
-                                       errors=errors,
-                                       logger=logger)
+        incr_migrations: dict[str, dict[MigIncremental, int]] = session_specs[MigSpec.INCR_MIGRATIONS]
+        if not errors and incr_migrations:
+            incr_migrations = __establish_increments(migrating_tables=list(migrated_tables.keys()),
+                                                     incr_migrations=session_specs[MigSpec.INCR_MIGRATIONS],
+                                                     target_rdbms=(None if session_spots[MigSpot.TO_S3]
+                                                                   else session_spots[MigSpot.TO_RDBMS]),
+                                                     target_schema=session_specs[MigSpec.TO_SCHEMA],
+                                                     inc_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
+                                                     errors=errors,
+                                                     logger=logger)
         # migrate the plain data
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             count: int = migrate_plain(session_id=session_id,
-                                       incremental_migrations=incremental_migrations,
+                                       incr_migrations=incr_migrations,
                                        migration_warnings=migration_warnings,
                                        migration_threads=migration_threads,
                                        migrated_tables=migrated_tables,
@@ -144,7 +144,7 @@ def migrate(session_id: str,
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int] = migrate_lob_tables(session_id=session_id,
-                                                         incremental_migrations=incremental_migrations,
+                                                         incr_migrations=incr_migrations,
                                                          migration_warnings=migration_warnings,
                                                          migration_threads=migration_threads,
                                                          migrated_tables=migrated_tables,
@@ -249,24 +249,23 @@ def migrate(session_id: str,
 
 
 def __establish_increments(migrating_tables: list[str],
-                           incremental_migrations: dict[str, tuple[int, int]],
+                           incr_migrations: dict[str, dict[MigIncremental, int]],
                            target_rdbms: DbEngine | None,
                            target_schema: str,
-                           incremental_size: int,
+                           inc_size: int,
                            errors: list[str],
-                           logger: Logger) -> dict[str, tuple[int, int]]:
+                           logger: Logger) -> dict[str, dict[MigIncremental, int]]:
 
-    # a shallow copy suffices, as tuples are immutable objects
-    result = incremental_migrations.copy()
+    result = incr_migrations.copy()
 
-    for key, value in incremental_migrations.items():
+    for key, value in incr_migrations.items():
         if key in migrating_tables:
-            size: int = value[0]
+            size: int = value.get(MigIncremental.COUNT)
             if not size:
-                size = incremental_size
+                size = inc_size
             elif size == -1:
                 size = 0
-            offset: int = value[1]
+            offset: int = value.get(MigIncremental.OFFSET)
             if not offset:
                 offset = 0
             elif offset == -1:
@@ -280,7 +279,8 @@ def __establish_increments(migrating_tables: list[str],
                         break
                 else:
                     offset = 0
-            result[key] = (size, offset)
+            result[key][MigIncremental.COUNT] = size
+            result[key][MigIncremental.OFFSET] = offset
         else:
             result.pop(key)
 

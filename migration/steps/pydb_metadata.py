@@ -48,6 +48,7 @@ def migrate_metadata(session_id: str,
     if source_engine and target_engine:
         # yes, proceed
         from_schema: str | None = None
+        step_metadata: bool = session_steps[MigStep.MIGRATE_METADATA]
 
         # obtain the source schema's internal name
         source_inspector: Inspector = inspect(subject=source_engine,
@@ -125,7 +126,7 @@ def migrate_metadata(session_id: str,
                                exclude_relations=session_specs[MigSpec.EXCLUDE_RELATIONS] or [],
                                exclude_columns=session_specs[MigSpec.EXCLUDE_COLUMNS] or [],
                                exclude_constraints=session_specs[MigSpec.EXCLUDE_CONSTRAINTS] or [],
-                               step_metadata=session_steps[MigStep.MIGRATE_METADATA],
+                               step_metadata=step_metadata,
                                logger=logger)
 
                 # proceed with the appropriate tables
@@ -146,10 +147,8 @@ def migrate_metadata(session_id: str,
                     errors.append(validate_format_error(104,
                                                         "schema-migration",
                                                         exc_err))
-                # errors ?
                 if not errors:
-                    # no, proceed
-                    if session_steps[MigStep.MIGRATE_METADATA]:
+                    if step_metadata:
                         # migrate the schema
                         to_schema: str = setup_schema(target_rdbms=session_spots[MigSpot.TO_RDBMS],
                                                       target_schema=session_specs[MigSpec.TO_SCHEMA],
@@ -168,9 +167,8 @@ def migrate_metadata(session_id: str,
                     else:
                         to_schema = session_specs[MigSpec.TO_SCHEMA]
 
-                    # errors ?
                     if not errors:
-                        # no, migrate tables' metadata (not applicable for views)
+                        # migrate tables' metadata (not applicable for views)
                         result = setup_tables(source_rdbms=session_spots[MigSpot.FROM_RDBMS],
                                               target_rdbms=session_spots[MigSpot.TO_RDBMS],
                                               source_schema=from_schema,
@@ -178,12 +176,12 @@ def migrate_metadata(session_id: str,
                                               target_s3=session_spots[MigSpot.TO_S3],
                                               target_tables=target_tables,
                                               override_columns=session_specs[MigSpec.OVERRIDE_COLUMNS] or {},
-                                              step_metadata=session_steps[MigStep.MIGRATE_METADATA],
+                                              step_metadata=step_metadata,
                                               errors=errors,
                                               logger=logger)
 
                         # proceed, if migrating the metadata was indicated
-                        if not errors and session_steps[MigStep.MIGRATE_METADATA]:
+                        if not errors and step_metadata:
                             # migrate the tables, one at a time
                             for target_table in target_tables:
                                 try:

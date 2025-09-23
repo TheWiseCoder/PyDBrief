@@ -19,8 +19,8 @@ from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
 from app_constants import (
-    DbConfig, S3Config, MigMetric,
-    MigConfig, MigSpec, MigStep, MigSpot,
+    DbConfig, S3Config, MigMetric, MigConfig,
+    MigSpec, MigStep, MigSpot, MigIncremental,
     RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
     RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
     RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
@@ -443,10 +443,11 @@ def validate_specs(input_params: dict[str, str],
                                   rdbms=session_registry[MigConfig.SPOTS][MigSpot.TO_RDBMS],
                                   errors=errors)
     # assert and retrieve the incremental migrations parameter
-    incremental_migrations: dict[str, tuple[int, int]] = \
-        __assert_incremental_migrations(input_params=input_params,
-                                        def_size=session_registry[MigConfig.METRICS][MigMetric.INCREMENTAL_SIZE],
-                                        errors=errors)
+    incr_migrations: dict[str, dict[MigIncremental, int]] = __assert_incr_migrations(
+        input_params=input_params,
+        def_size=session_registry[MigConfig.METRICS][MigMetric.INCREMENTAL_SIZE],
+        errors=errors
+    )
     process_indexes: bool = validate_bool(source=input_params,
                                           attr=MigSpec.PROCESS_INDEXES)
     process_views: bool = validate_bool(source=input_params,
@@ -495,7 +496,7 @@ def validate_specs(input_params: dict[str, str],
         session_specs[MigSpec.FROM_SCHEMA] = from_schema
         session_specs[MigSpec.FLATTEN_STORAGE] = flatten_storage
         session_specs[MigSpec.INCLUDE_RELATIONS] = include_relations
-        session_specs[MigSpec.INCREMENTAL_MIGRATIONS] = incremental_migrations
+        session_specs[MigSpec.INCR_MIGRATIONS] = incr_migrations
         session_specs[MigSpec.MIGRATION_BADGE] = migration_badge
         session_specs[MigSpec.NAMED_LOBDATA] = named_lobdata
         session_specs[MigSpec.OVERRIDE_COLUMNS] = override_columns
@@ -544,17 +545,17 @@ def __assert_override_columns(input_params: dict[str, str],
     return result
 
 
-def __assert_incremental_migrations(input_params: dict[str, Any],
-                                    def_size: int,
-                                    errors: list[str]) -> dict[str, tuple[int, int]]:
+def __assert_incr_migrations(input_params: dict[str, Any],
+                             def_size: int,
+                             errors: list[str]) -> dict[str, dict[MigIncremental, int]]:
 
     # initialize the return variable
-    result: dict[str, tuple[int, int]] = {}
+    result: dict[str, dict[MigIncremental, int]] = {}
 
     # process the foreign columns list
     incremental_tables: list[str] = [s.lower()
                                      for s in (validate_strs(source=input_params,
-                                                             attr=MigSpec.INCREMENTAL_MIGRATIONS,
+                                                             attr=MigSpec.INCR_MIGRATIONS,
                                                              errors=errors) or [])]
 
     # format of 'incremental_tables' is [<table-name>[=<size>[:<offset>],...]
@@ -564,11 +565,11 @@ def __assert_incremental_migrations(input_params: dict[str, Any],
         # noinspection PyTypeChecker
         terms: tuple[str, str, str] = str_splice(source=incremental_table,
                                                  seps=["=", ":"])
-        if str_is_int(source=terms[1]):
-            size: int = int(terms[1])
-        else:
-            size: int = def_size
+        size: int = int(terms[1]) if str_is_int(source=terms[1]) else def_size
         offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
-        result[terms[0]] = (size, offset)
+        result[terms[0]] = {
+            MigIncremental.COUNT: size,
+            MigIncremental.OFFSET: offset
+        }
 
     return result

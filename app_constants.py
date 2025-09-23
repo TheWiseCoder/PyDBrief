@@ -47,7 +47,7 @@ class MigSpec(StrEnum):
     FLATTEN_STORAGE = "flatten-storage"
     FROM_SCHEMA = "from-schema"
     INCLUDE_RELATIONS = "include-relations"
-    INCREMENTAL_MIGRATIONS = "incremental-migrations"
+    INCR_MIGRATIONS = "incremental-migrations"
     IS_ACTIVE = "is-active"
     MIGRATION_BADGE = "migration-badge"
     NAMED_LOBDATA = "named-lobdata"
@@ -75,6 +75,14 @@ class MigMetric(StrEnum):
     LOBDATA_CHANNEL_SIZE = "lobdata-channel-size"
     PLAINDATA_CHANNELS = "plaindata-channels"
     PLAINDATA_CHANNEL_SIZE = "plaindata-channel-size"
+
+
+class MigIncremental(StrEnum):
+    """
+    Parameters for incremental migration.
+    """
+    COUNT = auto()
+    OFFSET = auto()
 
 
 class DbConfig(StrEnum):

@@ -569,9 +569,9 @@ def migrate_column(source_rdbms: DbEngine,
                 type_equiv = ref_equivalence[reference_ordinal]
                 break
 
-    # is the column a foreign key, and an override type has not been defined ?
+    # the column a foreign key, and an override type has not been defined
     if is_fk and not override_columns.get(col_name):
-        # yes, attempt to force type conformity
+        # attempt to force type conformity
         fk_column: Column = next(iter(source_column.foreign_keys)).column
         if type_equiv is None or \
            fk_column.table.schema in [source_schema, target_schema]:
@@ -580,7 +580,7 @@ def migrate_column(source_rdbms: DbEngine,
 
     msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
     if type_equiv is None:
-        logger.warning(msg=f"{msg} - unable to convert")
+        logger.warning(msg=f"{msg} - unable to convert, using the source type")
         # use the source type
         type_equiv = col_type_class
 
@@ -602,13 +602,16 @@ def migrate_column(source_rdbms: DbEngine,
                 type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
-        elif (target_rdbms == DbEngine.POSTGRES and (is_pk or is_fk) and
-              type_equiv in [None, REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC]):
-            # Postgres does not accept PK columns of type NUMBER, thus FK columns must follow suit
-            if not col_precision or col_precision > 9:
-                type_equiv = REF_BIGINT
-            else:
-                type_equiv = REF_INTEGER
+        elif target_rdbms == DbEngine.POSTGRES:
+            if (is_pk or is_fk) and type_equiv in [None, REF_NUMERIC]:
+                # Postgres does not accept PK columns of type NUMBER, thus FK columns must follow suit
+                if not col_precision or col_precision > 9:
+                    type_equiv = REF_BIGINT
+                else:
+                    type_equiv = REF_INTEGER
+            elif (source_column.identity, "maxvalue") and \
+                    source_column.identity.maxvalue > 9223372036854775807:
+                type_equiv = REF_NUMERIC
 
     # instantiate the type object
     result = type_equiv()

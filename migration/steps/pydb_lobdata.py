@@ -15,7 +15,7 @@ from pypomes_s3 import S3Engine, s3_get_client, s3_item_exists
 from typing import Any
 
 from app_constants import (
-    MigConfig, MigMetric, MigSpec, MigSpot, MigStep
+    MigConfig, MigMetric, MigSpec, MigSpot, MigStep, MigIncremental
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
@@ -45,7 +45,7 @@ lobdata_lock: threading.Lock = threading.Lock()
 
 
 def migrate_lob_tables(session_id: str,
-                       incremental_migrations: dict[str, tuple[int, int]],
+                       incr_migrations: dict[str, dict[MigIncremental, int]],
                        migration_warnings: list[str],
                        migration_threads: list[int],
                        migrated_tables: dict[str, Any],
@@ -98,8 +98,9 @@ def migrate_lob_tables(session_id: str,
         # obtain offset and limit
         offset_count: int = 0
         limit_count: int = 0
-        if table_name in incremental_migrations:
-            limit_count, offset_count = incremental_migrations.get(table_name)
+        if table_name in incr_migrations:
+            limit_count = incr_migrations[table_name].get(MigIncremental.COUNT)
+            offset_count = incr_migrations[table_name].get(MigIncremental.OFFSET)
 
         # organize the information, using LOB types from the columns list
         pk_columns: list[str] = []

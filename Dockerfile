@@ -36,9 +36,6 @@ ENV LD_LIBRARY_PATH=/usr/lib/instantclient
 RUN apk update
 RUN apk add vim
 
-# install libmagic
-RUN apk update && apk add -y --no-install-recommends --no-cache libmagic
-
 # upgrade pip
 RUN pip install --upgrade pip
 
@@ -60,7 +57,7 @@ ENV PYDB_LOGGING_FILEPATH=/tmp/pydbrief.log
 ENV PYDB_LOGGING_LEVEL=debug
 
 ENV PYDB_DB_POOL_RECYCLE=3600
-ENV PYDB_DB_POOL_SIZE=40
+ENV PYDB_DB_POOL_SIZE=20
 ENV PYDB_DB_POOL_TIMEOUT=60
 
 ARG PYDB_REGISTRY_DOCKER
