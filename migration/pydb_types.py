@@ -539,6 +539,7 @@ def migrate_column(source_rdbms: DbEngine,
                            not col_type_obj.asdecimal)
     col_precision: int = (col_type_obj.precision
                           if is_number and hasattr(col_type_obj, "precision") else None)
+    msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
 
     # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
@@ -578,38 +579,33 @@ def migrate_column(source_rdbms: DbEngine,
                                           logger=logger)
             type_equiv = fk_type.__class__
 
-    msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
-    if type_equiv is None:
-        logger.warning(msg=f"{msg} - unable to convert, using the source type")
-        # use the source type
-        type_equiv = col_type_class
+        if type_equiv is None:
+            logger.warning(msg=f"{msg} - unable to convert, using the source type")
+            # use the source type
+            type_equiv = col_type_class
 
-    # assert the nullability of the target column
-    if hasattr(ref_column, "nullable") and hasattr(type_equiv, "nullable"):
-        type_equiv.nullable = True if is_lob else ref_column.nullable
-
-    # fine-tune the type equivalence
-    if is_number_int:
-        if is_identity:
-            if hasattr(ref_column.identity, "maxvalue"):
-                if ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+        # fine-tune the type equivalence
+        if is_number_int:
+            if is_identity:
+                if hasattr(ref_column.identity, "maxvalue"):
+                    if ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+                        type_equiv = REF_INTEGER
+                    elif ref_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
+                        if target_rdbms == DbEngine.ORACLE:
+                            type_equiv = ORCL_NUMBER
+                        else:
+                            # potential problem, as most DBs restrict REF_BIGINT to 8 bytes
+                            type_equiv = REF_BIGINT
+                elif not col_precision or col_precision > 9:
+                    type_equiv = REF_BIGINT
+                else:
                     type_equiv = REF_INTEGER
-                elif ref_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
-                    if target_rdbms == DbEngine.ORACLE:
-                        type_equiv = ORCL_NUMBER
-                    else:
-                        # potential problem, as most DBs restrict REF_BIGINT to 8 bytes
-                        type_equiv = REF_BIGINT
-            elif not col_precision or col_precision > 9:
-                type_equiv = REF_BIGINT
-            else:
-                type_equiv = REF_INTEGER
-        elif is_pk and type_equiv == REF_NUMERIC:
-            # optimize primary keys
-            if not col_precision or 19 < col_precision > 9:
-                type_equiv = REF_BIGINT
-            elif col_precision < 10:
-                type_equiv = REF_INTEGER
+            elif is_pk and type_equiv == REF_NUMERIC:
+                # optimize primary keys
+                if not col_precision or 19 < col_precision > 9:
+                    type_equiv = REF_BIGINT
+                elif col_precision < 10:
+                    type_equiv = REF_INTEGER
 
     # instantiate the type object
     result = type_equiv()
