@@ -24,6 +24,7 @@ from app_constants import (
 )
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
+from migration.pydb_types import type_to_name
 from migration.steps.pydb_lobdata import migrate_lob_tables
 from migration.steps.pydb_metadata import migrate_metadata
 from migration.steps.pydb_plaindata import migrate_plain
@@ -61,11 +62,16 @@ def migrate(session_id: str,
         MigSpec.SESSION_ID: session_id,
         MigConfig.METRICS: session_metrics,
         MigConfig.STEPS: session_steps,
-        MigConfig.SPECS: {k: v for k, v in session_specs.items() if v},
+        MigConfig.SPECS: {k: v for k, v in session_specs.items() if k != MigSpec.OVERRIDE_COLUMNS and v},
         "source-rdbms": from_rdbms,
         "target-rdbms": to_rdbms,
         "logging": logging_get_params()
     }
+    override_columns: dict[MigSpec, Any] = session_specs.get(MigSpec.OVERRIDE_COLUMNS)
+    if override_columns:
+        result[MigConfig.SPECS][MigSpec.OVERRIDE_COLUMNS] = []
+        for key, value in override_columns.items():
+            result[MigConfig.SPECS][MigSpec.OVERRIDE_COLUMNS].append(f"{key}={type_to_name(col_type=value)}")
     if session_spots[MigSpot.TO_S3]:
         result["target-s3"] = get_s3_specs(session_id=session_id,
                                            s3_engine=session_spots[MigSpot.TO_S3],

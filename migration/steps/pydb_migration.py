@@ -12,9 +12,7 @@ from sys import exc_info
 from typing import Any
 
 from migration.pydb_database import schema_create
-from migration.pydb_types import (
-    is_lob_column, migrate_column
-)
+from migration.pydb_types import is_lob_column, migrate_column
 
 
 def prune_metadata(source_schema: str,

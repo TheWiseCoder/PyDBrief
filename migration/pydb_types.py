@@ -1,5 +1,5 @@
 from logging import Logger
-from pypomes_core import str_positional
+from pypomes_core import dict_get_key, str_positional
 from pypomes_db import DbEngine
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
@@ -698,6 +698,12 @@ def name_to_type(rdbms: DbEngine,
                                  list_from=tuple(map(str, DbEngine)),
                                  list_to=("msql", "orcl", "pg", "sqls")) + "_"
     return COLUMN_TYPES.get(f"{type_name}") if type_name.startswith(prefix) else None
+
+
+def type_to_name(col_type: Type) -> str:
+
+    return dict_get_key(source=COLUMN_TYPES,
+                        value=col_type)
 
 
 def is_lob_column(col_type: str) -> bool:
