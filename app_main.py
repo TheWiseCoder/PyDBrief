@@ -528,7 +528,7 @@ def migrate_data(session_id: str,
       - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
       - *exclude-constraints*: optional list of constraints not to migrate
       - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
-      - *remove-nulls*: optional list of tables having columns with embedded NULLs in string data
+      - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
       - *exclude-columns*: optional list of table columns not to migrate
       - *override-columns*: optional list of columns with forced migration types
       - *named-lobdata*: optional list of LOB columns and their associated names and extensions

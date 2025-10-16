@@ -87,7 +87,7 @@ def migrate_plain(session_id: str,
 
         source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
-        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_NULLS] or [])
+        has_ctrlchars: bool = table_name in (session_specs[MigSpec.REMOVE_CTRLCHARS] or [])
         with _plaindata_lock:
             _plaindata_threads[mother_thread][source_table] = {
                 "table-count": 0,
@@ -186,7 +186,7 @@ def migrate_plain(session_id: str,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
-                                       has_nulls=has_nulls,
+                                       has_ctrlchars=has_ctrlchars,
                                        logger=logger)
                     else:
                         logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} tuples from "
@@ -211,7 +211,7 @@ def migrate_plain(session_id: str,
                                                                  identity_column=identity_column,
                                                                  batch_size_in=batch_size_in,
                                                                  batch_size_out=batch_size_out,
-                                                                 has_nulls=has_nulls,
+                                                                 has_ctrlchars=has_ctrlchars,
                                                                  logger=logger)
                                 task_futures.append(future)
 
@@ -277,7 +277,7 @@ def _migrate_plain(mother_thread: int,
                    identity_column: str,
                    batch_size_in: int,
                    batch_size_out: int,
-                   has_nulls: bool,
+                   has_ctrlchars: bool,
                    logger: Logger) -> None:
 
     # register the operation thread (might be same as mother thread)
@@ -297,7 +297,7 @@ def _migrate_plain(mother_thread: int,
                                  identity_column=identity_column,
                                  batch_size_in=batch_size_in,
                                  batch_size_out=batch_size_out,
-                                 has_nulls=has_nulls,
+                                 has_ctrlchars=has_ctrlchars,
                                  errors=errors,
                                  logger=logger)
     with _plaindata_lock:

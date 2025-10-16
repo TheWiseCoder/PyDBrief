@@ -460,9 +460,9 @@ def validate_specs(input_params: dict[str, str],
                                            attr=MigSpec.REFLECT_FILETYPE)
     flatten_storage: bool = validate_bool(source=input_params,
                                           attr=MigSpec.FLATTEN_STORAGE)
-    remove_nulls: list[str] = [s.lower()
-                               for s in (validate_strs(source=input_params,
-                                                       attr=MigSpec.REMOVE_NULLS) or [])]
+    remove_ctrlschars: list[str] = [s.lower()
+                                    for s in (validate_strs(source=input_params,
+                                                            attr=MigSpec.REMOVE_CTRLCHARS) or [])]
     include_relations: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
                                                             attr=MigSpec.INCLUDE_RELATIONS) or [])]
@@ -504,7 +504,7 @@ def validate_specs(input_params: dict[str, str],
         session_specs[MigSpec.PROCESS_VIEWS] = process_views
         session_specs[MigSpec.REFLECT_FILETYPE] = reflect_filetype
         session_specs[MigSpec.RELAX_REFLECTION] = relax_reflection
-        session_specs[MigSpec.REMOVE_NULLS] = remove_nulls
+        session_specs[MigSpec.REMOVE_CTRLCHARS] = remove_ctrlschars
         session_specs[MigSpec.TO_SCHEMA] = to_schema
         session_specs[MigSpec.SKIP_NONEMPTY] = skip_nonempty
 

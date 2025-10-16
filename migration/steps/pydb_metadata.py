@@ -63,12 +63,13 @@ def migrate_metadata(session_id: str,
         # proceed, if the source schema exists
         if from_schema:
             # obtain the list of plain and materialized views in source schema
-            mat_views: list[str] = source_inspector.get_materialized_view_names()
-            schema_views: list[str] = source_inspector.get_view_names()
+            mat_views: list[str] = [v.lower() for v in source_inspector.get_materialized_view_names()]
+            schema_views: list[str] = [v.lower() for v in source_inspector.get_view_names()]
             schema_views.extend(mat_views)
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
             def assert_relation(rel: str, _md: MetaData) -> bool:
+                rel = rel.lower()
                 result = ((not session_specs[MigSpec.EXCLUDE_RELATIONS] or
                            rel not in session_specs[MigSpec.EXCLUDE_RELATIONS]) and
                           rel not in schema_views and
@@ -94,6 +95,7 @@ def migrate_metadata(session_id: str,
                 #   and executing it at the target schema
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
+                                        views=False,
                                         only=assert_relation,
                                         resolve_fks=not session_specs[MigSpec.RELAX_REFLECTION])
             except (Exception, SAWarning) as e:
@@ -112,8 +114,8 @@ def migrate_metadata(session_id: str,
                 target_views: list[str] = []
                 if session_specs[MigSpec.PROCESS_VIEWS]:
                     if session_specs[MigSpec.INCLUDE_RELATIONS]:
-                        target_views.extend([view for view in (session_specs[MigSpec.INCLUDE_RELATIONS] or [])
-                                             if view in schema_views])
+                        target_views.extend([v for v in (session_specs[MigSpec.INCLUDE_RELATIONS] or [])
+                                             if v in schema_views])
                     else:
                         target_views = schema_views
 

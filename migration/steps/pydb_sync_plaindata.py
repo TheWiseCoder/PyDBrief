@@ -50,7 +50,7 @@ def synchronize_plain(migration_threads: list[int],
 
         source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
-        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_NULLS] or [])
+        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_CTRLCHARS] or [])
 
         # identify identity column and build the lists of PK and sync columns
         op_errors: list[str] = []

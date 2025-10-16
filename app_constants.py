@@ -56,7 +56,7 @@ class MigSpec(StrEnum):
     PROCESS_VIEWS = "process-views"
     REFLECT_FILETYPE = "reflect-filetype"
     RELAX_REFLECTION = "relax-reflection"
-    REMOVE_NULLS = "remove-nulls"
+    REMOVE_CTRLCHARS = "remove-ctrlchars"
     SESSION_ID = "session-id"
     SKIP_NONEMPTY = "skip-nonempty"
     STATE = "state"

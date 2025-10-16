@@ -120,9 +120,9 @@ def table_embedded_nulls(rdbms: DbEngine,
     # ("A string literal cannot contain NUL (0x00) characters.")
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem
-        err_msg: str = (f"Table {rdbms}.{table} has NULLs embedded in string data, "
-                        f"which is not accepted by the destination database. Please add this "
-                        f"table to the 'remove-nulls' migration parameter, and try again.")
+        err_msg: str = (f"Table {rdbms}.{table} has control characters embedded in string data, "
+                        f"which are not accepted by the destination database. Please add this "
+                        f"table to the 'remove-ctrlchars' migration parameter, and try again.")
         logger.error(msg=err_msg)
         # 101: {}
         errors.append(validate_format_error(101,

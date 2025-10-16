@@ -512,8 +512,6 @@ LOBS: Final[list[str]] = [
 
 def migrate_column(source_rdbms: DbEngine,
                    target_rdbms: DbEngine,
-                   source_schema: str,
-                   target_schema: str,
                    native_ordinal: int,
                    reference_ordinal: int,
                    source_column: Column,
@@ -571,12 +569,17 @@ def migrate_column(source_rdbms: DbEngine,
 
     # the column a foreign key, and an override type has not been defined
     if is_fk and not override_columns.get(col_name):
-        # attempt to force type conformity
+        # force type conformity
         fk_column: Column = next(iter(source_column.foreign_keys)).column
-        if type_equiv is None or \
-           fk_column.table.schema in [source_schema, target_schema]:
-            # force type conformity
-            type_equiv = fk_column.type.__class__
+        fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                      target_rdbms=target_rdbms,
+                                      native_ordinal=native_ordinal,
+                                      reference_ordinal=reference_ordinal,
+                                      source_column=fk_column,
+                                      nat_equivalences=nat_equivalences,
+                                      override_columns=override_columns,
+                                      logger=logger)
+        type_equiv = fk_type.__class__
 
     msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
     if type_equiv is None:
@@ -592,26 +595,24 @@ def migrate_column(source_rdbms: DbEngine,
     if is_number_int:
         if is_identity:
             if hasattr(source_column.identity, "maxvalue"):
-                if source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
-                    source_column.identity.maxvalue = 2147483647
-                if source_column.identity.maxvalue > 2147483647:  # max value for REF_INTEGER
-                    type_equiv = REF_BIGINT
-                else:
+                if source_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
                     type_equiv = REF_INTEGER
+                elif source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
+                    if target_rdbms == DbEngine.ORACLE:
+                        type_equiv = ORCL_NUMBER
+                    else:
+                        # potential problem, as most DBs restrict REF_BIGINT to 8 bytes
+                        type_equiv = REF_BIGINT
             elif not col_precision or col_precision > 9:
                 type_equiv = REF_BIGINT
             else:
                 type_equiv = REF_INTEGER
-        elif target_rdbms == DbEngine.POSTGRES:
-            if (is_pk or is_fk) and type_equiv in [None, REF_NUMERIC]:
-                # Postgres does not accept PK columns of type NUMBER, thus FK columns must follow suit
-                if not col_precision or col_precision > 9:
-                    type_equiv = REF_BIGINT
-                else:
-                    type_equiv = REF_INTEGER
-            elif (source_column.identity, "maxvalue") and \
-                    source_column.identity.maxvalue > 9223372036854775807:
-                type_equiv = REF_NUMERIC
+        elif is_pk and type_equiv == REF_NUMERIC:
+            # optimize primary keys
+            if not col_precision or 19 < col_precision > 9:
+                type_equiv = REF_BIGINT
+            elif col_precision < 10:
+                type_equiv = REF_INTEGER
 
     # instantiate the type object
     result = type_equiv()
@@ -697,8 +698,8 @@ def name_to_type(rdbms: DbEngine,
                  type_name: str) -> Type:
 
     prefix: str = str_positional(source=rdbms,
-                                 list_from=list(map(str, DbEngine)),
-                                 list_to=["msql", "orcl", "pg", "sqls"])
+                                 list_from=tuple(map(str, DbEngine)),
+                                 list_to=("msql", "orcl", "pg", "sqls"))
     return COLUMN_TYPES.get(f"{prefix}_{type_name}")
 
 
@@ -706,8 +707,8 @@ def type_to_name(rdbms: DbEngine,
                  col_type: Type) -> str:
 
     prefix: str = str_positional(source=rdbms,
-                                 list_from=list(map(str, DbEngine)),
-                                 list_to=["msql", "orcl", "pg", "sqls"]) + "_"
+                                 list_from=tuple(map(str, DbEngine)),
+                                 list_to=("msql", "orcl", "pg", "sqls")) + "_"
     key: str = dict_get_key(source={key: value for (key, value)
                                     in COLUMN_TYPES.items() if key.startswith(prefix)},
                             value=col_type)
