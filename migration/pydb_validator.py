@@ -523,7 +523,7 @@ def __assert_override_columns(input_params: dict[str, str],
                                                            errors=errors) or [])]
     try:
         for override_column in override_columns:
-            # format of 'override_column' is <column_name>=<column_type>
+            # format of 'override_column' is <table_name>.<column_name>=<column_type>
             column_name: str = override_column[:f"={override_column.rindex('=')-1}"]
             type_name: str = override_column.replace(column_name, "", 1)[1:]
             column_type: Type = name_to_type(rdbms=rdbms,
