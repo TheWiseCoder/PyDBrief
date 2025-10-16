@@ -524,12 +524,12 @@ def __assert_override_columns(input_params: dict[str, str],
     try:
         for override_column in override_columns:
             # format of 'override_column' is <table_name>.<column_name>=<column_type>
-            column_name: str = override_column[:int(f"{override_column.rindex('=')}")]
-            type_name: str = override_column.replace(column_name, "", 1)[1:]
+            column_name: str = override_column[:int(f"{override_column.rindex('=')}")].lower()
+            type_name: str = override_column.replace(column_name, "", 1)[1:].lower()
             column_type: Type = name_to_type(rdbms=rdbms,
-                                             type_name=type_name.lower())
+                                             type_name=type_name)
             if column_name and column_type:
-                result[column_name.lower()] = column_type
+                result[column_name] = column_type
             else:
                 # 142: Invalid value {}: {}
                 errors.append(validate_format_error(142,

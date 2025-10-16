@@ -692,24 +692,12 @@ def establish_equivalences(source_rdbms: DbEngine,
 
 
 def name_to_type(rdbms: DbEngine,
-                 type_name: str) -> Type:
+                 type_name: str) -> Type | None:
 
     prefix: str = str_positional(source=rdbms,
                                  list_from=tuple(map(str, DbEngine)),
-                                 list_to=("msql", "orcl", "pg", "sqls"))
-    return COLUMN_TYPES.get(f"{prefix}_{type_name}")
-
-
-def type_to_name(rdbms: DbEngine,
-                 col_type: Type) -> str:
-
-    prefix: str = str_positional(source=rdbms,
-                                 list_from=tuple(map(str, DbEngine)),
-                                 list_to=("msql", "orcl", "pg", "sqls")) + "_"
-    key: str = dict_get_key(source={key: value for (key, value)
-                                    in COLUMN_TYPES.items() if key.startswith(prefix)},
-                            value=col_type)
-    return key.replace(prefix, "")
+                                 list_to=("msql", "orcl", "pg", "sqls")) + "-"
+    return COLUMN_TYPES.get(f"{prefix}{type_name}") if type_name.startswith(prefix) else None
 
 
 def is_lob_column(col_type: str) -> bool:
