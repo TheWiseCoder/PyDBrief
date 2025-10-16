@@ -527,9 +527,6 @@ def migrate_column(source_rdbms: DbEngine,
     col_type_obj: Any = source_column.type
     col_name: str = f"{source_column.table.name}.{source_column.name}"
 
-    # use the optionally provided override type
-    type_equiv: Type = override_columns.get(col_name)
-
     is_pk: bool = (hasattr(source_column, "primary_key") and
                    source_column.primary_key) or False
     is_fk: bool = (hasattr(source_column, "foreign_keys") and
@@ -553,33 +550,35 @@ def migrate_column(source_rdbms: DbEngine,
        source_column.identity.cache == 0:
         source_column.identity.cache = 1
 
-    # inspect the native equivalences first
+    # if provided, the override type has precedence
+    type_equiv: Type = override_columns.get(col_name)
     if type_equiv is None:
+        # inspect the native equivalences first
         for nat_equivalence in nat_equivalences:
             if isinstance(col_type_obj, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
-    # inspect the reference equivalences next
-    if type_equiv is None:
-        for ref_equivalence in REF_EQUIVALENCES:
-            if isinstance(col_type_obj, ref_equivalence[0]):
-                type_equiv = ref_equivalence[reference_ordinal]
-                break
+        # inspect the reference equivalences next
+        if type_equiv is None:
+            for ref_equivalence in REF_EQUIVALENCES:
+                if isinstance(col_type_obj, ref_equivalence[0]):
+                    type_equiv = ref_equivalence[reference_ordinal]
+                    break
 
-    # the column a foreign key, and an override type has not been defined
-    if is_fk and not override_columns.get(col_name):
-        # force type conformity
-        fk_column: Column = next(iter(source_column.foreign_keys)).column
-        fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                      target_rdbms=target_rdbms,
-                                      native_ordinal=native_ordinal,
-                                      reference_ordinal=reference_ordinal,
-                                      source_column=fk_column,
-                                      nat_equivalences=nat_equivalences,
-                                      override_columns=override_columns,
-                                      logger=logger)
-        type_equiv = fk_type.__class__
+        # the column a foreign key, and an override type has not been defined
+        if is_fk and not override_columns.get(col_name):
+            # force type conformity
+            fk_column: Column = next(iter(source_column.foreign_keys)).column
+            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                          target_rdbms=target_rdbms,
+                                          native_ordinal=native_ordinal,
+                                          reference_ordinal=reference_ordinal,
+                                          source_column=fk_column,
+                                          nat_equivalences=nat_equivalences,
+                                          override_columns=override_columns,
+                                          logger=logger)
+            type_equiv = fk_type.__class__
 
     msg: str = f"Rdbms {target_rdbms}, type {col_type_obj} in {source_rdbms}.{col_name}"
     if type_equiv is None:
