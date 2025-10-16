@@ -712,7 +712,7 @@ def type_to_name(rdbms: DbEngine,
     if type_name.startswith(prefix):
         result: str = type_name
     else:
-        result: str = prefix + type_name[len(prefix):]
+        result: str = prefix + type_name[len(prefix)+1:]
     return result
 
 
