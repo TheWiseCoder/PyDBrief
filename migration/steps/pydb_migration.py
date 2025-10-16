@@ -13,7 +13,7 @@ from typing import Any
 
 from migration.pydb_database import schema_create
 from migration.pydb_types import (
-    establish_equivalences, is_lob_column, migrate_column
+    is_lob_column, migrate_column
 )
 
 
@@ -214,10 +214,6 @@ def setup_tables(source_rdbms: DbEngine,
     for target_table in target_tables:
         target_table.schema = target_schema
 
-    # establish the migration equivalences
-    (native_ordinal, reference_ordinal, nat_equivalences) = \
-        establish_equivalences(source_rdbms=source_rdbms,
-                               target_rdbms=target_rdbms)
     # setup target tables
     for target_table in target_tables:
 
@@ -252,9 +248,6 @@ def setup_tables(source_rdbms: DbEngine,
             setup_columns(target_columns=columns,
                           source_rdbms=source_rdbms,
                           target_rdbms=target_rdbms,
-                          native_ordinal=native_ordinal,
-                          reference_ordinal=reference_ordinal,
-                          nat_equivalences=nat_equivalences,
                           override_columns=override_columns,
                           errors=op_errors,
                           logger=logger)
@@ -307,9 +300,6 @@ def setup_tables(source_rdbms: DbEngine,
 def setup_columns(target_columns: Iterable[Column],
                   source_rdbms: DbEngine,
                   target_rdbms: DbEngine,
-                  native_ordinal: int,
-                  reference_ordinal: int,
-                  nat_equivalences: list[tuple],
                   override_columns: dict[str, Type],
                   errors: list[str],
                   logger: Logger) -> None:
@@ -320,10 +310,7 @@ def setup_columns(target_columns: Iterable[Column],
             # convert the type
             target_type: Any = migrate_column(source_rdbms=source_rdbms,
                                               target_rdbms=target_rdbms,
-                                              native_ordinal=native_ordinal,
-                                              reference_ordinal=reference_ordinal,
-                                              source_column=target_column,
-                                              nat_equivalences=nat_equivalences,
+                                              ref_column=target_column,
                                               override_columns=override_columns,
                                               logger=logger)
             # set column's new type

@@ -512,10 +512,7 @@ LOBS: Final[list[str]] = [
 
 def migrate_column(source_rdbms: DbEngine,
                    target_rdbms: DbEngine,
-                   native_ordinal: int,
-                   reference_ordinal: int,
-                   source_column: Column,
-                   nat_equivalences: list[tuple],
+                   ref_column: Column,
                    override_columns: dict[str, Type],
                    logger: Logger) -> Any:
 
@@ -523,17 +520,17 @@ def migrate_column(source_rdbms: DbEngine,
     result: Any
 
     # obtain needed characteristics
-    col_type_class: Type = source_column.type.__class__
-    col_type_obj: Any = source_column.type
-    col_name: str = f"{source_column.table.name}.{source_column.name}"
+    col_type_class: Type = ref_column.type.__class__
+    col_type_obj: Any = ref_column.type
+    col_name: str = f"{ref_column.table.name}.{ref_column.name}"
 
-    is_pk: bool = (hasattr(source_column, "primary_key") and
-                   source_column.primary_key) or False
-    is_fk: bool = (hasattr(source_column, "foreign_keys") and
-                   isinstance(source_column.foreign_keys, set) and
-                   len(source_column.foreign_keys) > 0)
-    is_identity: bool = (hasattr(source_column, "identity") and
-                         source_column.identity) or False
+    is_pk: bool = (hasattr(ref_column, "primary_key") and
+                   ref_column.primary_key) or False
+    is_fk: bool = (hasattr(ref_column, "foreign_keys") and
+                   isinstance(ref_column.foreign_keys, set) and
+                   len(ref_column.foreign_keys) > 0)
+    is_identity: bool = (hasattr(ref_column, "identity") and
+                         ref_column.identity) or False
     is_lob: bool = str(col_type_obj) in LOBS
     is_number: bool = (col_type_class in
                        [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC])
@@ -546,13 +543,18 @@ def migrate_column(source_rdbms: DbEngine,
     # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
     if target_rdbms == DbEngine.POSTGRES and is_identity and \
-       hasattr(source_column.identity, "cache") and \
-       source_column.identity.cache == 0:
-        source_column.identity.cache = 1
+       hasattr(ref_column.identity, "cache") and \
+       ref_column.identity.cache == 0:
+        ref_column.identity.cache = 1
 
     # if provided, the override type has precedence
     type_equiv: Type = override_columns.get(col_name)
     if type_equiv is None:
+        # establish the migration equivalences
+        (native_ordinal, reference_ordinal, nat_equivalences) = \
+            establish_equivalences(source_rdbms=source_rdbms,
+                                   target_rdbms=target_rdbms)
+
         # inspect the native equivalences first
         for nat_equivalence in nat_equivalences:
             if isinstance(col_type_obj, nat_equivalence[0]):
@@ -566,16 +568,12 @@ def migrate_column(source_rdbms: DbEngine,
                     type_equiv = ref_equivalence[reference_ordinal]
                     break
 
-        # the column a foreign key, and an override type has not been defined
-        if is_fk and not override_columns.get(col_name):
-            # force type conformity
-            fk_column: Column = next(iter(source_column.foreign_keys)).column
+        if is_fk:
+            # the column a foreign key, force type conformity
+            fk_column: Column = next(iter(ref_column.foreign_keys)).column
             fk_type: Any = migrate_column(source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
-                                          native_ordinal=native_ordinal,
-                                          reference_ordinal=reference_ordinal,
-                                          source_column=fk_column,
-                                          nat_equivalences=nat_equivalences,
+                                          ref_column=fk_column,
                                           override_columns=override_columns,
                                           logger=logger)
             type_equiv = fk_type.__class__
@@ -587,16 +585,16 @@ def migrate_column(source_rdbms: DbEngine,
         type_equiv = col_type_class
 
     # assert the nullability of the target column
-    if hasattr(source_column, "nullable") and hasattr(type_equiv, "nullable"):
-        type_equiv.nullable = True if is_lob else source_column.nullable
+    if hasattr(ref_column, "nullable") and hasattr(type_equiv, "nullable"):
+        type_equiv.nullable = True if is_lob else ref_column.nullable
 
     # fine-tune the type equivalence
     if is_number_int:
         if is_identity:
-            if hasattr(source_column.identity, "maxvalue"):
-                if source_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+            if hasattr(ref_column.identity, "maxvalue"):
+                if ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
                     type_equiv = REF_INTEGER
-                elif source_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
+                elif ref_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
                     if target_rdbms == DbEngine.ORACLE:
                         type_equiv = ORCL_NUMBER
                     else:
