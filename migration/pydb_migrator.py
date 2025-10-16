@@ -71,10 +71,9 @@ def migrate(session_id: str,
     if override_columns:
         result[MigConfig.SPECS][MigSpec.OVERRIDE_COLUMNS] = []
         for key, value in override_columns.items():
-            result[MigConfig.SPECS][MigSpec.OVERRIDE_COLUMNS].append(
-                f"{key}={type_to_name(rdbms=session_spots[MigSpot.TO_RDBMS],
-                                      col_type=value)}"
-            )
+            name: str = type_to_name(rdbms=session_spots[MigSpot.TO_RDBMS],
+                                     col_type=value)
+            result[MigConfig.SPECS][MigSpec.OVERRIDE_COLUMNS].append(f"{key}={name}")
     if session_spots[MigSpot.TO_S3]:
         result["target-s3"] = get_s3_specs(session_id=session_id,
                                            s3_engine=session_spots[MigSpot.TO_S3],
