@@ -12,7 +12,7 @@ from sys import exc_info
 from typing import Any
 
 from migration.pydb_database import schema_create
-from migration.pydb_types import is_lob_column, migrate_column
+from migration.pydb_types import LOBS, is_lob_column, migrate_column
 
 
 def prune_metadata(source_schema: str,
@@ -313,6 +313,9 @@ def setup_columns(target_columns: Iterable[Column],
                                               logger=logger)
             # set column's new type
             target_column.type = target_type
+            # adjust column's nullability
+            if hasattr(target_column, "nullable") and target_column.type in LOBS:
+                target_column.nullable = True
 
             # remove the server default value
             if hasattr(target_column, "server_default"):

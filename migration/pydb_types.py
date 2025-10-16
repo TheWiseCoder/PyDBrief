@@ -531,7 +531,6 @@ def migrate_column(source_rdbms: DbEngine,
                    len(ref_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(ref_column, "identity") and
                          ref_column.identity) or False
-    is_lob: bool = str(col_type_obj) in LOBS
     is_number: bool = (col_type_class in
                        [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC])
     is_number_int: bool = (is_number and
@@ -616,8 +615,6 @@ def migrate_column(source_rdbms: DbEngine,
     logger.debug(msg=f"{msg} converted to {result}")
 
     # wrap-up the type migration
-    if hasattr(col_type_obj, "nullable") and hasattr(result, "nullable"):
-        result.nullable = True if is_lob else col_type_obj.nullable
     if hasattr(col_type_obj, "length") and hasattr(result, "length"):
         result.length = col_type_obj.length
     if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
