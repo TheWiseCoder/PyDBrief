@@ -700,10 +700,20 @@ def name_to_type(rdbms: DbEngine,
     return COLUMN_TYPES.get(f"{type_name}") if type_name.startswith(prefix) else None
 
 
-def type_to_name(col_type: Type) -> str:
+def type_to_name(rdbms: DbEngine,
+                 col_type: Type) -> str:
 
-    return dict_get_key(source=COLUMN_TYPES,
-                        value=col_type)
+    prefix: str = str_positional(source=rdbms,
+                                 list_from=tuple(map(str, DbEngine)),
+                                 list_to=("msql", "orcl", "pg", "sqls")) + "_"
+
+    type_name: str = dict_get_key(source=COLUMN_TYPES,
+                                  value=col_type)
+    if type_name.startswith(prefix):
+        result: str = type_name
+    else:
+        result: str = prefix + type_name[len(prefix):]
+    return result
 
 
 def is_lob_column(col_type: str) -> bool:
