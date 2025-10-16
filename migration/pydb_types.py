@@ -570,14 +570,15 @@ def migrate_column(source_rdbms: DbEngine,
                     break
 
         if is_fk:
-            # the column a foreign key, force type conformity
             fk_column: Column = next(iter(ref_column.foreign_keys)).column
-            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms,
-                                          ref_column=fk_column,
-                                          override_columns=override_columns,
-                                          logger=logger)
-            type_equiv = fk_type.__class__
+            # force type conformity if 'ref_column' and 'fk_column' share the same schema
+            if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
+                fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                              target_rdbms=target_rdbms,
+                                              ref_column=fk_column,
+                                              override_columns=override_columns,
+                                              logger=logger)
+                type_equiv = fk_type.__class__
 
         if type_equiv is None:
             logger.warning(msg=f"{msg} - unable to convert, using the source type")
@@ -588,14 +589,17 @@ def migrate_column(source_rdbms: DbEngine,
         if is_number_int:
             if is_identity:
                 if hasattr(ref_column.identity, "maxvalue"):
-                    if ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+                    if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
+                        type_equiv = REF_SMALLINT
+                    elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
                         type_equiv = REF_INTEGER
-                    elif ref_column.identity.maxvalue > 9223372036854775807:  # max value for REF_BIGINT
-                        if target_rdbms == DbEngine.ORACLE:
-                            type_equiv = ORCL_NUMBER
-                        else:
-                            # potential problem, as most DBs restrict REF_BIGINT to 8 bytes
-                            type_equiv = REF_BIGINT
+                    elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
+                        type_equiv = REF_BIGINT
+                    elif target_rdbms == DbEngine.ORACLE:
+                        type_equiv = ORCL_NUMBER
+                    else:
+                        # potential problem, as some DBs will not accept REF_NUMERIC column as identity
+                        type_equiv = REF_NUMERIC
                 elif not col_precision or col_precision > 9:
                     type_equiv = REF_BIGINT
                 else:
