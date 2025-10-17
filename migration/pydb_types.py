@@ -215,7 +215,7 @@ from sqlalchemy.dialects.mssql import (
 )
 
 # MySQL types
-MSQL_TYPES: dict[str, Type] = {
+MSQL_TYPES: Final[dict[str, Type]] = {
     "bigint": MSQL_BIGINT,
     "binary": REF_BINARY,
     "bit": MSQL_BIT,
@@ -256,7 +256,7 @@ MSQL_TYPES: dict[str, Type] = {
 }
 
 # Oracle types
-ORCL_TYPES: dict[str, Type] = {
+ORCL_TYPES: Final[dict[str, Type]] = {
     "bfile": ORCL_BFILE,
     "binary_double": ORCL_BINARY_DOUBLE,
     "binary_float": ORCL_BINARY_FLOAT,
@@ -282,7 +282,7 @@ ORCL_TYPES: dict[str, Type] = {
 }
 
 # Postgres types (include types in column information_schema.columns.udt_name)
-PG_TYPES: dict[str, Type] = {
+PG_TYPES: Final[dict[str, Type]] = {
     "array": PG_ARRAY,
     "bigint": REF_BIGINT,
     "bit": PG_BIT,
@@ -337,7 +337,7 @@ PG_TYPES: dict[str, Type] = {
 }
 
 # SQLServer types (include types in column information_schema.columns.udt_name)
-SQLS_TYPES: dict[str, Type] = {
+SQLS_TYPES: Final[dict[str, Type]] = {
     "bigint": REF_BIGINT,
     "binary": REF_BINARY,
     "bit": SQLS_BIT,
