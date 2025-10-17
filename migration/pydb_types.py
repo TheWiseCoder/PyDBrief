@@ -611,12 +611,14 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = REF_BIGINT
                     else:
                         type_equiv = REF_INTEGER
-                elif is_pk and type_equiv == REF_NUMERIC:
+                elif is_pk and col_precision and type_equiv == REF_NUMERIC:
                     # optimize primary keys
-                    if not col_precision or 19 < col_precision > 9:
-                        type_equiv = REF_BIGINT
+                    if col_precision < 5:
+                        type_equiv = REF_SMALLINT
                     elif col_precision < 10:
                         type_equiv = REF_INTEGER
+                    elif col_precision < 19:
+                        type_equiv = REF_BIGINT
         else:
             msg += " - unable to obtain a type equivalence"
             errors.append(msg)
