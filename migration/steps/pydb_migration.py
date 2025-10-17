@@ -251,37 +251,39 @@ def setup_tables(source_rdbms: DbEngine,
                           migration_warnings=migration_warnings,
                           errors=op_errors,
                           logger=logger)
-            errors.extend(op_errors)
 
-        # register the target column properties
-        for column in columns:
-            table_columns[column.name]["target-type"] = str(column.type)
-            features: list[str] = []
-            if hasattr(column, "identity") and column.identity:
-                if "identity" in features:
-                    err_msg: str = (f"Table {source_rdbms}.{source_schema}.{target_table.name} "
-                                    "has more than one identity column")
-                    logger.error(msg=err_msg)
-                    # 102: Unexpected error: {}
-                    op_errors.append(validate_format_error(102,
-                                                           err_msg))
-                else:
-                    features.append("identity")
-            if hasattr(column, "primary_key") and column.primary_key:
-                features.append("primary-key")
-            if (hasattr(column, "foreign_keys") and
-               isinstance(column.foreign_keys, set) and
-               len(column.foreign_keys) > 0):
-                features.append("foreign-key")
-            if hasattr(column, "unique") and column.unique:
-                features.append("unique")
-            if hasattr(column, "nullable") and column.nullable:
-                features.append("nullable")
-            if features:
-                table_columns[column.name]["features"] = features
+        if not op_errors:
+            # register the target column properties
+            for column in columns:
+                table_columns[column.name]["target-type"] = str(column.type)
+                features: list[str] = []
+                if hasattr(column, "identity") and column.identity:
+                    if "identity" in features:
+                        err_msg: str = (f"Table {source_rdbms}.{source_schema}.{target_table.name} "
+                                        "has more than one identity column")
+                        logger.error(msg=err_msg)
+                        # 102: Unexpected error: {}
+                        op_errors.append(validate_format_error(102,
+                                                               err_msg))
+                    else:
+                        features.append("identity")
+                if hasattr(column, "primary_key") and column.primary_key:
+                    features.append("primary-key")
+                if (hasattr(column, "foreign_keys") and
+                   isinstance(column.foreign_keys, set) and
+                   len(column.foreign_keys) > 0):
+                    features.append("foreign-key")
+                if hasattr(column, "unique") and column.unique:
+                    features.append("unique")
+                if hasattr(column, "nullable") and column.nullable:
+                    features.append("nullable")
+                if features:
+                    table_columns[column.name]["features"] = features
 
         # register the migrated table
-        if not op_errors:
+        if op_errors:
+            errors.extend(op_errors)
+        else:
             migrated_table: dict = {
                 "columns": table_columns,
                 "plain-count": 0,
@@ -316,21 +318,23 @@ def setup_columns(target_columns: Iterable[Column],
                                               migration_warnings=migration_warnings,
                                               errors=errors,
                                               logger=logger)
-            if not errors:
-                # set column's new type
-                target_column.type = target_type
-                # adjust column's nullability
-                if hasattr(target_column, "nullable") and target_column.type in LOBS:
-                    target_column.nullable = True
+            if errors:
+                break
 
-                # remove the server default value
-                if hasattr(target_column, "server_default"):
-                    target_column.server_default = None
+            # set column's new type
+            target_column.type = target_type
+            # adjust column's nullability
+            if hasattr(target_column, "nullable") and target_column.type in LOBS:
+                target_column.nullable = True
 
-                # convert the default value - TODO: write a decent default value conversion function
-                if hasattr(target_column, "default") and \
-                   target_column.default in ["sysdate", "systime"]:
-                    target_column.default = None
+            # remove the server default value
+            if hasattr(target_column, "server_default"):
+                target_column.server_default = None
+
+            # convert the default value - TODO: write a decent default value conversion function
+            if hasattr(target_column, "default") and \
+               target_column.default in ["sysdate", "systime"]:
+                target_column.default = None
         except Exception as e:
             exc_err = str_sanitize(source=exc_format(exc=e,
                                                      exc_info=exc_info()))

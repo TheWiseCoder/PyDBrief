@@ -618,8 +618,7 @@ def migrate_column(source_rdbms: DbEngine,
                     elif col_precision < 10:
                         type_equiv = REF_INTEGER
         else:
-            # unable to obtain a type equivalence
-            msg += " - unable to obtain type equivalence"
+            msg += " - unable to obtain a type equivalence"
             errors.append(msg)
             logger.error(msg=msg)
 
