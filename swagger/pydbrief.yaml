@@ -1033,7 +1033,7 @@ components:
         type: array
         items:
           type: string
-          example: my_table.my_column=pg_numeric
+          example: my_table.my_column=numeric
   schemas:
     Collophon:
       type: object

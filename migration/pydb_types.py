@@ -524,11 +524,10 @@ def migrate_column(source_rdbms: DbEngine,
     msg: str = (f"Rdbms {target_rdbms}, type {col_type_obj} in "
                 f"{ref_column.table.fullname}.{ref_column.name}")
 
-    # PostgreSQL does not accept value '0' in 'CACHE' clause, at table creation time
+    # PostgreSQL does not accept value other than '1' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
-    if target_rdbms == DbEngine.POSTGRES and is_identity and \
-       hasattr(ref_column.identity, "cache") and \
-       ref_column.identity.cache == 0:
+    if target_rdbms == DbEngine.POSTGRES and \
+       is_identity and hasattr(ref_column.identity, "cache"):
         ref_column.identity.cache = 1
 
     # if provided, the override type has precedence
