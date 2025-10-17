@@ -550,24 +550,7 @@ def migrate_column(source_rdbms: DbEngine,
     # if provided, the override type has precedence
     type_equiv: Type = override_columns.get(col_name)
     if type_equiv is None:
-        # establish the migration equivalences
-        (native_ordinal, reference_ordinal, nat_equivalences) = \
-            establish_equivalences(source_rdbms=source_rdbms,
-                                   target_rdbms=target_rdbms)
-
-        # inspect the native equivalences first
-        for nat_equivalence in nat_equivalences:
-            if isinstance(col_type_obj, nat_equivalence[0]):
-                type_equiv = nat_equivalence[native_ordinal]
-                break
-
-        # inspect the reference equivalences next
-        if type_equiv is None:
-            for ref_equivalence in REF_EQUIVALENCES:
-                if isinstance(col_type_obj, ref_equivalence[0]):
-                    type_equiv = ref_equivalence[reference_ordinal]
-                    break
-
+        # inpect the FK equivalence
         if is_fk:
             fk_column: Column = next(iter(ref_column.foreign_keys)).column
             # force type conformity if 'ref_column' and 'fk_column' share the same schema
@@ -579,6 +562,26 @@ def migrate_column(source_rdbms: DbEngine,
                                               logger=logger)
                 type_equiv = fk_type.__class__
 
+        # inspect the migration equivalences
+        if type_equiv is None:
+            (native_ordinal, reference_ordinal, nat_equivalences) = \
+                establish_equivalences(source_rdbms=source_rdbms,
+                                       target_rdbms=target_rdbms)
+
+            # inspect the native equivalences first
+            for nat_equivalence in nat_equivalences:
+                if isinstance(col_type_obj, nat_equivalence[0]):
+                    type_equiv = nat_equivalence[native_ordinal]
+                    break
+
+            # inspect the reference equivalences next
+            if type_equiv is None:
+                for ref_equivalence in REF_EQUIVALENCES:
+                    if isinstance(col_type_obj, ref_equivalence[0]):
+                        type_equiv = ref_equivalence[reference_ordinal]
+                        break
+
+        # final equivalence option
         if type_equiv is None:
             logger.warning(msg=f"{msg} - unable to convert, using the source type")
             # use the source type
