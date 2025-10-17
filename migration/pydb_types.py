@@ -514,10 +514,12 @@ def migrate_column(source_rdbms: DbEngine,
                    target_rdbms: DbEngine,
                    ref_column: Column,
                    override_columns: dict[str, Type],
+                   migration_warnings: list[str],
+                   errors: list[str],
                    logger: Logger) -> Any:
 
-    # declare the return variable
-    result: Any
+    # initialize the return variable
+    result: Any = None
 
     # obtain needed characteristics
     col_type_class: Type = ref_column.type.__class__
@@ -559,8 +561,16 @@ def migrate_column(source_rdbms: DbEngine,
                                               target_rdbms=target_rdbms,
                                               ref_column=fk_column,
                                               override_columns=override_columns,
+                                              migration_warnings=migration_warnings,
+                                              errors=errors,
                                               logger=logger)
-                type_equiv = fk_type.__class__
+                if errors:
+                    warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
+                    errors.clear()
+                else:
+                    type_equiv = fk_type.__class__
 
         # inspect the migration equivalences
         if type_equiv is None:
@@ -581,53 +591,54 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = ref_equivalence[reference_ordinal]
                         break
 
-        # final equivalence option
-        if type_equiv is None:
-            logger.warning(msg=f"{msg} - unable to convert, using the source type")
-            # use the source type
-            type_equiv = col_type_class
-
-        # fine-tune the type equivalence
-        if is_number_int:
-            if is_identity:
-                if hasattr(ref_column.identity, "maxvalue"):
-                    if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
-                        type_equiv = REF_SMALLINT
-                    elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
-                        type_equiv = REF_INTEGER
-                    elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
+        if type_equiv:
+            # fine-tune the integer type equivalence
+            if is_number_int:
+                if is_identity:
+                    if hasattr(ref_column.identity, "maxvalue"):
+                        if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
+                            type_equiv = REF_SMALLINT
+                        elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+                            type_equiv = REF_INTEGER
+                        elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
+                            type_equiv = REF_BIGINT
+                        elif target_rdbms == DbEngine.ORACLE:
+                            type_equiv = ORCL_NUMBER
+                        else:
+                            # potential problem, as some DBs will not accept REF_NUMERIC column as identity
+                            type_equiv = REF_NUMERIC
+                    elif not col_precision or col_precision > 9:
                         type_equiv = REF_BIGINT
-                    elif target_rdbms == DbEngine.ORACLE:
-                        type_equiv = ORCL_NUMBER
                     else:
-                        # potential problem, as some DBs will not accept REF_NUMERIC column as identity
-                        type_equiv = REF_NUMERIC
-                elif not col_precision or col_precision > 9:
-                    type_equiv = REF_BIGINT
-                else:
-                    type_equiv = REF_INTEGER
-            elif is_pk and type_equiv == REF_NUMERIC:
-                # optimize primary keys
-                if not col_precision or 19 < col_precision > 9:
-                    type_equiv = REF_BIGINT
-                elif col_precision < 10:
-                    type_equiv = REF_INTEGER
+                        type_equiv = REF_INTEGER
+                elif is_pk and type_equiv == REF_NUMERIC:
+                    # optimize primary keys
+                    if not col_precision or 19 < col_precision > 9:
+                        type_equiv = REF_BIGINT
+                    elif col_precision < 10:
+                        type_equiv = REF_INTEGER
+        else:
+            # unable to obtain a type equivalence
+            msg += " - unable to obtain type equivalence"
+            errors.append(msg)
+            logger.error(msg=msg)
 
     # instantiate the type object
-    result = type_equiv()
-    logger.debug(msg=f"{msg} converted to {result}")
+    if not errors:
+        result = type_equiv()
+        logger.debug(msg=f"{msg} converted to {result}")
 
-    # wrap-up the type migration
-    if hasattr(col_type_obj, "length") and hasattr(result, "length"):
-        result.length = col_type_obj.length
-    if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
-        result.asdecimal = col_type_obj.asdecimal
-    if hasattr(col_type_obj, "precision") and hasattr(result, "precision"):
-        result.precision = col_type_obj.precision
-    if hasattr(col_type_obj, "scale") and hasattr(result, "scale"):
-        result.scale = col_type_obj.scale
-    if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
-        result.timezone = col_type_obj.timezone
+        # wrap-up the type migration
+        if hasattr(col_type_obj, "length") and hasattr(result, "length"):
+            result.length = col_type_obj.length
+        if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
+            result.asdecimal = col_type_obj.asdecimal
+        if hasattr(col_type_obj, "precision") and hasattr(result, "precision"):
+            result.precision = col_type_obj.precision
+        if hasattr(col_type_obj, "scale") and hasattr(result, "scale"):
+            result.scale = col_type_obj.scale
+        if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
+            result.timezone = col_type_obj.timezone
 
     return result
 

@@ -43,9 +43,9 @@ _plaindata_lock: threading.Lock = threading.Lock()
 
 def migrate_plain(session_id: str,
                   incr_migrations: dict[str, dict[MigIncremental, int]],
-                  migration_warnings: list[str],
                   migration_threads: list[int],
                   migrated_tables: dict[str, Any],
+                  migration_warnings: list[str],
                   errors: list[str],
                   logger: Logger) -> int:
 

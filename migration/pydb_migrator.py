@@ -94,7 +94,7 @@ def migrate(session_id: str,
     session_registry[MigSpec.STATE] = SessionState.MIGRATING
 
     migrated_tables: dict[str, Any] = migrate_metadata(session_id=session_id,
-                                                       # migration_warnings=migration_warnings,
+                                                       migration_warnings=migration_warnings,
                                                        errors=errors,
                                                        logger=logger) or {}
     logger.info(msg="Finished discovering the metadata")
@@ -126,9 +126,9 @@ def migrate(session_id: str,
             started: datetime = datetime.now(tz=TZ_LOCAL)
             count: int = migrate_plain(session_id=session_id,
                                        incr_migrations=incr_migrations,
-                                       migration_warnings=migration_warnings,
                                        migration_threads=migration_threads,
                                        migrated_tables=migrated_tables,
+                                       migration_warnings=migration_warnings,
                                        errors=errors,
                                        logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
@@ -153,9 +153,9 @@ def migrate(session_id: str,
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int] = migrate_lob_tables(session_id=session_id,
                                                          incr_migrations=incr_migrations,
-                                                         migration_warnings=migration_warnings,
                                                          migration_threads=migration_threads,
                                                          migrated_tables=migrated_tables,
+                                                         migration_warnings=migration_warnings,
                                                          errors=errors,
                                                          logger=logger)
             lob_count: int = counts[0]
@@ -180,9 +180,9 @@ def migrate(session_id: str,
             logger.info(msg="Started synchronizing the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_plain(session_id=session_id,
-                                                             # migration_warnings=migration_warnings,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
+                                                             # migration_warnings=migration_warnings,
                                                              errors=errors,
                                                              logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
@@ -206,9 +206,9 @@ def migrate(session_id: str,
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_lobs(session_id=session_id,
-                                                            migration_warnings=migration_warnings,
                                                             migration_threads=migration_threads,
                                                             migrated_tables=migrated_tables,
+                                                            migration_warnings=migration_warnings,
                                                             errors=errors,
                                                             logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 1.8.9
+  version: 2.0.1
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -340,7 +340,7 @@ paths:
         - $ref: '#/components/parameters/ReflectFiletypeParam'
         - $ref: '#/components/parameters/FlattenStorageParam'
         - $ref: '#/components/parameters/IncrementalMigrationsParam'
-        - $ref: '#/components/parameters/RemoveNullsParam'
+        - $ref: '#/components/parameters/RemoveCtrlcharsParam'
         - $ref: '#/components/parameters/IncludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeRelationsParam'
         - $ref: '#/components/parameters/ExcludeConstraintsParam'
@@ -1012,17 +1012,17 @@ components:
         items:
           type: string
           example: my_table_1=100000
-    RemoveNullsParam:
-      name: remove-nulls
+    RemoveCtrlcharsParam:
+      name: remove-ctrlchars
       in: query
-      description: Optional list of source tables having columns with NULLs embedded in their string content. This is accepted by RDBMS servers like Oracle, but rejected by others like PostgreSQL. This parameter instructs PyDBrief to search for, and remove, the NULLs embedded in string contents when migrating plaindata. Ignored in the 'migrate-metadata' and migrate-lobdata' steps.
+      description: Optional list of source tables having columns with control characters embedded in their string content. This is accepted by RDBMS servers like Oracle, but rejected by others like PostgreSQL. This parameter instructs PyDBrief to search for, and replace with blanks, the control characters embedded in string contents when migrating or synchronizing plaindata. Ignored in other steps.
       required: false
       explode: false
       schema:
         type: array
         items:
           type: string
-          example: my_table.my_column=integer
+          example: my_table_1,my_table_2
     OverrideColumnsParam:
       name: override-columns
       in: query
@@ -1033,14 +1033,14 @@ components:
         type: array
         items:
           type: string
-          example: my_table.my_column=integer
+          example: my_table.my_column=pg_numeric
   schemas:
     Collophon:
       type: object
       properties:
         PyDBrief:
           type: string
-          example: 1.7.8
+          example: 1.7.8'
         foundations:
           type: object
           properties:
@@ -1185,7 +1185,7 @@ components:
         relax-reflection:
           type: boolean
           example: true
-        remove-nulls:
+        remove-ctrlchars:
           type: string
           example: [<table-name>]
         to-schema:

@@ -24,7 +24,7 @@ from migration.steps.pydb_engine import build_engine
 
 
 def migrate_metadata(session_id: str,
-                     # migration_warnings: list[str],
+                     migration_warnings: list[str],
                      errors: list[str],
                      logger: Logger) -> dict[str, Any]:
 
@@ -179,6 +179,7 @@ def migrate_metadata(session_id: str,
                                               target_tables=target_tables,
                                               override_columns=session_specs[MigSpec.OVERRIDE_COLUMNS] or {},
                                               step_metadata=step_metadata,
+                                              migration_warnings=migration_warnings,
                                               errors=errors,
                                               logger=logger)
 

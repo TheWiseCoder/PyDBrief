@@ -201,6 +201,7 @@ def setup_tables(source_rdbms: DbEngine,
                  target_tables: list[Table],
                  override_columns: dict[str, Type],
                  step_metadata: bool,
+                 migration_warnings: list[str],
                  errors: list[str],
                  logger: Logger) -> dict[str, Any]:
 
@@ -247,6 +248,7 @@ def setup_tables(source_rdbms: DbEngine,
                           source_rdbms=source_rdbms,
                           target_rdbms=target_rdbms,
                           override_columns=override_columns,
+                          migration_warnings=migration_warnings,
                           errors=op_errors,
                           logger=logger)
             errors.extend(op_errors)
@@ -299,6 +301,7 @@ def setup_columns(target_columns: Iterable[Column],
                   source_rdbms: DbEngine,
                   target_rdbms: DbEngine,
                   override_columns: dict[str, Type],
+                  migration_warnings: list[str],
                   errors: list[str],
                   logger: Logger) -> None:
 
@@ -310,21 +313,24 @@ def setup_columns(target_columns: Iterable[Column],
                                               target_rdbms=target_rdbms,
                                               ref_column=target_column,
                                               override_columns=override_columns,
+                                              migration_warnings=migration_warnings,
+                                              errors=errors,
                                               logger=logger)
-            # set column's new type
-            target_column.type = target_type
-            # adjust column's nullability
-            if hasattr(target_column, "nullable") and target_column.type in LOBS:
-                target_column.nullable = True
+            if not errors:
+                # set column's new type
+                target_column.type = target_type
+                # adjust column's nullability
+                if hasattr(target_column, "nullable") and target_column.type in LOBS:
+                    target_column.nullable = True
 
-            # remove the server default value
-            if hasattr(target_column, "server_default"):
-                target_column.server_default = None
+                # remove the server default value
+                if hasattr(target_column, "server_default"):
+                    target_column.server_default = None
 
-            # convert the default value - TODO: write a decent default value conversion function
-            if hasattr(target_column, "default") and \
-               target_column.default in ["sysdate", "systime"]:
-                target_column.default = None
+                # convert the default value - TODO: write a decent default value conversion function
+                if hasattr(target_column, "default") and \
+                   target_column.default in ["sysdate", "systime"]:
+                    target_column.default = None
         except Exception as e:
             exc_err = str_sanitize(source=exc_format(exc=e,
                                                      exc_info=exc_info()))

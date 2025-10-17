@@ -15,6 +15,7 @@ from migration.pydb_sessions import assert_session_abort, get_session_registry
 def synchronize_plain(migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       session_id: str,
+                      # migration_warnings: list[str],
                       errors: list[str],
                       logger: Logger) -> tuple[int, int, int]:
 

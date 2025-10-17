@@ -49,9 +49,9 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 
 
 def synchronize_lobs(session_id: str,
-                     migration_warnings: list[str],
                      migration_threads: list[int],
                      migrated_tables: dict[str, Any],
+                     migration_warnings: list[str],
                      errors: list[str],
                      logger: Logger) -> tuple[int, int, int]:
 
