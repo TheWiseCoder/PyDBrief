@@ -1,12 +1,11 @@
 from logging import Logger
 from pypomes_core import dict_get_key, str_positional
-from pypomes_db import DbEngine
+from pypomes_db import DbEngine, db_get_table_column
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
-# noinspection PyUnresolvedReferences
 from sqlalchemy.types import (
     BigInteger as Ref_BigInteger,      # a type for bigger int integers
     Boolean as Ref_Boolean,            # a bool datatype
@@ -36,7 +35,6 @@ from sqlalchemy.types import (
 # or are potentially found within a subset of database backends.
 # Unlike the “generic” types, the SQL standard/multivendor types have no guarantee of working
 # on all backends, and will only work on those backends that explicitly support them by name.
-# noinspection PyUnresolvedReferences
 from sqlalchemy.types import (
     ARRAY as REF_ARRAY,                        # represents a SQL Array type
     BIGINT as REF_BIGINT,                      # the SQL BIGINT type
@@ -67,7 +65,6 @@ from sqlalchemy.types import (
     VARCHAR as REF_VARCHAR,                    # the SQL VARCHAR type
 )
 
-# noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.mysql import (
     BIGINT as MSQL_BIGINT,
     # BINARY as MSQL_BINARY,  # same as REF_BINARY
@@ -105,7 +102,6 @@ from sqlalchemy.dialects.mysql import (
     YEAR as MSQL_YEAR,
 )
 
-# noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.oracle import (
     BFILE as ORCL_BFILE,
     BINARY_DOUBLE as ORCL_BINARY_DOUBLE,
@@ -131,7 +127,6 @@ from sqlalchemy.dialects.oracle import (
     VARCHAR2 as ORCL_VARCHAR2,
 )
 
-# noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.postgresql import (
     ARRAY as PG_ARRAY,
     # BIGINT as PG_BIGINT,  # same as REF_BIGINT
@@ -183,7 +178,6 @@ from sqlalchemy.dialects.postgresql import (
     # VARCHAR as PG_VARCHAR,  # same as REF_VARCHAR
 )
 
-# noinspection PyUnresolvedReferences
 from sqlalchemy.dialects.mssql import (
     # BIGINT as SQLS_BIGINT,  # same as REF_BIGINT
     # BINARY as SQLS_BINARY,  # same as REF_BINARY
@@ -554,9 +548,10 @@ def migrate_column(source_rdbms: DbEngine,
     if type_equiv is None:
         # inpect the FK equivalence
         if is_fk:
+            # atempt to force type conformity
             fk_column: Column = next(iter(ref_column.foreign_keys)).column
-            # force type conformity if 'ref_column' and 'fk_column' share the same schema
             if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
+                # 'ref_column' and 'pk_column' share the same schema
                 fk_type: Any = migrate_column(source_rdbms=source_rdbms,
                                               target_rdbms=target_rdbms,
                                               ref_column=fk_column,
@@ -564,13 +559,22 @@ def migrate_column(source_rdbms: DbEngine,
                                               migration_warnings=migration_warnings,
                                               errors=errors,
                                               logger=logger)
-                if errors:
-                    warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
-                    errors.clear()
-                else:
+                if fk_type:
                     type_equiv = fk_type.__class__
+            else:
+                # 'ref_column' and 'pk_column' are in different schemas
+                fk_type, _ = db_get_table_column(table_name=fk_column.table.fullname,
+                                                 column_name=fk_column.name,
+                                                 engine=source_rdbms,
+                                                 errors=errors,
+                                                 logger=logger)
+                if fk_type:
+                    pass
+            if errors:
+                warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
+                errors.clear()
 
         # inspect the migration equivalences
         if type_equiv is None:
@@ -611,7 +615,7 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = REF_BIGINT
                     else:
                         type_equiv = REF_INTEGER
-                elif is_pk and col_precision and type_equiv == REF_NUMERIC:
+                elif is_pk and not is_fk and col_precision and type_equiv == REF_NUMERIC:
                     # optimize primary keys
                     if col_precision < 5:
                         type_equiv = REF_SMALLINT
