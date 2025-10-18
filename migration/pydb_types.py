@@ -561,11 +561,11 @@ def migrate_column(source_rdbms: DbEngine,
                 if fk_type:
                     type_equiv = fk_type.__class__
                 else:
-                    warn_msg: str = msg + f" type '{metadata[0]}' referenced by FK not mapped"
+                    warn_msg: str = msg + f" type '{metadata[0]}' of FK '{fk_column.name}' not mapped"
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
         if errors:
-            warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
+            warn_msg: str = f"{msg} - unable to inspect FK '{fk_column.name}': {";".join(errors)}"
             migration_warnings.append(warn_msg)
             logger.warning(msg=warn_msg)
             errors.clear()
