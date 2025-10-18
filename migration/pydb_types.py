@@ -535,7 +535,7 @@ def migrate_column(source_rdbms: DbEngine,
 
     # the FK equivalence has the next precedence
     if not type_equiv and is_fk:
-        # atempt to force type conformity
+        # atempt to force type conformity with the FK target
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
         if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
             # 'ref_column' and 'pk_column' share the same schema
