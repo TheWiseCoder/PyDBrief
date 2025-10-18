@@ -530,100 +530,95 @@ def migrate_column(source_rdbms: DbEngine,
        is_identity and hasattr(ref_column.identity, "cache"):
         ref_column.identity.cache = 1
 
-    # if provided, the override type has precedence
+    # the override type has precedence
     type_equiv: Type = override_columns.get(col_name)
-    if type_equiv is None:
-        # inpect the FK equivalence
-        if is_fk:
-            # atempt to force type conformity
-            fk_column: Column = next(iter(ref_column.foreign_keys)).column
-            if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
-                # 'ref_column' and 'pk_column' share the same schema
-                fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                              target_rdbms=target_rdbms,
-                                              ref_column=fk_column,
-                                              override_columns=override_columns,
-                                              migration_warnings=migration_warnings,
-                                              errors=errors,
-                                              logger=logger)
+
+    # the FK equivalence has the next precedence
+    if not type_equiv and is_fk:
+        # atempt to force type conformity
+        fk_column: Column = next(iter(ref_column.foreign_keys)).column
+        if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
+            # 'ref_column' and 'pk_column' share the same schema
+            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                          target_rdbms=target_rdbms,
+                                          ref_column=fk_column,
+                                          override_columns=override_columns,
+                                          migration_warnings=migration_warnings,
+                                          errors=errors,
+                                          logger=logger)
+            if fk_type:
+                type_equiv = fk_type.__class__
+        else:
+            # 'ref_column' and 'pk_column' are in different schemas
+            metadata: tuple[str, int, int, bool] = db_get_table_column(table_name=fk_column.table.fullname,
+                                                                       column_name=fk_column.name,
+                                                                       engine=target_rdbms,
+                                                                       errors=errors,
+                                                                       logger=logger)
+            if metadata:
+                fk_type: Any = name_to_type(rdbms=target_rdbms,
+                                            type_name=metadata[0])
                 if fk_type:
                     type_equiv = fk_type.__class__
-            else:
-                # 'ref_column' and 'pk_column' are in different schemas
-                metadata: tuple[str, int, int, bool] = db_get_table_column(table_name=fk_column.table.fullname,
-                                                                           column_name=fk_column.name,
-                                                                           engine=target_rdbms,
-                                                                           errors=errors,
-                                                                           logger=logger)
-                if metadata:
-                    fk_type: Any = name_to_type(rdbms=target_rdbms,
-                                                type_name=metadata[0])
-                    if fk_type:
-                        type_equiv = fk_type.__class__
-                    else:
-                        warn_msg: str = msg + f" type '{metadata[0]}' referenced by FK not mapped"
-                        migration_warnings.append(warn_msg)
-                        logger.warning(msg=warn_msg)
-            if errors:
-                warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
-                migration_warnings.append(warn_msg)
-                logger.warning(msg=warn_msg)
-                errors.clear()
+                else:
+                    warn_msg: str = msg + f" type '{metadata[0]}' referenced by FK not mapped"
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
+        if errors:
+            warn_msg: str = msg + " - error processing FK reference:" + ";".join(errors)
+            migration_warnings.append(warn_msg)
+            logger.warning(msg=warn_msg)
+            errors.clear()
 
-        # inspect the migration equivalences
-        if type_equiv is None:
-            (native_ordinal, reference_ordinal, nat_equivalences) = \
-                establish_equivalences(source_rdbms=source_rdbms,
-                                       target_rdbms=target_rdbms)
+    # finally, inspect the migration equivalences
+    if not type_equiv:
+        (native_ordinal, reference_ordinal, nat_equivalences) = \
+            establish_equivalences(source_rdbms=source_rdbms,
+                                   target_rdbms=target_rdbms)
 
-            # inspect the native equivalences first
-            for nat_equivalence in nat_equivalences:
-                if isinstance(col_type_obj, nat_equivalence[0]):
-                    type_equiv = nat_equivalence[native_ordinal]
+        # inspect the native equivalences first
+        for nat_equivalence in nat_equivalences:
+            if isinstance(col_type_obj, nat_equivalence[0]):
+                type_equiv = nat_equivalence[native_ordinal]
+                break
+
+        # inspect the reference equivalences next
+        if not type_equiv:
+            for ref_equivalence in REF_EQUIVALENCES:
+                if isinstance(col_type_obj, ref_equivalence[0]):
+                    type_equiv = ref_equivalence[reference_ordinal]
                     break
 
-            # inspect the reference equivalences next
-            if type_equiv is None:
-                for ref_equivalence in REF_EQUIVALENCES:
-                    if isinstance(col_type_obj, ref_equivalence[0]):
-                        type_equiv = ref_equivalence[reference_ordinal]
-                        break
-
-        if type_equiv:
-            # fine-tune the integer type equivalence
-            if is_number_int:
-                if is_identity:
-                    if hasattr(ref_column.identity, "maxvalue"):
-                        if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
-                            type_equiv = REF_SMALLINT
-                        elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
-                            type_equiv = REF_INTEGER
-                        elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
-                            type_equiv = REF_BIGINT
-                        elif target_rdbms == DbEngine.ORACLE:
-                            type_equiv = ORCL_NUMBER
-                        else:
-                            # potential problem, as some DBs will not accept REF_NUMERIC column as identity
-                            type_equiv = REF_NUMERIC
-                    elif not col_precision or col_precision > 9:
-                        type_equiv = REF_BIGINT
-                    else:
-                        type_equiv = REF_INTEGER
-                elif is_pk and not is_fk and col_precision and type_equiv == REF_NUMERIC:
-                    # optimize primary keys
-                    if col_precision < 5:
+        # fine-tune the integer type equivalence
+        if type_equiv and is_number_int:
+            if is_identity:
+                if hasattr(ref_column.identity, "maxvalue"):
+                    if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
                         type_equiv = REF_SMALLINT
-                    elif col_precision < 10:
+                    elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
                         type_equiv = REF_INTEGER
-                    elif col_precision < 19:
+                    elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
                         type_equiv = REF_BIGINT
-        else:
-            msg += " - unable to obtain a type equivalence"
-            errors.append(msg)
-            logger.error(msg=msg)
+                    elif target_rdbms == DbEngine.ORACLE:
+                        type_equiv = ORCL_NUMBER
+                    else:
+                        # potential problem, as some DBs will not accept REF_NUMERIC column as identity
+                        type_equiv = REF_NUMERIC
+                elif not col_precision or col_precision > 9:
+                    type_equiv = REF_BIGINT
+                else:
+                    type_equiv = REF_INTEGER
+            elif is_pk and col_precision and type_equiv == REF_NUMERIC:
+                # optimize primary keys
+                if col_precision < 5:
+                    type_equiv = REF_SMALLINT
+                elif col_precision < 10:
+                    type_equiv = REF_INTEGER
+                elif col_precision < 19:
+                    type_equiv = REF_BIGINT
 
     # instantiate the type object
-    if not errors:
+    if type_equiv:
         result = type_equiv()
         logger.debug(msg=f"{msg} converted to {result}")
 
@@ -638,6 +633,10 @@ def migrate_column(source_rdbms: DbEngine,
             result.scale = col_type_obj.scale
         if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
             result.timezone = col_type_obj.timezone
+    else:
+        msg += " - unable to obtain a type equivalence"
+        errors.append(msg)
+        logger.error(msg=msg)
 
     return result
 
