@@ -555,8 +555,8 @@ def migrate_column(source_rdbms: DbEngine,
                                                                        errors=errors,
                                                                        logger=logger)
             if metadata:
-                fk_type: Any = name_to_type(rdbms=target_rdbms,
-                                            type_name=metadata[0])
+                fk_type: Any = name_to_type(type_name=metadata[0],
+                                            rdbms=target_rdbms)
                 if fk_type:
                     type_equiv = fk_type.__class__
                 else:
@@ -704,15 +704,15 @@ def is_lob_column(col_type: str) -> bool:
     return col_type in LOB_TYPES
 
 
-def name_to_type(rdbms: DbEngine,
-                 type_name: str) -> Type | None:
+def name_to_type(type_name: str,
+                 rdbms: DbEngine) -> Type | None:
 
     types: dict[str, Type] = __get_types(rdbms=rdbms)
     return types.get(type_name)
 
 
-def type_to_name(rdbms: DbEngine,
-                 col_type: Type) -> str:
+def type_to_name(col_type: Type,
+                 rdbms: DbEngine) -> str:
 
     types: dict[str, Type] = __get_types(rdbms=rdbms)
     return dict_get_key(source=types,
