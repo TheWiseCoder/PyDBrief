@@ -470,7 +470,7 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
 ]
 
-LOBS: Final[list[str]] = [
+LOB_TYPES: Final[list[str]] = [
     str(MSQL_LONGBLOB()),
     str(MSQL_LONGTEXT()),
     str(MSQL_MEDIUMBLOB()),
@@ -701,7 +701,7 @@ def establish_equivalences(source_rdbms: DbEngine,
 
 def is_lob_column(col_type: str) -> bool:
 
-    return col_type in LOBS
+    return col_type in LOB_TYPES
 
 
 def name_to_type(rdbms: DbEngine,
