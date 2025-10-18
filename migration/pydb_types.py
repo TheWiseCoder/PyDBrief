@@ -501,11 +501,10 @@ def migrate_column(source_rdbms: DbEngine,
     # initialize the return variable
     result: Any = None
 
-    # obtain needed characteristics
+    # retrieve needed properties and define specific features
     col_type_class: Type = ref_column.type.__class__
     col_type_obj: Any = ref_column.type
     col_name: str = f"{ref_column.table.name}.{ref_column.name}"
-
     is_pk: bool = (hasattr(ref_column, "primary_key") and
                    ref_column.primary_key) or False
     is_fk: bool = (hasattr(ref_column, "foreign_keys") and
