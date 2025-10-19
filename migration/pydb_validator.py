@@ -190,10 +190,10 @@ def validate_s3(input_params: dict[str, Any],
 
 
 def validate_metrics(input_params: dict[str, Any],
+                     session_id: str,
                      errors: list[str]) -> None:
 
     # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # validate 'batch-size-in'
@@ -266,11 +266,11 @@ def validate_metrics(input_params: dict[str, Any],
 
 
 def validate_spots(input_params: dict[str, str],
+                   session_id: str,
                    errors: list[str],
                    logger: Logger) -> None:
 
     # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # validate source RDBMS
@@ -366,10 +366,10 @@ def validate_spots(input_params: dict[str, str],
 
 
 def validate_steps(input_params: dict[str, str],
+                   session_id: str,
                    errors: list[str]) -> None:
 
     # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # retrieve the migration steps
@@ -427,10 +427,10 @@ def validate_steps(input_params: dict[str, str],
 
 
 def validate_specs(input_params: dict[str, str],
+                   session_id: str,
                    errors: list[str]) -> None:
 
     # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # obtain the optional migration badge

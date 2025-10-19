@@ -399,6 +399,7 @@ def service_migration() -> Response:
             case "/migration:verify":
                 # assert whether migration is warranted
                 validate_spots(input_params=input_params,
+                               session_id=session_id,
                                errors=errors,
                                logger=PYPOMES_LOGGER)
                 # errors ?
@@ -431,6 +432,7 @@ def service_migration() -> Response:
                     case HttpMethod.PATCH:
                         # establish the metrics parameters
                         validate_metrics(input_params=input_params,
+                                         session_id=session_id,
                                          errors=errors)
                         if not errors:
                             reply = {"status": "Migration metrics updated"}
@@ -552,16 +554,24 @@ def migrate_data(session_id: str,
 
     # validate the migration spots
     validate_spots(input_params=input_params,
+                   session_id=session_id,
                    errors=errors,
                    logger=PYPOMES_LOGGER)
 
     # validate the migration steps
     validate_steps(input_params=input_params,
+                   session_id=session_id,
                    errors=errors)
 
     # validate the migration specs
     validate_specs(input_params=input_params,
+                   session_id=session_id,
                    errors=errors)
+
+    # validate the migration metrics
+    validate_metrics(input_params=get_session_registry(session_id=session_id)[MigConfig.METRICS],
+                     session_id=session_id,
+                     errors=errors)
 
     # is migration possible ?
     if not errors:
