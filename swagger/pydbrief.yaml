@@ -346,6 +346,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeConstraintsParam'
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/OverrideColumnsParam'
+        - $ref: '#/components/parameters/OptimizePKsParam'
         - $ref: '#/components/parameters/NamedLobdataParam'
         - $ref: '#/components/parameters/MigrationBadgeOptParam'
         - $ref: '#/components/parameters/SessionIdOptParam'
@@ -948,6 +949,7 @@ components:
       name: skip-nonempty
       in: query
       description: This parameter has two purposes. 1- to prevent plaindata migration for tables in the destination database schema that are not empty; 2- to prevent migration of LOBs to S3 storage, if their respective destination prefixes are already in use. Useful for resuming an aborted plaindata migration, or an aborted lobdata migration to S3 storage, without having to resort to reorganizing table lists. When migrating LOBs, it is ignored if 'to-s3' is not specified, or if 'flatten-storage' is specified.
+      required: false
       schema:
         type: boolean
         default: false
@@ -1034,6 +1036,14 @@ components:
         items:
           type: string
           example: my_table.my_column=numeric
+    OptimizePKsParam:
+      name: optimize-pks
+      in: query
+      description: This parameter instructs PyDBrief to optimize the conversion of types for primary key columns which are not foreign keys. When the type in the source database is NUMBER (Oracle), DECIMAL (MySQL), or NUMERIC (MySQL, PostgreSQL, or SQLServer) with scale 0 and precision up to 19 digits, the converted type will be and integer type with 2, 4, or 8 bytes (as required by its precision).
+      required: false
+      schema:
+        type: boolean
+        default: true
   schemas:
     Collophon:
       type: object

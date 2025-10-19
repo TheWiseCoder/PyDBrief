@@ -442,6 +442,7 @@ def validate_specs(input_params: dict[str, str],
         __assert_override_columns(input_params=input_params,
                                   rdbms=session_registry[MigConfig.SPOTS][MigSpot.TO_RDBMS],
                                   errors=errors)
+
     # assert and retrieve the incremental migrations parameter
     incr_migrations: dict[str, dict[MigIncremental, int]] = __assert_incr_migrations(
         input_params=input_params,
@@ -460,6 +461,9 @@ def validate_specs(input_params: dict[str, str],
                                            attr=MigSpec.REFLECT_FILETYPE)
     flatten_storage: bool = validate_bool(source=input_params,
                                           attr=MigSpec.FLATTEN_STORAGE)
+    optimize_pks: bool = validate_bool(source=input_params,
+                                       attr=MigSpec.OPTIMIZE_PKS,
+                                       default=True)
     remove_ctrlschars: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
                                                             attr=MigSpec.REMOVE_CTRLCHARS) or [])]
@@ -500,6 +504,7 @@ def validate_specs(input_params: dict[str, str],
         session_specs[MigSpec.MIGRATION_BADGE] = migration_badge
         session_specs[MigSpec.NAMED_LOBDATA] = named_lobdata
         session_specs[MigSpec.OVERRIDE_COLUMNS] = override_columns
+        session_specs[MigSpec.OPTIMIZE_PKS] = optimize_pks
         session_specs[MigSpec.PROCESS_INDEXES] = process_indexes
         session_specs[MigSpec.PROCESS_VIEWS] = process_views
         session_specs[MigSpec.REFLECT_FILETYPE] = reflect_filetype

@@ -1,7 +1,7 @@
 from logging import Logger
 from pypomes_core import dict_get_key
 from pypomes_db import DbEngine, db_get_column_metadata
-from sqlalchemy.sql.elements import Type
+from sqlalchemy.sql.elements import Type  # same as 'from typing import Type'
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
 
@@ -62,7 +62,7 @@ from sqlalchemy.types import (
     TIMESTAMP as REF_TIMESTAMP,                # the SQL TIMESTAMP type
     UUID as REF_UUID,                          # represents the SQL UUID type
     VARBINARY as REF_VARBINARY,                # the SQL VARBINARY type
-    VARCHAR as REF_VARCHAR,                    # the SQL VARCHAR type
+    VARCHAR as REF_VARCHAR                     # the SQL VARCHAR type
 )
 
 from sqlalchemy.dialects.mysql import (
@@ -118,13 +118,14 @@ from sqlalchemy.dialects.oracle import (
     NCLOB as ORCL_NCLOB,
     NUMBER as ORCL_NUMBER,
     # NVARCHAR as ORCL_NVARCHAR,   # same as REF_NVARCHAR
-    # NVARCHAR2 as REF_NVARCHAR,
+    # NVARCHAR2 as REF_NVARCHAR2,
     RAW as ORCL_RAW,
     # REAL as ORCL_REAL,  # same as REF_REAF
     ROWID as ORCL_ROWID,
     TIMESTAMP as ORCL_TIMESTAMP,
     # VARCHAR as ORCL_VARCHAR,  # same as REF_VARCHAR
     VARCHAR2 as ORCL_VARCHAR2,
+    # VECTOR as ORCL_VECTOR
 )
 
 from sqlalchemy.dialects.postgresql import (
@@ -252,7 +253,7 @@ MSQL_TYPES: Final[dict[str, Type]] = {
     "tinytext": MSQL_TINYTEXT,
     "varbinary": REF_VARBINARY,
     "varchar": MSQL_VARCHAR,
-    "year": MSQL_YEAR,
+    "year": MSQL_YEAR
 }
 
 # Oracle types
@@ -278,7 +279,7 @@ ORCL_TYPES: Final[dict[str, Type]] = {
     "rowid": ORCL_ROWID,
     "timestamp": ORCL_TIMESTAMP,
     "varchar": REF_VARCHAR,
-    "varchar2": ORCL_VARCHAR2,
+    "varchar2": ORCL_VARCHAR2
 }
 
 # Postgres types (include types in column information_schema.columns.udt_name)
@@ -333,7 +334,7 @@ PG_TYPES: Final[dict[str, Type]] = {
     "tstzrange": PG_TSTZRANGE,
     "tsvector": PG_TSVECTOR,
     "uuid": REF_UUID,
-    "varchar": REF_VARCHAR,
+    "varchar": REF_VARCHAR
 }
 
 # SQLServer types (include types in column information_schema.columns.udt_name)
@@ -470,6 +471,53 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
 ]
 
+# INTEGER_TYPES: Final[list[str]] = [
+#     str(MSQL_BIGINT()),
+#     str(MSQL_INTEGER()),
+#     str(MSQL_SMALLINT()),
+#     str(MSQL_MEDIUMINT()),
+#     str(MSQL_TINYINT()),
+#     str(REF_BIGINT()),
+#     str(REF_INT()),
+#     str(REF_INTEGER()),
+#     str(REF_SMALLINT())
+# ]
+#
+# NUMBER_TYPES: Final[list[str]] = [
+#     str(MSQL_BIGINT()),
+#     str(MSQL_DECIMAL()),
+#     str(MSQL_DOUBLE()),
+#     str(MSQL_FLOAT()),
+#     str(MSQL_INTEGER()),
+#     str(MSQL_SMALLINT()),
+#     str(MSQL_MEDIUMINT()),
+#     str(MSQL_NUMERIC()),
+#     str(MSQL_REAL()),
+#     str(MSQL_TINYINT()),
+#     str(ORCL_BINARY_DOUBLE()),
+#     str(ORCL_BINARY_FLOAT()),
+#     str(ORCL_FLOAT()),
+#     str(ORCL_NUMBER()),
+#     str(REF_BIGINT()),
+#     str(REF_DECIMAL()),
+#     str(REF_DOUBLE()),
+#     str(REF_DOUBLE_PRECISION()),
+#     str(REF_FLOAT()),
+#     str(REF_INT()),
+#     str(REF_INTEGER()),
+#     str(REF_NUMERIC()),
+#     str(REF_REAL()),
+#     str(REF_SMALLINT()),
+#     str(SQLS_DOUBLE_PRECISION())
+# ]
+
+NUMERIC_TYPES: Final[list[Type]] = [
+    MSQL_DECIMAL,
+    MSQL_NUMERIC,
+    ORCL_NUMBER,
+    REF_NUMERIC
+]
+
 LOB_TYPES: Final[list[str]] = [
     str(MSQL_LONGBLOB()),
     str(MSQL_LONGTEXT()),
@@ -493,6 +541,7 @@ LOB_TYPES: Final[list[str]] = [
 def migrate_column(source_rdbms: DbEngine,
                    target_rdbms: DbEngine,
                    ref_column: Column,
+                   optimize_pks: bool,
                    override_columns: dict[str, Type],
                    migration_warnings: list[str],
                    errors: list[str],
@@ -504,7 +553,6 @@ def migrate_column(source_rdbms: DbEngine,
     # retrieve needed properties and define specific features
     col_type_class: Type = ref_column.type.__class__
     col_type_obj: Any = ref_column.type
-    col_name: str = f"{ref_column.table.name}.{ref_column.name}"
     is_pk: bool = (hasattr(ref_column, "primary_key") and
                    ref_column.primary_key) or False
     is_fk: bool = (hasattr(ref_column, "foreign_keys") and
@@ -512,13 +560,12 @@ def migrate_column(source_rdbms: DbEngine,
                    len(ref_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(ref_column, "identity") and
                          ref_column.identity) or False
-    is_number: bool = (col_type_class in
-                       [REF_NUMERIC, ORCL_NUMBER, MSQL_DECIMAL, MSQL_NUMERIC])
-    is_number_int: bool = (is_number and
-                           hasattr(col_type_obj, "asdecimal") and
-                           not col_type_obj.asdecimal)
-    col_precision: int = (col_type_obj.precision
-                          if is_number and hasattr(col_type_obj, "precision") else None)
+    is_numeric: bool = col_type_class in NUMERIC_TYPES
+    is_numeric_int: bool = (is_numeric and
+                            hasattr(col_type_obj, "asdecimal") and
+                            not col_type_obj.asdecimal)
+    numeric_precision: int = (col_type_obj.precision
+                              if is_numeric and hasattr(col_type_obj, "precision") else None)
     # base message
     msg: str = (f"Rdbms {target_rdbms}, type {col_type_obj} in "
                 f"{ref_column.table.fullname}.{ref_column.name}")
@@ -530,6 +577,7 @@ def migrate_column(source_rdbms: DbEngine,
         ref_column.identity.cache = 1
 
     # the override type has precedence
+    col_name: str = f"{ref_column.table.name}.{ref_column.name}"
     type_equiv: Type = override_columns.get(col_name)
 
     # the FK equivalence has the next precedence
@@ -541,6 +589,7 @@ def migrate_column(source_rdbms: DbEngine,
             fk_type: Any = migrate_column(source_rdbms=source_rdbms,
                                           target_rdbms=target_rdbms,
                                           ref_column=fk_column,
+                                          optimize_pks=optimize_pks,
                                           override_columns=override_columns,
                                           migration_warnings=migration_warnings,
                                           errors=errors,
@@ -588,8 +637,8 @@ def migrate_column(source_rdbms: DbEngine,
                     type_equiv = ref_equivalence[reference_ordinal]
                     break
 
-        # fine-tune the integer type equivalence
-        if type_equiv and is_number_int:
+        # fine-tune the integral numeric type equivalence
+        if is_numeric_int and type_equiv in NUMERIC_TYPES:
             if is_identity:
                 if hasattr(ref_column.identity, "maxvalue"):
                     if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
@@ -598,22 +647,18 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = REF_INTEGER
                     elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
                         type_equiv = REF_BIGINT
-                    elif target_rdbms == DbEngine.ORACLE:
-                        type_equiv = ORCL_NUMBER
-                    else:
-                        # potential problem, as some DBs will not accept REF_NUMERIC column as identity
-                        type_equiv = REF_NUMERIC
-                elif not col_precision or col_precision > 9:
+                    # else: ... potential problem, as some DBs will not accept a REF_NUMERIC column as identity
+                elif not numeric_precision or numeric_precision > 9:
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
-            elif is_pk and col_precision and type_equiv == REF_NUMERIC:
-                # optimize primary keys
-                if col_precision < 5:
+            elif is_pk and optimize_pks:
+                # optimize primary keys (successfully converted FKs will not reach this point)
+                if numeric_precision < 5:
                     type_equiv = REF_SMALLINT
-                elif col_precision < 10:
+                elif numeric_precision < 10:
                     type_equiv = REF_INTEGER
-                elif col_precision < 19:
+                elif numeric_precision < 19:
                     type_equiv = REF_BIGINT
 
     # instantiate the type object

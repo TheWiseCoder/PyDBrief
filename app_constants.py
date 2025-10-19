@@ -51,6 +51,7 @@ class MigSpec(StrEnum):
     IS_ACTIVE = "is-active"
     MIGRATION_BADGE = "migration-badge"
     NAMED_LOBDATA = "named-lobdata"
+    OPTIMIZE_PKS = "optimize-pks"
     OVERRIDE_COLUMNS = "override-columns"
     PROCESS_INDEXES = "process-indexes"
     PROCESS_VIEWS = "process-views"

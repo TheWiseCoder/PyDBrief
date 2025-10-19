@@ -531,6 +531,7 @@ def migrate_data(session_id: str,
       - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
       - *exclude-columns*: optional list of table columns not to migrate
       - *override-columns*: optional list of columns with forced migration types
+      - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
       - *named-lobdata*: optional list of LOB columns and their associated names and extensions
       - *migration-badge*: optional name for migration (used on JSON and log file creation)
       - *session-id*: optional session identification, defaults to the client's active session
