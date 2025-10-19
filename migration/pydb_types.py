@@ -471,44 +471,44 @@ SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
 ]
 
-# INTEGER_TYPES: Final[list[str]] = [
-#     str(MSQL_BIGINT()),
-#     str(MSQL_INTEGER()),
-#     str(MSQL_SMALLINT()),
-#     str(MSQL_MEDIUMINT()),
-#     str(MSQL_TINYINT()),
-#     str(REF_BIGINT()),
-#     str(REF_INT()),
-#     str(REF_INTEGER()),
-#     str(REF_SMALLINT())
+# INTEGER_TYPES: Final[list[Type]] = [
+#     MSQL_BIGINT,
+#     MSQL_INTEGER,
+#     MSQL_SMALLINT,
+#     MSQL_MEDIUMINT,
+#     MSQL_TINYINT,
+#     REF_BIGINT,
+#     REF_INT,
+#     REF_INTEGER,
+#     REF_SMALLINT
 # ]
 #
-# NUMBER_TYPES: Final[list[str]] = [
-#     str(MSQL_BIGINT()),
-#     str(MSQL_DECIMAL()),
-#     str(MSQL_DOUBLE()),
-#     str(MSQL_FLOAT()),
-#     str(MSQL_INTEGER()),
-#     str(MSQL_SMALLINT()),
-#     str(MSQL_MEDIUMINT()),
-#     str(MSQL_NUMERIC()),
-#     str(MSQL_REAL()),
-#     str(MSQL_TINYINT()),
-#     str(ORCL_BINARY_DOUBLE()),
-#     str(ORCL_BINARY_FLOAT()),
-#     str(ORCL_FLOAT()),
-#     str(ORCL_NUMBER()),
-#     str(REF_BIGINT()),
-#     str(REF_DECIMAL()),
-#     str(REF_DOUBLE()),
-#     str(REF_DOUBLE_PRECISION()),
-#     str(REF_FLOAT()),
-#     str(REF_INT()),
-#     str(REF_INTEGER()),
-#     str(REF_NUMERIC()),
-#     str(REF_REAL()),
-#     str(REF_SMALLINT()),
-#     str(SQLS_DOUBLE_PRECISION())
+# NUMBER_TYPES: Final[list[Type]] = [
+#     MSQL_BIGINT,
+#     MSQL_DECIMAL,
+#     MSQL_DOUBLE,
+#     MSQL_FLOAT,
+#     MSQL_INTEGER,
+#     MSQL_SMALLINT,
+#     MSQL_MEDIUMINT,
+#     MSQL_NUMERIC,
+#     MSQL_REAL,
+#     MSQL_TINYINT,
+#     ORCL_BINARY_DOUBLE,
+#     ORCL_BINARY_FLOAT,
+#     ORCL_FLOAT,
+#     ORCL_NUMBER,
+#     REF_BIGINT,
+#     REF_DECIMAL,
+#     REF_DOUBLE,
+#     REF_DOUBLE_PRECISION,
+#     REF_FLOAT,
+#     REF_INT,
+#     REF_INTEGER,
+#     REF_NUMERIC,
+#     REF_REAL,
+#     REF_SMALLINT,
+#     SQLS_DOUBLE_PRECISION
 # ]
 
 NUMERIC_TYPES: Final[list[Type]] = [
@@ -652,7 +652,7 @@ def migrate_column(source_rdbms: DbEngine,
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
-            elif is_pk and optimize_pks:
+            elif is_pk and numeric_precision and optimize_pks:
                 # optimize primary keys (successfully converted FKs will not reach this point)
                 if numeric_precision < 5:
                     type_equiv = REF_SMALLINT
