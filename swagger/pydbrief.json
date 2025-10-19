@@ -1613,7 +1613,7 @@
             "OptimizePKsParam": {
                 "name": "optimize-pks",
                 "in": "query",
-                "description": "This parameter instructs PyDBrief to optimize the conversion of types for primary key columns which are not foreign keys. When the type in the source database is NUMBER (Oracle), DECIMAL (MySQL), or NUMERIC (MySQL, PostgreSQL, or SQLServer) with scale 0 and precision up to 19 digits, the converted type will be and integer type with 2, 4, or 8 bytes (as required by its precision).",
+                "description": "This parameter instructs PyDBrief to optimize the conversion of types for primary key columns which are not foreign keys. When the type in the source database is NUMBER (Oracle), DECIMAL (MySQL), or NUMERIC (MySQL, PostgreSQL, or SQLServer) with scale 0 and precision up to 19 digits, the converted type will be an integer type with 2, 4, or 8 bytes (as required by its precision).",
                 "required": false,
                 "schema": {
                     "type": "boolean",
