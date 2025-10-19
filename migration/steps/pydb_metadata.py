@@ -102,8 +102,8 @@ def migrate_metadata(session_id: str,
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
                 #   as SQLAlchemy will not be able to find the schema tables
-                exc_err: str = str_sanitize(source=exc_format(exc=e,
-                                                              exc_info=sys.exc_info()))
+                exc_err: str = str_sanitize(exc_format(exc=e,
+                                                       exc_info=sys.exc_info()))
                 logger.error(msg=exc_err)
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104,
@@ -142,8 +142,8 @@ def migrate_metadata(session_id: str,
                     #   - a table or view referenced by a FK column was not found in the schema
                     # - this error will cause the migration to be aborted,
                     #   as SQLAlchemy would not be able to compile the migrated schema
-                    exc_err: str = str_sanitize(source=exc_format(exc=e,
-                                                                  exc_info=sys.exc_info()))
+                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                           exc_info=sys.exc_info()))
                     logger.error(msg=exc_err)
                     # 104: The operation {} returned the error {}
                     errors.append(validate_format_error(104,
@@ -208,8 +208,8 @@ def migrate_metadata(session_id: str,
                                                                     logger=logger)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
-                                    exc_err = str_sanitize(source=exc_format(exc=e,
-                                                                             exc_info=sys.exc_info()))
+                                    exc_err = str_sanitize(exc_format(exc=e,
+                                                                      exc_info=sys.exc_info()))
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",

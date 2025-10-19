@@ -115,7 +115,7 @@ def s3_migrate_lobs(session_id: str,
                     identifier = value
                 else:
                     values.append(value)
-                    metadata[key] = str_from_any(source=value)
+                    metadata[key] = str_from_any(value)
             if not identifier:
                 # hex-formatted hash on the contents of the row's PK columns
                 identifier = __build_identifier(values=values)

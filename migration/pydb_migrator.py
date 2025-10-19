@@ -247,8 +247,8 @@ def migrate(session_id: str,
                             errors=errors,
                             log_json=result)
         except Exception as e:
-            exc_err: str = str_sanitize(source=exc_format(exc=e,
-                                                          exc_info=sys.exc_info()))
+            exc_err: str = str_sanitize(exc_format(exc=e,
+                                                   exc_info=sys.exc_info()))
             logger.error(msg=exc_err)
             # 101: {}
             errors.append(validate_format_error(101,

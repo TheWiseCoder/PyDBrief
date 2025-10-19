@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import dict_get_key
-from pypomes_db import DbEngine, db_get_table_column
+from pypomes_db import DbEngine, db_get_column_metadata
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -549,11 +549,11 @@ def migrate_column(source_rdbms: DbEngine,
                 type_equiv = fk_type.__class__
         else:
             # 'ref_column' and 'pk_column' are in different schemas
-            metadata: tuple[str, int, int, bool] = db_get_table_column(table_name=fk_column.table.fullname,
-                                                                       column_name=fk_column.name,
-                                                                       engine=target_rdbms,
-                                                                       errors=errors,
-                                                                       logger=logger)
+            metadata: tuple[str, int, int, bool] = db_get_column_metadata(table_name=fk_column.table.fullname,
+                                                                          column_name=fk_column.name,
+                                                                          engine=target_rdbms,
+                                                                          errors=errors,
+                                                                          logger=logger)
             if metadata:
                 fk_type: Any = name_to_type(type_name=metadata[0],
                                             rdbms=target_rdbms)

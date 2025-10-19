@@ -536,8 +536,8 @@ def __assert_override_columns(input_params: dict[str, str],
                                                     type_name,
                                                     f"not a valid column type for RDBMS {rdbms}"))
     except Exception as e:
-        exc_err: str = str_sanitize(source=exc_format(exc=e,
-                                                      exc_info=sys.exc_info()))
+        exc_err: str = str_sanitize(exc_format(exc=e,
+                                               exc_info=sys.exc_info()))
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"Syntax error: {exc_err}",
@@ -563,10 +563,10 @@ def __assert_incr_migrations(input_params: dict[str, Any],
         if ":" not in incremental_table:
             incremental_table += ":"
         # noinspection PyTypeChecker
-        terms: tuple[str, str, str] = str_splice(source=incremental_table,
+        terms: tuple[str, str, str] = str_splice(incremental_table,
                                                  seps=["=", ":"])
-        size: int = int(terms[1]) if str_is_int(source=terms[1]) else def_size
-        offset: int = int(terms[2]) if str_is_int(source=terms[2]) else 0
+        size: int = int(terms[1]) if str_is_int(terms[1]) else def_size
+        offset: int = int(terms[2]) if str_is_int(terms[2]) else 0
         result[terms[0]] = {
             MigIncremental.COUNT: size,
             MigIncremental.OFFSET: offset

@@ -336,9 +336,12 @@ def setup_columns(target_columns: Iterable[Column],
             if hasattr(target_column, "default") and \
                target_column.default in ["sysdate", "systime"]:
                 target_column.default = None
+                # target_column.default = db_convert_default(value=target_column.default,
+                #                                            source_engine=source_rdbms,
+                #                                            target_engine=target_rdbms)
         except Exception as e:
-            exc_err = str_sanitize(source=exc_format(exc=e,
-                                                     exc_info=exc_info()))
+            exc_err = str_sanitize(exc_format(exc=e,
+                                              exc_info=exc_info()))
             # 102: Unexpected error: {}
             errors.append(validate_format_error(102,
                                                 exc_err))
