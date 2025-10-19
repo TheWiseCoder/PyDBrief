@@ -59,12 +59,9 @@ def assert_expected_params(service: str,
 
 
 def validate_rdbms(input_params: dict[str, Any],
+                   session_id: str,
                    errors: list[str],
                    logger: Logger) -> None:
-
-    # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     db_engine: DbEngine = validate_enum(source=input_params,
                                         attr=DbConfig.ENGINE,
@@ -108,6 +105,7 @@ def validate_rdbms(input_params: dict[str, Any],
                     db_client=db_client,
                     db_driver=db_driver):
             # add DB specs to registry
+            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[db_engine] = {
                 DbConfig.ENGINE: db_engine,
                 DbConfig.NAME: db_name,
@@ -131,11 +129,8 @@ def validate_rdbms(input_params: dict[str, Any],
 
 
 def validate_s3(input_params: dict[str, Any],
+                session_id: str,
                 errors: list[str]) -> None:
-
-    # obtain the session registry
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     engine: S3Engine = validate_enum(source=input_params,
                                      attr=S3Config.ENGINE,
@@ -173,6 +168,7 @@ def validate_s3(input_params: dict[str, Any],
                     region_name=region_name,
                     secure_access=secure_access):
             # add S3 specs to registry
+            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[engine] = {
                 S3Config.ENGINE: engine,
                 S3Config.ENDPOINT_URL: endpoint_url,
@@ -192,9 +188,6 @@ def validate_s3(input_params: dict[str, Any],
 def validate_metrics(input_params: dict[str, Any],
                      session_id: str,
                      errors: list[str]) -> None:
-
-    # obtain the session registry
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # validate 'batch-size-in'
     batch_size_in: int = validate_int(source=input_params,
@@ -246,6 +239,7 @@ def validate_metrics(input_params: dict[str, Any],
                                                errors=errors)
     if not errors:
         # set the metrics for the session
+        session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
         session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
         if batch_size_in:
             session_metrics[MigMetric.BATCH_SIZE_IN] = batch_size_in
@@ -369,9 +363,6 @@ def validate_steps(input_params: dict[str, str],
                    session_id: str,
                    errors: list[str]) -> None:
 
-    # obtain the session registry
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-
     # retrieve the migration steps
     step_metadata: bool = validate_bool(source=input_params,
                                         attr=MigStep.MIGRATE_METADATA,
@@ -417,6 +408,7 @@ def validate_steps(input_params: dict[str, str],
                                             err_msg))
     else:
         # set the steps for the session
+        session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
         session_registry[MigConfig.STEPS] = {
             MigStep.MIGRATE_METADATA: step_metadata,
             MigStep.MIGRATE_PLAINDATA: step_plaindata,

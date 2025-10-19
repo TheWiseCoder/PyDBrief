@@ -190,6 +190,7 @@ def service_rdbms(engine: str = None) -> Response:
                                         errors=errors)
         else:
             validate_rdbms(input_params=input_params,
+                           session_id=session_id,
                            errors=errors,
                            logger=PYPOMES_LOGGER)
             if not errors:
@@ -266,6 +267,7 @@ def service_s3(engine: str = None) -> Response:
         else:
             # configure the S3 service
             validate_s3(input_params=input_params,
+                        session_id=session_id,
                         errors=errors)
             if not errors:
                 engine = input_params.get(S3Config.ENGINE)
