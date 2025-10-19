@@ -28,7 +28,7 @@ from sqlalchemy.types import (
     Time as Ref_Time,                  # a type for datetime.time() objects
     # Unicode as Ref_Unicode,          # a variable length Unicode string type
     # UnicodeText as Ref_UnicodeText,  # an unbounded-length Unicode string type
-    Uuid as Ref_Uuid,                  # represents a database agnostic UUID datatype
+    Uuid as Ref_Uuid                   # represents a database agnostic UUID datatype
 )
 
 # This category of types refers to types that are either part of the SQL standard,
@@ -99,7 +99,7 @@ from sqlalchemy.dialects.mysql import (
     TINYTEXT as MSQL_TINYTEXT,
     # VARBINARY as MSQL_VARBINARY,  # same as REF_VARBINARY
     VARCHAR as MSQL_VARCHAR,  # synonym of NVARCHAR
-    YEAR as MSQL_YEAR,
+    YEAR as MSQL_YEAR
 )
 
 from sqlalchemy.dialects.oracle import (
@@ -212,7 +212,7 @@ from sqlalchemy.dialects.mssql import (
     UNIQUEIDENTIFIER as SQLS_UNIQUEIDENTIFIER,
     VARBINARY as SQLS_VARBINARY,
     # VARCHAR as SQLS_VARCHAR,  # same as REF_VARCHAR
-    XML as SQLS_XML,
+    XML as SQLS_XML
 )
 
 # MySQL types
@@ -374,7 +374,7 @@ SQLS_TYPES: Final[dict[str, Type]] = {
     "uniqueidentifier": SQLS_UNIQUEIDENTIFIER,
     "varbinary": SQLS_VARBINARY,
     "varchar": REF_VARCHAR,
-    "xml": SQLS_XML,
+    "xml": SQLS_XML
 }
 
 # Reference - MySQL - Oracle - PostgreSQL - SQLServer
@@ -422,7 +422,7 @@ REF_EQUIVALENCES: Final[list[tuple]] = [
     (Ref_String, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
     (Ref_Text, MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
     (Ref_Time, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_TIMESTAMP),
-    (Ref_Uuid, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER),
+    (Ref_Uuid, MSQL_VARCHAR, ORCL_VARCHAR2, REF_UUID, SQLS_UNIQUEIDENTIFIER)
 ]
 
 # MySQL - Oracle - PostgreSQL - SLServer (TO BE COMPLETED)
@@ -436,7 +436,7 @@ MSQL_EQUIVALENCES: Final[list[tuple]] = [
     (MSQL_MEDIUMBLOB, REF_BLOB, PG_BYTEA, SQLS_VARBINARY),
     (MSQL_TEXT, REF_CLOB, REF_TEXT, SQLS_VARBINARY),
     (MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP, SQLS_TIMESTAMP),
-    (MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR),
+    (MSQL_VARCHAR, ORCL_VARCHAR2, REF_VARCHAR, REF_VARCHAR)
 ]
 
 # Oracle - MySQL - PostgreSQL - SQLServer
@@ -455,7 +455,7 @@ ORCL_EQUIVALENCES: Final[list[tuple]] = [
     (ORCL_TIMESTAMP, REF_DATETIME, PG_TIMESTAMP, REF_DATETIME),
     (ORCL_VARCHAR2, MSQL_VARCHAR, REF_VARCHAR, REF_VARCHAR),
     # SQLAlchemy reports Oracle's NUMBER(38,0) as REF_INTEGER
-    (REF_INTEGER, REF_BIGINT, REF_BIGINT, MSQL_BIGINT),
+    (REF_INTEGER, REF_BIGINT, REF_BIGINT, MSQL_BIGINT)
 ]
 
 # PostgreSQL - MySQL - Oracle - SQLServer (TO BE COMPLETED)
@@ -468,7 +468,7 @@ PG_EQUIVALENCES: Final[list[tuple]] = [
 SQLS_EQUIVALENCES: Final[list[tuple]] = [
     (REF_DATETIME, REF_DATETIME, ORCL_DATE, PG_TIMESTAMP),
     (SQLS_TIMESTAMP, MSQL_TIMESTAMP, ORCL_TIMESTAMP, PG_TIMESTAMP),
-    (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA),
+    (SQLS_VARBINARY, MSQL_LONGBLOB, REF_BLOB, PG_BYTEA)
 ]
 
 # INTEGER_TYPES: Final[list[Type]] = [
@@ -534,7 +534,7 @@ LOB_TYPES: Final[list[str]] = [
     str(REF_TEXT()),
     str(REF_VARBINARY()),
     str(SQLS_IMAGE()),
-    str(SQLS_VARBINARY()),
+    str(SQLS_VARBINARY())
 ]
 
 
