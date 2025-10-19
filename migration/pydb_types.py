@@ -598,7 +598,7 @@ def migrate_column(source_rdbms: DbEngine,
                 type_equiv = fk_type.__class__
         if not type_equiv:
             # - 'ref_column' and 'pk_column' are in different schemas, or
-            # - table containing 'ref_column' not part of current migration
+            # - table containing 'pk_column' not part of current migration
             metadata: tuple[str, int, int, bool] = db_get_column_metadata(table_name=fk_column.table.fullname,
                                                                           column_name=fk_column.name,
                                                                           engine=target_rdbms,
