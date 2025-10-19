@@ -52,6 +52,7 @@ def assert_expected_params(service: str,
     params: list[StrEnum] = SERVICE_PARAMS.get(op) or []
     params.append(MigSpec.CLIENT_ID)
     params.append(MigSpec.SESSION_ID)
+
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
                                          f"@{key}") for key in input_params if key not in params])
@@ -60,6 +61,10 @@ def assert_expected_params(service: str,
 def validate_rdbms(input_params: dict[str, Any],
                    errors: list[str],
                    logger: Logger) -> None:
+
+    # obtain the session registry
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     db_engine: DbEngine = validate_enum(source=input_params,
                                         attr=DbConfig.ENGINE,
@@ -103,7 +108,7 @@ def validate_rdbms(input_params: dict[str, Any],
                     db_client=db_client,
                     db_driver=db_driver):
             # add DB specs to registry
-            db_specs: dict[DbConfig, Any] = {
+            session_registry[db_engine] = {
                 DbConfig.ENGINE: db_engine,
                 DbConfig.NAME: db_name,
                 DbConfig.HOST: db_host,
@@ -113,13 +118,9 @@ def validate_rdbms(input_params: dict[str, Any],
                 DbConfig.VERSION: ""
             }
             if db_client:
-                db_specs[DbConfig.CLIENT] = db_client
+                session_registry[db_engine][DbConfig.CLIENT] = db_client
             if db_driver:
-                db_specs[DbConfig.DRIVER] = db_driver
-            # retrieve the session id and save the DB specs
-            session_id: str = input_params.get(MigSpec.SESSION_ID)
-            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-            session_registry[db_engine] = db_specs
+                session_registry[db_engine][DbConfig.DRIVER] = db_driver
             # build the connection pool
             db_pool_setup(rdbms=db_engine,
                           errors=errors,
@@ -131,6 +132,10 @@ def validate_rdbms(input_params: dict[str, Any],
 
 def validate_s3(input_params: dict[str, Any],
                 errors: list[str]) -> None:
+
+    # obtain the session registry
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     engine: S3Engine = validate_enum(source=input_params,
                                      attr=S3Config.ENGINE,
@@ -168,7 +173,7 @@ def validate_s3(input_params: dict[str, Any],
                     region_name=region_name,
                     secure_access=secure_access):
             # add S3 specs to registry
-            s3_specs: dict[S3Config, Any] = {
+            session_registry[engine] = {
                 S3Config.ENGINE: engine,
                 S3Config.ENDPOINT_URL: endpoint_url,
                 S3Config.BUCKET_NAME: bucket_name,
@@ -178,11 +183,7 @@ def validate_s3(input_params: dict[str, Any],
                 S3Config.VERSION: ""
             }
             if region_name:
-                s3_specs[S3Config.REGION_NAME] = region_name
-            # retrieve the session id and save the S3 specs
-            session_id: str = input_params.get(MigSpec.SESSION_ID)
-            session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-            session_registry[engine] = s3_specs
+                session_registry[engine][S3Config.REGION_NAME] = region_name
         else:
             # 145: Invalid, inconsistent, or missing arguments
             errors.append(validate_format_error(error_id=145))
@@ -190,6 +191,10 @@ def validate_s3(input_params: dict[str, Any],
 
 def validate_metrics(input_params: dict[str, Any],
                      errors: list[str]) -> None:
+
+    # obtain the session registry
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # validate 'batch-size-in'
     batch_size_in: int = validate_int(source=input_params,
@@ -241,8 +246,7 @@ def validate_metrics(input_params: dict[str, Any],
                                                errors=errors)
     if not errors:
         # set the metrics for the session
-        session_id: str = input_params.get(MigSpec.SESSION_ID)
-        session_metrics: dict[MigMetric, int] = get_session_registry(session_id=session_id)[MigConfig.METRICS]
+        session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
         if batch_size_in:
             session_metrics[MigMetric.BATCH_SIZE_IN] = batch_size_in
         if batch_size_out:
@@ -265,6 +269,7 @@ def validate_spots(input_params: dict[str, str],
                    errors: list[str],
                    logger: Logger) -> None:
 
+    # obtain the session registry
     session_id: str = input_params.get(MigSpec.SESSION_ID)
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
@@ -353,14 +358,19 @@ def validate_spots(input_params: dict[str, str],
                                                     "is not accessible as configured"))
     if not errors:
         # set the spots for the session
-        session_spots: dict[MigSpot, Any] = session_registry.get(MigConfig.SPOTS)
-        session_spots[MigSpot.FROM_RDBMS] = from_rdbms
-        session_spots[MigSpot.TO_RDBMS] = to_rdbms
-        session_spots[MigSpot.TO_S3] = to_s3
+        session_registry[MigConfig.SPOTS] = {
+            MigSpot.FROM_RDBMS: from_rdbms,
+            MigSpot.TO_RDBMS: to_rdbms,
+            MigSpot.TO_S3: to_s3
+        }
 
 
 def validate_steps(input_params: dict[str, str],
                    errors: list[str]) -> None:
+
+    # obtain the session registry
+    session_id: str = input_params.get(MigSpec.SESSION_ID)
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
 
     # retrieve the migration steps
     step_metadata: bool = validate_bool(source=input_params,
@@ -403,16 +413,17 @@ def validate_steps(input_params: dict[str, str],
 
     if err_msg:
         # 101: {}
-        errors.append(validate_format_error(101, err_msg))
+        errors.append(validate_format_error(101,
+                                            err_msg))
     else:
         # set the steps for the session
-        session_id: str = input_params.get(MigSpec.SESSION_ID)
-        session_steps: dict[MigStep, bool] = get_session_registry(session_id=session_id)[MigConfig.STEPS]
-        session_steps[MigStep.MIGRATE_METADATA] = step_metadata
-        session_steps[MigStep.MIGRATE_PLAINDATA] = step_plaindata
-        session_steps[MigStep.MIGRATE_LOBDATA] = step_lobdata
-        session_steps[MigStep.SYNCHRONIZE_PLAINDATA] = step_sync_plain
-        session_steps[MigStep.SYNCHRONIZE_LOBDATA] = step_sync_lobs
+        session_registry[MigConfig.STEPS] = {
+            MigStep.MIGRATE_METADATA: step_metadata,
+            MigStep.MIGRATE_PLAINDATA: step_plaindata,
+            MigStep.MIGRATE_LOBDATA: step_lobdata,
+            MigStep.SYNCHRONIZE_PLAINDATA: step_sync_plain,
+            MigStep.SYNCHRONIZE_LOBDATA: step_sync_lobs
+        }
 
 
 def validate_specs(input_params: dict[str, str],
@@ -450,38 +461,51 @@ def validate_specs(input_params: dict[str, str],
         errors=errors
     )
     process_indexes: bool = validate_bool(source=input_params,
-                                          attr=MigSpec.PROCESS_INDEXES)
+                                          attr=MigSpec.PROCESS_INDEXES,
+                                          errors=errors)
     process_views: bool = validate_bool(source=input_params,
-                                        attr=MigSpec.PROCESS_VIEWS)
+                                        attr=MigSpec.PROCESS_VIEWS,
+                                        errors=errors)
     relax_reflection: bool = validate_bool(source=input_params,
-                                           attr=MigSpec.RELAX_REFLECTION)
+                                           attr=MigSpec.RELAX_REFLECTION,
+                                           errors=errors)
     skip_nonempty: bool = validate_bool(source=input_params,
-                                        attr=MigSpec.SKIP_NONEMPTY)
+                                        attr=MigSpec.SKIP_NONEMPTY,
+                                        errors=errors)
     reflect_filetype: bool = validate_bool(source=input_params,
-                                           attr=MigSpec.REFLECT_FILETYPE)
+                                           attr=MigSpec.REFLECT_FILETYPE,
+                                           errors=errors)
     flatten_storage: bool = validate_bool(source=input_params,
-                                          attr=MigSpec.FLATTEN_STORAGE)
+                                          attr=MigSpec.FLATTEN_STORAGE,
+                                          errors=errors)
     optimize_pks: bool = validate_bool(source=input_params,
                                        attr=MigSpec.OPTIMIZE_PKS,
-                                       default=True)
+                                       default=True,
+                                       errors=errors)
     remove_ctrlschars: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
-                                                            attr=MigSpec.REMOVE_CTRLCHARS) or [])]
+                                                            attr=MigSpec.REMOVE_CTRLCHARS,
+                                                            errors=errors) or [])]
     include_relations: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
-                                                            attr=MigSpec.INCLUDE_RELATIONS) or [])]
+                                                            attr=MigSpec.INCLUDE_RELATIONS,
+                                                            errors=errors) or [])]
     exclude_relations: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
-                                                            attr=MigSpec.EXCLUDE_RELATIONS) or [])]
+                                                            attr=MigSpec.EXCLUDE_RELATIONS,
+                                                            errors=errors) or [])]
     exclude_columns: list[str] = [s.lower()
                                   for s in (validate_strs(source=input_params,
-                                                          attr=MigSpec.EXCLUDE_COLUMNS) or [])]
+                                                          attr=MigSpec.EXCLUDE_COLUMNS,
+                                                          errors=errors) or [])]
     exclude_constraints: list[str] = [s.lower()
                                       for s in (validate_strs(source=input_params,
-                                                              attr=MigSpec.EXCLUDE_CONSTRAINTS) or [])]
+                                                              attr=MigSpec.EXCLUDE_CONSTRAINTS,
+                                                              errors=errors) or [])]
     named_lobdata: list[str] = [s.lower()
                                 for s in (validate_strs(source=input_params,
-                                                        attr=MigSpec.NAMED_LOBDATA) or [])]
+                                                        attr=MigSpec.NAMED_LOBDATA,
+                                                        errors=errors) or [])]
     # validate the include and exclude relations lists
     if input_params.get(MigSpec.INCLUDE_RELATIONS) and \
             input_params.get(MigSpec.EXCLUDE_RELATIONS):
@@ -493,25 +517,26 @@ def validate_specs(input_params: dict[str, str],
         session_registry[MigConfig.SPECS] = {}
     else:
         # set the specs for the session
-        session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
-        session_specs[MigSpec.EXCLUDE_COLUMNS] = exclude_columns
-        session_specs[MigSpec.EXCLUDE_CONSTRAINTS] = exclude_constraints
-        session_specs[MigSpec.EXCLUDE_RELATIONS] = exclude_relations
-        session_specs[MigSpec.FROM_SCHEMA] = from_schema
-        session_specs[MigSpec.FLATTEN_STORAGE] = flatten_storage
-        session_specs[MigSpec.INCLUDE_RELATIONS] = include_relations
-        session_specs[MigSpec.INCR_MIGRATIONS] = incr_migrations
-        session_specs[MigSpec.MIGRATION_BADGE] = migration_badge
-        session_specs[MigSpec.NAMED_LOBDATA] = named_lobdata
-        session_specs[MigSpec.OVERRIDE_COLUMNS] = override_columns
-        session_specs[MigSpec.OPTIMIZE_PKS] = optimize_pks
-        session_specs[MigSpec.PROCESS_INDEXES] = process_indexes
-        session_specs[MigSpec.PROCESS_VIEWS] = process_views
-        session_specs[MigSpec.REFLECT_FILETYPE] = reflect_filetype
-        session_specs[MigSpec.RELAX_REFLECTION] = relax_reflection
-        session_specs[MigSpec.REMOVE_CTRLCHARS] = remove_ctrlschars
-        session_specs[MigSpec.TO_SCHEMA] = to_schema
-        session_specs[MigSpec.SKIP_NONEMPTY] = skip_nonempty
+        session_registry[MigConfig.SPECS] = {
+            MigSpec.EXCLUDE_COLUMNS: exclude_columns,
+            MigSpec.EXCLUDE_CONSTRAINTS: exclude_constraints,
+            MigSpec.EXCLUDE_RELATIONS: exclude_relations,
+            MigSpec.FROM_SCHEMA: from_schema,
+            MigSpec.FLATTEN_STORAGE: flatten_storage,
+            MigSpec.INCLUDE_RELATIONS: include_relations,
+            MigSpec.INCR_MIGRATIONS: incr_migrations,
+            MigSpec.MIGRATION_BADGE: migration_badge,
+            MigSpec.NAMED_LOBDATA: named_lobdata,
+            MigSpec.OVERRIDE_COLUMNS: override_columns,
+            MigSpec.OPTIMIZE_PKS: optimize_pks,
+            MigSpec.PROCESS_INDEXES: process_indexes,
+            MigSpec.PROCESS_VIEWS: process_views,
+            MigSpec.REFLECT_FILETYPE: reflect_filetype,
+            MigSpec.RELAX_REFLECTION: relax_reflection,
+            MigSpec.REMOVE_CTRLCHARS: remove_ctrlschars,
+            MigSpec.TO_SCHEMA: to_schema,
+            MigSpec.SKIP_NONEMPTY: skip_nonempty
+        }
 
 
 def __assert_override_columns(input_params: dict[str, str],
