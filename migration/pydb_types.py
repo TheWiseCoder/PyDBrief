@@ -605,11 +605,9 @@ def migrate_column(source_rdbms: DbEngine,
                                                                           errors=errors,
                                                                           logger=logger)
             if metadata:
-                fk_type: Any = name_to_type(type_name=metadata[0],
-                                            rdbms=target_rdbms)
-                if fk_type:
-                    type_equiv = fk_type.__class__
-                else:
+                type_equiv = name_to_type(type_name=metadata[0],
+                                          rdbms=target_rdbms)
+                if not type_equiv:
                     warn_msg: str = msg + f" type '{metadata[0]}' of FK '{fk_column.name}' not mapped"
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
