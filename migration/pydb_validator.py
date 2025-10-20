@@ -125,7 +125,7 @@ def validate_rdbms(input_params: dict[str, Any],
                           logger=logger)
         else:
             # 145: Invalid, inconsistent, or missing arguments
-            errors.append(validate_format_error(error_id=145))
+            errors.append(validate_format_error(145))
 
 
 def validate_s3(input_params: dict[str, Any],
@@ -182,7 +182,7 @@ def validate_s3(input_params: dict[str, Any],
                 session_registry[engine][S3Config.REGION_NAME] = region_name
         else:
             # 145: Invalid, inconsistent, or missing arguments
-            errors.append(validate_format_error(error_id=145))
+            errors.append(validate_format_error(145))
 
 
 def validate_metrics(input_params: dict[str, Any],
