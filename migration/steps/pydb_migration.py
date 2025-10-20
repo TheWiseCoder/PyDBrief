@@ -8,7 +8,7 @@ from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index, Constraint,
     CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause, TextClause,
-    text, inspect
+    inspect, text
 )
 from sqlalchemy.sql.elements import Type
 from sys import exc_info
@@ -345,7 +345,7 @@ def setup_columns(target_columns: Iterable[Column],
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
                 if not default_conv:
-                    warn_msg: str = (f"Unable to convert default value '{default_val}' "
+                    warn_msg: str = (f"Unable to convert the default value '{default_val}' "
                                      f"for column {target_column.table.name}.{target_column.name}")
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
