@@ -7,12 +7,12 @@ from pypomes_db import (
 from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index, Constraint,
-    CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause,
+    CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause, TextClause,
     text, inspect
 )
 from sqlalchemy.sql.elements import Type
 from sys import exc_info
-from typing import Any
+from typing import Any, cast
 
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column
@@ -338,8 +338,9 @@ def setup_columns(target_columns: Iterable[Column],
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default:
-                default_orig: str = str(target_column.server_default)
-                default_conv: str = db_convert_default(value=default_orig,
+                default_orig: Any = cast(DefaultClause, target_column.server_default).arg
+                default_val: str = default_orig.text if isinstance(default_orig, TextClause) else str(default_orig)
+                default_conv: str = db_convert_default(value=default_val,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
                 if default_conv != default_orig:
