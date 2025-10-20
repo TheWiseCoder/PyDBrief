@@ -344,7 +344,9 @@ def setup_columns(target_columns: Iterable[Column],
                 default_conv: str = db_convert_default(value=default_val,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
-                if default_conv != default_val:
+                if not default_conv:
+                    target_column.server_default = None
+                elif default_conv != default_val:
                     target_column.server_default = DefaultClause(arg=text(default_conv))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
