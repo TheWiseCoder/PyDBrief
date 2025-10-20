@@ -7,7 +7,7 @@ from pypomes_db import (
 from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index, Constraint,
-    CheckConstraint, ForeignKey, ForeignKeyConstraint, FetchedValue,
+    CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause,
     text, inspect
 )
 from sqlalchemy.sql.elements import Type
@@ -338,12 +338,12 @@ def setup_columns(target_columns: Iterable[Column],
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default:
-                default_orig: str = cast(target_column.server_default, text).text
+                default_orig: str = cast(target_column.server_default, DefaultClause).arg
                 default_conv: str = db_convert_default(value=default_orig,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
                 if default_conv != default_orig:
-                    target_column.server_default = cast(FetchedValue, text(default_conv))
+                    target_column.server_default = DefaultClause(text(default_conv))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))
