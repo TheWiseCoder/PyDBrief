@@ -345,6 +345,10 @@ def setup_columns(target_columns: Iterable[Column],
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
                 if not default_conv:
+                    warn_msg: str = (f"Unable to convert default value '{default_val}' "
+                                     f"for column {target_column.table.name}.{target_column.name}")
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
                     target_column.server_default = None
                 elif default_conv != default_val:
                     target_column.server_default = DefaultClause(arg=text(default_conv))
