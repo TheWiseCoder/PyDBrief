@@ -1,15 +1,18 @@
 from collections.abc import Iterable
 from logging import Logger
 from pypomes_core import exc_format, str_sanitize, validate_format_error
-from pypomes_db import DbEngine, db_drop_table, db_drop_view
+from pypomes_db import (
+    DbEngine, db_drop_table, db_drop_view, db_convert_default
+)
 from pypomes_s3 import S3Engine
 from sqlalchemy import (
-    Engine, Inspector, MetaData, Table, Column, Index,
-    Constraint, CheckConstraint, ForeignKey, ForeignKeyConstraint, inspect
+    Engine, Inspector, MetaData, Table, Column, Index, Constraint,
+    CheckConstraint, ForeignKey, ForeignKeyConstraint, FetchedValue,
+    text, inspect
 )
 from sqlalchemy.sql.elements import Type
 from sys import exc_info
-from typing import Any
+from typing import Any, cast
 
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column
@@ -327,22 +330,20 @@ def setup_columns(target_columns: Iterable[Column],
 
             # set column's new type
             target_column.type = target_type
-            # adjust column's nullability
+
+            # set LOB column's nullability
             if hasattr(target_column, "nullable") and \
                is_lob_column(col_type=str(target_column.type)):
                 target_column.nullable = True
 
-            # remove the server default value
-            if hasattr(target_column, "server_default"):
-                target_column.server_default = None
-
-            # convert the default value - TODO: write a decent default value conversion function
-            if hasattr(target_column, "default") and \
-               target_column.default in ["sysdate", "systime"]:
-                target_column.default = None
-                # target_column.default = db_convert_default(value=target_column.default,
-                #                                            source_engine=source_rdbms,
-                #                                            target_engine=target_rdbms)
+            # convert column's default value
+            if hasattr(target_column, "server_default") and target_column.server_default:
+                default_orig: str = cast(target_column.server_default, text).text
+                default_conv: str = db_convert_default(value=default_orig,
+                                                       source_engine=source_rdbms,
+                                                       target_engine=target_rdbms)
+                if default_conv != default_orig:
+                    target_column.server_default = cast(FetchedValue, text(default_conv))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))

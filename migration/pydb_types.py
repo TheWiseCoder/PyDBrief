@@ -551,8 +551,7 @@ def migrate_column(source_rdbms: DbEngine,
     result: Any = None
 
     # retrieve needed properties and define specific features
-    col_type_class: Type = ref_column.type.__class__
-    col_type_obj: Any = ref_column.type
+    type_original: Any = ref_column.type
     is_pk: bool = (hasattr(ref_column, "primary_key") and
                    ref_column.primary_key) or False
     is_fk: bool = (hasattr(ref_column, "foreign_keys") and
@@ -560,14 +559,14 @@ def migrate_column(source_rdbms: DbEngine,
                    len(ref_column.foreign_keys) > 0)
     is_identity: bool = (hasattr(ref_column, "identity") and
                          ref_column.identity) or False
-    is_numeric: bool = col_type_class in NUMERIC_TYPES
+    is_numeric: bool = type_original.__class__ in NUMERIC_TYPES
     is_numeric_int: bool = (is_numeric and
-                            hasattr(col_type_obj, "asdecimal") and
-                            not col_type_obj.asdecimal)
-    numeric_precision: int = (col_type_obj.precision
-                              if is_numeric and hasattr(col_type_obj, "precision") else None)
+                            hasattr(type_original, "asdecimal") and
+                            not type_original.asdecimal)
+    numeric_precision: int = (type_original.precision
+                              if is_numeric and hasattr(type_original, "precision") else None)
     # base message
-    msg: str = (f"Rdbms {target_rdbms}, type {col_type_obj} in "
+    msg: str = (f"Rdbms {target_rdbms}, type {type_original} in "
                 f"{ref_column.table.fullname}.{ref_column.name}")
 
     # PostgreSQL does not accept value other than '1' in 'CACHE' clause, at table creation time
@@ -612,7 +611,7 @@ def migrate_column(source_rdbms: DbEngine,
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
         if errors:
-            warn_msg: str = f"{msg} - unable to inspect FK '{fk_column.name}': {";".join(errors)}"
+            warn_msg: str = f"{msg} - unable to inspect FK '{fk_column.name}': {';'.join(errors)}"
             migration_warnings.append(warn_msg)
             logger.warning(msg=warn_msg)
             errors.clear()
@@ -625,14 +624,14 @@ def migrate_column(source_rdbms: DbEngine,
 
         # inspect the native equivalences first
         for nat_equivalence in nat_equivalences:
-            if isinstance(col_type_obj, nat_equivalence[0]):
+            if isinstance(type_original, nat_equivalence[0]):
                 type_equiv = nat_equivalence[native_ordinal]
                 break
 
         # inspect the reference equivalences next
         if not type_equiv:
             for ref_equivalence in REF_EQUIVALENCES:
-                if isinstance(col_type_obj, ref_equivalence[0]):
+                if isinstance(type_original, ref_equivalence[0]):
                     type_equiv = ref_equivalence[reference_ordinal]
                     break
 
@@ -666,16 +665,16 @@ def migrate_column(source_rdbms: DbEngine,
         logger.debug(msg=f"{msg} converted to {result}")
 
         # wrap-up the type migration
-        if hasattr(col_type_obj, "length") and hasattr(result, "length"):
-            result.length = col_type_obj.length
-        if hasattr(col_type_obj, "asdecimal") and hasattr(result, "asdecimal"):
-            result.asdecimal = col_type_obj.asdecimal
-        if hasattr(col_type_obj, "precision") and hasattr(result, "precision"):
-            result.precision = col_type_obj.precision
-        if hasattr(col_type_obj, "scale") and hasattr(result, "scale"):
-            result.scale = col_type_obj.scale
-        if hasattr(col_type_obj, "timezone") and hasattr(result, "timezone"):
-            result.timezone = col_type_obj.timezone
+        if hasattr(type_original, "length") and hasattr(result, "length"):
+            result.length = type_original.length
+        if hasattr(type_original, "asdecimal") and hasattr(result, "asdecimal"):
+            result.asdecimal = type_original.asdecimal
+        if hasattr(type_original, "precision") and hasattr(result, "precision"):
+            result.precision = type_original.precision
+        if hasattr(type_original, "scale") and hasattr(result, "scale"):
+            result.scale = type_original.scale
+        if hasattr(type_original, "timezone") and hasattr(result, "timezone"):
+            result.timezone = type_original.timezone
     else:
         msg += " - unable to obtain a type equivalence"
         errors.append(msg)
