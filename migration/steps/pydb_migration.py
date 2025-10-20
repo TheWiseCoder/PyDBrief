@@ -339,11 +339,12 @@ def setup_columns(target_columns: Iterable[Column],
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default:
                 default_orig: Any = cast(DefaultClause, target_column.server_default).arg
-                default_val: str = default_orig.text if isinstance(default_orig, TextClause) else str(default_orig)
+                default_val: str = default_orig.text \
+                    if isinstance(default_orig, TextClause) else str(default_orig)
                 default_conv: str = db_convert_default(value=default_val,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
-                if default_conv != default_orig:
+                if default_conv != default_val:
                     target_column.server_default = DefaultClause(arg=text(default_conv))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
