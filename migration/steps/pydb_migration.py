@@ -343,7 +343,7 @@ def setup_columns(target_columns: Iterable[Column],
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
                 if default_conv != default_orig:
-                    target_column.server_default = DefaultClause(text(default_conv))
+                    target_column.server_default = DefaultClause(arg=text(default_conv))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))
