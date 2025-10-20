@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql.elements import Type
 from sys import exc_info
-from typing import Any, cast
+from typing import Any
 
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column
@@ -338,7 +338,7 @@ def setup_columns(target_columns: Iterable[Column],
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default:
-                default_orig: str = cast(target_column.server_default, DefaultClause).arg
+                default_orig: str = str(target_column.server_default)
                 default_conv: str = db_convert_default(value=default_orig,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
