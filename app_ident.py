@@ -7,4 +7,4 @@ os.environ["PYDB_VALIDATION_MSG_PREFIX"] = ""
 
 # establish the app's name and current version
 APP_NAME: str = "PyDBrief"
-APP_VERSION: Final[str] = "2.0.4"
+APP_VERSION: Final[str] = "2.0.5"
