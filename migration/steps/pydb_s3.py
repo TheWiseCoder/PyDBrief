@@ -70,13 +70,12 @@ def s3_migrate_lobs(session_id: str,
     metadata: dict[str, str] = {}
     first_chunk: bool = True
 
-    # get data from the LOB streamer as follows:
+    # get data from the LOB streamer Generator as follows:
     #   - 'row_data' hold the streamed data (LOB identification or LOB payload)
     #   - a 'dict' identifying the LOB is sent (flagged by 'first_chunk')
     #   - if the LOB is null, one null payload follows, terminating the LOB
     #   - if the LOB is empty, one empty and one null payload follow in sequence, terminating the LOB
     #   - if the LOB has data, multiple payloads follow, until a null payload terminates the LOB
-    # noinspection PyTypeChecker
     for row_data in db_stream_lobs(table=source_table,
                                    lob_column=lob_column,
                                    pk_columns=pk_columns,
@@ -143,8 +142,17 @@ def s3_migrate_lobs(session_id: str,
                 # has filetype reflection been specified ?
                 if not mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
                     # yes, determine LOB's mimetype and file extension
-                    mimetype = file_get_mimetype(file_data=lob_data)
-                    extension = file_get_extension(mimetype=mimetype)
+                    # temporary:
+                    #   PureMagic raises an exception when it cannot identify the file
+                    #   to be fixed in 'pypomes-core'
+                    from contextlib import suppress
+                    with suppress(Exception):
+                        mimetype = file_get_mimetype(file_data=lob_data)
+                    if mimetype:
+                        extension = file_get_extension(mimetype=mimetype)
+                    else:
+                        mimetype = Mimetype.BINARY
+                        extension = ".bin"
                 # add extension
                 if extension:
                     identifier += extension
