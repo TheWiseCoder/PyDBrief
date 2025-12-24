@@ -142,8 +142,7 @@ def synchronize_lobs(session_id: str,
                 table_count: int = db_count(table=source_table,
                                             where_clause=where_clause,
                                             engine=source_db,
-                                            errors=errors,
-                                            logger=logger) or 0
+                                            errors=errors) or 0
                 if table_count > 0:
                     warn_msg: str = ("Expecting an index to exist on column "
                                      f"{source_db}.{source_table}.{reference_column}")
@@ -181,8 +180,7 @@ def synchronize_lobs(session_id: str,
                                            s3_engine=target_s3,
                                            offset_count=channel_data[0][0],
                                            limit_count=channel_data[0][1],
-                                           lob_prefix=lob_prefix,
-                                           logger=logger)
+                                           lob_prefix=lob_prefix)
                     else:
                         target: str = f"S3 storage '{target_s3}'" \
                             if target_s3 else f"{target_db}.{target_table}.{lob_column}"
@@ -202,8 +200,7 @@ def synchronize_lobs(session_id: str,
                                                                  s3_engine=target_s3,
                                                                  lob_prefix=lob_prefix,
                                                                  offset_count=channel_datum[0],
-                                                                 limit_count=channel_datum[1],
-                                                                 logger=logger)
+                                                                 limit_count=channel_datum[1])
                                 task_futures.append(future)
 
                             # wait for all task futures to complete, then shutdown down the executor
@@ -304,8 +301,7 @@ def synchronize_lobs(session_id: str,
                     list_prune_duplicates(target=lob_deletes,
                                           is_sorted=True)
                     s3_items_remove(identifiers=lob_deletes,
-                                    errors=errors,
-                                    logger=logger)
+                                    errors=errors)
     with lob_ctrl.lobdata_lock:
         migration_threads.extend(lob_ctrl.lobdata_register[mother_thread]["child-threads"])
         lob_ctrl.lobdata_register.pop(mother_thread)
@@ -320,8 +316,7 @@ def _compute_lob_lists(mother_thread: int,
                        s3_engine: S3Engine,
                        lob_prefix: Path,
                        offset_count: int,
-                       limit_count: int,
-                       logger: Logger) -> None:
+                       limit_count: int) -> None:
 
     # register the operation thread (might be same as the mother thread)
     with lob_ctrl.lobdata_lock:
@@ -336,16 +331,14 @@ def _compute_lob_lists(mother_thread: int,
     # obtain an S3 client
     errors: list[str] = []
     s3_client: Any = s3_get_client(engine=s3_engine,
-                                   errors=errors,
-                                   logger=logger)
+                                   errors=errors)
     if not errors:
         db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
                                                where_clause=where_clause,
                                                orderby_clause=reference_column,
                                                offset_count=offset_count,
                                                limit_count=limit_count,
-                                               errors=errors,
-                                               logger=logger)
+                                               errors=errors)
         if not errors:
             lobs_db_names = [db_item[0] for db_item in db_items]
             lob_count = len(lobs_db_names)
@@ -357,8 +350,7 @@ def _compute_lob_lists(mother_thread: int,
                                                             max_count=limit_count,
                                                             client=s3_client,
                                                             start_after=start_after,
-                                                            errors=errors,
-                                                            logger=logger)
+                                                            errors=errors)
             if not errors:
                 for s3_item in s3_items:
                     full_name = s3_item.get("Key")

@@ -7,12 +7,12 @@ from pypomes_core import (
     validate_str, validate_strs, validate_format_error
 )
 from pypomes_db import (
-    DbEngine, DbParam, db_setup,
+    DbEngine, DbParam, db_setup, db_set_logger,
     db_assert_access, db_get_param, db_get_engines
 )
 from pypomes_http import HttpMethod
 from pypomes_s3 import (
-    S3Engine, S3Param, s3_setup,
+    S3Engine, S3Param, s3_setup, s3_set_logger,
     s3_startup, s3_get_param, s3_get_engines
 )
 from sqlalchemy.sql.elements import Type
@@ -104,6 +104,9 @@ def validate_rdbms(input_params: dict[str, Any],
                     db_pwd=db_pwd,
                     db_client=db_client,
                     db_driver=db_driver):
+            # establish the logger
+            db_set_logger(engine=db_engine,
+                          logger=logger)
             # add DB specs to registry
             session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[db_engine] = {
@@ -121,8 +124,7 @@ def validate_rdbms(input_params: dict[str, Any],
                 session_registry[db_engine][DbConfig.DRIVER] = db_driver
             # build the connection pool
             db_pool_setup(rdbms=db_engine,
-                          errors=errors,
-                          logger=logger)
+                          errors=errors)
         else:
             # 145: Invalid, inconsistent, or missing arguments
             errors.append(validate_format_error(145))
@@ -130,7 +132,8 @@ def validate_rdbms(input_params: dict[str, Any],
 
 def validate_s3(input_params: dict[str, Any],
                 session_id: str,
-                errors: list[str]) -> None:
+                errors: list[str],
+                logger: Logger) -> None:
 
     engine: S3Engine = validate_enum(source=input_params,
                                      attr=S3Config.ENGINE,
@@ -167,6 +170,9 @@ def validate_s3(input_params: dict[str, Any],
                     secret_key=secret_key,
                     region_name=region_name,
                     secure_access=secure_access):
+            # establish the logger
+            s3_set_logger(engine=engine,
+                          logger=logger)
             # add S3 specs to registry
             session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[engine] = {
@@ -261,8 +267,7 @@ def validate_metrics(input_params: dict[str, Any],
 
 def validate_spots(input_params: dict[str, str],
                    session_id: str,
-                   errors: list[str],
-                   logger: Logger) -> None:
+                   errors: list[str]) -> None:
 
     # obtain the session registry
     session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
@@ -318,8 +323,7 @@ def validate_spots(input_params: dict[str, str],
         # verify source database runtime access
         if from_rdbms and not session_registry[from_rdbms].get(DbConfig.VERSION):
             if db_assert_access(engine=from_rdbms,
-                                errors=errors,
-                                logger=logger):
+                                errors=errors):
                 session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                               engine=from_rdbms)
             else:
@@ -330,8 +334,7 @@ def validate_spots(input_params: dict[str, str],
         # verify target database runtime access
         if to_rdbms and not session_registry[to_rdbms].get(DbConfig.VERSION):
             if db_assert_access(engine=to_rdbms,
-                                errors=errors,
-                                logger=logger):
+                                errors=errors):
                 session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
                                                                               engine=to_rdbms)
             else:

@@ -8,14 +8,12 @@ from typing import Literal
 
 
 def db_pool_setup(rdbms: DbEngine,
-                  errors: list[str],
-                  logger: Logger) -> None:
+                  errors: list[str]) -> None:
 
     pool: DbConnectionPool = db_get_pool(engine=rdbms)
     if not pool:
-        pool = DbConnectionPool(engine=rdbms,
-                                errors=errors,
-                                logger=logger)
+        pool = DbConnectionPool(rdbms,
+                                errors=errors)
         if not errors:
             stmts: list[str] = []
             # fine-tune all database sessions, as needed
@@ -48,8 +46,7 @@ def schema_create(schema: str,
         stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
     db_execute(exc_stmt=stmt,
                engine=rdbms,
-               errors=errors,
-               logger=logger)
+               errors=errors)
 
     logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
 
@@ -57,8 +54,7 @@ def schema_create(schema: str,
 def column_set_nullable(rdbms: DbEngine,
                         table: str,
                         column: str,
-                        errors: list[str],
-                        logger: Logger) -> None:
+                        errors: list[str]) -> None:
 
     # build the statement
     alter_stmt: str | None = None
@@ -74,8 +70,7 @@ def column_set_nullable(rdbms: DbEngine,
     # execute it
     db_execute(exc_stmt=alter_stmt,
                engine=rdbms,
-               errors=errors,
-               logger=logger)
+               errors=errors)
 
 
 def view_get_ddl(view_name: str,
@@ -90,8 +85,7 @@ def view_get_ddl(view_name: str,
     result: str = db_get_view_ddl(view_type=view_type,
                                   view_name=f"{source_schema}.{view_name}",
                                   engine=source_rdbms,
-                                  errors=errors,
-                                  logger=logger)
+                                  errors=errors)
     if result:
         # script has been retrieved, create the view in the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\

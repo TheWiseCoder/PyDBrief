@@ -79,8 +79,7 @@ def synchronize_plain(migration_threads: list[int],
                                                     identity_column=identity_column,
                                                     batch_size=batch_size_in,
                                                     has_nulls=has_nulls,
-                                                    errors=op_errors,
-                                                    logger=logger) or (0, 0, 0)
+                                                    errors=op_errors) or (0, 0, 0)
         deletes: int = counts[0]
         inserts: int = counts[1]
         updates: int = counts[2]

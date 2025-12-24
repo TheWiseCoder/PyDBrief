@@ -268,7 +268,8 @@ def service_s3(engine: str = None) -> Response:
             # configure the S3 service
             validate_s3(input_params=input_params,
                         session_id=session_id,
-                        errors=errors)
+                        errors=errors,
+                        logger=PYPOMES_LOGGER)
             if not errors:
                 engine = input_params.get(S3Config.ENGINE)
                 reply = {"status": f"S3 '{engine}' configuration updated"}
@@ -402,8 +403,7 @@ def service_migration() -> Response:
                 # assert whether migration is warranted
                 validate_spots(input_params=input_params,
                                session_id=session_id,
-                               errors=errors,
-                               logger=PYPOMES_LOGGER)
+                               errors=errors)
                 # errors ?
                 if errors:
                     # yes, report the problem
@@ -557,8 +557,7 @@ def migrate_data(session_id: str,
     # validate the migration spots
     validate_spots(input_params=input_params,
                    session_id=session_id,
-                   errors=errors,
-                   logger=PYPOMES_LOGGER)
+                   errors=errors)
 
     # validate the migration steps
     validate_steps(input_params=input_params,

@@ -163,16 +163,14 @@ def setup_schema(target_rdbms: DbEngine,
             db_drop_view(view_name=table_name,
                          view_type="M" if target_view in mat_views else "P",
                          engine=target_rdbms,
-                         errors=errors,
-                         logger=logger)
+                         errors=errors)
 
         # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
             table_name: str = f"{target_schema}.{target_table.name}"
             db_drop_table(table_name=table_name,
                           engine=target_rdbms,
-                          errors=errors,
-                          logger=logger)
+                          errors=errors)
     else:
         # no, create the target schema
         op_errors: list[str] = []

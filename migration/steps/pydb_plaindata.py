@@ -97,8 +97,7 @@ def migrate_plain(session_id: str,
         # verify whether the target table exists
         if db_table_exists(table_name=target_table,
                            engine=target_engine,
-                           errors=errors,
-                           logger=logger):
+                           errors=errors):
             # obtain limit and offset
             limit_count: int = 0
             offset_count: int = 0
@@ -110,8 +109,7 @@ def migrate_plain(session_id: str,
             if (session_specs[MigSpec.SKIP_NONEMPTY] and
                     not limit_count and (db_count(table=target_table,
                                                   engine=target_engine,
-                                                  errors=errors,
-                                                  logger=logger) or 0) > 0):
+                                                  errors=errors) or 0) > 0):
                 # yes, skip it
                 logger.debug(msg=f"Skipped nonempty {target_engine}.{target_table}")
                 table_data["plain-status"] = "skipped"
@@ -125,8 +123,7 @@ def migrate_plain(session_id: str,
                 # count migrateable tuples on source table
                 table_count: int = (db_count(table=source_table,
                                              engine=source_engine,
-                                             errors=errors,
-                                             logger=logger) or 0) - offset_count
+                                             errors=errors) or 0) - offset_count
                 if table_count > 0:
                     identity_column: str | None = None
                     orderby_columns: list[str] = []
@@ -186,8 +183,7 @@ def migrate_plain(session_id: str,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
-                                       has_ctrlchars=has_ctrlchars,
-                                       logger=logger)
+                                       has_ctrlchars=has_ctrlchars)
                     else:
                         logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
@@ -211,8 +207,7 @@ def migrate_plain(session_id: str,
                                                                  identity_column=identity_column,
                                                                  batch_size_in=batch_size_in,
                                                                  batch_size_out=batch_size_out,
-                                                                 has_ctrlchars=has_ctrlchars,
-                                                                 logger=logger)
+                                                                 has_ctrlchars=has_ctrlchars)
                                 task_futures.append(future)
 
                             # wait for all task futures to complete, then shutdown down the executor
@@ -277,8 +272,7 @@ def _migrate_plain(mother_thread: int,
                    identity_column: str,
                    batch_size_in: int,
                    batch_size_out: int,
-                   has_ctrlchars: bool,
-                   logger: Logger) -> None:
+                   has_ctrlchars: bool) -> None:
 
     # register the operation thread (might be same as mother thread)
     with _plaindata_lock:
@@ -298,8 +292,7 @@ def _migrate_plain(mother_thread: int,
                                  batch_size_in=batch_size_in,
                                  batch_size_out=batch_size_out,
                                  has_ctrlchars=has_ctrlchars,
-                                 errors=errors,
-                                 logger=logger)
+                                 errors=errors)
     with _plaindata_lock:
         if errors:
             _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)

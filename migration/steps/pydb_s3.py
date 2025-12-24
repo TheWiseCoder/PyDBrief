@@ -87,8 +87,7 @@ def s3_migrate_lobs(session_id: str,
                                    offset_count=offset_count,
                                    limit_count=limit_count,
                                    chunk_size=chunk_size,
-                                   errors=errors,
-                                   logger=logger):
+                                   errors=errors):
 
         # verify whether current migration is marked for abortion
         if errors or assert_session_abort(session_id=session_id,

@@ -601,8 +601,7 @@ def migrate_column(source_rdbms: DbEngine,
             metadata: tuple[str, int, int, bool] = db_get_column_metadata(table_name=fk_column.table.fullname,
                                                                           column_name=fk_column.name,
                                                                           engine=target_rdbms,
-                                                                          errors=errors,
-                                                                          logger=logger)
+                                                                          errors=errors)
             if metadata:
                 type_equiv = name_to_type(type_name=metadata[0],
                                           rdbms=target_rdbms)

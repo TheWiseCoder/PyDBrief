@@ -205,8 +205,7 @@ def migrate_metadata(session_id: str,
                                                                     table=f"{session_specs[MigSpec.TO_SCHEMA]}."
                                                                           f"{target_table.name}",
                                                                     column=name,
-                                                                    errors=errors,
-                                                                    logger=logger)
+                                                                    errors=errors)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err = str_sanitize(exc_format(exc=e,
@@ -228,8 +227,7 @@ def migrate_metadata(session_id: str,
                                 if view_ddl:
                                     db_execute(exc_stmt=view_ddl,
                                                engine=session_spots[MigSpot.TO_RDBMS],
-                                               errors=op_errors,
-                                               logger=logger)
+                                               errors=op_errors)
                                 # errors ?
                                 if op_errors:
                                     # yes, report them

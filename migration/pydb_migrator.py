@@ -118,8 +118,7 @@ def migrate(session_id: str,
                                                                    else session_spots[MigSpot.TO_RDBMS]),
                                                      target_schema=session_specs[MigSpec.TO_SCHEMA],
                                                      inc_size=session_metrics.get(MigMetric.INCREMENTAL_SIZE),
-                                                     errors=errors,
-                                                     logger=logger)
+                                                     errors=errors)
         # migrate the plain data
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
@@ -261,8 +260,7 @@ def __establish_increments(migrating_tables: list[str],
                            target_rdbms: DbEngine | None,
                            target_schema: str,
                            inc_size: int,
-                           errors: list[str],
-                           logger: Logger) -> dict[str, dict[MigIncremental, int]]:
+                           errors: list[str]) -> dict[str, dict[MigIncremental, int]]:
 
     result = incr_migrations.copy()
 
@@ -281,8 +279,7 @@ def __establish_increments(migrating_tables: list[str],
                     offset = db_count(table=f"{target_schema}.{key}",
                                       engine=target_rdbms,
                                       committable=True,
-                                      errors=errors,
-                                      logger=logger)
+                                      errors=errors)
                     if errors:
                         break
                 else:
