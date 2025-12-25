@@ -138,15 +138,9 @@ def s3_migrate_lobs(session_id: str,
             if lob_data is None:
                 logger.warning(f"Attempted to migrate empty LOB '{identifier}'")
             else:
-                # has filetype reflection been specified ?
+                # determine LOB's mimetype and file extension
                 if not mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
-                    # yes, determine LOB's mimetype and file extension
-                    # temporary:
-                    #   PureMagic raises an exception when it cannot identify the file
-                    #   to be fixed in 'pypomes-core'
-                    from contextlib import suppress
-                    with suppress(Exception):
-                        mimetype = file_get_mimetype(file_data=lob_data)
+                    mimetype = file_get_mimetype(file_data=lob_data)
                     if mimetype:
                         extension = file_get_extension(mimetype=mimetype)
                     else:
@@ -167,7 +161,7 @@ def s3_migrate_lobs(session_id: str,
                 reply: dict[str, Any] = s3_data_store(identifier=identifier,
                                                       data=lob_data,
                                                       length=len(lob_data),
-                                                      mimetype=mimetype or Mimetype.BINARY,
+                                                      mimetype=mimetype,
                                                       tags=metadata,
                                                       prefix=lob_prefix,
                                                       engine=target_s3,

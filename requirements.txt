@@ -7,14 +7,12 @@ minio==7.2.20
 mysql-connector-python==9.5.0
 oracledb==3.4.1
 psycopg2-binary==2.9.11
-pycryptodome==3.23.0
 pyodbc==5.3.0
 pypomes_core==2.9.4
 pypomes_db==2.8.7
 pypomes_http==0.8.1
 pypomes_logging==0.7.3
 pypomes_s3==1.0.6
-python-dateutil==2.9.0
 SQLAlchemy==2.0.45
 URLObject==3.0.0
 Werkzeug==3.1.4
