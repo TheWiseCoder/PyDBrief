@@ -110,7 +110,12 @@ def service_version() -> Response:
 
     # retrieve the versions
     versions: dict[str, Any] = {
-        APP_NAME: APP_VERSION,
+        APP_NAME: {
+            "version": APP_VERSION,
+            "base-url": f"{request.scheme}://{request.host}",
+            "requester": request.headers.get("X-Forwarded-For",
+                                             request.remote_addr)
+        },
         "foundations": pypomes_versions()
     }
     # assign to the return variable
@@ -484,6 +489,9 @@ def service_migrate(session_id: str = None) -> Response:
         if request.method == HttpMethod.POST:
             reply = migrate_data(session_id=session_id,
                                  input_params=input_params,
+                                 base_url=f"{request.scheme}://{request.host}",
+                                 requester=request.headers.get("X-Forwarded-For",
+                                                               request.remote_addr),
                                  errors=errors)
         elif abort_session_migration(session_id=session_id,
                                      errors=errors):
@@ -503,6 +511,8 @@ def service_migrate(session_id: str = None) -> Response:
 
 def migrate_data(session_id: str,
                  input_params: dict[str, Any],
+                 base_url: str,
+                 requester: str,
                  errors: list[str]) -> dict[str, Any]:
     """
     Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
@@ -548,6 +558,8 @@ def migrate_data(session_id: str,
 
     :param session_id: the session identification
     :param input_params: the input parameters
+    :param base_url: PyDBrief's base access address
+    :param requester: origin of the reuest
     :param errors: incidental errors
     :return: *Response* with the operation outcome
     """
@@ -579,6 +591,8 @@ def migrate_data(session_id: str,
         # yes, migrate the data
         result = migrate(session_id=session_id,
                          app_name=APP_NAME,
+                         base_url=base_url,
+                         requester=requester,
                          app_version=APP_VERSION,
                          errors=errors,
                          logger=PYPOMES_LOGGER)

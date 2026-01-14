@@ -35,6 +35,8 @@ from migration.steps.pydb_sync_plaindata import synchronize_plain
 def migrate(session_id: str,
             app_name: str,
             app_version: str,
+            base_url: str,
+            requester: str,
             errors: list[str],
             logger: Logger) -> dict[str, Any]:
 
@@ -56,7 +58,11 @@ def migrate(session_id: str,
     # initialize the return variable
     result: dict[StrEnum | str, Any] = {
         "colophon": {
-            app_name: app_version,
+            app_name: {
+                "version": app_version,
+                "base-url": base_url,
+                "requester": requester
+            },
             "foundations": pypomes_versions()
         },
         MigSpec.SESSION_ID: session_id,
