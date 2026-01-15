@@ -53,3 +53,13 @@ $ find / -name site-packages
 
 # list Python's packages (usually in /usr/local/lib/python<x.xx>/site-packages)
 $ ls -l <path-for-site-packages>
+
+# to create a docker image, the following symbols must have been defined
+#   in the host environment as:
+      PYDB_REGISTRY_DOCKER=/pydbrief
+      PYDB_REGISTRY_HOST=C:\tmp\pydbrief
+#   in the Dockerfile as:
+      ARG PYDB_REGISTRY_DOCKER
+      ENV PYDB_REGISTRY_DOCKER=$PYDB_REGISTRY_DOCKER
+      ARG PYDB_REGISTRY_HOST
+      ENV PYDB_REGISTRY_HOST=$PYDB_REGISTRY_HOST

@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 2.0.3
+  version: 2.0.7
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -346,6 +346,7 @@ paths:
         - $ref: '#/components/parameters/ExcludeConstraintsParam'
         - $ref: '#/components/parameters/ExcludeColumnsParam'
         - $ref: '#/components/parameters/OverrideColumnsParam'
+        - $ref: '#/components/parameters/OmitDefaultsParam'
         - $ref: '#/components/parameters/OptimizePKsParam'
         - $ref: '#/components/parameters/NamedLobdataParam'
         - $ref: '#/components/parameters/MigrationBadgeOptParam'
@@ -1036,6 +1037,17 @@ components:
         items:
           type: string
           example: my_table.my_column=numeric
+    OmitDefaultsParam:
+      name: omit-defaults
+      in: query
+      description: Optional list of table columns for which default values are to be omitted. Column names must be table-qualified (\<table-name\>.\<column-name\>).
+      required: false
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+          example: my_table_1.my_column,my_table_2.my_column
     OptimizePKsParam:
       name: optimize-pks
       in: query
