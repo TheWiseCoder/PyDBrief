@@ -344,25 +344,29 @@ def setup_columns(target_columns: Iterable[Column],
                     target_column.server_default = None
                 else:
                     def_orig: Any = cast(DefaultClause, target_column.server_default).arg
-                    def_val: str = def_orig.text \
+                    def_save: str = def_orig.text \
                         if isinstance(def_orig, TextClause) else str(def_orig)
-                    def_save: str = def_val
-                    # remove control chars in default values (known bug in some older DB engines)
-                    if any(ord(ch) < 32 for ch in def_val):
-                        def_val = "".join(ch if ord(ch) > 31 else "" for ch in def_val)
-                    def_conv: str = db_convert_default(value=def_val,
-                                                       source_engine=source_rdbms,
-                                                       target_engine=target_rdbms)
-                    if def_conv:
-                        def_val = def_conv
-                    else:
-                        warn_msg: str = (f"Unable to convert the default value '{def_val}' "
-                                         f"for column {target_column.table.name}.{target_column.name}")
-                        migration_warnings.append(warn_msg)
-                        logger.warning(msg=warn_msg)
+                    def_val: str = def_save.strip()
+                    if def_val.lower() == "null":
+                        # default 'null' must be set as column property
                         target_column.server_default = None
-                    if def_val != def_save:
-                        target_column.server_default = DefaultClause(arg=text(text=def_val))
+                    else:
+                        # remove control chars in default values (known bug in some older DB engines)
+                        if any(ord(ch) < 32 for ch in def_val):
+                            def_val = "".join(ch if ord(ch) > 31 else "" for ch in def_val)
+                        def_conv: str = db_convert_default(value=def_val,
+                                                           source_engine=source_rdbms,
+                                                           target_engine=target_rdbms)
+                        if def_conv:
+                            def_val = def_conv
+                        else:
+                            warn_msg: str = (f"Unable to convert the default value '{def_val}' "
+                                             f"for column {target_column.table.name}.{target_column.name}")
+                            migration_warnings.append(warn_msg)
+                            logger.warning(msg=warn_msg)
+                            target_column.server_default = None
+                        if def_val != def_save:
+                            target_column.server_default = DefaultClause(arg=text(text=def_val))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))
