@@ -202,6 +202,7 @@ def setup_tables(source_rdbms: DbEngine,
                  target_tables: list[Table],
                  optimize_pks: bool,
                  override_columns: dict[str, Type],
+                 omit_defaults: list[str],
                  step_metadata: bool,
                  migration_warnings: list[str],
                  errors: list[str],
@@ -250,6 +251,8 @@ def setup_tables(source_rdbms: DbEngine,
                           source_rdbms=source_rdbms,
                           target_rdbms=target_rdbms,
                           optimize_pks=optimize_pks,
+                          omit_defaults=[t[t.find(".")+1:] for t in omit_defaults
+                                         if t.startswith(target_table.name + ".")],
                           override_columns=override_columns,
                           migration_warnings=migration_warnings,
                           errors=op_errors,
@@ -306,6 +309,7 @@ def setup_columns(target_columns: Iterable[Column],
                   source_rdbms: DbEngine,
                   target_rdbms: DbEngine,
                   optimize_pks: bool,
+                  omit_defaults: list[str],
                   override_columns: dict[str, Type],
                   migration_warnings: list[str],
                   errors: list[str],
@@ -335,21 +339,31 @@ def setup_columns(target_columns: Iterable[Column],
                 target_column.nullable = True
 
             # convert column's default value
-            if hasattr(target_column, "server_default") and target_column.server_default:
-                default_orig: Any = cast(DefaultClause, target_column.server_default).arg
-                default_val: str = default_orig.text \
-                    if isinstance(default_orig, TextClause) else str(default_orig)
-                default_conv: str = db_convert_default(value=default_val,
+            if hasattr(target_column, "server_default") and target_column.server_default is not None:
+                if target_column in omit_defaults:
+                    target_column.server_default = None
+                else:
+                    def_orig: Any = cast(DefaultClause, target_column.server_default).arg
+                    def_val: str = def_orig.text \
+                        if isinstance(def_orig, TextClause) else str(def_orig)
+                    def_save: str = def_val
+                    # remove control chars in default values (known bug in some older DB engines):
+                    #   ASCII ranges [00, 08] and [14, 31] (range [09, 13] holds HT, LF, VT, FF, and CR)
+                    if any(ord(ch) < 32 and ord(ch) not in range(9, 14) for ch in def_val):
+                        def_val = "".join(ch if ord(ch) > 31 or ord(ch) in range(9, 14) else "" for ch in def_val)
+                    def_conv: str = db_convert_default(value=def_val,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
-                if not default_conv:
-                    warn_msg: str = (f"Unable to convert the default value '{default_val}' "
-                                     f"for column {target_column.table.name}.{target_column.name}")
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
-                    target_column.server_default = None
-                elif default_conv != default_val:
-                    target_column.server_default = DefaultClause(arg=text(default_conv))
+                    if def_conv:
+                        def_val = def_conv
+                    else:
+                        warn_msg: str = (f"Unable to convert the default value '{def_val}' "
+                                         f"for column {target_column.table.name}.{target_column.name}")
+                        migration_warnings.append(warn_msg)
+                        logger.warning(msg=warn_msg)
+                        target_column.server_default = None
+                    if def_val != def_save:
+                        target_column.server_default = DefaultClause(arg=text(text=def_val))
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))

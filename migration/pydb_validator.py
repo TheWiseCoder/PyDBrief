@@ -335,8 +335,8 @@ def validate_spots(input_params: dict[str, str],
         if to_rdbms and not session_registry[to_rdbms].get(DbConfig.VERSION):
             if db_assert_access(engine=to_rdbms,
                                 errors=errors):
-                session_registry[from_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
-                                                                              engine=to_rdbms)
+                session_registry[to_rdbms][DbConfig.VERSION] = db_get_param(key=DbParam.VERSION,
+                                                                            engine=to_rdbms)
             else:
                 # 101: {}
                 errors.append(validate_format_error(101,
@@ -477,6 +477,10 @@ def validate_specs(input_params: dict[str, str],
                                        attr=MigSpec.OPTIMIZE_PKS,
                                        default=True,
                                        errors=errors)
+    omit_defaults: list[str] = [s.lower()
+                                for s in (validate_strs(source=input_params,
+                                                        attr=MigSpec.OMIT_DEFAULTS,
+                                                        errors=errors) or [])]
     remove_ctrlschars: list[str] = [s.lower()
                                     for s in (validate_strs(source=input_params,
                                                             attr=MigSpec.REMOVE_CTRLCHARS,
@@ -523,6 +527,7 @@ def validate_specs(input_params: dict[str, str],
             MigSpec.MIGRATION_BADGE: migration_badge,
             MigSpec.NAMED_LOBDATA: named_lobdata,
             MigSpec.OVERRIDE_COLUMNS: override_columns,
+            MigSpec.OMIT_DEFAULTS: omit_defaults,
             MigSpec.OPTIMIZE_PKS: optimize_pks,
             MigSpec.PROCESS_INDEXES: process_indexes,
             MigSpec.PROCESS_VIEWS: process_views,

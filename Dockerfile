@@ -50,6 +50,7 @@ RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted
 COPY . .
 
 ENV FLASK_APP=app_main.py
+ENV PYPOMES_APP_PREFIX=PYDB
 ENV TZ=America/Sao_Paulo
 
 ENV PYDB_LOGGING_FILEMODE=w
@@ -64,6 +65,9 @@ ARG PYDB_REGISTRY_DOCKER
 ENV PYDB_REGISTRY_DOCKER=$PYDB_REGISTRY_DOCKER
 ARG PYDB_REGISTRY_HOST
 ENV PYDB_REGISTRY_HOST=$PYDB_REGISTRY_HOST
+
+ENV PYDB_VALIDATION_MSG_LANGUAGE=en
+ENV PYDB_VALIDATION_MSG_PREFIX=""
 
 EXPOSE 5000
 CMD ["python", "-m" , "flask", "run", "--host=0.0.0.0", "--port=5000"]

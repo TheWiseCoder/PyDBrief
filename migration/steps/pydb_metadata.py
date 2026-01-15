@@ -54,13 +54,11 @@ def migrate_metadata(session_id: str,
         source_inspector: Inspector = inspect(subject=source_engine,
                                               raiseerr=True)
         for schema_name in source_inspector.get_schema_names():
-            # is this the source schema ?
             if session_specs[MigSpec.FROM_SCHEMA] == schema_name.lower():
-                # yes, use the actual name with its case imprint
+                # use the actual name with its case imprint
                 from_schema = schema_name
                 break
 
-        # proceed, if the source schema exists
         if from_schema:
             # obtain the list of plain and materialized views in source schema
             mat_views: list[str] = [v.lower() for v in source_inspector.get_materialized_view_names()]
@@ -179,6 +177,7 @@ def migrate_metadata(session_id: str,
                                               target_tables=target_tables,
                                               optimize_pks=session_specs[MigSpec.OPTIMIZE_PKS],
                                               override_columns=session_specs[MigSpec.OVERRIDE_COLUMNS] or {},
+                                              omit_defaults=session_specs[MigSpec.OMIT_DEFAULTS] or [],
                                               step_metadata=step_metadata,
                                               migration_warnings=migration_warnings,
                                               errors=errors,
