@@ -364,7 +364,7 @@ def setup_columns(target_columns: Iterable[Column],
                         if def_conv:
                             if def_conv != def_save:
                                 target_column.server_default = DefaultClause(arg=text(text=def_conv))
-                            if def_conv.startswith(".") and def_conv.endswith("."):
+                            if def_conv.startswith("'") and def_conv.endswith("'"):
                                 def_conv = def_val[1:-1]
                             elif str_is_int(def_conv):
                                 def_conv: int = int(def_conv)
