@@ -1,6 +1,9 @@
 from collections.abc import Iterable
 from logging import Logger
-from pypomes_core import exc_format, str_sanitize, validate_format_error
+from pypomes_core import (
+    str_is_int, str_is_float,
+    exc_format, str_sanitize, validate_format_error
+)
 from pypomes_db import (
     DbEngine, db_drop_table, db_drop_view, db_convert_default
 )
@@ -362,6 +365,12 @@ def setup_columns(target_columns: Iterable[Column],
                         if def_conv:
                             if def_conv != def_save:
                                 target_column.server_default = DefaultClause(arg=text(text=def_conv))
+                            if def_conv.startswith(".") and def_conv.endswith("."):
+                                def_conv = def_val[1:-1]
+                            elif str_is_int(def_conv):
+                                def_conv: int = int(def_conv)
+                            elif str_is_float(def_conv):
+                                def_conv: float = float(def_conv)
                             table_display[target_column.name]["default-value"] = def_conv
                         else:
                             warn_msg: str = (f"Unable to convert the default value '{def_val}' "
