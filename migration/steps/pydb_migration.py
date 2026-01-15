@@ -222,7 +222,7 @@ def setup_tables(source_rdbms: DbEngine,
         # initialize the local errors list
         op_errors: list[str] = []
         # build the list of migrated columns for this table
-        table_columns: dict = {}
+        table_display: dict[str, Any] = {}
         # noinspection PyProtectedMember
         # ruff: noqa: SLF001 (checks for accesses on "private" class members)
         columns: Iterable[Column] = target_table._columns
@@ -231,13 +231,13 @@ def setup_tables(source_rdbms: DbEngine,
         s3_columns: list[Column] = []
         for column in columns:
             column_type: str = str(column.type)
-            table_columns[column.name] = {
+            table_display[column.name] = {
                 "source-type": column_type
             }
             # mark LOB column for S3 migration
             if target_s3 and is_lob_column(col_type=column_type):
                 s3_columns.append(column)
-                table_columns[column.name]["target-type"] = target_s3.value
+                table_display[column.name]["target-type"] = target_s3.value
 
         # remove the S3-targeted LOB columns
         for s3_column in s3_columns:
@@ -255,13 +255,13 @@ def setup_tables(source_rdbms: DbEngine,
                                          if t.startswith(target_table.name + ".")],
                           override_columns=override_columns,
                           migration_warnings=migration_warnings,
+                          table_display=table_display,
                           errors=op_errors,
                           logger=logger)
 
         if not op_errors:
             # register the target column properties
             for column in columns:
-                table_columns[column.name]["target-type"] = str(column.type)
                 features: list[str] = []
                 if hasattr(column, "identity") and column.identity:
                     if "identity" in features:
@@ -284,14 +284,14 @@ def setup_tables(source_rdbms: DbEngine,
                 if hasattr(column, "nullable") and column.nullable:
                     features.append("nullable")
                 if features:
-                    table_columns[column.name]["features"] = features
+                    table_display[column.name]["features"] = features
 
         # register the migrated table
         if op_errors:
             errors.extend(op_errors)
         else:
             migrated_table: dict = {
-                "columns": table_columns,
+                "columns": table_display,
                 "plain-count": 0,
                 "plain-duration": "0h0m0s",
                 "plain-status": "none",
@@ -312,6 +312,7 @@ def setup_columns(target_columns: Iterable[Column],
                   omit_defaults: list[str],
                   override_columns: dict[str, Type],
                   migration_warnings: list[str],
+                  table_display: dict[str, Any],
                   errors: list[str],
                   logger: Logger) -> None:
 
@@ -332,6 +333,7 @@ def setup_columns(target_columns: Iterable[Column],
 
             # set column's new type
             target_column.type = target_type
+            table_display[target_column.name]["target-type"] = str(target_column.type)
 
             # set LOB column's nullability
             if hasattr(target_column, "nullable") and \
@@ -367,6 +369,7 @@ def setup_columns(target_columns: Iterable[Column],
                             target_column.server_default = None
                         if def_val != def_save:
                             target_column.server_default = DefaultClause(arg=text(text=def_val))
+                        table_display[target_column.name]["default-value"] = def_val
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))
