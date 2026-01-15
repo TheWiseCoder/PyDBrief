@@ -360,16 +360,15 @@ def setup_columns(target_columns: Iterable[Column],
                                                            source_engine=source_rdbms,
                                                            target_engine=target_rdbms)
                         if def_conv:
-                            def_val = def_conv
+                            if def_conv != def_save:
+                                target_column.server_default = DefaultClause(arg=text(text=def_conv))
+                            table_display[target_column.name]["default-value"] = def_conv
                         else:
                             warn_msg: str = (f"Unable to convert the default value '{def_val}' "
                                              f"for column {target_column.table.name}.{target_column.name}")
                             migration_warnings.append(warn_msg)
                             logger.warning(msg=warn_msg)
                             target_column.server_default = None
-                        if def_val != def_save:
-                            target_column.server_default = DefaultClause(arg=text(text=def_val))
-                        table_display[target_column.name]["default-value"] = def_val
         except Exception as e:
             exc_err = str_sanitize(exc_format(exc=e,
                                               exc_info=exc_info()))
