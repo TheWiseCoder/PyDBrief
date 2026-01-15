@@ -261,7 +261,6 @@ def setup_tables(source_rdbms: DbEngine,
                           table_display=table_display,
                           errors=op_errors,
                           logger=logger)
-
         if not op_errors:
             # register the target column properties
             for column in columns:
