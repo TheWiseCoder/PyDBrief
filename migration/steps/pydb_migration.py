@@ -340,7 +340,7 @@ def setup_columns(target_columns: Iterable[Column],
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
-                if target_column in omit_defaults:
+                if target_column.name in omit_defaults:
                     target_column.server_default = None
                 else:
                     def_orig: Any = cast(DefaultClause, target_column.server_default).arg
