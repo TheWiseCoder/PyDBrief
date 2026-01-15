@@ -347,10 +347,9 @@ def setup_columns(target_columns: Iterable[Column],
                     def_val: str = def_orig.text \
                         if isinstance(def_orig, TextClause) else str(def_orig)
                     def_save: str = def_val
-                    # remove control chars in default values (known bug in some older DB engines):
-                    #   ASCII ranges [00, 08] and [14, 31] (range [09, 13] holds HT, LF, VT, FF, and CR)
-                    if any(ord(ch) < 32 and ord(ch) not in range(9, 14) for ch in def_val):
-                        def_val = "".join(ch if ord(ch) > 31 or ord(ch) in range(9, 14) else "" for ch in def_val)
+                    # remove control chars in default values (known bug in some older DB engines)
+                    if any(ord(ch) < 32 for ch in def_val):
+                        def_val = "".join(ch if ord(ch) > 31 else "" for ch in def_val)
                     def_conv: str = db_convert_default(value=def_val,
                                                        source_engine=source_rdbms,
                                                        target_engine=target_rdbms)
