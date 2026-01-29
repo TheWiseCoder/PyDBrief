@@ -12,7 +12,7 @@ from pypomes_db import (
 )
 from pypomes_http import HttpMethod
 from pypomes_s3 import (
-    S3Engine, S3Param, s3_setup, s3_set_logger,
+    S3Engine, S3Param, s3_setup,  # s3_set_logger,
     s3_startup, s3_get_param, s3_get_engines
 )
 from sqlalchemy.sql.elements import Type
@@ -133,7 +133,7 @@ def validate_rdbms(input_params: dict[str, Any],
 def validate_s3(input_params: dict[str, Any],
                 session_id: str,
                 errors: list[str],
-                logger: Logger) -> None:
+                _logger: Logger) -> None:
 
     engine: S3Engine = validate_enum(source=input_params,
                                      attr=S3Config.ENGINE,
@@ -171,8 +171,8 @@ def validate_s3(input_params: dict[str, Any],
                     region_name=region_name,
                     secure_access=secure_access):
             # establish the logger
-            s3_set_logger(engine=engine,
-                          logger=logger)
+            # s3_set_logger(engine=engine,
+            #               logger=logger)
             # add S3 specs to registry
             session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
             session_registry[engine] = {

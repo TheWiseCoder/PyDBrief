@@ -274,7 +274,7 @@ def service_s3(engine: str = None) -> Response:
             validate_s3(input_params=input_params,
                         session_id=session_id,
                         errors=errors,
-                        logger=PYPOMES_LOGGER)
+                        _logger=PYPOMES_LOGGER)
             if not errors:
                 engine = input_params.get(S3Config.ENGINE)
                 reply = {"status": f"S3 '{engine}' configuration updated"}

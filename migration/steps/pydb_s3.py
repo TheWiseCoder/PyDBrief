@@ -139,10 +139,11 @@ def s3_migrate_lobs(session_id: str,
                 logger.warning(f"Attempted to migrate empty LOB '{identifier}'")
             else:
                 # determine LOB's mimetype and file extension
-                if not mimetype and session_specs[MigSpec.REFLECT_FILETYPE]:
-                    mimetype = file_get_mimetype(file_data=lob_data)
-                    if mimetype:
-                        extension = file_get_extension(mimetype=mimetype)
+                if not mimetype:
+                    if session_specs[MigSpec.REFLECT_FILETYPE]:
+                        mimetype = file_get_mimetype(file_data=lob_data)
+                        if mimetype:
+                            extension = file_get_extension(mimetype=mimetype)
                     else:
                         mimetype = Mimetype.BINARY
                         extension = ".bin"
