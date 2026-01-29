@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from copy import deepcopy
 from enum import StrEnum
@@ -11,7 +12,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from typing import Any, Final
 
-from app_ident import APP_NAME, APP_VERSION  # must be imported before PyPomes and local packages
+from app_ident import APP_NAME, APP_VERSION, get_env_keys  # must be imported before PyPomes and local packages
 from pypomes_core import (
     Mimetype, pypomes_versions, dict_clone, dict_pop_all,
     exc_format, validate_enum, validate_format_errors
@@ -109,6 +110,7 @@ def service_version() -> Response:
     PYPOMES_LOGGER.info(msg=msg)
 
     # retrieve the versions
+    env_keys: list[str] = get_env_keys()
     versions: dict[str, Any] = {
         APP_NAME: {
             "version": APP_VERSION,
@@ -116,7 +118,9 @@ def service_version() -> Response:
             "requester": request.headers.get("X-Forwarded-For",
                                              request.remote_addr)
         },
-        "foundations": pypomes_versions()
+        "foundations": pypomes_versions(),
+        "environment": {key: value for key, value in os.environ.items()
+                        if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
     }
     # assign to the return variable
     result: Response = jsonify(versions)
