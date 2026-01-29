@@ -13,11 +13,11 @@ RELEVANT DOCKER OPERATIONS
 # create an image (optional: '--no-cache'):
   docker build --build-arg PYDB_REGISTRY_DOCKER=%PYDB_REGISTRY_DOCKER% --build-arg PYDB_REGISTRY_HOST=%PYDB_REGISTRY_HOST% -t pydbrief:latest .
 
-# run image locally (optional: '--name pydbrief', '-d' instead of '-it' for detached mode):
+# run image locally (optional: '--name pydbrief', '-it' instead of '-d' for interactive mode):
 #   '--mount type==bind' defines that all file activities in 'target' are duplicated in 'source'
 #     'source': the directory in the host machine
 #     'target': the directory inside the container
-  docker run --memory=24g --mount type=bind,source=%PYDB_REGISTRY_HOST%,target=%PYDB_REGISTRY_DOCKER% -it -p 5000:5000 pydbrief:latest
+  docker run --memory=24g --mount type=bind,source=%PYDB_REGISTRY_HOST%,target=%PYDB_REGISTRY_DOCKER% -d -p 5000:5000 pydbrief:latest
 
 # list running containers (optional: '-a' shows previously running containers):
   docker ps
