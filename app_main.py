@@ -646,7 +646,7 @@ def _build_response(client_id: str,
     result: Response
 
     if errors:
-        reply_err: dict = {"errors": validate_format_errors(errors=errors)}
+        reply_err: dict = {"errors": validate_format_errors(errors)}
         if isinstance(reply, dict):
             reply_err.update(reply)
         result = jsonify(reply_err)
