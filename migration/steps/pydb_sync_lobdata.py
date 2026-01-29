@@ -157,10 +157,10 @@ def synchronize_lobs(session_id: str,
                             f"{reference_column}-s3-full": {}
                         })
                     # obtain an S3 prefix for storing the lobdata
-                    lob_prefix = build_lob_prefix(session_registry=session_registry,
-                                                  target_db=target_db,
-                                                  target_table=target_table,
-                                                  column_name=reference_column)
+                    lob_prefix: Path = build_lob_prefix(session_registry=session_registry,
+                                                        target_db=target_db,
+                                                        target_table=target_table,
+                                                        column_name=reference_column)
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
