@@ -347,7 +347,7 @@ def setup_columns(target_columns: Iterable[Column],
                 if target_column.name in omit_defaults:
                     target_column.server_default = None
                 else:
-                    def_orig: Any = cast(DefaultClause, target_column.server_default).arg
+                    def_orig: Any = cast("DefaultClause", target_column.server_default).arg
                     def_save: str = def_orig.text \
                         if isinstance(def_orig, TextClause) else str(def_orig)
                     def_val: str = def_save.strip()
