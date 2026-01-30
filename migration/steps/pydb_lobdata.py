@@ -118,14 +118,15 @@ def migrate_lob_tables(session_id: str,
                         reference_column = item[item.index("=")+1:]
                         break
                 if target_s3:
+                    warn_msg: str | None = None
                     if column_name == reference_column:
-                        warn_msg: str = (f"Column {source_db}.{source_table}.{column_name} "
-                                         f"mapped to same name in '{MigSpec.NAMED_LOBDATA}'")
-                        migration_warnings.append(warn_msg)
-                        logger.warning(msg=warn_msg)
+                        warn_msg = "mapped to same name"
+                        reference_column = None
                     elif not reference_column:
-                        warn_msg: str = (f"No mappping in '{MigSpec.NAMED_LOBDATA}' "
-                                         f"for column {source_db}.{source_table}.{column_name}")
+                        warn_msg = "not mapped"
+                    if warn_msg:
+                        warn_msg = (f"Column {source_db}.{source_table}.{column_name} "
+                                    f"{warn_msg} in '{MigSpec.NAMED_LOBDATA}'")
                         migration_warnings.append(warn_msg)
                         logger.warning(msg=warn_msg)
                 lob_columns.append((column_name, reference_column))
@@ -246,7 +247,7 @@ def migrate_lob_columns(mother_thread: int,
             if not reference_column and not pk_columns:
                 warn_msg: str = (f"Column {source_db}.{source_table}.{lob_column} "
                                  "is not eligible for LOB migration to S3 "
-                                 "(not mapped in 'named-lobdata', and no PKs in table)")
+                                 f"(not mapped in '{MigSpec.NAMED_LOBDATA}', and no PKs in table)")
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 # skip table migration
