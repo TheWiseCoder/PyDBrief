@@ -117,11 +117,17 @@ def migrate_lob_tables(session_id: str,
                     if item.startswith(f"{table_name}.{column_name}="):
                         reference_column = item[item.index("=")+1:]
                         break
-                if target_s3 and not reference_column:
-                    warn_msg: str = ("No mappping found in 'named-lobdata' for column "
-                                     f"{source_db}.{source_table}.{column_name}")
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
+                if target_s3:
+                    if column_name == reference_column:
+                        warn_msg: str = (f"Column {source_db}.{source_table}.{column_name} "
+                                         f"mapped to same name in '{MigSpec.NAMED_LOBDATA}'")
+                        migration_warnings.append(warn_msg)
+                        logger.warning(msg=warn_msg)
+                    elif not reference_column:
+                        warn_msg: str = (f"No mappping in '{MigSpec.NAMED_LOBDATA}' "
+                                         f"for column {source_db}.{source_table}.{column_name}")
+                        migration_warnings.append(warn_msg)
+                        logger.warning(msg=warn_msg)
                 lob_columns.append((column_name, reference_column))
             features: list[str] = column_data.get("features", [])
             if "primary-key" in features:
