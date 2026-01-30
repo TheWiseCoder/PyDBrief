@@ -22,7 +22,7 @@ def get_env_keys() -> list[str]:
     result: list[str] = []
 
     env_path: Path = Path.cwd() / ".env"
-    with env_path.open("r") as file:
+    with env_path.open(mode="r") as file:
         for line in file:
             line = line.strip()
             if len(line) > 1 and not line.startswith("#"):

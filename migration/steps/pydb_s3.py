@@ -133,50 +133,48 @@ def s3_migrate_lobs(session_id: str,
                 lob_data += bytes(row_data, "utf-8")
 
         # no more data
-        else:
-            # send LOB data
-            if lob_data is None:
-                logger.warning(f"Attempted to migrate empty LOB '{identifier}'")
-            else:
-                # determine LOB's mimetype and file extension
-                if not mimetype:
-                    if session_specs[MigSpec.REFLECT_FILETYPE]:
-                        mimetype = file_get_mimetype(file_data=lob_data)
-                        if mimetype:
-                            extension = file_get_extension(mimetype=mimetype)
-                    else:
-                        mimetype = Mimetype.BINARY
-                        extension = ".bin"
-                # add extension
-                if extension:
-                    identifier += extension
+        elif lob_data:
+            # determine LOB's mimetype and file extension
+            if not mimetype:
+                if session_specs[MigSpec.REFLECT_FILETYPE]:
+                    mimetype = file_get_mimetype(file_data=lob_data)
+                    if mimetype:
+                        extension = file_get_extension(mimetype=mimetype)
+                else:
+                    mimetype = Mimetype.BINARY
+                    extension = ".bin"
+            # add extension
+            if extension:
+                identifier += extension
 
-                # send it to S3
-                # expected response:
-                # {
-                #    "object_name": <string>,
-                #    "version_id": <string>,
-                #    "etag": <string>,
-                #    "size": <int>             (AWS only)
-                # }
-                reply: dict[str, Any] = s3_data_store(identifier=identifier,
-                                                      data=lob_data,
-                                                      length=len(lob_data),
-                                                      mimetype=mimetype,
-                                                      tags=metadata,
-                                                      prefix=lob_prefix,
-                                                      engine=target_s3,
-                                                      client=s3_client,
-                                                      errors=errors)
-                if reply:
-                    result_count += 1
-                    result_size += len(lob_data)
-                elif not errors:
-                    warn_msg: str = ("No reply received on uploading "
-                                     f"'{Path(lob_prefix) / identifier}' to {target_s3}")
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
-                lob_data = None
+            # send LOB data to S3
+            # expected response:
+            # {
+            #    "object_name": <string>,
+            #    "version_id": <string>,
+            #    "etag": <string>,
+            #    "size": <int>             (AWS only)
+            # }
+            reply: dict[str, Any] = s3_data_store(identifier=identifier,
+                                                  data=lob_data,
+                                                  length=len(lob_data),
+                                                  mimetype=mimetype,
+                                                  tags=metadata,
+                                                  prefix=lob_prefix,
+                                                  engine=target_s3,
+                                                  client=s3_client,
+                                                  errors=errors)
+            if reply:
+                result_count += 1
+                result_size += len(lob_data)
+            elif not errors:
+                warn_msg: str = ("No reply received on uploading "
+                                 f"'{Path(lob_prefix) / identifier}' to {target_s3}")
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
+            lob_data = None
+        else:
+            logger.warning(f"Attempted to migrate empty LOB '{identifier}'")
 
             # proceed to the next LOB
             first_chunk = True
