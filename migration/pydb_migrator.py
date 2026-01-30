@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import threading
 import warnings
@@ -22,6 +23,7 @@ from app_constants import (
     DbConfig, SessionState,
     MigConfig, MigMetric, MigSpot, MigStep, MigSpec, MigIncremental
 )
+from app_ident import get_env_keys
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import type_to_name
@@ -56,6 +58,7 @@ def migrate(session_id: str,
                                                           db_engine=session_spots[MigSpot.TO_RDBMS],
                                                           errors=errors)
     # initialize the return variable
+    env_keys: list[str] = get_env_keys()
     result: dict[StrEnum | str, Any] = {
         "colophon": {
             app_name: {
@@ -63,7 +66,9 @@ def migrate(session_id: str,
                 "base-url": base_url,
                 "requester": requester
             },
-            "foundations": pypomes_versions()
+            "foundations": pypomes_versions(),
+            "environment": {key: value for key, value in os.environ.items()
+                            if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
         },
         MigSpec.SESSION_ID: session_id,
         MigConfig.METRICS: session_metrics,
