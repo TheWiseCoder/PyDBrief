@@ -169,6 +169,9 @@ def migrate_plain(session_id: str,
                                            limit_count=limit_count)
                     max_workers: int = min(channel_count, len(channel_data))
                     tot_count: int = sum(i[1] for i in channel_data)
+                    logger.debug(msg=f"Started migrating {tot_count} tuples from "
+                                     f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
+                                     f"in {len(channel_data)} steps, using {max_workers} channels")
                     if max_workers == 1:
                         # execute single task in current thread
                         _migrate_plain(mother_thread=mother_thread,
@@ -186,10 +189,6 @@ def migrate_plain(session_id: str,
                                        batch_size_out=batch_size_out,
                                        has_ctrlchars=has_ctrlchars)
                     else:
-                        logger.debug(msg=f"Started migrating {tot_count} tuples from "
-                                         f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
-                                         f"in {len(channel_data)} steps, using {max_workers} channels")
-
                         # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=max_workers) as executor:
                             task_futures: list[Future] = []

@@ -304,6 +304,11 @@ def migrate_lob_columns(mother_thread: int,
                                                                      limit_count=limit_count)
             max_workers: int = min(channel_count, len(channel_data))
             tot_count: int = sum(i[1] for i in channel_data)
+            target: str = f"S3 storage '{target_s3}'" \
+                if target_s3 else f"{target_db}.{target_table}.{lob_column}"
+            logger.debug(msg=f"Started migrating {tot_count} LOBs from "
+                             f"{source_db}.{source_table}.{lob_column} to {target}, "
+                             f"using {max_workers} channels")
             if max_workers == 1:
                 # execute single task in current thread
                 if target_s3:
@@ -340,12 +345,6 @@ def migrate_lob_columns(mother_thread: int,
                                      chunk_size=chunk_size,
                                      logger=logger)
             else:
-                target: str = f"S3 storage '{target_s3}'" \
-                    if target_s3 else f"{target_db}.{target_table}.{lob_column}"
-                logger.debug(msg=f"Started migrating {tot_count} LOBs from "
-                                 f"{source_db}.{source_table}.{lob_column} to {target}, "
-                                 f"using {max_workers} channels")
-
                 # execute tasks concurrently
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     task_futures: list[Future] = []
