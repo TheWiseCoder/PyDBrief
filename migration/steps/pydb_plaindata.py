@@ -168,10 +168,9 @@ def migrate_plain(session_id: str,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
                     max_workers: int = min(channel_count, len(channel_data))
+                    tot_count: int = sum(i[1] for i in channel_data)
                     if max_workers == 1:
                         # execute single task in current thread
-                        rec_offset: int = channel_data[0][0]
-                        rec_count: int = sum(i[1] for i in channel_data)
                         _migrate_plain(mother_thread=mother_thread,
                                        source_engine=source_engine,
                                        source_table=source_table,
@@ -180,14 +179,14 @@ def migrate_plain(session_id: str,
                                        target_table=target_table,
                                        target_columns=target_columns,
                                        orderby_clause=", ".join(orderby_columns),
-                                       offset_count=rec_offset,
-                                       limit_count=rec_count,
+                                       offset_count=channel_data[0][0],
+                                       limit_count=tot_count,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
                                        has_ctrlchars=has_ctrlchars)
                     else:
-                        logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} tuples from "
+                        logger.debug(msg=f"Started migrating {tot_count} tuples from "
                                          f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
                                          f"in {len(channel_data)} steps, using {max_workers} channels")
 

@@ -303,10 +303,9 @@ def migrate_lob_columns(mother_thread: int,
                                                                      offset_count=offset_count,
                                                                      limit_count=limit_count)
             max_workers: int = min(channel_count, len(channel_data))
+            tot_count: int = sum(i[1] for i in channel_data)
             if max_workers == 1:
                 # execute single task in current thread
-                rec_offset: int = channel_data[0][0]
-                rec_count: int = sum(i[1] for i in channel_data)
                 if target_s3:
                     # migration target is S3
                     _s3_migrate_lobs(mother_thread=mother_thread,
@@ -320,8 +319,8 @@ def migrate_lob_columns(mother_thread: int,
                                      lob_column=lob_column,
                                      pk_columns=pk_columns or [reference_column],
                                      where_clause=where_clause,
-                                     offset_count=rec_offset,
-                                     limit_count=rec_count,
+                                     offset_count=channel_data[0][0],
+                                     limit_count=tot_count,
                                      forced_filetype=forced_filetype,
                                      reference_column=reference_column,
                                      migration_warnings=migration_warnings,
@@ -336,16 +335,16 @@ def migrate_lob_columns(mother_thread: int,
                                      target_engine=target_db,
                                      target_table=target_table,
                                      where_clause=where_clause,
-                                     offset_count=rec_offset,
-                                     limit_count=rec_count,
+                                     offset_count=channel_data[0][0],
+                                     limit_count=tot_count,
                                      chunk_size=chunk_size,
                                      logger=logger)
             else:
                 target: str = f"S3 storage '{target_s3}'" \
                     if target_s3 else f"{target_db}.{target_table}.{lob_column}"
-                logger.debug(msg=f"Started migrating {sum(c[1] for c in channel_data)} LOBs "
-                             f"from {source_db}.{source_table}.{lob_column} to {target}, "
-                             f"using {max_workers} channels")
+                logger.debug(msg=f"Started migrating {tot_count} LOBs from "
+                                 f"{source_db}.{source_table}.{lob_column} to {target}, "
+                                 f"using {max_workers} channels")
 
                 # execute tasks concurrently
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
