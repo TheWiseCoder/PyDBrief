@@ -173,13 +173,15 @@ def synchronize_lobs(session_id: str,
                     max_workers: int = min(channel_count, len(channel_data))
                     if max_workers == 1:
                         # execute single task in current thread
+                        rec_offset: int = channel_data[0][0]
+                        rec_count: int = sum(i[1] for i in channel_data)
                         _compute_lob_lists(mother_thread=mother_thread,
                                            source_table=source_table,
                                            reference_column=reference_column,
                                            where_clause=where_clause,
                                            s3_engine=target_s3,
-                                           offset_count=channel_data[0][0],
-                                           limit_count=channel_data[0][1],
+                                           offset_count=rec_offset,
+                                           limit_count=rec_count,
                                            lob_prefix=lob_prefix)
                     else:
                         target: str = f"S3 storage '{target_s3}'" \

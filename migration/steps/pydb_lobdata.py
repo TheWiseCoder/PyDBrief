@@ -119,8 +119,8 @@ def migrate_lob_tables(session_id: str,
                         break
                 if target_s3:
                     warn_msg: str | None = None
-                    if column_name == reference_column:
-                        warn_msg = "mapped to same name"
+                    if reference_column == column_name:
+                        warn_msg = "mapped to itself"
                         reference_column = None
                     elif not reference_column:
                         warn_msg = "not mapped"
@@ -305,6 +305,8 @@ def migrate_lob_columns(mother_thread: int,
             max_workers: int = min(channel_count, len(channel_data))
             if max_workers == 1:
                 # execute single task in current thread
+                rec_offset: int = channel_data[0][0]
+                rec_count: int = sum(i[1] for i in channel_data)
                 if target_s3:
                     # migration target is S3
                     _s3_migrate_lobs(mother_thread=mother_thread,
@@ -318,8 +320,8 @@ def migrate_lob_columns(mother_thread: int,
                                      lob_column=lob_column,
                                      pk_columns=pk_columns or [reference_column],
                                      where_clause=where_clause,
-                                     offset_count=channel_data[0][0],
-                                     limit_count=channel_data[0][1],
+                                     offset_count=rec_offset,
+                                     limit_count=rec_count,
                                      forced_filetype=forced_filetype,
                                      reference_column=reference_column,
                                      migration_warnings=migration_warnings,
@@ -334,8 +336,8 @@ def migrate_lob_columns(mother_thread: int,
                                      target_engine=target_db,
                                      target_table=target_table,
                                      where_clause=where_clause,
-                                     offset_count=channel_data[0][0],
-                                     limit_count=channel_data[0][1],
+                                     offset_count=rec_offset,
+                                     limit_count=rec_count,
                                      chunk_size=chunk_size,
                                      logger=logger)
             else:

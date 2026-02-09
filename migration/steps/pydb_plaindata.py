@@ -170,6 +170,8 @@ def migrate_plain(session_id: str,
                     max_workers: int = min(channel_count, len(channel_data))
                     if max_workers == 1:
                         # execute single task in current thread
+                        rec_offset: int = channel_data[0][0]
+                        rec_count: int = sum(i[1] for i in channel_data)
                         _migrate_plain(mother_thread=mother_thread,
                                        source_engine=source_engine,
                                        source_table=source_table,
@@ -178,8 +180,8 @@ def migrate_plain(session_id: str,
                                        target_table=target_table,
                                        target_columns=target_columns,
                                        orderby_clause=", ".join(orderby_columns),
-                                       offset_count=channel_data[0][0],
-                                       limit_count=channel_data[0][1],
+                                       offset_count=rec_offset,
+                                       limit_count=rec_count,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
