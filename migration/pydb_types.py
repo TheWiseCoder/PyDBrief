@@ -316,6 +316,7 @@ PG_TYPES: Final[dict[str, Type]] = {
     "macaddr": PG_MACADDR,
     "macaddr8": PG_MACADDR8,
     "money": PG_MONEY,
+    "number": REF_NUMERIC,
     "numeric": REF_NUMERIC,
     "nummultirange": PG_NUMMULTIRANGE,
     "numrange": PG_NUMRANGE,

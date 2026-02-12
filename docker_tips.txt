@@ -23,7 +23,7 @@ RELEVANT DOCKER OPERATIONS
 # 1. Windows
      docker run --memory=24g --mount type=bind,source=%PYDB_REGISTRY_HOST%,target=%PYDB_REGISTRY_DOCKER% -d -p 5000:5000 pydbrief:latest
 # 2. Linux:
-     docker run --memory=24g --mount type=bind,source=${PYDB_REGISTRY_HOST%,target=%PYDB_REGISTRY_DOCKER} -d -p 5000:5000 pydbrief:latest
+     docker run --memory=24g --mount type=bind,source=${PYDB_REGISTRY_HOST},target=${PYDB_REGISTRY_DOCKER} -d -p 5000:5000 pydbrief:latest
 
 # list running containers (optional: '-a' shows previously running containers):
   docker ps
