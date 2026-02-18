@@ -27,10 +27,10 @@ from app_ident import get_env_keys
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import type_to_name
-from migration.steps.pydb_lobdata import migrate_lob_tables
-from migration.steps.pydb_metadata import migrate_metadata
-from migration.steps.pydb_plaindata import migrate_plain
-from migration.steps.pydb_sync_lobdata import synchronize_lobs
+from migration.steps.pydb_migrate_lobdata import migrate_lobdata
+from migration.steps.pydb_migrate_metadata import migrate_metadata
+from migration.steps.pydb_migrate_plaindata import migrate_plaindata
+from migration.steps.pydb_correlate_lobdata import correlate_lobs
 from migration.steps.pydb_sync_plaindata import synchronize_plain
 
 
@@ -118,7 +118,7 @@ def migrate(session_id: str,
         (session_steps[MigStep.MIGRATE_PLAINDATA] or
          session_steps[MigStep.MIGRATE_LOBDATA] or
          session_steps[MigStep.SYNCHRONIZE_PLAINDATA] or
-         session_steps[MigStep.SYNCHRONIZE_LOBDATA]):
+         session_steps[MigStep.CORRELATE_LOBDATA]):
 
         # establish incremental migration sizes and offsets
         incr_migrations: dict[str, dict[MigIncremental, int]] = session_specs[MigSpec.INCR_MIGRATIONS]
@@ -134,13 +134,13 @@ def migrate(session_id: str,
         if not errors and session_steps[MigStep.MIGRATE_PLAINDATA]:
             logger.info("Started migrating the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            count: int = migrate_plain(session_id=session_id,
-                                       incr_migrations=incr_migrations,
-                                       migration_threads=migration_threads,
-                                       migrated_tables=migrated_tables,
-                                       migration_warnings=migration_warnings,
-                                       errors=errors,
-                                       logger=logger)
+            count: int = migrate_plaindata(session_id=session_id,
+                                           incr_migrations=incr_migrations,
+                                           migration_threads=migration_threads,
+                                           migrated_tables=migrated_tables,
+                                           migration_warnings=migration_warnings,
+                                           errors=errors,
+                                           logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
@@ -161,13 +161,13 @@ def migrate(session_id: str,
                 warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int] = migrate_lob_tables(session_id=session_id,
-                                                         incr_migrations=incr_migrations,
-                                                         migration_threads=migration_threads,
-                                                         migrated_tables=migrated_tables,
-                                                         migration_warnings=migration_warnings,
-                                                         errors=errors,
-                                                         logger=logger)
+            counts: tuple[int, int] = migrate_lobdata(session_id=session_id,
+                                                      incr_migrations=incr_migrations,
+                                                      migration_threads=migration_threads,
+                                                      migrated_tables=migrated_tables,
+                                                      migration_warnings=migration_warnings,
+                                                      errors=errors,
+                                                      logger=logger)
             lob_count: int = counts[0]
             lob_bytes: int = counts[1]
             finished: datetime = datetime.now(tz=TZ_LOCAL)
@@ -185,11 +185,40 @@ def migrate(session_id: str,
             logger.debug(msg=f"Finished migrating {lob_count} LOBs, "
                              f"{lob_bytes} bytes, in {duration} ({performance})")
 
-        # synchronize the plain data
-        if not errors and session_steps[MigStep.SYNCHRONIZE_PLAINDATA]:
-            logger.info(msg="Started synchronizing the plain data")
+        # correlate the LOBs
+        if not errors and session_steps[MigStep.CORRELATE_LOBDATA]:
+            logger.info(msg="Started correlating the LOBs")
+
+            # ignore warnings from 'boto3' and 'minio' packages
+            # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+            warnings.filterwarnings(action="ignore")
+
+            started: datetime = datetime.now(tz=TZ_LOCAL)
+            counts: tuple[int, int, int] = correlate_lobs(session_id=session_id,
+                                                          migration_threads=migration_threads,
+                                                          migrated_tables=migrated_tables,
+                                                          migration_warnings=migration_warnings,
+                                                          errors=errors,
+                                                          logger=logger)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            result.update({
+                "total-lob-count": counts[0],
+                "total-lob-deletes": counts[1],
+                "total-lob-inserts": counts[2],
+                "total-lob-duration": duration
+            })
+            logger.info(msg="Finished correlating the LOBs")
+
+        # correlate/synchronize the plain data
+        if not errors and \
+           (session_steps[MigStep.CORRELATE_PLAINDATA] or session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
+            op: str = "correlating" if session_steps[MigStep.CORRELATE_PLAINDATA] else "synchronizing"
+            logger.info(msg=f"Started {op} the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_plain(session_id=session_id,
+                                                             correlate_only=session_steps[MigStep.CORRELATE_PLAINDATA],
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              # migration_warnings=migration_warnings,
@@ -199,38 +228,12 @@ def migrate(session_id: str,
             duration: str = timestamp_duration(start=started,
                                                finish=finished)
             result.update({
-                "total-sync-deletes": counts[0],
-                "total-sync-inserts": counts[1],
-                "total-sync-updates": counts[2],
-                "total-sync-duration": duration
+                "total-plain-deletes": counts[0],
+                "total-plain-inserts": counts[1],
+                "total-plain-updates": counts[2],
+                "total-plain-duration": duration
             })
-            logger.info(msg="Finished synchronizing the plain data")
-
-        # synchronize the LOBs
-        if not errors and session_steps[MigStep.SYNCHRONIZE_LOBDATA]:
-            logger.info(msg="Started synchronizing the LOBs")
-
-            # ignore warnings from 'boto3' and 'minio' packages
-            # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
-            warnings.filterwarnings(action="ignore")
-
-            started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int, int] = synchronize_lobs(session_id=session_id,
-                                                            migration_threads=migration_threads,
-                                                            migrated_tables=migrated_tables,
-                                                            migration_warnings=migration_warnings,
-                                                            errors=errors,
-                                                            logger=logger)
-            finished: datetime = datetime.now(tz=TZ_LOCAL)
-            duration: str = timestamp_duration(start=started,
-                                               finish=finished)
-            result.update({
-                "total-sync-count": counts[0],
-                "total-sync-deletes": counts[1],
-                "total-sync-inserts": counts[2],
-                "total-sync-duration": duration
-            })
-            logger.info(msg="Finished synchronizing the LOBs")
+            logger.info(msg=f"Finished {op} the plain data")
 
     # update the session state
     curr_state: SessionState = session_registry.get(MigSpec.STATE)

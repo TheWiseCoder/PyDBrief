@@ -21,7 +21,8 @@ from migration.pydb_database import table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
 
-# _plaindata_threads: dict[int, dict[str, Any]] = {
+# structure of the thread registry:
+# plaindata_registry: dict[int, dict[str, Any]] = {
 #   <mother-thread> = {
 #     "child-threads": [
 #       <child-thread>,
@@ -37,17 +38,17 @@ from migration.pydb_types import is_lob_column
 #   },
 #   ...
 # }
-_plaindata_threads: dict[int, dict[str, Any]] = {}
-_plaindata_lock: threading.Lock = threading.Lock()
+plaindata_registry: dict[int, dict[str, Any]] = {}
+plaindata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_plain(session_id: str,
-                  incr_migrations: dict[str, dict[MigIncremental, int]],
-                  migration_threads: list[int],
-                  migrated_tables: dict[str, Any],
-                  migration_warnings: list[str],
-                  errors: list[str],
-                  logger: Logger) -> int:
+def migrate_plaindata(session_id: str,
+                      incr_migrations: dict[str, dict[MigIncremental, int]],
+                      migration_threads: list[int],
+                      migrated_tables: dict[str, Any],
+                      migration_warnings: list[str],
+                      errors: list[str],
+                      logger: Logger) -> int:
 
     # initialize the return variable
     result: int = 0
@@ -56,8 +57,8 @@ def migrate_plain(session_id: str,
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
 
-    with _plaindata_lock:
-        _plaindata_threads[mother_thread] = {
+    with plaindata_lock:
+        plaindata_registry[mother_thread] = {
             "child-threads": []
         }
 
@@ -88,8 +89,8 @@ def migrate_plain(session_id: str,
         source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
         target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
         has_ctrlchars: bool = table_name in (session_specs[MigSpec.REMOVE_CTRLCHARS] or [])
-        with _plaindata_lock:
-            _plaindata_threads[mother_thread][source_table] = {
+        with plaindata_lock:
+            plaindata_registry[mother_thread][source_table] = {
                 "table-count": 0,
                 "errors": []
             }
@@ -171,7 +172,7 @@ def migrate_plain(session_id: str,
                     tot_count: int = sum(i[1] for i in channel_data)
                     logger.debug(msg=f"Started migrating {tot_count} tuples from "
                                      f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
-                                     f"in {len(channel_data)} steps, using {max_workers} channels")
+                                     f"in {len(channel_data)} steps, using {max_workers} channel+s")
                     if max_workers == 1:
                         # execute single task in current thread
                         _migrate_plain(mother_thread=mother_thread,
@@ -214,11 +215,11 @@ def migrate_plain(session_id: str,
                             futures.wait(fs=task_futures)
                             executor.shutdown(wait=False)
 
-                    with _plaindata_lock:
-                        count = _plaindata_threads[mother_thread][source_table]["table-count"]
-                        if _plaindata_threads[mother_thread][source_table]["errors"]:
+                    with plaindata_lock:
+                        count = plaindata_registry[mother_thread][source_table]["table-count"]
+                        if plaindata_registry[mother_thread][source_table]["errors"]:
                             status = "error"
-                            errors.extend(_plaindata_threads[mother_thread][source_table]["errors"])
+                            errors.extend(plaindata_registry[mother_thread][source_table]["errors"])
                     if status == "error":
                         table_embedded_nulls(rdbms=target_engine,
                                              table=target_table,
@@ -249,12 +250,12 @@ def migrate_plain(session_id: str,
             errors.append(validate_format_error(101,
                                                 err_msg))
         if errors:
-            # yes, abort the plaindata migration
+            # abort the plaindata migration
             break
 
-    with _plaindata_lock:
-        migration_threads.extend(_plaindata_threads[mother_thread]["child-threads"])
-        _plaindata_threads.pop(mother_thread)
+    with plaindata_lock:
+        migration_threads.extend(plaindata_registry[mother_thread]["child-threads"])
+        plaindata_registry.pop(mother_thread)
 
     return result
 
@@ -275,8 +276,8 @@ def _migrate_plain(mother_thread: int,
                    has_ctrlchars: bool) -> None:
 
     # register the operation thread (might be same as mother thread)
-    with _plaindata_lock:
-        _plaindata_threads[mother_thread]["child-threads"].append(threading.get_ident())
+    with plaindata_lock:
+        plaindata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
     count: int = db_migrate_data(source_engine=source_engine,
@@ -293,8 +294,8 @@ def _migrate_plain(mother_thread: int,
                                  batch_size_out=batch_size_out,
                                  has_ctrlchars=has_ctrlchars,
                                  errors=errors)
-    with _plaindata_lock:
+    with plaindata_lock:
         if errors:
-            _plaindata_threads[mother_thread][source_table]["errors"].extend(errors)
+            plaindata_registry[mother_thread][source_table]["errors"].extend(errors)
         else:
-            _plaindata_threads[mother_thread][source_table]["table-count"] += count
+            plaindata_registry[mother_thread][source_table]["table-count"] += count

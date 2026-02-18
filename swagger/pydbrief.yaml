@@ -5,7 +5,7 @@ info:
     A Workbench for bidirectional data migration between various RDBMS and S3 engines
   contact:
     email: gtnunes@gmail.com
-  version: 2.0.7
+  version: 2.1.0
 externalDocs:
   description: Known more about PyDBrief
   url: https://github.com/TheWiseCoder/PyDBrief
@@ -331,8 +331,9 @@ paths:
         - $ref: '#/components/parameters/MigrateMetadataParam'
         - $ref: '#/components/parameters/MigratePlainParam'
         - $ref: '#/components/parameters/MigrateLobsParam'
+        - $ref: '#/components/parameters/CorrelateLobsParam'
+        - $ref: '#/components/parameters/CorrelatePlainParam'
         - $ref: '#/components/parameters/SynchronizePlainParam'
-        - $ref: '#/components/parameters/SynchronizeLobsParam'
         - $ref: '#/components/parameters/ProcessIndexesParam'
         - $ref: '#/components/parameters/ProcessViewsParam'
         - $ref: '#/components/parameters/RelaxReflectionParam'
@@ -906,18 +907,26 @@ components:
       schema:
         type: boolean
         default: false
-    SynchronizePlainParam:
-      name: synchronize-plaindata
+    CorrelatePlainParam:
+      name: correlate-plaindata
       in: query
-      description: Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. It is assumed that the relevant migrations have already ocurred. This operation ignores the parameter 'incremental-migrations', and cannot be combined with another migration step.
+      description: Correlate the contents of PK columns on tables in the target schema with the corresponding contents in the source schema. This operation does not consider eventual differences in content between non-PK columns, but makes sure that the PK columns on both tables match. This operation ignores the parameter 'incremental-migrations', and cannot be combined with another migration step.
       required: false
       schema:
         type: boolean
         default: false
-    SynchronizeLobsParam:
-      name: synchronize-lobdata
+    CorrelateLobsParam:
+      name: correlate-lobdata
       in: query
-      description: Synchronize the documents with given prefixes at the S3 storage with the LOBs in their corresponding source table columns at the database. This process does not consider eventual differences in content between the two items, but makes sure that they both exist simultaneously. Note that this synchronization should not be attempted if LOBs from more than one table column were migrated with the same prefix, as is the case if 'flatten-storage' was specified during the lobdata migration, and thus it will only operate on columns mapped on the 'named-lobdata' parameter. This operation ignores parameters 'incremental-migrations' and 'flatten-storage', and cannot be combined with another migration step.
+      description: Correlate the documents with given prefixes at the S3 storage with the LOBs in their corresponding source table columns at the database. This operation does not consider eventual differences in content between the two items, but makes sure that they both exist simultaneously. Note that this correlation should not be attempted if LOBs from more than one table column were migrated with the same prefix, as is the case if 'flatten-storage' was specified during the lobdata migration, and thus it will only operate on columns mapped on the 'named-lobdata' parameter. This operation ignores the parameters 'incremental-migrations' and 'flatten-storage', and cannot be combined with another migration step.
+      required: false
+      schema:
+        type: boolean
+        default: false
+    SynchronizePlainParam:
+      name: synchronize-plaindata
+      in: query
+      description: Synchronize the contents of plain data columns on tables in the target schema with the corresponding contents in the source schema. This operation ignores the parameter 'incremental-migrations', and cannot be combined with another migration step.
       required: false
       schema:
         type: boolean

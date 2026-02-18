@@ -532,8 +532,9 @@ def migrate_data(session_id: str,
       - *migrate-metadata*: migrate the schema's metadata (this creates or transforms the destination schema)
       - *migrate-plaindata*: migrate non-LOB data
       - *migrate-lobdata*: migrate LOBs (large binary objects)
-      - *syncronize-plaindata*: make sure tables in target database have the same content as tables in source database
-      - *syncronize-lobdata*: make sure folders in target S3 have the same number of entries as in in source database
+      - *correlate-plaindata*: make sure tables in target and source databases have the same PK content
+      - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
+      - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
     Migration specs:
       - *process-indexes*: whether to migrate indexes (defaults to *False*)

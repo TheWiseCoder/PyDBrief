@@ -15,17 +15,17 @@ from pypomes_s3 import (
 )
 from typing import Any
 
-import migration.steps.pydb_lobdata as lob_ctrl
+import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
 from app_constants import (
     MigConfig, MigMetric, MigSpec, MigSpot
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
-from migration.steps.pydb_lobdata import migrate_lob_columns
+from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 
-# structure of the thread register:
-# lob_ctrl.lobdata_register: dict[int, dict[str, Any]] = {
+# structure of the thread registry:
+# lobdata_ctrl.lobdata_registry: dict[int, dict[str, Any]] = {
 #   <mother-thread> = {
 #     "child-threads": [
 #       <child-thread>,
@@ -48,12 +48,12 @@ from migration.steps.pydb_lobdata import migrate_lob_columns
 # }
 
 
-def synchronize_lobs(session_id: str,
-                     migration_threads: list[int],
-                     migrated_tables: dict[str, Any],
-                     migration_warnings: list[str],
-                     errors: list[str],
-                     logger: Logger) -> tuple[int, int, int]:
+def correlate_lobs(session_id: str,
+                   migration_threads: list[int],
+                   migrated_tables: dict[str, Any],
+                   migration_warnings: list[str],
+                   errors: list[str],
+                   logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
     result_count: int = 0
@@ -63,8 +63,8 @@ def synchronize_lobs(session_id: str,
     # add to the thread register
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
-    with lob_ctrl.lobdata_lock:
-        lob_ctrl.lobdata_register[mother_thread] = {
+    with lobdata_ctrl.lobdata_lock:
+        lobdata_ctrl.lobdata_registry[mother_thread] = {
             "child-threads": []
         }
 
@@ -96,8 +96,8 @@ def synchronize_lobs(session_id: str,
         source_table: str = f"{source_schema}.{table_name}"
         target_schema: str = session_specs[MigSpec.TO_SCHEMA]
         target_table: str = f"{target_schema}.{table_name}"
-        with lob_ctrl.lobdata_lock:
-            lob_ctrl.lobdata_register[mother_thread][source_table] = {
+        with lobdata_ctrl.lobdata_lock:
+            lobdata_ctrl.lobdata_registry[mother_thread][source_table] = {
                 "table-count": 0,
                 "table-bytes": 0,
                 "errors": []
@@ -132,6 +132,7 @@ def synchronize_lobs(session_id: str,
 
             # process the existing LOB columns
             for lob_column, reference_column in lob_columns:
+
                 where_clause: str = f"{lob_column} IS NOT NULL"
                 # 'reference_column' might contain a forced filetype specification
                 pos: int = reference_column.find(".")
@@ -150,8 +151,8 @@ def synchronize_lobs(session_id: str,
                     logger.warning(msg=warn_msg)
 
                     # start synchronizing 'lob_column'
-                    with lob_ctrl.lobdata_lock:
-                        lob_ctrl.lobdata_register[mother_thread][source_table].update({
+                    with lobdata_ctrl.lobdata_lock:
+                        lobdata_ctrl.lobdata_registry[mother_thread][source_table].update({
                             f"{reference_column}-db-names": [],
                             f"{reference_column}-s3-names": [],
                             f"{reference_column}-s3-full": {}
@@ -174,7 +175,7 @@ def synchronize_lobs(session_id: str,
                     tot_count: int = sum(i[1] for i in channel_data)
                     target: str = f"S3 storage '{target_s3}'" \
                         if target_s3 else f"{target_db}.{target_table}.{lob_column}"
-                    logger.debug(msg=f"Started synchronizing {tot_count} LOBs in "
+                    logger.debug(msg=f"Started correlating {tot_count} LOBs in "
                                      f"{target} with {source_db}.{source_table}.{lob_column}, "
                                      f"using {max_workers} channels")
                     if max_workers == 1:
@@ -211,8 +212,8 @@ def synchronize_lobs(session_id: str,
                     col_db_names: list[str] = []
                     col_s3_names: list[str] = []
                     col_s3_full: dict[str, str] = {}
-                    with lob_ctrl.lobdata_lock:
-                        table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]
+                    with lobdata_ctrl.lobdata_lock:
+                        table_data: dict[str, Any] = lobdata_ctrl.lobdata_registry[mother_thread][source_table]
                         op_errors: list[str] = table_data.get("errors")
                         if op_errors:
                             status = "error"
@@ -254,7 +255,7 @@ def synchronize_lobs(session_id: str,
                 "lob-performance": f"{lob_count/secs:.2f} LOBs/s"
             })
             target: str = f"S3 storage '{target_s3}'" if target_s3 else target_db
-            logger.debug(msg=f"Synchronized {lob_count} LOBs in {target} with "
+            logger.debug(msg=f"Correlated {lob_count} LOBs in {target} with "
                              f"{source_db}.{table_name}, status {status}, duration {duration}")
             result_count += lob_count
             result_deletes += delete_count
@@ -302,9 +303,9 @@ def synchronize_lobs(session_id: str,
                                           is_sorted=True)
                     s3_items_remove(identifiers=lob_deletes,
                                     errors=errors)
-    with lob_ctrl.lobdata_lock:
-        migration_threads.extend(lob_ctrl.lobdata_register[mother_thread]["child-threads"])
-        lob_ctrl.lobdata_register.pop(mother_thread)
+    with lobdata_ctrl.lobdata_lock:
+        migration_threads.extend(lobdata_ctrl.lobdata_registry[mother_thread]["child-threads"])
+        lobdata_ctrl.lobdata_registry.pop(mother_thread)
 
     return result_count, result_deletes, result_inserts
 
@@ -319,8 +320,8 @@ def _compute_lob_lists(mother_thread: int,
                        limit_count: int) -> None:
 
     # register the operation thread (might be same as the mother thread)
-    with lob_ctrl.lobdata_lock:
-        lob_ctrl.lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
+    with lobdata_ctrl.lobdata_lock:
+        lobdata_ctrl.lobdata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     # initialize the counter and the lists
     lob_count: int = 0
@@ -378,8 +379,8 @@ def _compute_lob_lists(mother_thread: int,
                 if len(lobs_s3_names) < len(lobs_s3_full):
                     lobs_s3_full = {k: v for k, v in lobs_s3_full.items() if k in lobs_s3_names}
 
-    with lob_ctrl.lobdata_lock:
-        table_data: dict[str, Any] = lob_ctrl.lobdata_register[mother_thread][source_table]
+    with lobdata_ctrl.lobdata_lock:
+        table_data: dict[str, Any] = lobdata_ctrl.lobdata_registry[mother_thread][source_table]
         if errors:
             table_data["errors"].extend(errors)
         else:

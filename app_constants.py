@@ -32,8 +32,9 @@ class MigStep(StrEnum):
     MIGRATE_METADATA = "migrate-metadata"
     MIGRATE_PLAINDATA = "migrate-plaindata"
     MIGRATE_LOBDATA = "migrate-lobdata"
+    CORRELATE_PLAINDATA = "correlate-plaindata"
+    CORRELATE_LOBDATA = "correlate-lobdata"
     SYNCHRONIZE_PLAINDATA = "synchronize-plaindata"
-    SYNCHRONIZE_LOBDATA = "synchronize-lobdata"
 
 
 class MigSpec(StrEnum):

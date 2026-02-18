@@ -29,7 +29,9 @@ from app_constants import (
 #        MigStep.MIGRATE_METADATA: <bool>,
 #        MigStep.MIGRATE_PLAINDATA: <bool>,
 #        MigStep.MIGRATE_LOBDATA: <bool>,
-#        MigStep.SYNCHRONIZE_PLAIDATA: <bool>
+#        MigStep.CORRELATE_PLAINDATA: <bool>,
+#        MigStep.CORRELATE_LOBADATA: <bool>,
+#        MigStep.SYNCHRONIZE_PLAINDATA: <bool>
 #      },
 #      MigConfig.METRICS: {
 #        MigMetric.BATCH_SIZE_IN: RANGE_BATCH_SIZE_IN[2],
@@ -147,6 +149,8 @@ def create_session(client_id: str,
                 MigStep.MIGRATE_METADATA: False,
                 MigStep.MIGRATE_PLAINDATA: False,
                 MigStep.MIGRATE_LOBDATA: False,
+                MigStep.CORRELATE_PLAINDATA: False,
+                MigStep.CORRELATE_LOBDATA: False,
                 MigStep.SYNCHRONIZE_PLAINDATA: False
             },
             MigConfig.METRICS: {

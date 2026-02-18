@@ -20,10 +20,10 @@ from app_constants import (
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 from migration.pydb_types import is_lob_column
-from migration.steps.pydb_s3 import s3_migrate_lobs
+from migration.steps.pydb_to_s3 import s3_migrate_lobs
 
-# structure of the thread register:
-# lobdata_register: dict[int, dict[str, Any]] = {
+# structure of the thread registry:
+# lobdata_registry: dict[int, dict[str, Any]] = {
 #   <mother-thread> = {
 #     "child-threads": [
 #       <child-thread>,
@@ -40,17 +40,17 @@ from migration.steps.pydb_s3 import s3_migrate_lobs
 #   },
 #   ...
 # }
-lobdata_register: dict[int, dict[str, Any]] = {}
+lobdata_registry: dict[int, dict[str, Any]] = {}
 lobdata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_lob_tables(session_id: str,
-                       incr_migrations: dict[str, dict[MigIncremental, int]],
-                       migration_threads: list[int],
-                       migrated_tables: dict[str, Any],
-                       migration_warnings: list[str],
-                       errors: list[str],
-                       logger: Logger) -> tuple[int, int]:
+def migrate_lobdata(session_id: str,
+                    incr_migrations: dict[str, dict[MigIncremental, int]],
+                    migration_threads: list[int],
+                    migrated_tables: dict[str, Any],
+                    migration_warnings: list[str],
+                    errors: list[str],
+                    logger: Logger) -> tuple[int, int]:
 
     # initialize the return variables
     result_count: int = 0
@@ -60,7 +60,7 @@ def migrate_lob_tables(session_id: str,
     mother_thread: int = threading.get_ident()
     migration_threads.append(mother_thread)
     with lobdata_lock:
-        lobdata_register[mother_thread] = {
+        lobdata_registry[mother_thread] = {
             "child-threads": []
         }
 
@@ -89,7 +89,7 @@ def migrate_lob_tables(session_id: str,
         target_schema: str = session_specs[MigSpec.TO_SCHEMA]
         target_table: str = f"{target_schema}.{table_name}"
         with lobdata_lock:
-            lobdata_register[mother_thread][source_table] = {
+            lobdata_registry[mother_thread][source_table] = {
                 "table-count": 0,
                 "table-bytes": 0,
                 "errors": []
@@ -167,9 +167,9 @@ def migrate_lob_tables(session_id: str,
                                 errors=errors,
                                 logger=logger)
             with lobdata_lock:
-                lob_count: int = lobdata_register[mother_thread][source_table]["table-count"]
-                lob_bytes: int = lobdata_register[mother_thread][source_table]["table-bytes"]
-                op_errors: list[str] = lobdata_register[mother_thread][source_table]["errors"]
+                lob_count: int = lobdata_registry[mother_thread][source_table]["table-count"]
+                lob_bytes: int = lobdata_registry[mother_thread][source_table]["table-bytes"]
+                op_errors: list[str] = lobdata_registry[mother_thread][source_table]["errors"]
                 if op_errors:
                     status = "error"
                     errors.extend(op_errors)
@@ -194,8 +194,8 @@ def migrate_lob_tables(session_id: str,
             result_bytes += lob_bytes
 
     with lobdata_lock:
-        migration_threads.extend(lobdata_register[mother_thread]["child-threads"])
-        lobdata_register.pop(mother_thread)
+        migration_threads.extend(lobdata_registry[mother_thread]["child-threads"])
+        lobdata_registry.pop(mother_thread)
 
     return result_count, result_bytes
 
@@ -262,7 +262,7 @@ def migrate_lob_columns(mother_thread: int,
                     reference_column = reference_column[:pos]
 
             # obtain an S3 prefix for storing the lobdata
-            if session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] or \
+            if session_registry[MigConfig.STEPS][MigStep.CORRELATE_LOBDATA] or \
                     not session_specs[MigSpec.FLATTEN_STORAGE]:
                 lob_prefix = build_lob_prefix(session_registry=session_registry,
                                               target_db=target_db,
@@ -270,7 +270,7 @@ def migrate_lob_columns(mother_thread: int,
                                               column_name=reference_column or lob_column)
 
                 # is a nonempty S3 prefix an issue ?
-                if (not session_registry[MigConfig.STEPS][MigStep.SYNCHRONIZE_LOBDATA] and
+                if (not session_registry[MigConfig.STEPS][MigStep.CORRELATE_LOBDATA] and
                     session_specs[MigSpec.SKIP_NONEMPTY] and
                     s3_item_exists(identifier=lob_prefix.as_posix(),
                                    errors=errors)):
@@ -406,7 +406,7 @@ def _db_migrate_lobs(mother_thread: int,
 
     # register the operation thread (might be same as the mother thread)
     with lobdata_lock:
-        lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
+        lobdata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     lob_count: int = 0
     lob_bytes: int = 0
@@ -430,10 +430,10 @@ def _db_migrate_lobs(mother_thread: int,
 
     with lobdata_lock:
         if errors:
-            lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+            lobdata_registry[mother_thread][source_table]["errors"].extend(errors)
         else:
-            lobdata_register[mother_thread][source_table]["table-count"] += lob_count
-            lobdata_register[mother_thread][source_table]["table-bytes"] += lob_bytes
+            lobdata_registry[mother_thread][source_table]["table-count"] += lob_count
+            lobdata_registry[mother_thread][source_table]["table-bytes"] += lob_bytes
 
 
 def _s3_migrate_lobs(mother_thread: int,
@@ -456,7 +456,7 @@ def _s3_migrate_lobs(mother_thread: int,
 
     # register the operation thread (might be same as the mother thread)
     with lobdata_lock:
-        lobdata_register[mother_thread]["child-threads"].append(threading.get_ident())
+        lobdata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     # obtain an S3 client
     errors: list[str] = []
@@ -514,10 +514,10 @@ def _s3_migrate_lobs(mother_thread: int,
                                                       logger=logger)
             with lobdata_lock:
                 if errors:
-                    lobdata_register[mother_thread][source_table]["errors"].extend(errors)
+                    lobdata_registry[mother_thread][source_table]["errors"].extend(errors)
                 else:
-                    lobdata_register[mother_thread][source_table]["table-count"] += totals[0]
-                    lobdata_register[mother_thread][source_table]["table-bytes"] += totals[1]
+                    lobdata_registry[mother_thread][source_table]["table-count"] += totals[0]
+                    lobdata_registry[mother_thread][source_table]["table-bytes"] += totals[1]
         if db_conn:
             db_drop_table(table_name=temp_table,
                           connection=db_conn,

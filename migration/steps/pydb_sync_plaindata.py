@@ -12,9 +12,10 @@ from migration.pydb_database import table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
-def synchronize_plain(migration_threads: list[int],
+def synchronize_plain(session_id: str,
+                      correlate_only: bool,
+                      migration_threads: list[int],
                       migrated_tables: dict[str, Any],
-                      session_id: str,
                       # migration_warnings: list[str],
                       errors: list[str],
                       logger: Logger) -> tuple[int, int, int]:
@@ -76,6 +77,7 @@ def synchronize_plain(migration_threads: list[int],
                                                     target_table=target_table,
                                                     pk_columns=pk_columns,
                                                     sync_columns=sync_columns,
+                                                    ignore_updates=correlate_only,
                                                     identity_column=identity_column,
                                                     batch_size=batch_size_in,
                                                     has_nulls=has_nulls,
@@ -93,11 +95,14 @@ def synchronize_plain(migration_threads: list[int],
         else:
             status: str = "full"
 
-        table_data["sync-status"] = status
-        table_data["sync-deletes"] = deletes
-        table_data["sync-inserts"] = inserts
-        table_data["sync-updates"] = updates
-        logger.debug(msg=(f"Synchronized {source_db}.{target_table} "
+        op: str = "correlate" if correlate_only else "sync"
+        table_data[f"{op}-status"] = status
+        table_data[f"{op}-deletes"] = deletes
+        table_data[f"{op}-inserts"] = inserts
+        if not correlate_only:
+            table_data["sync-updates"] = updates
+        op = "Correlated" if correlate_only else "Synchronized"
+        logger.debug(msg=(f"{op} {source_db}.{target_table} "
                           f"as per {source_db}.{target_table}, status {status}"))
         result_deletes += deletes
         result_inserts += inserts
