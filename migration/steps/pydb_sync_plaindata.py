@@ -2,7 +2,7 @@ import threading
 from enum import StrEnum
 from logging import Logger
 from typing import Any
-from pypomes_db import DbEngine, db_sync_data
+from pypomes_db import DbEngine, db_connect, db_commit, db_sync_data
 
 from app_constants import (
     MigConfig, MigMetric, MigSpot, MigSpec
@@ -71,27 +71,40 @@ def synchronize_plain(session_id: str,
                 if "identity" in features:
                     identity_column = column_name
 
-        counts: tuple[int, int, int] = db_sync_data(source_engine=source_db,
-                                                    source_table=source_table,
-                                                    target_engine=target_db,
-                                                    target_table=target_table,
-                                                    pk_columns=pk_columns,
-                                                    sync_columns=sync_columns,
-                                                    ignore_updates=correlate_only,
-                                                    identity_column=identity_column,
-                                                    batch_size=batch_size_in,
-                                                    has_nulls=has_nulls,
-                                                    errors=op_errors) or (0, 0, 0)
+        # obtain target DB connection
+        db_conn: Any = db_connect(engine=target_db,
+                                  errors=op_errors)
+        counts: tuple[int, int, int] = (0,  0, 0)
+        if not op_errors:
+            counts = db_sync_data(source_engine=source_db,
+                                  source_table=source_table,
+                                  target_engine=target_db,
+                                  target_table=target_table,
+                                  pk_columns=pk_columns,
+                                  sync_columns=sync_columns,
+                                  ignore_updates=correlate_only,
+                                  target_conn=db_conn,
+                                  identity_column=identity_column,
+                                  batch_size=batch_size_in,
+                                  has_nulls=has_nulls,
+                                  errors=op_errors) or (0, 0, 0)
+
+            # unconditionally commit the transaction
+            db_commit(connection=db_conn,
+                      engine=target_db)
+
+            if op_errors:
+                table_embedded_nulls(rdbms=target_db,
+                                     table=target_table,
+                                     errors=op_errors,
+                                     logger=logger)
+                errors.extend(op_errors)
+
         deletes: int = counts[0]
         inserts: int = counts[1]
         updates: int = counts[2]
         if op_errors:
-            table_embedded_nulls(rdbms=target_db,
-                                 table=target_table,
-                                 errors=op_errors,
-                                 logger=logger)
-            errors.extend(op_errors)
-            status: str = "none"
+            status: str = "partial"
         else:
             status: str = "full"
 

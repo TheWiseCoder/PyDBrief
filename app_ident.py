@@ -14,7 +14,7 @@ if os.getenv("APP_LOCAL_DEPLOYMENT") == "1":
 
 def get_env_keys() -> list[str]:
     """
-    Retorna todas as chaves definidas no arquivo *.env*.
+    Retorna as chaves definidas no arquivo *.env*.
 
     :return: chaves definidas no arquivo *.env*
     """
