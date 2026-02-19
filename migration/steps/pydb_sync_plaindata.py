@@ -88,17 +88,17 @@ def synchronize_plain(session_id: str,
                                   batch_size=batch_size_in,
                                   has_nulls=has_nulls,
                                   errors=op_errors) or (0, 0, 0)
-
-            # unconditionally commit the transaction
-            db_commit(connection=db_conn,
-                      engine=target_db)
-
             if op_errors:
                 table_embedded_nulls(rdbms=target_db,
                                      table=target_table,
                                      errors=op_errors,
                                      logger=logger)
                 errors.extend(op_errors)
+
+            # unconditionally commit the transaction
+            db_commit(connection=db_conn,
+                      engine=target_db,
+                      errors=op_errors)
 
         deletes: int = counts[0]
         inserts: int = counts[1]
