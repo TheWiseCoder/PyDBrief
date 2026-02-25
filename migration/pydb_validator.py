@@ -419,6 +419,7 @@ def validate_steps(input_params: dict[str, str],
             MigStep.MIGRATE_METADATA: step_metadata,
             MigStep.MIGRATE_PLAINDATA: step_plaindata,
             MigStep.MIGRATE_LOBDATA: step_lobdata,
+            MigStep.CORRELATE_PLAINDATA: step_correlate_plain,
             MigStep.SYNCHRONIZE_PLAINDATA: step_sync_plain,
             MigStep.CORRELATE_LOBDATA: step_correlate_lobs
         }
