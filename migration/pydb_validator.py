@@ -369,15 +369,12 @@ def validate_steps(input_params: dict[str, str],
     # retrieve the migration steps
     step_metadata: bool = validate_bool(source=input_params,
                                         attr=MigStep.MIGRATE_METADATA,
-                                        required=True,
                                         errors=errors)
     step_plaindata: bool = validate_bool(source=input_params,
                                          attr=MigStep.MIGRATE_PLAINDATA,
-                                         required=True,
                                          errors=errors)
     step_lobdata: bool = validate_bool(source=input_params,
                                        attr=MigStep.MIGRATE_LOBDATA,
-                                       required=True,
                                        errors=errors)
     step_correlate_plain: bool = validate_bool(source=input_params,
                                                attr=MigStep.CORRELATE_PLAINDATA,
@@ -393,20 +390,23 @@ def validate_steps(input_params: dict[str, str],
     if not (step_metadata or step_lobdata or step_plaindata or
             step_correlate_plain or step_correlate_lobs or step_sync_plain):
         err_msg = "At least one migration step must be specified"
-    elif ((step_correlate_plain or step_sync_plain) and
+    elif (step_correlate_plain and
+          (step_metadata or step_plaindata or step_lobdata or step_sync_plain or step_correlate_lobs)):
+        err_msg = "Plaindata correlation can not be combined with another operation"
+    elif (step_sync_plain and
           (step_metadata or step_plaindata or step_lobdata or step_correlate_plain or step_correlate_lobs)):
-        err_msg = "Plaindata correlation or synchronization can not be combined with another operation"
+        err_msg = "Plaindata synchronization can not be combined with another operation"
+    elif (step_correlate_lobs and
+          (step_metadata or step_plaindata or step_lobdata or step_correlate_plain or step_sync_plain)):
+        err_msg = "LOB correlation can not be combined with another operation"
     else:
         target_s3: str = validate_str(source=input_params,
                                       attr=MigSpot.TO_S3,
                                       errors=errors)
         if step_metadata and step_lobdata and not step_plaindata and not target_s3:
             err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
-        elif step_correlate_lobs:
-            if step_metadata or step_plaindata or step_lobdata or step_sync_plain:
-                err_msg = "LOB correlation can not be combined with another operation"
-            elif not target_s3:
-                err_msg = "LOB correlation requires S3 destination"
+        elif step_correlate_lobs and not target_s3:
+            err_msg = "LOB correlation requires S3 destination"
 
     if err_msg:
         # 101: {}
