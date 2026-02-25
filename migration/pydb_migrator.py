@@ -117,6 +117,7 @@ def migrate(session_id: str,
     if not errors and migrated_tables and \
         (session_steps[MigStep.MIGRATE_PLAINDATA] or
          session_steps[MigStep.MIGRATE_LOBDATA] or
+         session_steps[MigStep.CORRELATE_PLAINDATA] or
          session_steps[MigStep.SYNCHRONIZE_PLAINDATA] or
          session_steps[MigStep.CORRELATE_LOBDATA]):
 
