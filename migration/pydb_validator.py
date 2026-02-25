@@ -369,21 +369,27 @@ def validate_steps(input_params: dict[str, str],
     # retrieve the migration steps
     step_metadata: bool = validate_bool(source=input_params,
                                         attr=MigStep.MIGRATE_METADATA,
+                                        default=False,
                                         errors=errors)
     step_plaindata: bool = validate_bool(source=input_params,
                                          attr=MigStep.MIGRATE_PLAINDATA,
+                                         default=False,
                                          errors=errors)
     step_lobdata: bool = validate_bool(source=input_params,
                                        attr=MigStep.MIGRATE_LOBDATA,
+                                       default=False,
                                        errors=errors)
     step_correlate_plain: bool = validate_bool(source=input_params,
                                                attr=MigStep.CORRELATE_PLAINDATA,
+                                               default=False,
                                                errors=errors)
     step_correlate_lobs: bool = validate_bool(source=input_params,
                                               attr=MigStep.CORRELATE_LOBDATA,
+                                              default=False,
                                               errors=errors)
     step_sync_plain: bool = validate_bool(source=input_params,
                                           attr=MigStep.SYNCHRONIZE_PLAINDATA,
+                                          default=False,
                                           errors=errors)
     # validate them
     err_msg: str | None = None
