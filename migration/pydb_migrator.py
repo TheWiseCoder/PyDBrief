@@ -118,14 +118,14 @@ def migrate(session_id: str,
         (session_steps[MigStep.MIGRATE_PLAINDATA] or
          session_steps[MigStep.MIGRATE_LOBDATA] or
          session_steps[MigStep.CORRELATE_PLAINDATA] or
-         session_steps[MigStep.SYNCHRONIZE_PLAINDATA] or
-         session_steps[MigStep.CORRELATE_LOBDATA]):
+         session_steps[MigStep.CORRELATE_LOBDATA] or
+         session_steps[MigStep.SYNCHRONIZE_PLAINDATA]):
 
         # establish incremental migration sizes and offsets
-        incr_migrations: dict[str, dict[MigIncremental, int]] = session_specs[MigSpec.INCR_MIGRATIONS]
+        incr_migrations: dict[str, dict[MigIncremental, int]] = session_specs[MigSpec.INCREMENTAL_MIGRATIONS]
         if not errors and incr_migrations:
             incr_migrations = __establish_increments(migrating_tables=list(migrated_tables.keys()),
-                                                     incr_migrations=session_specs[MigSpec.INCR_MIGRATIONS],
+                                                     incr_migrations=session_specs[MigSpec.INCREMENTAL_MIGRATIONS],
                                                      target_rdbms=(None if session_spots[MigSpot.TO_S3]
                                                                    else session_spots[MigSpot.TO_RDBMS]),
                                                      target_schema=session_specs[MigSpec.TO_SCHEMA],
@@ -219,6 +219,7 @@ def migrate(session_id: str,
             logger.info(msg=f"Started {op} the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_plain(session_id=session_id,
+                                                             incr_migrations=incr_migrations,
                                                              correlate_only=session_steps[MigStep.CORRELATE_PLAINDATA],
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,

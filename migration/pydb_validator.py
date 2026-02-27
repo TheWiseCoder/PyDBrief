@@ -397,14 +397,14 @@ def validate_steps(input_params: dict[str, str],
             step_correlate_plain or step_correlate_lobs or step_sync_plain):
         err_msg = "At least one migration step must be specified"
     elif (step_correlate_plain and
-          (step_metadata or step_plaindata or step_lobdata or step_sync_plain or step_correlate_lobs)):
+          (step_metadata or step_plaindata or step_lobdata or step_correlate_lobs or step_sync_plain)):
         err_msg = "Plaindata correlation can not be combined with another operation"
+    elif (step_correlate_lobs and
+          (step_metadata or step_plaindata or step_lobdata or step_correlate_plain or step_sync_plain)):
+        err_msg = "Lobdata correlation can not be combined with another operation"
     elif (step_sync_plain and
           (step_metadata or step_plaindata or step_lobdata or step_correlate_plain or step_correlate_lobs)):
         err_msg = "Plaindata synchronization can not be combined with another operation"
-    elif (step_correlate_lobs and
-          (step_metadata or step_plaindata or step_lobdata or step_correlate_plain or step_sync_plain)):
-        err_msg = "LOB correlation can not be combined with another operation"
     else:
         target_s3: str = validate_str(source=input_params,
                                       attr=MigSpot.TO_S3,
@@ -412,7 +412,7 @@ def validate_steps(input_params: dict[str, str],
         if step_metadata and step_lobdata and not step_plaindata and not target_s3:
             err_msg = "Migrating metadata and lobdata to a database requires migrating plaindata as well"
         elif step_correlate_lobs and not target_s3:
-            err_msg = "LOB correlation requires S3 destination"
+            err_msg = "Lobdata correlation requires S3 destination"
 
     if err_msg:
         # 101: {}
@@ -426,8 +426,8 @@ def validate_steps(input_params: dict[str, str],
             MigStep.MIGRATE_PLAINDATA: step_plaindata,
             MigStep.MIGRATE_LOBDATA: step_lobdata,
             MigStep.CORRELATE_PLAINDATA: step_correlate_plain,
-            MigStep.SYNCHRONIZE_PLAINDATA: step_sync_plain,
-            MigStep.CORRELATE_LOBDATA: step_correlate_lobs
+            MigStep.CORRELATE_LOBDATA: step_correlate_lobs,
+            MigStep.SYNCHRONIZE_PLAINDATA: step_sync_plain
         }
 
 
@@ -533,7 +533,7 @@ def validate_specs(input_params: dict[str, str],
             MigSpec.FROM_SCHEMA: from_schema,
             MigSpec.FLATTEN_STORAGE: flatten_storage,
             MigSpec.INCLUDE_RELATIONS: include_relations,
-            MigSpec.INCR_MIGRATIONS: incr_migrations,
+            MigSpec.INCREMENTAL_MIGRATIONS: incr_migrations,
             MigSpec.MIGRATION_BADGE: migration_badge,
             MigSpec.NAMED_LOBDATA: named_lobdata,
             MigSpec.OVERRIDE_COLUMNS: override_columns,
@@ -595,7 +595,7 @@ def __assert_incr_migrations(input_params: dict[str, Any],
     # process the foreign columns list
     incremental_tables: list[str] = [s.lower()
                                      for s in (validate_strs(source=input_params,
-                                                             attr=MigSpec.INCR_MIGRATIONS,
+                                                             attr=MigSpec.INCREMENTAL_MIGRATIONS,
                                                              errors=errors) or [])]
 
     # format of 'incremental_tables' is [<table-name>[=<size>[:<offset>],...]

@@ -5,7 +5,7 @@ from typing import Any
 from pypomes_db import DbEngine, db_connect, db_commit, db_sync_data
 
 from app_constants import (
-    MigConfig, MigMetric, MigSpot, MigSpec
+    MigConfig, MigMetric, MigIncremental, MigSpot, MigSpec
 )
 from migration import pydb_types
 from migration.pydb_database import table_embedded_nulls
@@ -13,6 +13,7 @@ from migration.pydb_sessions import assert_session_abort, get_session_registry
 
 
 def synchronize_plain(session_id: str,
+                      incr_migrations: dict[str, dict[MigIncremental, int]],
                       correlate_only: bool,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
@@ -76,17 +77,26 @@ def synchronize_plain(session_id: str,
                                   errors=op_errors)
         counts: tuple[int, int, int] = (0,  0, 0)
         if not op_errors:
+            # obtain limit and offset
+            limit_count: int = 0
+            offset_count: int = 0
+            if table_name in incr_migrations:
+                limit_count = incr_migrations[table_name].get(MigIncremental.COUNT)
+                offset_count = incr_migrations[table_name].get(MigIncremental.OFFSET)
+
             counts = db_sync_data(source_engine=source_db,
                                   source_table=source_table,
                                   target_engine=target_db,
                                   target_table=target_table,
                                   pk_columns=pk_columns,
                                   sync_columns=sync_columns,
-                                  ignore_updates=correlate_only,
-                                  target_conn=db_conn,
                                   identity_column=identity_column,
+                                  ignore_updates=correlate_only,
+                                  offset_count=offset_count,
+                                  limit_count=limit_count,
                                   batch_size=batch_size_in,
                                   has_nulls=has_nulls,
+                                  target_conn=db_conn,
                                   errors=op_errors) or (0, 0, 0)
             if op_errors:
                 table_embedded_nulls(rdbms=target_db,

@@ -48,7 +48,7 @@ class MigSpec(StrEnum):
     FLATTEN_STORAGE = "flatten-storage"
     FROM_SCHEMA = "from-schema"
     INCLUDE_RELATIONS = "include-relations"
-    INCR_MIGRATIONS = "incremental-migrations"
+    INCREMENTAL_MIGRATIONS = "incremental-migrations"
     IS_ACTIVE = "is-active"
     MIGRATION_BADGE = "migration-badge"
     NAMED_LOBDATA = "named-lobdata"
