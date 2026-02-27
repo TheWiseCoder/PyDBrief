@@ -342,8 +342,7 @@ def migrate_lob_columns(mother_thread: int,
                                      where_clause=where_clause,
                                      offset_count=channel_data[0][0],
                                      limit_count=tot_count,
-                                     chunk_size=chunk_size,
-                                     logger=logger)
+                                     chunk_size=chunk_size)
             else:
                 # execute tasks concurrently
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -382,8 +381,7 @@ def migrate_lob_columns(mother_thread: int,
                                                              where_clause=where_clause,
                                                              offset_count=channel_datum[0],
                                                              limit_count=channel_datum[1],
-                                                             chunk_size=chunk_size,
-                                                             logger=logger)
+                                                             chunk_size=chunk_size)
                         task_futures.append(future)
 
                     # wait for all task futures to complete, then shutdown down the executor
@@ -401,8 +399,7 @@ def _db_migrate_lobs(mother_thread: int,
                      where_clause: str,
                      offset_count: int,
                      limit_count: int,
-                     chunk_size: int,
-                     logger: Logger) -> None:
+                     chunk_size: int) -> None:
 
     # register the operation thread (might be same as the mother thread)
     with lobdata_lock:
@@ -422,8 +419,7 @@ def _db_migrate_lobs(mother_thread: int,
                                               offset_count=offset_count,
                                               limit_count=limit_count,
                                               chunk_size=chunk_size,
-                                              errors=errors,
-                                              logger=logger)
+                                              errors=errors)
     if not errors:
         lob_count = totals[0]
         lob_bytes = totals[1]
