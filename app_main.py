@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sys
 from copy import deepcopy
@@ -21,7 +22,7 @@ from pypomes_db import DbEngine
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
 )
-from pypomes_logging import PYPOMES_LOGGER, service_logging
+from pypomes_logging import PYPOMES_LOGGER, logging_log_forward, service_logging
 from pypomes_s3 import S3Engine
 
 from app_constants import (
@@ -62,6 +63,14 @@ flask_app.register_blueprint(blueprint=swagger_blueprint)
 
 # configure 'jsonify()' with 'ensure_ascii=False'
 flask_app.config["JSON_AS_ASCII"] = False
+
+# forward SQLAlchemy's logging activity to PYPOMES_LOGGER
+logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
+logging_log_forward(source_logger=logger,
+                    target_logger=PYPOMES_LOGGER)
+logger = logging.getLogger("sqlalchemy.dialects")
+logging_log_forward(source_logger=logger,
+                    target_logger=PYPOMES_LOGGER)
 
 
 @flask_app.route(rule="/swagger",

@@ -17,6 +17,7 @@ def build_engine(rdbms: DbEngine,
 
     # build the engine
     try:
+        # 'echo' set to False prevent default stdout logging
         result = create_engine(url=conn_str)
         logger.debug(msg=f"RDBMS {rdbms}, created migration engine")
     except Exception as e:
@@ -35,7 +36,10 @@ def excecute_stmt(rdbms: DbEngine,
                   errors: list[str],
                   logger: Logger) -> Result:
 
+    # initialize the return variable
     result: Result | None = None
+
+    # execute the statement
     exc_stmt: TextClause = text(stmt)
     try:
         with engine.connect() as conn:

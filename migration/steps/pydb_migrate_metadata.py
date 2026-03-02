@@ -61,11 +61,11 @@ def migrate_metadata(session_id: str,
 
         if from_schema:
             # obtain the list of plain and materialized views in source schema
-            schema_views: list[str] = source_inspector.get_view_names(schema=from_schema)
-            plain_views: list[str] = [v.lower() for v in schema_views]
-            schema_views = source_inspector.get_materialized_view_names(schema=from_schema)
-            mat_views: list[str] = [v.lower() for v in schema_views]
-            schema_views = plain_views + mat_views
+            plain_views: list[str] = [v.lower() for v in
+                                      source_inspector.get_view_names(schema=from_schema)]
+            mat_views: list[str] = [v.lower() for v in
+                                    source_inspector.get_materialized_view_names(schema=from_schema)]
+            schema_views: list[str] = plain_views + mat_views
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
             def assert_relation(rel: str, _md: MetaData) -> bool:
