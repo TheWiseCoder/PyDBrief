@@ -108,7 +108,7 @@ def migrate_lobdata(session_id: str,
         table_columns = table_data.get("columns", {})
         for column_name, column_data in table_columns.items():
             column_type: str = column_data.get("source-type")
-            # migrating to S3 requires the lob column be mapped in 'named-lobdata'
+            # migrating to S3 requires that the lob column be mapped in 'named-lobdata'
             if is_lob_column(col_type=column_type):
                 reference_column: str | None = None
                 # determine if lobdata in 'lob_column' has its filename defined in 'named-lobdata'
