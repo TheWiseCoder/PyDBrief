@@ -65,12 +65,13 @@ flask_app.register_blueprint(blueprint=swagger_blueprint)
 flask_app.config["JSON_AS_ASCII"] = False
 
 # forward SQLAlchemy's logging activity to PYPOMES_LOGGER
-logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
-logging_log_forward(source_logger=logger,
-                    target_logger=PYPOMES_LOGGER)
-logger = logging.getLogger("sqlalchemy.dialects")
-logging_log_forward(source_logger=logger,
-                    target_logger=PYPOMES_LOGGER)
+if os.getenv("PYDB_LOG_SQLALCHEMY") == "1":
+    logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
+    logging_log_forward(source_logger=logger,
+                        target_logger=PYPOMES_LOGGER)
+    logger = logging.getLogger("sqlalchemy.dialects")
+    logging_log_forward(source_logger=logger,
+                        target_logger=PYPOMES_LOGGER)
 
 
 @flask_app.route(rule="/swagger",
