@@ -516,6 +516,5 @@ def _s3_migrate_lobs(mother_thread: int,
                     lobdata_registry[mother_thread][source_table]["table-bytes"] += totals[1]
         if db_conn:
             db_drop_table(table_name=temp_table,
-                          connection=db_conn,
-                          committable=True)
+                          connection=db_conn)
             db_close(connection=db_conn)
