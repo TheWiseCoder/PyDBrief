@@ -93,7 +93,7 @@ def view_get_ddl(view_name: str,
 
         # reduce DDL to the bare minimum, as per the Oracle example below (uppercase used for highlighting)
         #   from:
-        #     CREATE MATERIALIZED VIEW <schema>.<view>
+        #     CREATE MATERIALIZED VIEW <source-schema>.<view>
         #       (<view-column-1>, ..., <view-column-n>)
         #       on prebuilt table without reduced precision
         #       using index
@@ -103,7 +103,7 @@ def view_get_ddl(view_name: str,
         #       AS SELECT <table-column-1>, ..., <table-column-n>
         #       FROM [[<source-schema>.<table>] | [<table>@<url>]]
         #   to:
-        #     CREATE MATERIALIZED VIEW <schema>.<view>
+        #     CREATE MATERIALIZED VIEW <target-schema>.<view>
         #       (<view-column-1>, ..., <view-column-n>)
         #       AS SELECT <table-column-1>, ..., <table-column-n>
         #       FROM <target-schema>.<table>
