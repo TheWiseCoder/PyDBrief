@@ -108,7 +108,7 @@ def view_get_ddl(view_name: str,
             #       FROM <target-schema>.<table>
             pos1: int = result.index(")") + 1
             pos2: int = result.index("as select ")
-            result = result[:pos1] + " " + result[pos2:]
+            result = f"{result[:pos1]} {result[pos2:]}"
             pos2 = result.find("@")
             if pos2 > 0:
                 pos1 = result.rindex(" ") + 1
