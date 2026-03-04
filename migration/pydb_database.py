@@ -108,13 +108,12 @@ def view_get_ddl(view_name: str,
             pos1: int = result.index(")") + 1
             pos2: int = result.index("as select ")
             result = f"{result[:pos1]} {result[pos2:]}"
-            pos2 = result.find("@")
+            pos2 = result.rfind("@")
             if pos2 > 0:
+                result = result[:pos2]
                 pos1 = result.rindex(" ") + 1
-                if result.find(".", pos1) > 0:
-                    result = result[:pos2]
-                else:
-                    result = f"{result[:pos1]} {target_schema}.{result[pos1:pos2]}"
+                if result.find(".", pos1) < 0:
+                    result = f"{result[:pos1]} {target_schema}.{result[pos1:]}"
     else:
         # DDL has not been retrieved, report the problem
         err_msg: str = ("unable to retrieve DDL script "
