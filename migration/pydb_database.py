@@ -111,7 +111,9 @@ def view_get_ddl(view_name: str,
             pos2 = result.find("@")
             if pos2 > 0:
                 pos1 = result.rindex(" ") + 1
-                if result.find(".", pos1) < 0:
+                if result.find(".", pos1) > 0:
+                    result = result[:pos2]
+                else:
                     result = f"{result[:pos1]} {target_schema}.{result[pos1:pos2]}"
     else:
         # DDL has not been retrieved, report the problem
