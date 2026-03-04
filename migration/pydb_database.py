@@ -87,36 +87,34 @@ def view_get_ddl(view_name: str,
                                   engine=source_rdbms,
                                   errors=errors)
     if result:
-        # script has been retrieved, create the DDL in the target schema
+        # DDL has been retrieved, modify it to point to the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
                                .replace(f"{source_schema}.", f"{target_schema}.")
-
-        # reduce DDL to the bare minimum, as per the Oracle example below (uppercase used for highlighting)
-        #   from:
-        #     CREATE MATERIALIZED VIEW <source-schema>.<view>
-        #       (<view-column-1>, ..., <view-column-n>)
-        #       on prebuilt table without reduced precision
-        #       using index
-        #       refresh fast on demand start with sysdate+0 next trunc(sysdate +1) + 21/24
-        #       with primary key using default local rollback segment
-        #       using enforced constraints disable query rewrite
-        #       AS SELECT <table-column-1>, ..., <table-column-n>
-        #       FROM [[<source-schema>.<table>] | [<table>@<url>]]
-        #   to:
-        #     CREATE MATERIALIZED VIEW <target-schema>.<view>
-        #       (<view-column-1>, ..., <view-column-n>)
-        #       AS SELECT <table-column-1>, ..., <table-column-n>
-        #       FROM <target-schema>.<table>
-        pos1: int = result.index(")") + 1
-        pos2: int = result.index("as select ")
-        result = result[:pos1] + " " + result[pos2:]
-        pos2 = result.find("@")
-        if pos2 > 0:
-            pos1 = result.rindex(" ") + 1
-            result = f"{result[:pos1]} {target_schema}.{result[pos1:pos2]}"
-
+        if view_type == "M":
+            # for material views, reduce DDL to the bare minimum, as per the Oracle example below
+            #   from:
+            #     CREATE MATERIALIZED VIEW <source-schema>.<view>
+            #       (<view-column-1>, ..., <view-column-n>)
+            #       on prebuilt table without reduced precision using index
+            #       refresh fast on demand start with sysdate+0 next trunc(sysdate +1) + 21/24
+            #       with primary key using default local rollback segment
+            #       using enforced constraints disable query rewrite
+            #       AS SELECT <table-column-1>, ..., <table-column-n>
+            #       FROM [[<source-schema>.<table>] | [<table>@<url>]]
+            #   to:
+            #     CREATE MATERIALIZED VIEW <target-schema>.<view>
+            #       (<view-column-1>, ..., <view-column-n>)
+            #       AS SELECT <table-column-1>, ..., <table-column-n>
+            #       FROM <target-schema>.<table>
+            pos1: int = result.index(")") + 1
+            pos2: int = result.index("as select ")
+            result = result[:pos1] + " " + result[pos2:]
+            pos2 = result.find("@")
+            if pos2 > 0:
+                pos1 = result.rindex(" ") + 1
+                result = f"{result[:pos1]} {target_schema}.{result[pos1:pos2]}"
     else:
-        # script has not been retrieved, report the problem
+        # DDL has not been retrieved, report the problem
         err_msg: str = ("unable to retrieve DDL script "
                         f"for view {source_rdbms}.{source_schema}.{view_name}")
         logger.error(msg=err_msg)
