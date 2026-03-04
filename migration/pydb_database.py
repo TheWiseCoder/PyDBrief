@@ -89,7 +89,7 @@ def view_get_ddl(view_name: str,
     if result:
         # DDL has been retrieved, modify it to point to the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                               .replace(f"{source_schema}.", f"{target_schema}.")
+                               .replace(f"{source_schema}.", f"{target_schema}.").replace('"', "")
         if view_type == "M":
             # for material views, reduce DDL to the bare minimum, as per the Oracle example below
             #   from:
