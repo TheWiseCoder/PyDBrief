@@ -81,22 +81,43 @@ def view_get_ddl(view_name: str,
                  errors: list[str],
                  logger: Logger) -> str:
 
-    # obtain the script used to create the view
+    # obtain the DDL used to create the view
     result: str = db_get_view_ddl(view_type=view_type,
                                   view_name=f"{source_schema}.{view_name}",
                                   engine=source_rdbms,
                                   errors=errors)
     if result:
-        # script has been retrieved, create the view in the target schema
+        # script has been retrieved, create the DDL in the target schema
         result = result.lower().replace(f"{source_schema}.", f"{target_schema}.")\
-                               .replace(f'"{source_schema}".', f'"{target_schema}".')
-        if source_rdbms == DbEngine.ORACLE:
-            # purge Oracle-specific clauses
-            result = result.replace("force editionable ", "")
-        # errors ?
+                               .replace(f"{source_schema}.", f"{target_schema}.")
+
+        # reduce DDL to the bare minimum, as per the Oracle example below (uppercase used for highlighting)
+        #   from:
+        #     CREATE MATERIALIZED VIEW <schema>.<view>
+        #       (<view-column-1>, ..., <view-column-n>)
+        #       on prebuilt table without reduced precision
+        #       using index
+        #       refresh fast on demand start with sysdate+0 next trunc(sysdate +1) + 21/24
+        #       with primary key using default local rollback segment
+        #       using enforced constraints disable query rewrite
+        #       AS SELECT <table-column-1>, ..., <table-column-n>
+        #       FROM [[<source-schema>.<table>] | [<table>@<url>]]
+        #   to:
+        #     CREATE MATERIALIZED VIEW <schema>.<view>
+        #       (<view-column-1>, ..., <view-column-n>)
+        #       AS SELECT <table-column-1>, ..., <table-column-n>
+        #       FROM <target-schema>.<table>
+        pos1: int = result.index(")") + 1
+        pos2: int = result.index("as select ")
+        result = result[:pos1] + " " + result[pos2:]
+        pos2 = result.find("@")
+        if pos2 > 0:
+            pos1 = result.rindex(" ") + 1
+            result = f"{result[:pos1]} {target_schema}.{result[pos1:pos2]}"
+
     else:
         # script has not been retrieved, report the problem
-        err_msg: str = ("unable to retrieve creation script "
+        err_msg: str = ("unable to retrieve DDL script "
                         f"for view {source_rdbms}.{source_schema}.{view_name}")
         logger.error(msg=err_msg)
         # 102: Unexpected error: {}
