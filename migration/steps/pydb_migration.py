@@ -328,6 +328,7 @@ def setup_columns(target_columns: Iterable[Column],
                                               optimize_pks=optimize_pks,
                                               override_columns=override_columns,
                                               migration_warnings=migration_warnings,
+                                              pk_stack=[],
                                               errors=errors,
                                               logger=logger)
             if errors:

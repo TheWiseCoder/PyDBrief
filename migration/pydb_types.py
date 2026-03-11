@@ -546,6 +546,7 @@ def migrate_column(source_rdbms: DbEngine,
                    override_columns: dict[str, Type],
                    migration_warnings: list[str],
                    errors: list[str],
+                   pk_stack: list[str],
                    logger: Logger) -> Any:
 
     # initialize the return variable
@@ -586,16 +587,20 @@ def migrate_column(source_rdbms: DbEngine,
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
         if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
             # 'ref_column' and 'pk_column' share the same schema
-            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms,
-                                          ref_column=fk_column,
-                                          optimize_pks=optimize_pks,
-                                          override_columns=override_columns,
-                                          migration_warnings=migration_warnings,
-                                          errors=errors,
-                                          logger=logger)
-            if fk_type:
-                type_equiv = fk_type.__class__
+            pk_stack.append(col_name)
+            # prevent recursive references
+            if f"{fk_column.table.name}.{fk_column.name}" not in pk_stack:
+                fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                              target_rdbms=target_rdbms,
+                                              ref_column=fk_column,
+                                              optimize_pks=optimize_pks,
+                                              override_columns=override_columns,
+                                              migration_warnings=migration_warnings,
+                                              pk_stack=pk_stack,
+                                              errors=errors,
+                                              logger=logger)
+                if fk_type:
+                    type_equiv = fk_type.__class__
         if not type_equiv:
             # - 'ref_column' and 'pk_column' are in different schemas, or
             # - table containing 'pk_column' not part of current migration
