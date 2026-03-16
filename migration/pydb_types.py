@@ -546,7 +546,7 @@ def migrate_column(source_rdbms: DbEngine,
                    override_columns: dict[str, Type],
                    migration_warnings: list[str],
                    errors: list[str],
-                   pk_stack: list[str],
+                   fk_stack: list[str],
                    logger: Logger) -> Any:
 
     # initialize the return variable
@@ -587,16 +587,16 @@ def migrate_column(source_rdbms: DbEngine,
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
         if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
             # 'ref_column' and 'pk_column' share the same schema
-            pk_stack.append(col_name)
+            fk_stack.append(col_name)
             # prevent recursive references
-            if f"{fk_column.table.name}.{fk_column.name}" not in pk_stack:
+            if f"{fk_column.table.name}.{fk_column.name}" not in fk_stack:
                 fk_type: Any = migrate_column(source_rdbms=source_rdbms,
                                               target_rdbms=target_rdbms,
                                               ref_column=fk_column,
                                               optimize_pks=optimize_pks,
                                               override_columns=override_columns,
                                               migration_warnings=migration_warnings,
-                                              pk_stack=pk_stack,
+                                              fk_stack=fk_stack,
                                               errors=errors,
                                               logger=logger)
                 if fk_type:
@@ -650,13 +650,19 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = REF_INTEGER
                     elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
                         type_equiv = REF_BIGINT
-                    # else: ... potential problem, as some DBs will not accept a REF_NUMERIC column as identity
+                    elif target_rdbms == DbEngine.POSTGRES:
+                        # PostgreSQL will not accept a REF_NUMERIC column as identity
+                        type_equiv = REF_BIGINT
+                        warn_msg: str = (f"{msg} - forced to type 'bigint', as "
+                                         f"{target_rdbms} does not accept type 'number' for IDENTITY columns")
+                        migration_warnings.append(warn_msg)
+                        logger.warning(msg=warn_msg)
                 elif not numeric_precision or numeric_precision > 9:
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
             elif is_pk and numeric_precision and optimize_pks:
-                # optimize primary keys (successfully converted FKs will not reach this point)
+                # optimize primary keys (successfully converted PKs will not reach this point)
                 if numeric_precision < 5:
                     type_equiv = REF_SMALLINT
                 elif numeric_precision < 10:
