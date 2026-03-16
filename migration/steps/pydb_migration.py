@@ -336,6 +336,7 @@ def setup_columns(target_columns: Iterable[Column],
 
             # set column's new type
             target_column.type = target_type
+            column_name: str = f"{target_column.table.name}.{target_column.name}"
             table_display[target_column.name]["target-type"] = str(target_column.type)
 
             # set LOB column's nullability
@@ -345,7 +346,7 @@ def setup_columns(target_columns: Iterable[Column],
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
-                if target_column.name in omit_defaults:
+                if column_name in omit_defaults:
                     target_column.server_default = None
                 elif isinstance(target_column.server_default, DefaultClause):
                     def_orig: Any = target_column.server_default.arg
@@ -374,7 +375,7 @@ def setup_columns(target_columns: Iterable[Column],
                             table_display[target_column.name]["default-value"] = def_conv
                         else:
                             warn_msg: str = (f"Unable to convert the default value '{def_val}' "
-                                             f"for column {target_column.table.name}.{target_column.name}")
+                                             f"for column {column_name}")
                             migration_warnings.append(warn_msg)
                             logger.warning(msg=warn_msg)
                             target_column.server_default = None
