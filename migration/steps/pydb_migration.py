@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql.elements import Type
 from sys import exc_info
-from typing import Any, cast
+from typing import Any
 
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column
@@ -347,8 +347,8 @@ def setup_columns(target_columns: Iterable[Column],
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
                 if target_column.name in omit_defaults:
                     target_column.server_default = None
-                else:
-                    def_orig: Any = cast("DefaultClause", target_column.server_default).arg
+                elif isinstance(target_column.server_default, DefaultClause):
+                    def_orig: Any = target_column.server_default.arg
                     def_save: str = def_orig.text \
                         if isinstance(def_orig, TextClause) else str(def_orig)
                     def_val: str = def_save.strip()
