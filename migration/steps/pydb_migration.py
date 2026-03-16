@@ -374,8 +374,8 @@ def setup_columns(target_columns: Iterable[Column],
                                 def_conv: float = float(def_conv)
                             table_display[target_column.name]["default-value"] = def_conv
                         else:
-                            warn_msg: str = (f"Unable to convert the default value '{def_val}' "
-                                             f"for column {column_name}")
+                            warn_msg: str = ("Unable to convert the default value "
+                                             f"'{def_val}' for column {column_name}")
                             migration_warnings.append(warn_msg)
                             logger.warning(msg=warn_msg)
                             target_column.server_default = None
