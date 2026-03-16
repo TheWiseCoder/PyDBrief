@@ -336,8 +336,8 @@ def setup_columns(target_columns: Iterable[Column],
 
             # set column's new type
             target_column.type = target_type
-            column_name: str = f"{target_column.table.name}.{target_column.name}"
             table_display[target_column.name]["target-type"] = str(target_column.type)
+            column_name: str = f"{target_column.table.name}.{target_column.name}"
 
             # set LOB column's nullability
             if hasattr(target_column, "nullable") and \
