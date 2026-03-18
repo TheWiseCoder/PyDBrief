@@ -1,9 +1,10 @@
 from logging import Logger
 from pypomes_core import dict_get_key
 from pypomes_db import DbRange, DbEngine
-from sqlalchemy.sql.elements import Type  # same as 'from typing import Type'
+# 'Type' is same as 'typing.Type'
+from sqlalchemy.sql.elements import Type, TypeEngine
 from sqlalchemy.sql.schema import Column
-from typing import Any, Final
+from typing import Final
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
 from sqlalchemy.types import (
@@ -545,14 +546,15 @@ def migrate_column(source_rdbms: DbEngine,
                    optimize_pks: bool,
                    override_columns: dict[str, Type],
                    migration_warnings: list[str],
+                   fk_stack: list[str],
                    errors: list[str],
-                   logger: Logger) -> Any:
+                   logger: Logger) -> TypeEngine:
 
     # initialize the return variable
-    result: Any = None
+    result: TypeEngine | None = None
 
     # retrieve needed properties and define specific features
-    type_original: Any = ref_column.type
+    type_original: TypeEngine = ref_column.type
     is_pk: bool = (hasattr(ref_column, "primary_key") and
                    ref_column.primary_key) or False
     is_fk: bool = (hasattr(ref_column, "foreign_keys") and
@@ -582,9 +584,28 @@ def migrate_column(source_rdbms: DbEngine,
 
     # the FK equivalence has the next precedence
     if not type_equiv and is_fk:
-        # force type conformity with the FK target
+        # attempt to force type conformity with the FK target
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
-        type_original = fk_column.type
+        fk_name: str = f"{ref_column.table.name}.{ref_column.name}"
+        fk_stack.append(ref_name)
+        # prevent endless loop
+        if fk_name not in fk_stack:
+            fk_type: TypeEngine = migrate_column(source_rdbms=source_rdbms,
+                                                 target_rdbms=target_rdbms,
+                                                 ref_column=fk_column,
+                                                 optimize_pks=optimize_pks,
+                                                 override_columns=override_columns,
+                                                 migration_warnings=migration_warnings,
+                                                 fk_stack=fk_stack,
+                                                 errors=errors,
+                                                 logger=logger)
+            if fk_type:
+                type_equiv = fk_type.__class__
+            else:
+                warn_msg: str = (f"{msg} - unable to obtain type for {fk_name}, "
+                                 f"referred to by FK {ref_name}")
+                migration_warnings.append(warn_msg)
+                logger.warning(msg=warn_msg)
 
     # finally, inspect the migration equivalences
     if not type_equiv:
@@ -632,7 +653,6 @@ def migrate_column(source_rdbms: DbEngine,
                 else:
                     type_equiv = REF_INTEGER
             elif is_pk and numeric_precision and optimize_pks:
-                # optimize primary keys (successfully converted PKs will not reach this point)
                 if numeric_precision < 5:
                     type_equiv = REF_SMALLINT
                 elif numeric_precision < 10:
