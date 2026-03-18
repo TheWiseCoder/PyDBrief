@@ -585,9 +585,9 @@ def migrate_column(source_rdbms: DbEngine,
     # the FK equivalence has the next precedence
     if not type_equiv and is_fk:
         # attempt to force type conformity with the FK target
-        fk_column: Column = next(iter(ref_column.foreign_keys)).column
-        fk_name: str = f"{ref_column.table.name}.{ref_column.name}"
         fk_stack.append(ref_name)
+        fk_column: Column = next(iter(ref_column.foreign_keys)).column
+        fk_name: str = f"{fk_column.table.name}.{fk_column.name}"
         # prevent endless loop
         if fk_name not in fk_stack:
             fk_type: Any = migrate_column(source_rdbms=source_rdbms,
