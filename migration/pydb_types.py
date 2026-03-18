@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import dict_get_key
-from pypomes_db import DbEngine, DbRange, db_get_column_metadata
+from pypomes_db import DbRange, DbEngine, db_get_column_metadata
 from sqlalchemy.sql.elements import Type  # same as 'from typing import Type'
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -601,6 +601,12 @@ def migrate_column(source_rdbms: DbEngine,
                                               logger=logger)
                 if fk_type:
                     type_equiv = fk_type.__class__
+                else:
+                    warn_msg: str = (f"{msg} - unable to obtain type for "
+                                     f"{fk_column.table.name}.{fk_column.name}, "
+                                     f"referred to by FK {col_name}")
+                    migration_warnings.append(warn_msg)
+                    logger.warning(msg=warn_msg)
         if not type_equiv:
             # - 'ref_column' and 'pk_column' are in different schemas, or
             # - table containing 'pk_column' not part of current migration
@@ -654,9 +660,9 @@ def migrate_column(source_rdbms: DbEngine,
                         # PostgreSQL will not accept a REF_NUMERIC column as identity
                         type_equiv = REF_BIGINT
                         ref_column.identity.maxvalue = DbRange.BIGINT_MAX
+                        # SANITY_CHECK: for identity columns, min value is usually set as 1
                         if hasattr(ref_column.identity, "minvalue") and \
                            ref_column.identity.minvalue < DbRange.BIGINT_MIN:
-                            # SANITY_CHECK: for identity columns, min value is usually set as 1
                             ref_column.identity.minvalue = DbRange.BIGINT_MIN
                         warn_msg: str = (f"{msg} - forced to type INT8, as "
                                          f"{target_rdbms} does not accept type NUMERIC for IDENTITY columns")
