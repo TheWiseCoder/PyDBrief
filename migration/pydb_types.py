@@ -2,9 +2,9 @@ from logging import Logger
 from pypomes_core import dict_get_key
 from pypomes_db import DbRange, DbEngine
 # 'Type' is same as 'typing.Type'
-from sqlalchemy.sql.elements import Type, TypeEngine
+from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
-from typing import Final
+from typing import Any, Final
 
 # Generic types specify a column that can read, write and store a particular type of Python data.
 from sqlalchemy.types import (
@@ -548,13 +548,13 @@ def migrate_column(source_rdbms: DbEngine,
                    migration_warnings: list[str],
                    fk_stack: list[str],
                    errors: list[str],
-                   logger: Logger) -> TypeEngine:
+                   logger: Logger) -> Any:
 
     # initialize the return variable
-    result: TypeEngine | None = None
+    result: Any = None
 
     # retrieve needed properties and define specific features
-    type_original: TypeEngine = ref_column.type
+    type_original: Any = ref_column.type
     is_pk: bool = (hasattr(ref_column, "primary_key") and
                    ref_column.primary_key) or False
     is_fk: bool = (hasattr(ref_column, "foreign_keys") and
@@ -590,15 +590,15 @@ def migrate_column(source_rdbms: DbEngine,
         fk_stack.append(ref_name)
         # prevent endless loop
         if fk_name not in fk_stack:
-            fk_type: TypeEngine = migrate_column(source_rdbms=source_rdbms,
-                                                 target_rdbms=target_rdbms,
-                                                 ref_column=fk_column,
-                                                 optimize_pks=optimize_pks,
-                                                 override_columns=override_columns,
-                                                 migration_warnings=migration_warnings,
-                                                 fk_stack=fk_stack,
-                                                 errors=errors,
-                                                 logger=logger)
+            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
+                                          target_rdbms=target_rdbms,
+                                          ref_column=fk_column,
+                                          optimize_pks=optimize_pks,
+                                          override_columns=override_columns,
+                                          migration_warnings=migration_warnings,
+                                          fk_stack=fk_stack,
+                                          errors=errors,
+                                          logger=logger)
             if fk_type:
                 type_equiv = fk_type.__class__
             else:
