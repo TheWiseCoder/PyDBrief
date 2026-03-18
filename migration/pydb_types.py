@@ -653,8 +653,12 @@ def migrate_column(source_rdbms: DbEngine,
                     elif target_rdbms == DbEngine.POSTGRES:
                         # PostgreSQL will not accept a REF_NUMERIC column as identity
                         type_equiv = REF_BIGINT
-                        warn_msg: str = (f"{msg} - forced to type 'bigint', as "
-                                         f"{target_rdbms} does not accept type 'number' for IDENTITY columns")
+                        ref_column.identity.maxvalue = 9223372036854775807
+                        if hasattr(ref_column.identity, "minvalue") and \
+                           ref_column.identity.minvalue < -9223372036854775808:
+                            ref_column.identity.minvalue = -9223372036854775808
+                        warn_msg: str = (f"{msg} - forced to type INT8, as "
+                                         f"{target_rdbms} does not accept type NUMERIC for IDENTITY columns")
                         migration_warnings.append(warn_msg)
                         logger.warning(msg=warn_msg)
                 elif not numeric_precision or numeric_precision > 9:
