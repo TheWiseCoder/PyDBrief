@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import dict_get_key
-from pypomes_db import DbEngine, db_get_column_metadata
+from pypomes_db import DbEngine, DbRange, db_get_column_metadata
 from sqlalchemy.sql.elements import Type  # same as 'from typing import Type'
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -644,19 +644,19 @@ def migrate_column(source_rdbms: DbEngine,
         if is_numeric_int and type_equiv in NUMERIC_TYPES:
             if is_identity:
                 if hasattr(ref_column.identity, "maxvalue"):
-                    if ref_column.identity.maxvalue <= 32767:  # max value for REF_SMALLINT
+                    if ref_column.identity.maxvalue <= DbRange.SMALLINT_MAX:
                         type_equiv = REF_SMALLINT
-                    elif ref_column.identity.maxvalue <= 2147483647:  # max value for REF_INTEGER
+                    elif ref_column.identity.maxvalue <= DbRange.INT_MAX:
                         type_equiv = REF_INTEGER
-                    elif ref_column.identity.maxvalue <= 9223372036854775807:  # max value for REF_BIGINT
+                    elif ref_column.identity.maxvalue <= DbRange.BIGINT_MAX:
                         type_equiv = REF_BIGINT
                     elif target_rdbms == DbEngine.POSTGRES:
                         # PostgreSQL will not accept a REF_NUMERIC column as identity
                         type_equiv = REF_BIGINT
-                        ref_column.identity.maxvalue = 9223372036854775807
+                        ref_column.identity.maxvalue = DbRange.BIGINT_MAX
                         if hasattr(ref_column.identity, "minvalue") and \
-                           ref_column.identity.minvalue < -9223372036854775808:
-                            ref_column.identity.minvalue = -9223372036854775808
+                           ref_column.identity.minvalue < DbRange.BIGINT_MIN:
+                            ref_column.identity.minvalue = DbRange.BIGINT_MIN
                         warn_msg: str = (f"{msg} - forced to type INT8, as "
                                          f"{target_rdbms} does not accept type NUMERIC for IDENTITY columns")
                         migration_warnings.append(warn_msg)
