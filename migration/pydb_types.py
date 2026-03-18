@@ -578,18 +578,21 @@ def migrate_column(source_rdbms: DbEngine,
         ref_column.identity.cache = 1
 
     # the override type has precedence
-    col_name: str = f"{ref_column.table.name}.{ref_column.name}"
-    type_equiv: Type = override_columns.get(col_name)
+    ref_name: str = f"{ref_column.table.name}.{ref_column.name}"
+    type_equiv: Type = override_columns.get(ref_name)
 
     # the FK equivalence has the next precedence
     if not type_equiv and is_fk:
         # atempt to force type conformity with the FK target
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
-        if fk_column.table.fullname.split(".")[0] == ref_column.table.fullname.split(".")[0]:
+        ref_schema: str = ref_column.table.fullname.split(".")[0]
+        fk_schema: str = fk_column.table.fullname.split(".")[0]
+        if fk_schema == ref_schema:
             # 'ref_column' and 'pk_column' share the same schema
-            fk_stack.append(col_name)
+            fk_stack.append(ref_name)
+            fk_name: str = f"{fk_column.table.name}.{fk_column.name}"
             # prevent recursive references
-            if f"{fk_column.table.name}.{fk_column.name}" not in fk_stack:
+            if fk_name not in fk_stack:
                 fk_type: Any = migrate_column(source_rdbms=source_rdbms,
                                               target_rdbms=target_rdbms,
                                               ref_column=fk_column,
@@ -602,9 +605,8 @@ def migrate_column(source_rdbms: DbEngine,
                 if fk_type:
                     type_equiv = fk_type.__class__
                 else:
-                    warn_msg: str = (f"{msg} - unable to obtain type for "
-                                     f"{fk_column.table.name}.{fk_column.name}, "
-                                     f"referred to by FK {col_name}")
+                    warn_msg: str = (f"{msg} - unable to obtain type for {fk_name} "
+                                     f"referred to by FK {ref_name}")
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
         if not type_equiv:
