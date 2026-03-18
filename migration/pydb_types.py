@@ -652,17 +652,17 @@ def migrate_column(source_rdbms: DbEngine,
                     type_equiv = REF_BIGINT
                 else:
                     type_equiv = REF_INTEGER
-            elif is_pk:
-                # block SQLAlchemy's default behavior handling integer primary key column
-                if hasattr(ref_column, "autoincrement") and ref_column.autoincrement:
-                    ref_column.autoincrement = False
-                if optimize_pks and isinstance(numeric_precision, int):
-                    if numeric_precision < 5:
-                        type_equiv = REF_SMALLINT
-                    elif numeric_precision < 10:
-                        type_equiv = REF_INTEGER
-                    elif numeric_precision < 19:
-                        type_equiv = REF_BIGINT
+            elif is_pk and numeric_precision and optimize_pks:
+                if numeric_precision < 5:
+                    type_equiv = REF_SMALLINT
+                elif numeric_precision < 10:
+                    type_equiv = REF_INTEGER
+                elif numeric_precision < 19:
+                    type_equiv = REF_BIGINT
+
+        # block SQLAlchemy's odd behavior handling integer primary key columns
+        if is_pk and hasattr(ref_column, "autoincrement") and ref_column.autoincrement:
+            ref_column.autoincrement = False
 
     # instantiate the type object
     if type_equiv:
