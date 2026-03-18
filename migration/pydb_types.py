@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import dict_get_key
-from pypomes_db import DbRange, DbEngine, db_get_column_metadata
+from pypomes_db import DbRange, DbEngine
 from sqlalchemy.sql.elements import Type  # same as 'from typing import Type'
 from sqlalchemy.sql.schema import Column
 from typing import Any, Final
@@ -546,7 +546,6 @@ def migrate_column(source_rdbms: DbEngine,
                    override_columns: dict[str, Type],
                    migration_warnings: list[str],
                    errors: list[str],
-                   fk_stack: list[str],
                    logger: Logger) -> Any:
 
     # initialize the return variable
@@ -583,51 +582,9 @@ def migrate_column(source_rdbms: DbEngine,
 
     # the FK equivalence has the next precedence
     if not type_equiv and is_fk:
-        # atempt to force type conformity with the FK target
+        # force type conformity with the FK target
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
-        ref_schema: str = ref_column.table.fullname.split(".")[0]
-        fk_schema: str = fk_column.table.fullname.split(".")[0]
-        if fk_schema == ref_schema:
-            # 'ref_column' and 'pk_column' share the same schema
-            fk_stack.append(ref_name)
-            fk_name: str = f"{fk_column.table.name}.{fk_column.name}"
-            # prevent recursive references
-            if fk_name not in fk_stack:
-                fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                              target_rdbms=target_rdbms,
-                                              ref_column=fk_column,
-                                              optimize_pks=optimize_pks,
-                                              override_columns=override_columns,
-                                              migration_warnings=migration_warnings,
-                                              fk_stack=fk_stack,
-                                              errors=errors,
-                                              logger=logger)
-                if fk_type:
-                    type_equiv = fk_type.__class__
-                else:
-                    warn_msg: str = (f"{msg} - unable to obtain type for {fk_name} "
-                                     f"referred to by FK {ref_name}")
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
-        if not type_equiv:
-            # - 'ref_column' and 'pk_column' are in different schemas, or
-            # - table containing 'pk_column' not part of current migration
-            metadata: tuple[str, int, int, bool] = db_get_column_metadata(table_name=fk_column.table.fullname,
-                                                                          column_name=fk_column.name,
-                                                                          engine=target_rdbms,
-                                                                          errors=errors)
-            if metadata:
-                type_equiv = name_to_type(type_name=metadata[0],
-                                          rdbms=target_rdbms)
-                if not type_equiv:
-                    warn_msg: str = msg + f" type '{metadata[0]}' of FK '{fk_column.name}' not mapped"
-                    migration_warnings.append(warn_msg)
-                    logger.warning(msg=warn_msg)
-        if errors:
-            warn_msg: str = f"{msg} - unable to inspect FK '{fk_column.name}': {';'.join(errors)}"
-            migration_warnings.append(warn_msg)
-            logger.warning(msg=warn_msg)
-            errors.clear()
+        type_equiv = fk_column.type.__class__
 
     # finally, inspect the migration equivalences
     if not type_equiv:
