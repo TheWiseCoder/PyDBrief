@@ -584,7 +584,7 @@ def migrate_column(source_rdbms: DbEngine,
     if not type_equiv and is_fk:
         # force type conformity with the FK target
         fk_column: Column = next(iter(ref_column.foreign_keys)).column
-        type_equiv = fk_column.type.__class__
+        type_original = fk_column.type
 
     # finally, inspect the migration equivalences
     if not type_equiv:
