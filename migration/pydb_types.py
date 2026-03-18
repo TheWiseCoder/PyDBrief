@@ -656,6 +656,7 @@ def migrate_column(source_rdbms: DbEngine,
                         ref_column.identity.maxvalue = DbRange.BIGINT_MAX
                         if hasattr(ref_column.identity, "minvalue") and \
                            ref_column.identity.minvalue < DbRange.BIGINT_MIN:
+                            # SANITY_CHECK: for identity columns, min value is usually set as 1
                             ref_column.identity.minvalue = DbRange.BIGINT_MIN
                         warn_msg: str = (f"{msg} - forced to type INT8, as "
                                          f"{target_rdbms} does not accept type NUMERIC for IDENTITY columns")
