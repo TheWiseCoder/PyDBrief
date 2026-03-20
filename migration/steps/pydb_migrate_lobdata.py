@@ -268,13 +268,11 @@ def migrate_lob_columns(mother_thread: int,
                                               target_db=target_db,
                                               target_table=target_table,
                                               column_name=reference_column or lob_column)
-
-                # is a nonempty S3 prefix an issue ?
+                # skip nonempty S3 prefixes
                 if (not session_registry[MigConfig.STEPS][MigStep.CORRELATE_LOBDATA] and
                     session_specs[MigSpec.SKIP_NONEMPTY] and
                     s3_item_exists(identifier=lob_prefix.as_posix(),
                                    errors=errors)):
-                    # yes, skip it
                     warn_msg: str = ("Skipped migrating LOBs in column "
                                      f"{source_db}.{source_table}.{lob_column}: "
                                      f"folder {target_s3}.{lob_prefix.as_posix()} is not empty")
