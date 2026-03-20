@@ -663,7 +663,6 @@ def migrate_column(source_rdbms: DbEngine,
     # instantiate the type object
     if type_equiv:
         result = type_equiv()
-        logger.debug(msg=f"{msg} converted to {result}")
 
         # block SQLAlchemy's odd handling of integer primary key columns
         if is_pk and not is_identity and \

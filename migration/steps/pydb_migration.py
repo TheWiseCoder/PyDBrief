@@ -338,6 +338,8 @@ def setup_columns(target_columns: Iterable[Column],
             target_column.type = target_type
             table_display[target_column.name]["target-type"] = str(target_column.type)
             column_name: str = f"{target_column.table.name}.{target_column.name}"
+            logger.debug(msg=f"Rdbms {target_rdbms}, type {target_column.type} "
+                             f"in {column_name} converted to {target_type}")
 
             # set LOB column's nullability
             if hasattr(target_column, "nullable") and \
