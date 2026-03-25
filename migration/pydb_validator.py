@@ -485,7 +485,7 @@ def validate_specs(input_params: dict[str, str],
                                           errors=errors)
     optimize_pks: bool = validate_bool(source=input_params,
                                        attr=MigSpec.OPTIMIZE_PKS,
-                                       default=True,
+                                       default=False,
                                        errors=errors)
     omit_defaults: list[str] = [s.lower()
                                 for s in (validate_strs(source=input_params,
