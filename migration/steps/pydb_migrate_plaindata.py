@@ -172,7 +172,7 @@ def migrate_plaindata(session_id: str,
                     tot_count: int = sum(i[1] for i in channel_data)
                     logger.debug(msg=f"Started migrating {tot_count} tuples from "
                                      f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
-                                     f"in {len(channel_data)} steps, using {max_workers} channel+s")
+                                     f"in {len(channel_data)} steps, using {max_workers} channels")
                     if max_workers == 1:
                         # execute single task in current thread
                         _migrate_plain(mother_thread=mother_thread,

@@ -250,7 +250,7 @@ def migrate_lob_columns(mother_thread: int,
                                  f"(not mapped in '{MigSpec.NAMED_LOBDATA}', and no PKs in table)")
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
-                # skip table migration
+                # skip current table migration
                 continue
 
             # define a forced file type

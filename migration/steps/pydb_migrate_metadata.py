@@ -209,15 +209,16 @@ def migrate_metadata(session_id: str,
                                                                     errors=errors)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
-                                    exc_err = str_sanitize(exc_format(exc=e,
-                                                                      exc_info=sys.exc_info()))
+                                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                                           exc_info=sys.exc_info()))
+                                    logger.error(msg=exc_err)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",
                                                                         exc_err))
                             # migrate the views, one at a time
                             for target_view in target_views:
-                                op_errors: list[str] = []
+                                curr_errors: list[str] = []
                                 view_ddl: str = view_get_ddl(view_name=target_view,
                                                              view_type="M" if target_view in mat_views else "P",
                                                              source_rdbms=session_spots[MigSpot.FROM_RDBMS],
@@ -228,11 +229,11 @@ def migrate_metadata(session_id: str,
                                 if view_ddl:
                                     db_execute(exc_stmt=view_ddl,
                                                engine=session_spots[MigSpot.TO_RDBMS],
-                                               errors=op_errors)
+                                               errors=curr_errors)
                                 # errors ?
-                                if op_errors:
+                                if curr_errors:
                                     # yes, report them
-                                    errors.extend(op_errors)
+                                    errors.extend(curr_errors)
                                     err_msg: str = ("Unable to create view "
                                                     f"{session_specs[MigSpec.TO_SCHEMA]}.{target_view}")
                                     logger.error(msg=err_msg)

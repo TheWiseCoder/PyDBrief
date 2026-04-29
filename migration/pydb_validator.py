@@ -536,16 +536,16 @@ def validate_specs(input_params: dict[str, str],
             MigSpec.INCREMENTAL_MIGRATIONS: incr_migrations,
             MigSpec.MIGRATION_BADGE: migration_badge,
             MigSpec.NAMED_LOBDATA: named_lobdata,
-            MigSpec.OVERRIDE_COLUMNS: override_columns,
             MigSpec.OMIT_DEFAULTS: omit_defaults,
             MigSpec.OPTIMIZE_PKS: optimize_pks,
+            MigSpec.OVERRIDE_COLUMNS: override_columns,
             MigSpec.PROCESS_INDEXES: process_indexes,
             MigSpec.PROCESS_VIEWS: process_views,
             MigSpec.REFLECT_FILETYPE: reflect_filetype,
             MigSpec.RELAX_REFLECTION: relax_reflection,
             MigSpec.REMOVE_CTRLCHARS: remove_ctrlschars,
-            MigSpec.TO_SCHEMA: to_schema,
-            MigSpec.SKIP_NONEMPTY: skip_nonempty
+            MigSpec.SKIP_NONEMPTY: skip_nonempty,
+            MigSpec.TO_SCHEMA: to_schema
         }
 
 
@@ -556,7 +556,7 @@ def __assert_override_columns(input_params: dict[str, str],
     # initialize the return variable
     result: dict[str, Type] = {}
 
-    # process the foreign columns list
+    # process the override columns list
     override_columns: list[str] = [s.lower()
                                    for s in (validate_strs(source=input_params,
                                                            attr=MigSpec.OVERRIDE_COLUMNS,
