@@ -11,7 +11,7 @@ from pypomes_core import (
 )
 from pypomes_db import DbEngine, db_count, db_select
 from pypomes_s3 import (
-    S3Engine, s3_get_client, s3_prefix_list, s3_items_remove
+    S3Engine, s3_get_client, s3_items_get_info, s3_items_remove
 )
 from typing import Any
 
@@ -347,14 +347,23 @@ def _compute_lob_lists(mother_thread: int,
             start_after: str = (Path(lob_prefix) / lobs_db_names[0]).as_posix() if offset_count > 0 else None
             db_items.clear()
 
-            s3_items: list[dict[str, Any]] = s3_prefix_list(prefix=lob_prefix,
-                                                            max_count=limit_count,
-                                                            client=s3_client,
-                                                            start_after=start_after,
-                                                            errors=errors)
+            obj_id: str | None = None
+            match s3_engine:
+                case S3Engine.AWS:
+                    obj_id = "Key"
+                case S3Engine.MINIO:
+                    obj_id = "object_name"
+                case S3Engine.GCS:
+                    obj_id = "name"
+            s3_items: list[dict[str, Any]] = s3_items_get_info(attrs=[obj_id],
+                                                               prefix=lob_prefix,
+                                                               max_count=limit_count,
+                                                               client=s3_client,
+                                                               start_after=start_after,
+                                                               errors=errors)
             if not errors:
                 for s3_item in s3_items:
-                    full_name = s3_item.get("Key")
+                    full_name = s3_item.get(obj_id)
                     name: str = full_name
                     # extract the prefix
                     pos: int = name.rfind("/")

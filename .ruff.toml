@@ -2,7 +2,7 @@
 cache-dir = "~/.cache/ruff"
 force-exclude = true
 required-version = ">=0.15"
-target-version = "py312"
+target-version = "py314"
 respect-gitignore = true
 lint.task-tags = ["TODO", "FIXME", "HACK", "HAZARD"]
 lint.select = [

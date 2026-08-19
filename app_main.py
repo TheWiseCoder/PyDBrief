@@ -13,16 +13,22 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
 from typing import Any, Final
 
-from app_ident import APP_NAME, APP_VERSION, get_env_keys  # must be imported before PyPomes and local packages
+# must be imported before PyPomes and local packages
+from app_ident import APP_NAME, APP_VERSION, get_env_keys
+
 from pypomes_core import (
-    Mimetype, pypomes_versions, dict_clone, dict_pop_all,
+    Mimetype, pypomes_versions,
+    dict_clone, dict_pop_all, dict_jsonify,
     exc_format, validate_enum, validate_format_errors
 )
 from pypomes_db import DbEngine
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
 )
-from pypomes_logging import PYPOMES_LOGGER, logging_log_forward, service_logging
+from pypomes_logging import (
+    PYPOMES_LOGGER,
+    logging_get_params, logging_log_forward, service_logging
+)
 from pypomes_s3 import S3Engine
 
 from app_constants import (
@@ -94,7 +100,8 @@ def service_swagger() -> Response:
     PYPOMES_LOGGER.info(msg=msg)
 
     filename: str = input_params.get("filename")
-    result: Response = send_file(path_or_file=Path(Path.cwd(), "swagger/pydbrief.json"),
+    filepath: Path = Path(Path.cwd(), "swagger/pydbrief.json")
+    result: Response = send_file(path_or_file=filepath,
                                  mimetype=Mimetype.JSON,
                                  as_attachment=filename is not None,
                                  download_name=filename)
@@ -130,7 +137,8 @@ def service_version() -> Response:
         },
         "foundations": pypomes_versions(),
         "environment": {key: value for key, value in os.environ.items()
-                        if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
+                        if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
+        "logging": dict_jsonify(source=logging_get_params())
     }
     # assign to the return variable
     result: Response = jsonify(versions)

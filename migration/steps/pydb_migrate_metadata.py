@@ -2,7 +2,7 @@ import sys
 from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, exc_format, validate_format_error
+    str_in_regex, str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import db_execute
 from sqlalchemy import (
@@ -68,13 +68,15 @@ def migrate_metadata(session_id: str,
             schema_views: list[str] = plain_views + mat_views
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
-            def assert_relation(rel: str, _md: MetaData) -> bool:
+            def assert_relation(rel: str,
+                                _md: MetaData) -> bool:
                 rel = rel.lower()
-                result = ((not session_specs[MigSpec.EXCLUDE_RELATIONS] or
-                           rel not in session_specs[MigSpec.EXCLUDE_RELATIONS]) and
-                          rel not in schema_views and
+                result = (rel not in schema_views and
+                          not str_in_regex(rel,
+                                           regexs=session_specs[MigSpec.EXCLUDE_RELATIONS]) and
                           (not session_specs[MigSpec.INCLUDE_RELATIONS] or
-                           rel in session_specs[MigSpec.INCLUDE_RELATIONS]))
+                           str_in_regex(rel,
+                                        regexs=session_specs[MigSpec.INCLUDE_RELATIONS])))
                 logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
                 return result
 
