@@ -2,7 +2,7 @@ import sys
 from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
-    str_in_regex, str_sanitize, exc_format, validate_format_error
+    str_sanitize, exc_format, validate_format_error
 )
 from pypomes_db import db_execute
 from sqlalchemy import (
@@ -16,6 +16,7 @@ from app_constants import (
 )
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import is_lob_column
+from migration.pydb_validator import  assert_relation
 from migration.pydb_database import column_set_nullable, view_get_ddl
 from migration.steps.pydb_migration import (
     prune_metadata, setup_schema, setup_tables
@@ -68,15 +69,13 @@ def migrate_metadata(session_id: str,
             schema_views: list[str] = plain_views + mat_views
 
             # determine if relation 'rel' is to be reflected in 'source_metadata'
-            def assert_relation(rel: str,
-                                _md: MetaData) -> bool:
+            def assert_reflection(rel: str,
+                                  _md: MetaData) -> bool:
                 rel = rel.lower()
                 result = (rel not in schema_views and
-                          not str_in_regex(rel,
-                                           regexs=session_specs[MigSpec.EXCLUDE_RELATIONS]) and
-                          (not session_specs[MigSpec.INCLUDE_RELATIONS] or
-                           str_in_regex(rel,
-                                        regexs=session_specs[MigSpec.INCLUDE_RELATIONS])))
+                          assert_relation(relation=rel,
+                                          excludes=session_specs[MigSpec.EXCLUDE_RELATIONS],
+                                          includes=session_specs[MigSpec.INCLUDE_RELATIONS]))
                 logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
                 return result
 
@@ -98,7 +97,7 @@ def migrate_metadata(session_id: str,
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         views=False,
-                                        only=assert_relation,
+                                        only=assert_reflection,
                                         resolve_fks=not session_specs[MigSpec.RELAX_REFLECTION])
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema

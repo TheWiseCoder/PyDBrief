@@ -1,8 +1,9 @@
+import re
 import sys
 from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
-    str_sanitize, str_splice, str_is_int,
+    str_sanitize, str_splice, str_is_int, str_find_char,
     exc_format, validate_int, validate_bool, validate_enum,
     validate_str, validate_strs, validate_format_error
 )
@@ -56,6 +57,35 @@ def assert_expected_params(service: str,
     # 122 Attribute is unknown or invalid in this context
     errors.extend([validate_format_error(122,
                                          f"@{key}") for key in input_params if key not in params])
+
+
+def assert_relation(relation: str,
+                    excludes: list[str],
+                    includes: list[str]) -> bool:
+
+    # initialize the return variable
+    result: bool = True
+
+    # process list of excludes
+    if excludes and relation not in excludes:
+        for exclude in excludes:
+            if (str_find_char(exclude, ".^*+?[]()|\{}") >= 0 and
+                re.search(pattern=exclude.replace("$", "\\$"),
+                          string=relation)):
+                result = False
+                break
+
+    if result and includes:
+        # relation was not excluded, so process list of includes
+        result = relation in includes
+        if not result:
+            for include in includes:
+                if (str_find_char(include, ".^*+?[]()|\{}") >= 0 and
+                    re.search(pattern=include.replace("$", "\\$"),
+                              string=relation)):
+                    result = True
+                    break
+    return result
 
 
 def validate_rdbms(input_params: dict[str, Any],
