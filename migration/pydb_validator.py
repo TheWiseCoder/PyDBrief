@@ -37,7 +37,7 @@ SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     f"/s3:{HttpMethod.POST}": list(map(str, S3Config)),
     f"/migrate:{HttpMethod.POST}": (list(map(str, MigSpot)) + list(map(str, MigStep)) +
                                     list(map(str, MigSpec)) + list(map(str, MigMetric))),
-    f"/migration/metrics:{HttpMethod.PATCH}":  list(map(str, MigMetric)),
+    f"/migration/metrics:{HttpMethod.PATCH}": list(map(str, MigMetric)),
     f"/migration:verify:{HttpMethod.POST}": [
         MigSpot.FROM_RDBMS, MigSpot.TO_RDBMS, MigSpot.TO_S3
     ],

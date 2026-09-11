@@ -32,9 +32,10 @@ from pypomes_logging import (
 from pypomes_s3 import S3Engine
 
 from app_constants import (
-    DbConfig, S3Config, SessionState,
+    DbConfig, S3Config,
     MigConfig, MigSpec, MigSpot
 )
+from entities.session import SessionState
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import (
     create_session, delete_session, set_session_state,

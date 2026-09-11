@@ -12,8 +12,9 @@ from app_constants import (
     RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
     RANGE_LOBDATA_CHANNELS, RANGE_LOBDATA_CHANNEL_SIZE,
     RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
-    SessionState, MigConfig, MigSpec, MigMetric, MigSpot, MigStep
+    MigConfig, MigSpec, MigMetric, MigSpot, MigStep
 )
+from entities.session import SessionState
 
 # migration_registry: dict[str, dict[StrEnum, Any]] =
 # {
