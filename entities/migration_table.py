@@ -27,6 +27,7 @@ class MigrationTable(PySob):
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
+                 __references: type[list[MigrationSpan]],
                  __id: int = None,
                  /,
                  id_migration: int = None,
@@ -59,10 +60,10 @@ class MigrationTable(PySob):
                          committable=committable,
                          errors=errors)
 
-    def get_migration_ranges(self,
-                             db_conn: Any = None,
-                             committable: bool = None,
-                             errors: list[str] = None):
+    def get_migration_spans(self,
+                            db_conn: Any = None,
+                            committable: bool = None,
+                            errors: list[str] = None):
 
         self.load_references(list[MigrationSpan],
                              db_conn=db_conn,

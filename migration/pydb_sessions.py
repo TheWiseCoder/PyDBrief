@@ -1,8 +1,7 @@
 import uuid
-from enum import StrEnum
-from logging import Logger
-
+from enum import StrEnum, auto
 from flask import Request
+from logging import Logger
 from pypomes_core import validate_bool, validate_format_error
 from pypomes_http import http_get_parameters, HttpMethod
 from typing import Any
@@ -14,7 +13,43 @@ from app_constants import (
     RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
     MigConfig, MigSpec, MigMetric, MigSpot, MigStep
 )
-from entities.session import SessionState
+from entities.session import Session
+
+
+active_sessions: list[Session] | None = None
+
+
+def get_active_sessions(db_conn: Any = None,
+                        committable: bool = None,
+                        errors: list[str] = None) -> list[Session] | None:
+
+    result: list[Session] | None = None
+
+    if errors is None:
+        errors = []
+    global active_sessions
+    if active_sessions is None:
+        active_sessions = Session.get_active_sessions(db_conn=db_conn,
+                                                      committable=committable,
+                                                      errors=errors)
+    if not errors:
+        result = active_sessions
+
+    return result
+
+
+class SessionState(StrEnum):
+    """
+    Possible states for a migration session.
+    """
+    CREATED = auto()
+    ACTIVE = auto()
+    INACTIVE = auto()
+    MIGRATING = auto()
+    ABORTING = auto()
+    ABORTED = auto()
+    FINISHED = auto()
+
 
 # migration_registry: dict[str, dict[StrEnum, Any]] =
 # {

@@ -8,13 +8,12 @@ from typing import Any, Final
 
 class MigSpec(StrEnum):
     """
-    Specs for migration.
+    Spec keys for migration.
     """
     EXCLUDE_COLUMNS = "exclude-columns"
     EXCLUDE_CONSTRAINTS = "exclude-constraints"
     EXCLUDE_RELATIONS = "exclude-relations"
     FLATTEN_STORAGE = "flatten-storage"
-    FROM_SCHEMA = "from-schema"
     INCLUDE_RELATIONS = "include-relations"
     INCREMENTAL_MIGRATIONS = "incremental-migrations"
     NAMED_LOBDATA = "named-lobdata"
@@ -27,7 +26,6 @@ class MigSpec(StrEnum):
     RELAX_REFLECTION = "relax-reflection"
     REMOVE_CTRLCHARS = "remove-ctrlchars"
     SKIP_NONEMPTY = "skip-nonempty"
-    TO_SCHEMA = "to-schema"
 
 
 class MigrationSpec(PySob):
