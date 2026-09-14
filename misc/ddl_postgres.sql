@@ -28,7 +28,6 @@ CREATE TABLE database (
 );
 
 
-
 CREATE SEQUENCE sq_s3
 	INCREMENT BY 1
 	MINVALUE 1
@@ -53,7 +52,6 @@ CREATE TABLE s3 (
 	CONSTRAINT pk_s3 PRIMARY KEY (id),
 	CONSTRAINT uk_s3 UNIQUE (cd_engine)
 );
-
 
 
 CREATE SEQUENCE sq_session
@@ -84,7 +82,6 @@ CREATE TABLE session (
 	CONSTRAINT pk_session PRIMARY KEY (id),
 	CONSTRAINT uk_session UNIQUE (cd_session)
 );
-
 
 
 CREATE SEQUENCE sq_migration
@@ -130,6 +127,28 @@ CREATE TABLE migration (
 );
 
 
+CREATE SEQUENCE sq_migration_issue
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+CREATE TABLE migration_issue (
+	id int8 DEFAULT nextval('sq_migration_issue'::regclass) NOT NULL,
+	id_migration int8 NOT NULL,
+    cd_type varchar(1) NOT NULL,
+	ds_issue varchar(2048) NOT NULL,
+	ts_onset timestamp NOT NULL,
+	CONSTRAINT ck_migration_issue CHECK (((cd_type)::text = ANY (ARRAY[
+      ('C'::character varying)::text,
+	  ('E'::character varying)::text,
+      ('W'::character varying)::text]))),
+    CONSTRAINT fk_migration_issue_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
+	CONSTRAINT pk_migration_issue PRIMARY KEY (id)
+);
+
 
 CREATE SEQUENCE sq_migration_spec
 	INCREMENT BY 1
@@ -166,7 +185,6 @@ CREATE TABLE migration_spec (
 );
 
 
-
 CREATE SEQUENCE sq_migration_table
 	INCREMENT BY 1
 	MINVALUE 1
@@ -185,7 +203,6 @@ CREATE TABLE migration_table (
 	CONSTRAINT pk_migration_table PRIMARY KEY (id),
 	CONSTRAINT uk_migration_table UNIQUE (id_migration, nm_table)
 );
-
 
 
 CREATE SEQUENCE sq_migration_span

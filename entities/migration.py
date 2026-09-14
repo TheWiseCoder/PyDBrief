@@ -9,6 +9,7 @@ from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
 from app_consts import PYDB_DB_ENGINE, InputParam
+from entities.migration_issue import MigrationIssue
 from entities.migration_spec import MigrationSpec
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable
@@ -110,6 +111,8 @@ class Migration(PySob):
         self.ts_finish: datetime | None = None
 
         # references (lists)
+        self.__migration_issues: list[MigrationIssue] | None = None
+        self.__id_migration_issues: int | None = None
         self.__migration_specs: list[MigrationSpec] | None = None
         self.__id_migration_specs: int | None = None
         self.__migration_tables: list[MigrationTable] | None = None
@@ -130,6 +133,19 @@ class Migration(PySob):
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
+
+    def get_migration_issues(self,
+                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                             db_conn: Any = None,
+                             committable: bool = None,
+                             errors: list[str] = None) -> list[MigrationIssue] | None:
+
+        self.load_references(list[MigrationIssue],
+                             db_engine=db_engine,
+                             db_conn=db_conn,
+                             committable=committable,
+                             errors=errors)
+        return self.__migration_issues
 
     def get_migration_specs(self,
                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
@@ -182,6 +198,20 @@ class Migration(PySob):
             cls: type = get_origin(tp=reference) or reference
             if not errors and cls is list:
                 cls = get_args(tp=reference)[0]
+                if not errors and cls is MigrationIssue:
+                    if not self.id:
+                        self.__migration_issues = None
+                        self.__id_migration_issues = None
+                    elif self.__id_migration_issues != self.id:
+                        self.__migration_issues = MigrationIssue.retrieve(
+                            where_data={MigrationIssue.Db.ID_MIGRATION: self.id},
+                            db_engine=db_engine,
+                            db_conn=db_conn,
+                            committable=committable,
+                            errors=errors)
+                        if not errors:
+                            self.__id_migration_issues = self.id
+
                 if not errors and cls is MigrationSpec:
                     if not self.id:
                         self.__migration_specs = None

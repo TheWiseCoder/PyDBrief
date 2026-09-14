@@ -13,6 +13,7 @@ from entities.migration import (
     SPAN_PLAINDATA_CHANNELS, SPAN_PLAINDATA_CHANNEL_SIZE
 )
 from entities.session import Session
+from entities.migration_issue import MigrationIssue
 from entities.migration_span import MigrationSpan
 from entities.migration_spec import MigrationSpec
 from entities.migration_table import MigrationTable
@@ -151,6 +152,19 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     mig_data[InputParam.SESSION] = values[0]
+
+                    mig_issues: list[dict[str, Any]] = []
+                    migration_issues: list[MigrationIssue] = \
+                        migration.get_migration_issues(db_engine=PYDB_DB_ENGINE,
+                                                       db_conn=db_conn,
+                                                       errors=errors)
+                    if errors:
+                        break
+                    for migration_issue in migration_issues:
+                        mig_issues.append({InputParam.TYPE: migration_issue.cd_type,
+                                           InputParam.DESCRIPTION: migration_issue.ds_issue,
+                                           InputParam.ONSET: migration_issue.ts_onset.strftime(DatetimeFormat.LATIN)})
+                    mig_data[InputParam.ISSUES] = mig_issues
 
                     mig_specs: list[dict[str, Any]] = []
                     migration_specs: list[MigrationSpec] = \

@@ -68,16 +68,20 @@ class InputParam(StrEnum):
     TARGET_S3 = "target-s3"
     TARGET_SCHEMA = "target-schema"
 
+    DESCRIPTION = "description"
     DONE = "done"
     FINISH = "finish"
     FIRST_ROW = "first-row"
+    ISSUES = "issues"
     LAST_ROW = "last-row"
     NAME = "name"
+    ONSET = "onset"
     SPANS = "spans"
     SPECS = "specs"
     START = "start"
     STATE = "state"
     TABLES = "tables"
+    TYPE = "type"
 
 
 class OpType(StrEnum):
