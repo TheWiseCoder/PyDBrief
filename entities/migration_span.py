@@ -17,7 +17,7 @@ class MigrationSpan(PySob):
         TABLE = "migration_span"
         ID = auto()
         ID_MIGRATION_TABLE = auto()
-        IS_FINISHED = auto()
+        IS_DONE = auto()
         NR_FIRST_ROW = auto()
         NR_LAST_ROW = auto()
 
@@ -38,7 +38,7 @@ class MigrationSpan(PySob):
 
         # non-nullables in DB
         self.id_migration_table: int | None = None
-        self.is_finished: bool = False
+        self.is_done: bool = False
         self.nr_first_row: int | None = None
         self.nr_last_row: int | None = None
 

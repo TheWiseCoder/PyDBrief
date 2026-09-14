@@ -1,8 +1,8 @@
 from typing import Any
 from pypomes_core import (
-    validate_int, validate_str, validate_format_error
+    DatetimeFormat, validate_int, validate_str, validate_format_error
 )
-from pypomes_db import db_connect, db_commit, db_rollback, db_close, db_get_engines
+from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_consts import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
@@ -14,6 +14,7 @@ from entities.migration import (
 )
 from entities.session import Session
 from entities.migration_span import MigrationSpan
+from entities.migration_spec import MigrationSpec
 from entities.migration_table import MigrationTable
 
 
@@ -139,7 +140,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                                  db_conn=db_conn,
                                                                  errors=errors)
                 for migration in migrations or []:
-                    migration_data: dict[str, Any] = migration.get_inputs()
+                    mig_data: dict[str, Any] = migration.get_inputs()
                     values: list[int] = Session.get_values(attrs=Session.Db.CD_SESSION,
                                                            where_data={Session.Db.ID: migration.id_session},
                                                            max_count=1,
@@ -149,20 +150,55 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                            errors=errors)
                     if errors:
                         break
-                    migration_data[InputParam.SESSION] = values[0]
+                    mig_data[InputParam.SESSION] = values[0]
 
+                    mig_specs: list[dict[str, Any]] = []
+                    migration_specs: list[MigrationSpec] = \
+                        migration.get_migration_specs(db_engine=PYDB_DB_ENGINE,
+                                                      db_conn=db_conn,
+                                                      errors=errors)
+                    if errors:
+                        break
+                    for migration_spec in migration_specs:
+                        mig_specs.append({migration_spec.cd_spec: migration_spec.vl_spec})
+                    mig_data[InputParam.SPECS] = mig_specs
+
+                    mig_tables: list[dict[str, Any]] = []
                     migration_tables: list[MigrationTable] = migration.get_all_tables(db_engine=PYDB_DB_ENGINE,
                                                                                       db_conn=db_conn,
                                                                                       errors=errors)
                     if errors:
                         break
+                    for migration_table in migration_tables:
+                        mig_table: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
+                        if migration_table.ts_start:
+                            mig_table[InputParam.START] = \
+                                migration_table.ts_start.strftime(format=DatetimeFormat.LATIN)
+                        if migration_table.ts_finish:
+                            mig_table[InputParam.FINISH] = \
+                                migration_table.ts_finish.strftime(format=DatetimeFormat.LATIN)
 
-                    result[migration.nm_badge] = migration_data
+                        mig_spans: list[dict[str, Any]] = []
+                        migration_spans: list[MigrationSpan] = \
+                            migration_table.get_migration_spans(db_engine=PYDB_DB_ENGINE,
+                                                                db_conn=db_conn,
+                                                                errors=errors)
+                        if errors:
+                            break
+                        for migration_span in migration_spans:
+                            mig_spans.append({InputParam.FIRST_ROW: migration_span.nr_first_row,
+                                              InputParam.LAST_ROW: migration_span.nr_last_row,
+                                              InputParam.DONE: migration_span.is_done})
+                        mig_table[InputParam.SPANS] = mig_spans
+                        mig_tables.append(mig_table)
+
+                    if errors:
+                        break
+                    result[migration.nm_badge] = mig_data
             else:
                 # 100: {} (omits the attribute "code")
                 errors.append(validate_format_error(100,
                                                     "Either 'BADGE' or 'SESSION' must be specified"))
-
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn)

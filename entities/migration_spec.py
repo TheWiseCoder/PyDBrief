@@ -7,29 +7,29 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_consts import PYDB_DB_ENGINE
+from app_consts import PYDB_DB_ENGINE, InputParam
 
 
 class MigSpec(StrEnumAny):
     """
     Spec keys for migration.
     """
-    EXCLUDE_COLUMNS = ("exclude-columns", list[str])
-    EXCLUDE_CONSTRAINTS = ("exclude-constraints", list[str])
-    EXCLUDE_RELATIONS = ("exclude-relations", list[str])
-    FLATTEN_STORAGE = ("flatten-storage", bool)
-    INCLUDE_RELATIONS = ("include-relations", list[str])
-    INCREMENTAL_MIGRATIONS = ("incremental-migrations", list[str])
-    NAMED_LOBDATA = ("named-lobdata", list[str])
-    OMIT_DEFAULTS = ("omit-defaults", list[str])
-    OPTIMIZE_PKS = ("optimize-pks", bool)
-    OVERRIDE_COLUMNS = ("override-columns", list[str])
-    PROCESS_INDEXES = ("process-indexes", bool),
-    PROCESS_VIEWS = ("process-views", bool)
-    REFLECT_FILETYPE = ("reflect-filetype", bool)
-    RELAX_REFLECTION = ("relax-reflection", bool)
-    REMOVE_CTRLCHARS = ("remove-ctrlchars", list[str])
-    SKIP_NONEMPTY = ("skip-nonempty", bool)
+    EXCLUDE_COLUMNS = (InputParam.EXCLUDE_COLUMNS, list[str])
+    EXCLUDE_CONSTRAINTS = (InputParam.EXCLUDE_CONSTRAINTS, list[str])
+    EXCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS, list[str])
+    FLATTEN_STORAGE = (InputParam.FLATTEN_STORAGE, bool)
+    INCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS, list[str])
+    INCREMENTAL_MIGRATIONS = (InputParam.INCREMENTAL_MIGRATIONS, list[str])
+    NAMED_LOBDATA = (InputParam.NAMED_LOBDATA, list[str])
+    OMIT_DEFAULTS = (InputParam.OMIT_DEFAULTS, list[str])
+    OPTIMIZE_PKS =  (InputParam.OPTIMIZE_PKS, bool)
+    OVERRIDE_COLUMNS = (InputParam.OVERRIDE_COLUMNS, list[str])
+    PROCESS_INDEXES = (InputParam.PROCESS_INDEXES, bool),
+    PROCESS_VIEWS = (InputParam.PROCESS_VIEWS, bool)
+    REFLECT_FILETYPE = (InputParam.REFLECT_FILETYPE, bool)
+    RELAX_REFLECTION = (InputParam.RELAX_REFLECTION, bool)
+    REMOVE_CTRLCHARS = (InputParam.REMOVE_CTRLCHARS, list[str])
+    SKIP_NONEMPTY = (InputParam.SKIP_NONEMPTY, bool)
 
 
 class MigrationSpec(PySob):

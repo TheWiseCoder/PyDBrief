@@ -199,7 +199,7 @@ CREATE SEQUENCE sq_migration_span
 CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
 	id_migration_table int8 NOT NULL,
-    is_fininshed bool DEFAULT false NOT NULL,
+    is_done bool DEFAULT false NOT NULL,
     nr_first_row int8 NOT NULL,
     nr_last_row int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_last_row >= 0 AND nr_last_row >= nr_first_row),

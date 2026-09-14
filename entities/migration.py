@@ -112,13 +112,8 @@ class Migration(PySob):
         # references (lists)
         self.__migration_specs: list[MigrationSpec] | None = None
         self.__id_migration_specs: int | None = None
-        self.__active_tables: list[MigrationTable] | None = None
-        self.__id_active_tables: int | None = None
-        self.__all_tables: list[MigrationTable] | None = None
-        self.__id_all_tables: int | None = None
-
-        # transients
-        self.__flag_active: bool = True
+        self.__migration_tables: list[MigrationTable] | None = None
+        self.__id_migration_tables: int | None = None
 
         where_data: dict[str, Any] | None = None
         if __id:
@@ -149,53 +144,28 @@ class Migration(PySob):
                              errors=errors)
         return self.__migration_specs
 
-    def get_active_tables(self,
-                          __references: list[type[MigrationSpan]] = None,
-                          db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                          db_conn: Any = None,
-                          committable: bool = None,
-                          errors: list[str] = None) -> list[MigrationTable] | None:
+    def get_migration_tables(self,
+                             __references: list[type[MigrationSpan]] = None,
+                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                             db_conn: Any = None,
+                             committable: bool = None,
+                             errors: list[str] = None) -> list[MigrationTable] | None:
 
         if not isinstance(errors, list):
             errors = []
-        self.__flag_active = True
-        self.load_references([MigrationTable],
-                             db_engine=db_engine,
-                             db_conn=db_conn,
-                             committable=committable,
-                             errors=errors)
-        if not errors and __references and self.__active_tables:
-            for table in self.__active_tables:
-                table.load_references(__references,
-                                      db_engine=db_engine,
-                                      db_conn=db_conn,
-                                      committable=committable,
-                                      errors=errors)
-        return self.__active_tables
-
-    def get_all_tables(self,
-                       __references: list[type[MigrationSpan]] = None,
-                       db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                       db_conn: Any = None,
-                       committable: bool = None,
-                       errors: list[str] = None) -> list[MigrationTable] | None:
-
-        if not isinstance(errors, list):
-            errors = []
-        self.__flag_active = False
         self.load_references(list[MigrationTable],
                              db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
-        if not errors and __references and self.__all_tables:
-            for table in self.__all_tables:
+        if not errors and __references and self.__migration_tables:
+            for table in self.__migration_tables:
                 table.load_references(__references,
                                       db_engine=db_engine,
                                       db_conn=db_conn,
                                       committable=committable,
                                       errors=errors)
-        return self.__all_tables
+        return self.__migration_tables
 
     def load_references(self,
                         # HAZARD: may fail on direct external invocations
@@ -227,33 +197,18 @@ class Migration(PySob):
                             self.__id_migration_specs = self.id
 
                 if not errors and cls is MigrationTable:
-                    if self.__flag_active:
-                        if not self.id:
-                            self.__active_tables = None
-                            self.__id_active_tables = None
-                        elif self.__id_active_tables != self.id:
-                            self.__active_tables = MigrationTable.retrieve(
-                                where_data={MigrationTable.Db.ID_MIGRATION: self.id,
-                                            MigrationTable.Db.TS_FINISH: None},
-                                db_engine=db_engine,
-                                db_conn=db_conn,
-                                committable=committable,
-                                errors=errors)
-                            if not errors:
-                                self.__id_active_tables = self.id
-                    else:
-                        if not self.id:
-                            self.__all_tables = None
-                            self.__id_all_tables = None
-                        elif self.__id_all_tables != self.id:
-                            self.__all_tables = MigrationTable.retrieve(
-                                where_data={MigrationTable.Db.ID_MIGRATION: self.id},
-                                db_engine=db_engine,
-                                db_conn=db_conn,
-                                committable=committable,
-                                errors=errors)
-                            if not errors:
-                                self.__id_all_tables = self.id
+                    if not self.id:
+                        self.__migration_tables = None
+                        self.__id_migration_tables = None
+                    elif self.__id_migration_tables != self.id:
+                        self.__migration_tables = MigrationTable.retrieve(
+                            where_data={MigrationTable.Db.ID_MIGRATION: self.id},
+                            db_engine=db_engine,
+                            db_conn=db_conn,
+                            committable=committable,
+                            errors=errors)
+                        if not errors:
+                            self.__id_migration_tables = self.id
 
 
 Migration.initialize(db_specs=(Migration.Db, int),

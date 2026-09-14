@@ -44,7 +44,6 @@ class InputParam(StrEnum):
     INCLUDE_RELATIONS = "include-relations"
     INCREMENTAL_MIGRATIONS = "incremental-migrations"
     INCREMENTAL_SIZE = "incremental-size"
-    IS_ACTIVE = "is-active"
     LOBDATA_CHANNELS = "lobdata-channels"
     LOBDATA_CHANNEL_SIZE = "lobdata-channel-size"
     MIGRATION_BADGE = "migration-badge"
@@ -61,7 +60,6 @@ class InputParam(StrEnum):
     RELAX_REFLECTION = "relax-reflection"
     REMOVE_CTRLCHARS = "remove-ctrlchars"
     SESSION = "session"
-    STATE = "state"
     SKIP_NONEMPTY = "skip-nonempty"
     SOURCE_DB = "source-db"
     SOURCE_SCHEMA = "source-schema"
@@ -69,6 +67,17 @@ class InputParam(StrEnum):
     TARGET_DB = "target-db"
     TARGET_S3 = "target-s3"
     TARGET_SCHEMA = "target-schema"
+
+    DONE = "done"
+    FINISH = "finish"
+    FIRST_ROW = "first-row"
+    LAST_ROW = "last-row"
+    NAME = "name"
+    SPANS = "spans"
+    SPECS = "specs"
+    START = "start"
+    STATE = "state"
+    TABLES = "tables"
 
 
 class OpType(StrEnum):
