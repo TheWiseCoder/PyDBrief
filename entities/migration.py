@@ -3,11 +3,12 @@ from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
 from pypomes_core import StrEnumDesc
+from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import InputParam
+from app_consts import PYDB_DB_ENGINE, InputParam
 from entities.migration_spec import MigrationSpec
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable
@@ -18,9 +19,9 @@ SPAN_BATCH_SIZE_IN: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 SPAN_BATCH_SIZE_OUT: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 SPAN_CHUNK_SIZE: Final[tuple[int, int, int]] = (1024, 16777216, 1048576)
 SPAN_INCREMENTAL_SIZE: Final[tuple[int, int, int]] = (1000, 10000000, 100000)
-SPAN_LOBDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 128, 1)
+SPAN_LOBDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_LOBDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 100000, 10000)
-SPAN_PLAINDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 128, 1)
+SPAN_PLAINDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_PLAINDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (10000, 1000000, 100000)
 
 
@@ -37,20 +38,6 @@ class MigStep(StrEnumDesc):
     SYNCHRONIZE_PLAINDATA = ("SP", "synchronize-plaindata")
 
 
-class MigMetric(StrEnum):
-    """
-    Metrics for migration.
-    """
-    BATCH_SIZE_IN = "batch-size-in"
-    BATCH_SIZE_OUT = "batch-size-out"
-    CHUNK_SIZE = "chunk-size"
-    INCREMENTAL_SIZE = "incremental-size"
-    LOBDATA_CHANNELS = "lobdata-channels"
-    LOBDATA_CHANNEL_SIZE = "lobdata-channel-size"
-    PLAINDATA_CHANNELS = "plaindata-channels"
-    PLAINDATA_CHANNEL_SIZE = "plaindata-channel-size"
-
-
 class Migration(PySob):
     """
     Entity *Migration*.
@@ -65,6 +52,10 @@ class Migration(PySob):
         NR_BATCH_SIZE_OUT = auto()
         NR_CHUNK_SIZE = auto()
         NR_INCREMENTAL_SIZE = auto()
+        NR_LOBDATA_CHANNELS = auto()
+        NR_LOBDATA_CHANNEL_SIZE = auto()
+        NR_PLAINDATA_CHANNELS = auto()
+        NR_PLAINDATA_CHANNEL_SIZE = auto()
         TS_START = auto()
         TS_FINISH = auto()
 
@@ -72,9 +63,21 @@ class Migration(PySob):
         Db.CD_STEP: MigStep
     }
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
+        (Db.NM_BADGE,),
         (Db.ID_SESSION, Db.CD_STEP)
     ]
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
+        (InputParam.BADGE, Db.NM_BADGE),
+        (InputParam.STEP, Db.CD_STEP),
+        (InputParam.BATCH_SIZE_IN, Db.NR_BATCH_SIZE_IN),
+        (InputParam.BATCH_SIZE_OUT, Db.NR_BATCH_SIZE_OUT),
+        (InputParam.CHUNK_SIZE, Db.NR_CHUNK_SIZE),
+        (InputParam.INCREMENTAL_SIZE, Db.NR_INCREMENTAL_SIZE),
+        (InputParam.LOBDATA_CHANNEL_SIZE, Db.NR_LOBDATA_CHANNEL_SIZE),
+        (InputParam.LOBDATA_CHANNELS, Db.NR_LOBDATA_CHANNELS),
+        (InputParam.PLAINDATA_CHANNEL_SIZE, Db.NR_PLAINDATA_CHANNEL_SIZE),
+        (InputParam.PLAINDATA_CHANNELS, Db.NR_PLAINDATA_CHANNELS),
+        (InputParam.SESSION, None)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
@@ -82,8 +85,10 @@ class Migration(PySob):
                  __id: int = None,
                  __references: [type[list[MigrationSpec], type[list[MigrationTable]]]] = None,
                  /,
+                 nm_badge: str = None,
                  id_session: int = None,
                  cd_step: MigStep = None,
+                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -95,6 +100,10 @@ class Migration(PySob):
         self.nr_batch_size_out: int = SPAN_BATCH_SIZE_OUT[2]
         self.nr_chunk_size: int = SPAN_CHUNK_SIZE[2]
         self.nr_incremental_size: int = SPAN_INCREMENTAL_SIZE[2]
+        self.nr_lobdata_channels: int = SPAN_LOBDATA_CHANNELS[2]
+        self.nr_lobdata_channel_size: int = SPAN_LOBDATA_CHANNEL_SIZE[2]
+        self.nr_plaindata_channels: int = SPAN_PLAINDATA_CHANNELS[2]
+        self.nr_plaidata_channel_size: int = SPAN_PLAINDATA_CHANNEL_SIZE[2]
 
         # nullables in DB
         self.ts_start: datetime | None = None
@@ -114,22 +123,27 @@ class Migration(PySob):
         where_data: dict[str, Any] | None = None
         if __id:
             where_data = {Migration.Db.ID: __id}
+        elif nm_badge:
+            where_data = {Migration.Db.NM_BADGE: nm_badge}
         elif id_session and cd_step:
             where_data = {Migration.Db.ID_SESSION: id_session,
                           Migration.Db.CD_STEP: cd_step}
 
         super().__init__(__references,
+                         db_engine=db_engine,
                          where_data=where_data,
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
 
     def get_migration_specs(self,
+                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None) -> list[MigrationSpec] | None:
 
         self.load_references(list[MigrationSpec],
+                             db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
@@ -137,6 +151,7 @@ class Migration(PySob):
 
     def get_active_tables(self,
                           __references: list[type[MigrationSpan]] = None,
+                          db_engine: DbEngine | str = PYDB_DB_ENGINE,
                           db_conn: Any = None,
                           committable: bool = None,
                           errors: list[str] = None) -> list[MigrationTable] | None:
@@ -145,12 +160,14 @@ class Migration(PySob):
             errors = []
         self.__flag_active = True
         self.load_references([MigrationTable],
+                             db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
         if not errors and __references and self.__active_tables:
             for table in self.__active_tables:
                 table.load_references(__references,
+                                      db_engine=db_engine,
                                       db_conn=db_conn,
                                       committable=committable,
                                       errors=errors)
@@ -158,6 +175,7 @@ class Migration(PySob):
 
     def get_all_tables(self,
                        __references: list[type[MigrationSpan]] = None,
+                       db_engine: DbEngine | str = PYDB_DB_ENGINE,
                        db_conn: Any = None,
                        committable: bool = None,
                        errors: list[str] = None) -> list[MigrationTable] | None:
@@ -166,12 +184,14 @@ class Migration(PySob):
             errors = []
         self.__flag_active = False
         self.load_references(list[MigrationTable],
+                             db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
         if not errors and __references and self.__all_tables:
             for table in self.__all_tables:
                 table.load_references(__references,
+                                      db_engine=db_engine,
                                       db_conn=db_conn,
                                       committable=committable,
                                       errors=errors)
@@ -181,7 +201,7 @@ class Migration(PySob):
                         # HAZARD: may fail on direct external invocations
                         __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
                         /,
-                        db_engine: Any = None,  # noqa: ARG002 - unused method argument
+                        db_engine: Any = PYDB_DB_ENGINE,
                         db_conn: Any = None,
                         committable: bool = None,
                         errors: list[str] = None) -> None:
@@ -199,6 +219,7 @@ class Migration(PySob):
                     elif self.__id_migration_specs != self.id:
                         self.__migration_specs = MigrationSpec.retrieve(
                             where_data={MigrationSpec.Db.ID_MIGRATION: self.id},
+                            db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
                             errors=errors)
@@ -214,6 +235,7 @@ class Migration(PySob):
                             self.__active_tables = MigrationTable.retrieve(
                                 where_data={MigrationTable.Db.ID_MIGRATION: self.id,
                                             MigrationTable.Db.TS_FINISH: None},
+                                db_engine=db_engine,
                                 db_conn=db_conn,
                                 committable=committable,
                                 errors=errors)
@@ -226,6 +248,7 @@ class Migration(PySob):
                         elif self.__id_all_tables != self.id:
                             self.__all_tables = MigrationTable.retrieve(
                                 where_data={MigrationTable.Db.ID_MIGRATION: self.id},
+                                db_engine=db_engine,
                                 db_conn=db_conn,
                                 committable=committable,
                                 errors=errors)

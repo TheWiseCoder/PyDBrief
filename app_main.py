@@ -31,6 +31,13 @@ from pypomes_logging import (
 )
 from pypomes_s3 import S3Engine
 
+from storage.database_actions import create_database, update_database, delete_database
+from storage.migration_actions import create_migration, update_migration, delete_migration
+from storage.migration_spec_actions import update_migration_specs, delete_migration_specs
+from storage.s3_actions import create_s3, update_s3, delete_s3
+from storage.session_actions import create_session, update_session, delete_session
+
+# -------------------------------------------------------------------- #
 from app_constants import (
     DbConfig, S3Config,
     MigConfig, MigSpec, MigSpot
@@ -47,6 +54,8 @@ from migration.pydb_validator import (
     validate_metrics, validate_rdbms, validate_s3,
     validate_spots, validate_steps, validate_specs
 )
+# -------------------------------------------------------------------- #
+
 
 # create the Flask application
 flask_app: Final[Flask] = Flask(__name__)
@@ -160,6 +169,70 @@ def service_ignore() -> Response:
     """
     return Response(status=HttpStatus.NO_CONTENT)
 
+
+@flask_app.route(rule="/database",
+                 methods=[HttpMethod.POST])
+@flask_app.route(rule="/database/<db_engine>",
+                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
+def service_database(db_engine: str = None) -> Response:
+    """
+    Entry point for handling database engines to use.
+
+    The parameters are as follows:
+      - *db-engine*: identifies the database engine instance
+      - *db-type*: the type of the database engine (*mysql*, *oracle*, *postgres*, or *sqlserver*)
+      - *db-name*: name of database
+      - *db-user*: the logon user
+      - *db-pwd*: the logon password
+      - *db-host*: the host URL
+      - *db-port*: the connection port
+      - *db-client*: the client package (Oracle, only)
+      - *db-driver*: the database access driver (SQLServer, only)
+
+    :param db_engine: the identification of the database engine instance
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    # log the request
+
+    msg: str = __log_init(request=request,
+                          input_params=dict_clone(source=input_params,
+                                                  from_to_keys=[key for key in input_params
+                                                                if key != DbConfig.PWD]))
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] | None = None
+    if request.method == HttpMethod.GET:
+            reply = get_rdbms_specs(session_id=session_id,
+                                    db_engine=db_engine,
+                                    errors=errors)
+        else:
+            validate_rdbms(input_params=input_params,
+                           session_id=session_id,
+                           errors=errors,
+                           logger=PYPOMES_LOGGER)
+            if not errors:
+                db_engine = input_params.get(DbConfig.ENGINE)
+                reply = {"status": f"RDBMS '{db_engine}' configuration updated"}
+
+        if reply:
+            reply[MigSpec.SESSION_ID] = session_id
+
+    # build the response
+    result: Response = _build_response(client_id=input_params.get(MigSpec.CLIENT_ID),
+                                       reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
+# ------------------------------------------------------------------------ #
 
 @flask_app.route(rule="/rdbms",
                  methods=[HttpMethod.POST])

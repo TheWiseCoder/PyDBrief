@@ -67,12 +67,17 @@ CREATE SEQUENCE sq_session
 CREATE TABLE session (
 	id int8 DEFAULT nextval('sq_session'::regclass) NOT NULL,
 	cd_session varchar(64) NOT NULL,
+    cd_state varchar(1) NOT NULL,
 	id_source_db int4 NOT NULL,
 	id_target_db int4 NOT NULL,
 	id_target_s3 int4,
     nm_source_schema varchar(16) NOT NULL,
     nm_target_schema varchar(16) NOT NULL,
 	ts_creation timestamp NOT NULL,
+	CONSTRAINT ck_session_state CHECK (((cd_state)::text = ANY (ARRAY[
+      ('C'::character varying)::text,
+      ('S'::character varying)::text,
+      ('F'::character varying)::text]))),
     CONSTRAINT fk_session_source_db FOREIGN KEY (id_source_db) REFERENCES database(id),
     CONSTRAINT fk_session_target_db FOREIGN KEY (id_target_db) REFERENCES database(id),
     CONSTRAINT fk_session_target_s3 FOREIGN KEY (id_target_s3) REFERENCES s3(id),
@@ -99,6 +104,10 @@ CREATE TABLE migration (
     nr_batch_size_out int8 NOT NULL,
     nr_chunk_size int8 NOT NULL,
     nr_incremental_size int8 NOT NULL,
+    nr_lobdata_channels int2 NOT NULL,
+    nr_lobdata_channel_size int8 NOT NULL,
+    nr_plaindata_channels int2 NOT NULL,
+    nr_plaindata_channel_size int8 NOT NULL,
 	ts_start timestamp,
 	ts_finish timestamp,
 	CONSTRAINT ck_migration_step CHECK (((cd_step)::text = ANY (ARRAY[
@@ -110,9 +119,14 @@ CREATE TABLE migration (
     CONSTRAINT ck_migration_batch_size_out CHECK (nr_batch_size_out >= 0),
     CONSTRAINT ck_migration_chunk_size CHECK (nr_chunk_size >= 0),
     CONSTRAINT ck_migration_incremental_size CHECK (nr_incremental_size >= 0),
+    CONSTRAINT ck_lobdata_channels CHECK (nr_lobdata_channels >= 0),
+    CONSTRAINT ck_lobdata_channel_size CHECK (nr_lobdata_channel_size >= 0),
+    CONSTRAINT ck_plaindata_channels CHECK (nr_plaindata_channels >= 0),
+    CONSTRAINT ck_plaindata_channel_size CHECK (nr_plaindata_channel_size >= 0),
     CONSTRAINT fk_migration_session FOREIGN KEY (id_session) REFERENCES session(id),
 	CONSTRAINT pk_migration PRIMARY KEY (id),
-	CONSTRAINT uk_migration UNIQUE (nm_badge)
+	CONSTRAINT uk_migration_1 UNIQUE (nm_badge),
+	CONSTRAINT uk_migration_2 UNIQUE (id_session, cd_step)
 );
 
 
@@ -185,6 +199,7 @@ CREATE SEQUENCE sq_migration_span
 CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
 	id_migration_table int8 NOT NULL,
+    is_fininshed bool DEFAULT false NOT NULL,
     nr_first_row int8 NOT NULL,
     nr_last_row int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_last_row >= 0 AND nr_last_row >= nr_first_row),

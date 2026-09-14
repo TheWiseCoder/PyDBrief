@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final
 
-from app_constants import InputParam
+from app_consts import PYDB_DB_ENGINE, InputParam
 
 ENCRYPTION_KEY: Final[bytes] = b"\x9f\x1c\xbd\x4a\x72\xeb\x0e\x39\x6d\x8a\xf1\x54\x2c\x83\x60\x1e"
 #                              b"\xbb\xd7\x42\x3f\xa0\x15\x99\x6c\x4e\xd2\x7b\x5d\x88\x01\xef\xfa"
@@ -56,14 +56,16 @@ class Database(PySob):
         (InputParam.DB_NAME, Db.CD_NAME),
         (InputParam.DB_PORT, Db.NR_PORT),
         (InputParam.DB_TYPE, Db.CD_TYPE),
-        (InputParam.DB_USER, Db.NM_USER)
+        (InputParam.DB_USER, Db.NM_USER),
+        (InputParam.DB_PWD, None)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
                  __id: int = None,
                  /,
-                 db_engine: str = None,
+                 cd_engine: str = None,
+                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -88,10 +90,11 @@ class Database(PySob):
         where_data: dict[str, Any] | None = None
         if __id:
             where_data = {Database.Db.ID: __id}
-        elif db_engine:
-            where_data = {Database.Db.CD_ENGINE: db_engine}
+        elif cd_engine:
+            where_data = {Database.Db.CD_ENGINE: cd_engine}
 
         super().__init__(where_data=where_data,
+                         db_engine=db_engine,
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
@@ -100,7 +103,7 @@ class Database(PySob):
              __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]] = None,
              /,
              omit_nulls: bool = True,
-             db_engine: DbEngine = None,
+             db_engine: DbEngine = PYDB_DB_ENGINE,
              db_conn: Any = None,
              committable: bool = None,
              errors: list[str] = None) -> bool:
@@ -128,7 +131,7 @@ class Database(PySob):
         return result
 
     def insert(self,
-               db_engine: DbEngine = None,
+               db_engine: DbEngine | str = PYDB_DB_ENGINE,
                db_conn: Any = None,
                committable: bool = None,
                errors: list[str] = None) -> bool:
@@ -146,7 +149,7 @@ class Database(PySob):
         return result
 
     def update(self,
-               db_engine: DbEngine = None,
+               db_engine: DbEngine | str = PYDB_DB_ENGINE,
                db_conn: Any = None,
                committable: bool = None,
                errors: list[str] = None) -> bool:

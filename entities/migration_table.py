@@ -2,10 +2,12 @@ from __future__ import annotations  # allow forward references
 from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
+from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
+from app_consts import PYDB_DB_ENGINE
 from entities.migration_span import MigrationSpan
 
 
@@ -32,6 +34,7 @@ class MigrationTable(PySob):
                  /,
                  id_migration: int = None,
                  nm_table: str = None,
+                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -56,16 +59,19 @@ class MigrationTable(PySob):
                           MigrationTable.Db.NM_TABLE: nm_table}
 
         super().__init__(where_data=where_data,
+                         db_engine=db_engine,
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
 
     def get_migration_spans(self,
+                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None):
 
         self.load_references(list[MigrationSpan],
+                             db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
@@ -74,7 +80,7 @@ class MigrationTable(PySob):
     def load_references(self,
                         __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
                         /,
-                        db_engine: Any = None,  # noqa: ARG002 - unused method argument
+                        db_engine: DbEngine | str = PYDB_DB_ENGINE,
                         db_conn: Any = None,
                         committable: bool = None,
                         errors: list[str] = None) -> None:
@@ -92,6 +98,7 @@ class MigrationTable(PySob):
                     elif self.__id_migration_spans != self.id:
                         self.__migration_spans = MigrationSpan.retrieve(
                             where_data={MigrationSpan.Db.ID_MIGRATION_TABLE: self.id},
+                            db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
                             errors=errors)

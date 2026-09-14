@@ -1,31 +1,35 @@
 from __future__ import annotations  # allow forward references
 from enum import StrEnum, auto
 from logging import Logger
+from pypomes_core import StrEnumAny
+from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
+from app_consts import PYDB_DB_ENGINE
 
-class MigSpec(StrEnum):
+
+class MigSpec(StrEnumAny):
     """
     Spec keys for migration.
     """
-    EXCLUDE_COLUMNS = "exclude-columns"
-    EXCLUDE_CONSTRAINTS = "exclude-constraints"
-    EXCLUDE_RELATIONS = "exclude-relations"
-    FLATTEN_STORAGE = "flatten-storage"
-    INCLUDE_RELATIONS = "include-relations"
-    INCREMENTAL_MIGRATIONS = "incremental-migrations"
-    NAMED_LOBDATA = "named-lobdata"
-    OMIT_DEFAULTS = "omit-defaults"
-    OPTIMIZE_PKS = "optimize-pks"
-    OVERRIDE_COLUMNS = "override-columns"
-    PROCESS_INDEXES = "process-indexes"
-    PROCESS_VIEWS = "process-views"
-    REFLECT_FILETYPE = "reflect-filetype"
-    RELAX_REFLECTION = "relax-reflection"
-    REMOVE_CTRLCHARS = "remove-ctrlchars"
-    SKIP_NONEMPTY = "skip-nonempty"
+    EXCLUDE_COLUMNS = ("exclude-columns", list[str])
+    EXCLUDE_CONSTRAINTS = ("exclude-constraints", list[str])
+    EXCLUDE_RELATIONS = ("exclude-relations", list[str])
+    FLATTEN_STORAGE = ("flatten-storage", bool)
+    INCLUDE_RELATIONS = ("include-relations", list[str])
+    INCREMENTAL_MIGRATIONS = ("incremental-migrations", list[str])
+    NAMED_LOBDATA = ("named-lobdata", list[str])
+    OMIT_DEFAULTS = ("omit-defaults", list[str])
+    OPTIMIZE_PKS = ("optimize-pks", bool)
+    OVERRIDE_COLUMNS = ("override-columns", list[str])
+    PROCESS_INDEXES = ("process-indexes", bool),
+    PROCESS_VIEWS = ("process-views", bool)
+    REFLECT_FILETYPE = ("reflect-filetype", bool)
+    RELAX_REFLECTION = ("relax-reflection", bool)
+    REMOVE_CTRLCHARS = ("remove-ctrlchars", list[str])
+    SKIP_NONEMPTY = ("skip-nonempty", bool)
 
 
 class MigrationSpec(PySob):
@@ -52,12 +56,13 @@ class MigrationSpec(PySob):
                  /,
                  id_migration: int = None,
                  cd_spec: MigSpec = None,
+                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.id_migration: str | None = None
+        self.id_migration: int | None = None
         self.cd_spec: MigSpec | None = None
 
         # nullables in DB
@@ -71,6 +76,7 @@ class MigrationSpec(PySob):
                           MigrationSpec.Db.CD_SPEC: cd_spec}
 
         super().__init__(where_data=where_data,
+                         db_engine=db_engine,
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
