@@ -7,29 +7,40 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_consts import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam
+
+
+class MigSpecType(StrEnum):
+    """
+    Spec types for migration
+    """
+    BOOL = auto()
+    INT = auto()
+    STR = auto()
+    LIST_INT = auto()
+    LIST_STR = auto()
 
 
 class MigSpec(StrEnumAny):
     """
     Spec keys for migration.
     """
-    EXCLUDE_COLUMNS = (InputParam.EXCLUDE_COLUMNS, list[str])
-    EXCLUDE_CONSTRAINTS = (InputParam.EXCLUDE_CONSTRAINTS, list[str])
-    EXCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS, list[str])
-    FLATTEN_STORAGE = (InputParam.FLATTEN_STORAGE, bool)
-    INCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS, list[str])
-    INCREMENTAL_MIGRATIONS = (InputParam.INCREMENTAL_MIGRATIONS, list[str])
-    NAMED_LOBDATA = (InputParam.NAMED_LOBDATA, list[str])
-    OMIT_DEFAULTS = (InputParam.OMIT_DEFAULTS, list[str])
-    OPTIMIZE_PKS =  (InputParam.OPTIMIZE_PKS, bool)
-    OVERRIDE_COLUMNS = (InputParam.OVERRIDE_COLUMNS, list[str])
-    PROCESS_INDEXES = (InputParam.PROCESS_INDEXES, bool),
-    PROCESS_VIEWS = (InputParam.PROCESS_VIEWS, bool)
-    REFLECT_FILETYPE = (InputParam.REFLECT_FILETYPE, bool)
-    RELAX_REFLECTION = (InputParam.RELAX_REFLECTION, bool)
-    REMOVE_CTRLCHARS = (InputParam.REMOVE_CTRLCHARS, list[str])
-    SKIP_NONEMPTY = (InputParam.SKIP_NONEMPTY, bool)
+    EXCLUDE_COLUMNS = (InputParam.EXCLUDE_COLUMNS.value, MigSpecType.LIST_STR)
+    EXCLUDE_CONSTRAINTS = (InputParam.EXCLUDE_CONSTRAINTS.value, MigSpecType.LIST_STR)
+    EXCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS.value, MigSpecType.LIST_STR)
+    FLATTEN_STORAGE = (InputParam.FLATTEN_STORAGE.value, MigSpecType.BOOL)
+    INCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS.value, MigSpecType.LIST_STR)
+    INCREMENTAL_MIGRATIONS = (InputParam.INCREMENTAL_MIGRATIONS.value, MigSpecType.LIST_STR)
+    NAMED_LOBDATA = (InputParam.NAMED_LOBDATA.value, MigSpecType.LIST_STR)
+    OMIT_DEFAULTS = (InputParam.OMIT_DEFAULTS.value, MigSpecType.LIST_STR)
+    OPTIMIZE_PKS = (InputParam.OPTIMIZE_PKS.value, MigSpecType.BOOL)
+    OVERRIDE_COLUMNS = (InputParam.OVERRIDE_COLUMNS.value, MigSpecType.LIST_STR)
+    PROCESS_INDEXES = (InputParam.PROCESS_INDEXES.value, MigSpecType.BOOL)
+    PROCESS_VIEWS = (InputParam.PROCESS_VIEWS.value, MigSpecType.BOOL)
+    REFLECT_FILETYPE = (InputParam.REFLECT_FILETYPE.value, MigSpecType.BOOL)
+    RELAX_REFLECTION = (InputParam.RELAX_REFLECTION.value, MigSpecType.BOOL)
+    REMOVE_CTRLCHARS = (InputParam.REMOVE_CTRLCHARS.value, MigSpecType.LIST_STR)
+    SKIP_NONEMPTY = (InputParam.SKIP_NONEMPTY.value, MigSpecType.BOOL)
 
 
 class MigrationSpec(PySob):

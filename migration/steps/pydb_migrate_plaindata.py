@@ -13,7 +13,7 @@ from pypomes_db import (
 )
 from typing import Any
 
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigSpot, MigSpec, MigMetric, MigIncremental
 )
 from migration.pydb_common import build_channel_data

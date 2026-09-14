@@ -8,7 +8,7 @@ from pypomes_s3 import S3Engine
 from typing import Any
 from urlobject import URLObject
 
-from app_constants import DbConfig, S3Config
+from app_constants_old import DbConfig, S3Config
 from migration.pydb_sessions import get_session_registry
 
 

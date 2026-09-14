@@ -4,24 +4,15 @@ from enum import StrEnum, auto
 from logging import Logger
 from pypomes_core import exc_format
 from pypomes_crypto import crypto_decrypt, crypto_encrypt
+from pypomes_db import DbEngine, DbParam, db_get_param
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final
 
-from app_consts import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam
 
 ENCRYPTION_KEY: Final[bytes] = b"\x9f\x1c\xbd\x4a\x72\xeb\x0e\x39\x6d\x8a\xf1\x54\x2c\x83\x60\x1e"
 #                              b"\xbb\xd7\x42\x3f\xa0\x15\x99\x6c\x4e\xd2\x7b\x5d\x88\x01\xef\xfa"
-
-
-class DbEngine(StrEnum):
-    """
-    Possible database engines.
-    """
-    POSTGRES = auto()
-    ORACLE = auto()
-    SQLSERVER = auto()
-    MYSQL = auto()
 
 
 class Database(PySob):
@@ -85,7 +76,7 @@ class Database(PySob):
         self.nm_client: str | None = None
 
         # not mapped to DB
-        self.nm_pwd: str | None = None
+        self._nm_pwd: str | None = None
 
         where_data: dict[str, Any] | None = None
         if __id:
@@ -116,12 +107,17 @@ class Database(PySob):
                         db_conn=db_conn,
                         committable=committable,
                         errors=errors):
+            # postgres 'bytea' requires explicit conversion to Python 'bytes'
+            db_type: DbEngine = db_get_param(key=DbParam.TYPE,
+                                             engine=db_engine)
+            if db_type == DbEngine.POSTGRES:
+                self.bn_pwd = bytes(self.bn_pwd)
             plaintext: bytes = crypto_decrypt(ciphertext=self.bn_pwd,
                                               key=ENCRYPTION_KEY,
                                               errors=errors)
             if plaintext:
                 try:
-                    self.nm_pwd = plaintext.decode(encoding="utf-8")
+                    self._nm_pwd = plaintext.decode(encoding="utf-8")
                     result = True
                 except UnicodeDecodeError as e:
                     if isinstance(errors, list):
@@ -138,7 +134,7 @@ class Database(PySob):
 
         result: bool = False
 
-        self.bn_pwd = crypto_encrypt(plaintext=self.nm_pwd,
+        self.bn_pwd = crypto_encrypt(plaintext=self._nm_pwd,
                                      key=ENCRYPTION_KEY,
                                      errors=errors)
         if not errors:
@@ -156,7 +152,7 @@ class Database(PySob):
 
         result: bool = False
 
-        self.bn_pwd = crypto_encrypt(plaintext=self.nm_pwd,
+        self.bn_pwd = crypto_encrypt(plaintext=self._nm_pwd,
                                      key=ENCRYPTION_KEY,
                                      errors=errors)
         if not errors:

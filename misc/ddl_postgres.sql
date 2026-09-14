@@ -1,3 +1,22 @@
+DROP TABLE migration_span;
+DROP TABLE migration_table;
+DROP TABLE migration_spec;
+DROP TABLE migration_issue;
+DROP TABLE migration;
+DROP TABLE session;
+DROP TABLE s3;
+DROP TABLE database;
+
+DROP SEQUENCE sq_database;
+DROP SEQUENCE sq_s3;
+DROP SEQUENCE sq_session;
+DROP SEQUENCE sq_migration;
+DROP SEQUENCE sq_migration_issue;
+DROP SEQUENCE sq_migration_spec;
+DROP SEQUENCE sq_migration_table;
+DROP SEQUENCE sq_migration_span;
+
+
 CREATE SEQUENCE sq_database
 	INCREMENT BY 1
 	MINVALUE 1
@@ -43,9 +62,10 @@ CREATE TABLE s3 (
 	cd_type varchar(10) NOT NULL,
 	ds_endpoint_url varchar(256) NOT NULL,
 	ds_version varchar(128),
-	is_secure_acess bool DEFAULT false NOT NULL,
+	is_secure_access bool DEFAULT false NOT NULL,
 	nm_access_key varchar(64) NOT NULL,
 	nm_bucket varchar(64) NOT NULL,
+	nm_region varchar(64),
 	CONSTRAINT ck_s3_type CHECK (((cd_type)::text = ANY (ARRAY[
       ('aws'::character varying)::text,
       ('minio'::character varying)::text]))),

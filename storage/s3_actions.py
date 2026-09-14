@@ -4,19 +4,20 @@ from pypomes_core import (
     validate_bool, validate_enum, validate_str, validate_format_error
 )
 from pypomes_db import DbEngine, db_connect, db_commit, db_rollback, db_close
+from pypomes_s3 import S3Engine
 
-from app_consts import PYDB_DB_ENGINE, InputParam, OpType
-from entities.s3 import S3, S3Engine
+from app_constants import PYDB_DB_ENGINE, InputParam, OpType
+from entities.s3 import S3
 
 
 def create_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # validate the input data
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[i[0] for i in S3.ATTRS_INPUT],
-                                                       op=OpType.CREATE,
-                                                       errors=errors)
+    s3_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                 valid_params=[i[0] for i in S3.ATTRS_INPUT],
+                                                 op=OpType.CREATE,
+                                                 errors=errors)
     if not errors:
         # obtain DB connection
         db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
@@ -24,7 +25,9 @@ def create_s3(input_params: dict[str, Any],
         if db_conn:
             # create and persist the database
             s3: S3 = S3()
-            s3.set(database_params)
+            if InputParam.S3_SECRET_KEY in s3_params:
+                s3._nm_secret_key = s3_params.pop(InputParam.S3_SECRET_KEY)
+            s3.set(s3_params)
             s3.insert(db_engine=PYDB_DB_ENGINE,
                       db_conn=db_conn,
                       errors=errors)
@@ -42,20 +45,23 @@ def update_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # validate the input data
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[i[0] for i in S3.ATTRS_INPUT],
-                                                       op=OpType.UPDATE,
-                                                       errors=errors)
+    s3_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                 valid_params=[i[0] for i in S3.ATTRS_INPUT],
+                                                 op=OpType.UPDATE,
+                                                 errors=errors)
     if not errors:
         # obtain DB connection
         db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                                   errors=errors)
         if db_conn:
-            s3: S3 = S3(cd_engine=database_params.get(S3.Db.CD_ENGINE),
+            s3: S3 = S3(cd_engine=s3_params.get(S3.Db.CD_ENGINE),
+                        db_engine=PYDB_DB_ENGINE,
                         db_conn=db_conn,
                         errors=errors)
             if not errors:
-                s3.set(data=database_params)
+                if InputParam.S3_SECRET_KEY in s3_params:
+                    s3._nm_secret_key = s3_params.pop(InputParam.S3_SECRET_KEY)
+                s3.set(data=s3_params)
                 s3.update(db_conn=db_conn,
                           errors=errors)
 
@@ -108,7 +114,7 @@ def retrieve_s3s(input_params: dict[str, Any],
 
     # validate the input data
     s3_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                 valid_params=[InputParam.DB_ENGINE],
+                                                 valid_params=[InputParam.S3_ENGINE],
                                                  op=OpType.RETRIEVE,
                                                  errors=errors)
     where_data: dict[str, Any] | None = None

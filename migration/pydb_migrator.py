@@ -18,12 +18,11 @@ from pypomes_db import DbEngine, db_count
 from pypomes_logging import logging_get_entries, logging_get_params
 from typing import Any
 
-from app_constants import (
-    REGISTRY_DOCKER, REGISTRY_HOST,
+from app_constants_old import (
+    REGISTRY_DOCKER, REGISTRY_HOST, SessionState,
     DbConfig, MigConfig, MigMetric, MigSpot, MigStep, MigSpec, MigIncremental
 )
 from app_ident import get_env_keys
-from entities.session import SessionState
 from migration.pydb_common import get_rdbms_specs, get_s3_specs
 from migration.pydb_sessions import get_session_registry
 from migration.pydb_types import type_to_name

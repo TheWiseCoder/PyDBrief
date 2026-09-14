@@ -14,7 +14,7 @@ from pypomes_db import (
 from pypomes_s3 import S3Engine, s3_get_client, s3_item_exists
 from typing import Any
 
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigMetric, MigSpec, MigSpot, MigStep, MigIncremental
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix

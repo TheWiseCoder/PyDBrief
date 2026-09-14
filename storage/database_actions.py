@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 from pypomes_db import DbEngine, db_connect, db_commit, db_rollback, db_close
 
-from app_consts import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.database import Database
 
 
@@ -23,6 +23,8 @@ def create_database(input_params: dict[str, Any],
         if db_conn:
             # create and persist the database
             database: Database = Database()
+            if InputParam.DB_PWD in database_params:
+                database._nm_pwd = database_params.pop(InputParam.DB_PWD)
             database.set(database_params)
             database.insert(db_engine=PYDB_DB_ENGINE,
                             db_conn=db_conn,
@@ -51,9 +53,12 @@ def update_database(input_params: dict[str, Any],
                                   errors=errors)
         if db_conn:
             database: Database = Database(cd_engine=database_params.get(Database.Db.CD_ENGINE),
+                                          db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
             if not errors:
+                if InputParam.DB_PWD in database_params:
+                    database._nm_pwd = database_params.pop(InputParam.DB_PWD)
                 database.set(data=database_params)
                 database.update(db_conn=db_conn,
                                 errors=errors)
@@ -73,7 +78,7 @@ def delete_database(input_params: dict[str, Any],
     # validate the input data
     database_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                        valid_params=[InputParam.DB_ENGINE],
-                                                       op=OpType.CREATE,
+                                                       op=OpType.DELETE,
                                                        errors=errors)
     if not errors:
         # obtain DB connection

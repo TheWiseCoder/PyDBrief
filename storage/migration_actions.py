@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
-from app_consts import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
     Migration,
     SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT,
@@ -178,9 +178,9 @@ def retrieve_migrations(input_params: dict[str, Any],
                     mig_data[InputParam.SPECS] = mig_specs
 
                     mig_tables: list[dict[str, Any]] = []
-                    migration_tables: list[MigrationTable] = migration.get_all_tables(db_engine=PYDB_DB_ENGINE,
-                                                                                      db_conn=db_conn,
-                                                                                      errors=errors)
+                    migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
+                                                                                            db_conn=db_conn,
+                                                                                            errors=errors)
                     if errors:
                         break
                     for migration_table in migration_tables:

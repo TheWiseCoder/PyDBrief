@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SAWarning
 from typing import Any
 
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigStep, MigSpec, MigSpot
 )
 from migration.pydb_sessions import get_session_registry

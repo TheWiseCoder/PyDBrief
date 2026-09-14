@@ -9,7 +9,7 @@ from pypomes_s3 import s3_data_store, S3Engine
 from pathlib import Path
 from typing import Any
 
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigMetric, MigSpot, MigSpec
 )
 from migration.pydb_sessions import assert_session_abort, get_session_registry

@@ -16,7 +16,7 @@ from pypomes_s3 import (
 from typing import Any
 
 import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigMetric, MigSpec, MigSpot
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix

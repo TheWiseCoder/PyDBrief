@@ -19,7 +19,7 @@ from pypomes_s3 import (
 from sqlalchemy.sql.elements import Type
 from typing import Any, Final
 
-from app_constants import (
+from app_constants_old import (
     DbConfig, S3Config, MigMetric, MigConfig,
     MigSpec, MigStep, MigSpot, MigIncremental,
     RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,

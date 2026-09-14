@@ -13,7 +13,7 @@ pypomes-db==3.0.8
 pypomes-http==0.8.7
 pypomes-logging==0.7.8
 pypomes-s3==1.1.7
-pypomes-sob==1.3.4
+pypomes-sob==1.3.5
 python-dotenv==1.2.3
 SQLAlchemy==2.0.52
 URLObject==3.0.0

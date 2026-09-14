@@ -6,7 +6,7 @@ from pypomes_core import validate_bool, validate_format_error
 from pypomes_http import http_get_parameters, HttpMethod
 from typing import Any
 
-from app_constants import (
+from app_constants_old import (
     RANGE_BATCH_SIZE_IN, RANGE_BATCH_SIZE_OUT,
     RANGE_CHUNK_SIZE, RANGE_INCREMENTAL_SIZE,
     RANGE_LOBDATA_CHANNELS, RANGE_LOBDATA_CHANNEL_SIZE,
@@ -153,9 +153,9 @@ class SessionState(StrEnum):
 migration_registry: dict[str, dict[StrEnum, Any]] = {}
 
 
-def create_session(client_id: str,
-                   session_id: str,
-                   errors: list[str]) -> bool:
+def create_session_old(client_id: str,
+                       session_id: str,
+                       errors: list[str]) -> bool:
 
     # initialize the return variable
     result: bool = False
@@ -206,8 +206,8 @@ def create_session(client_id: str,
     return result
 
 
-def delete_session(session_id: str,
-                   errors: list[str]) -> bool:
+def delete_session_old(session_id: str,
+                       errors: list[str]) -> bool:
 
     # initialize the return variable
     result: bool = False

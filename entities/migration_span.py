@@ -6,7 +6,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_consts import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE
 
 
 class MigrationSpan(PySob):

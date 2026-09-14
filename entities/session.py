@@ -13,7 +13,7 @@ from entities.migration import Migration
 from entities.migration_table import MigrationTable
 from entities.s3 import S3
 
-from app_consts import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam
 
 
 class SessionState(StrEnum):
@@ -41,6 +41,9 @@ class Session(PySob):
         NM_TARGET_SCHEMA = auto()
         TS_CREATION = auto()
 
+    ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
+        Db.CD_STATE: SessionState
+    }
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.CD_SESSION,)
     ]
@@ -280,7 +283,7 @@ class Session(PySob):
                                                                         errors=errors)
             if errors:
                 break
-            # make sure lists of migration specs and active tables are filled
+            # make sure lists of migration specs and tables are filled
             for migration in migrations:
                 migration.load_references(list[MigrationSpec],
                                           db_engine=db_engine,
@@ -288,10 +291,10 @@ class Session(PySob):
                                           errors=errors)
                 if errors:
                     break
-                _migration_tables: list[MigrationTable] = migration.get_active_tables([MigrationSpan],
-                                                                                      db_engine=db_engine,
-                                                                                      db_conn=db_conn,
-                                                                                      errors=errors)
+                _migration_tables: list[MigrationTable] = migration.get_migration_tables([MigrationSpan],
+                                                                                         db_engine=db_engine,
+                                                                                         db_conn=db_conn,
+                                                                                         errors=errors)
                 if errors:
                     break
         if not errors:
@@ -301,5 +304,7 @@ class Session(PySob):
 
 
 Session.initialize(db_specs=(Session.Db, int),
+                   attrs_enum=Session.ATTRS_ENUM,
                    attrs_unique=Session.ATTRS_UNIQUE,
+                   attrs_input=Database.ATTRS_INPUT,
                    logger=Session.LOGGER)

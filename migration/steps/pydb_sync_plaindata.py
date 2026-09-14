@@ -4,7 +4,7 @@ from logging import Logger
 from typing import Any
 from pypomes_db import DbEngine, db_connect, db_commit, db_sync_data
 
-from app_constants import (
+from app_constants_old import (
     MigConfig, MigMetric, MigIncremental, MigSpot, MigSpec
 )
 from migration import pydb_types

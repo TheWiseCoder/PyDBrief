@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_consts import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam
 from entities.migration_issue import MigrationIssue
 from entities.migration_spec import MigrationSpec
 from entities.migration_span import MigrationSpan

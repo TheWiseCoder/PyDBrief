@@ -3,11 +3,11 @@ from pypomes_core import (
     validate_str, validate_strs, validate_format_error
 )
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
-from typing import Any, get_origin, get_args
+from typing import Any
 
-from app_consts import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import Migration
-from entities.migration_spec import MigrationSpec, MigSpec
+from entities.migration_spec import MigrationSpec, MigSpec, MigSpecType
 
 
 def update_migration_specs(input_params: dict[str, Any],
@@ -145,28 +145,25 @@ def validate_migration_specs(input_params: dict[str, Any],
             curr_errors: list[str] = []
             param_key: MigSpec = MigSpec(mig_spec.value)
             param_value: Any = None
-            param_type: type = mig_spec.anyval
-            if param_type is bool:
-                param_value = validate_bool(source=input_params,
-                                            attr=param_key,
-                                            errors=curr_errors)
-            elif param_type is int:
-                param_value = validate_int(source=input_params,
-                                           attr=param_key,
-                                           errors=curr_errors)
-            elif param_type is str:
-                param_value = validate_str(source=input_params,
-                                           attr=param_key,
-                                           errors=curr_errors)
-            else:
-                param_args: tuple[type] = get_args(tp=param_type) if get_origin(tp=param_type) is list else None
-                param_arg: type = param_args[0] if isinstance(param_args, tuple) and len(param_args) > 0 else None
-                if param_arg is int:
-                    param_value = validate_ints(source=input_params,
+            match mig_spec.anyval:
+                case MigSpecType.BOOL:
+                    param_value = validate_bool(source=input_params,
                                                 attr=param_key,
                                                 errors=curr_errors)
-                elif param_arg is str:
+                case MigSpecType.INT:
+                    param_value = validate_int(source=input_params,
+                                               attr=param_key,
+                                               errors=curr_errors)
+                case MigSpecType.STR:
+                    param_value = validate_str(source=input_params,
+                                               attr=param_key,
+                                               errors=curr_errors)
+                case MigSpecType.LIST_STR:
                     param_value = validate_strs(source=input_params,
+                                                attr=param_key,
+                                                errors=curr_errors)
+                case MigSpecType.LIST_INT:
+                    param_value = validate_ints(source=input_params,
                                                 attr=param_key,
                                                 errors=curr_errors)
             if curr_errors:

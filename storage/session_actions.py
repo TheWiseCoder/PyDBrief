@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import validate_str, validate_format_error
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
-from app_consts import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.database import Database
 from entities.s3 import S3
 from entities.session import Session, SessionState
@@ -52,7 +52,8 @@ def update_session(input_params: dict[str, Any],
                                                           db_conn=db_conn,
                                                           errors=errors)
         if not errors:
-            session: Session = Session(db_engine=PYDB_DB_ENGINE,
+            session: Session = Session(cd_session=session_params.get(Session.Db.CD_SESSION),
+                                       db_engine=PYDB_DB_ENGINE,
                                        db_conn=db_conn,
                                        errors=errors)
             if not errors:
@@ -79,7 +80,7 @@ def delete_session(input_params: dict[str, Any],
         # validate the input data
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                           valid_params=[InputParam.CD_SESSION],
-                                                          op=OpType.CREATE,
+                                                          op=OpType.DELETE,
                                                           db_conn=db_conn,
                                                           errors=errors)
         if not errors:
@@ -114,7 +115,7 @@ def retrieve_sessions(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[InputParam.DB_ENGINE],
+                                                          valid_params=[InputParam.CD_SESSION],
                                                           op=OpType.RETRIEVE,
                                                           db_conn=db_conn,
                                                           errors=errors)
@@ -206,7 +207,7 @@ def __validate_input(input_params: dict[str, Any],
             result[Session.Db.ID_SOURCE_DB] = values[0]
 
     target_db: str = validate_str(source=input_params,
-                                  attr=InputParam.SOURCE_DB,
+                                  attr=InputParam.TARGET_DB,
                                   max_length=64,
                                   required=op == OpType.CREATE,
                                   errors=errors)
@@ -235,5 +236,21 @@ def __validate_input(input_params: dict[str, Any],
                                           errors=errors)
         if values:
             result[Session.Db.ID_TARGET_S3] = values[0]
+
+    source_schema: str = validate_str(source=input_params,
+                                      attr=InputParam.SOURCE_SCHEMA,
+                                      max_length=64,
+                                      required=op == OpType.CREATE,
+                                      errors=errors)
+    if source_schema:
+        result[Session.Db.NM_SOURCE_SCHEMA] = source_schema
+
+    target_schema: str = validate_str(source=input_params,
+                                      attr=InputParam.TARGET_SCHEMA,
+                                      max_length=64,
+                                      required=op == OpType.CREATE,
+                                      errors=errors)
+    if target_schema:
+        result[Session.Db.NM_TARGET_SCHEMA] = target_schema
 
     return result
