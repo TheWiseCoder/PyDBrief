@@ -27,7 +27,7 @@ class MigSpec(StrEnumAny):
     """
     EXCLUDE_COLUMNS = (InputParam.EXCLUDE_COLUMNS.value, MigSpecType.LIST_STR)
     EXCLUDE_CONSTRAINTS = (InputParam.EXCLUDE_CONSTRAINTS.value, MigSpecType.LIST_STR)
-    EXCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS.value, MigSpecType.LIST_STR)
+    EXCLUDE_RELATIONS = (InputParam.EXCLUDE_RELATIONS.value, MigSpecType.LIST_STR)
     FLATTEN_STORAGE = (InputParam.FLATTEN_STORAGE.value, MigSpecType.BOOL)
     INCLUDE_RELATIONS = (InputParam.INCLUDE_RELATIONS.value, MigSpecType.LIST_STR)
     INCREMENTAL_MIGRATIONS = (InputParam.INCREMENTAL_MIGRATIONS.value, MigSpecType.LIST_STR)

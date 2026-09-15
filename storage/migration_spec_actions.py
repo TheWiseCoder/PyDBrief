@@ -10,8 +10,8 @@ from entities.migration import Migration
 from entities.migration_spec import MigrationSpec, MigSpec, MigSpecType
 
 
-def update_migration_specs(input_params: dict[str, Any],
-                           errors: list[str]) -> None:
+def update_migration_spec(input_params: dict[str, Any],
+                          errors: list[str]) -> None:
 
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
@@ -19,16 +19,19 @@ def update_migration_specs(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_spec_params: dict[str, Any] = \
-            validate_migration_specs(input_params=input_params,
-                                     valid_params=[i.value for i in MigSpec] + [InputParam.MIGRATION_BADGE],
-                                     op=OpType.UPDATE,
-                                     db_conn=db_conn,
-                                     errors=errors)
+            __validate_input(input_params=input_params,
+                             valid_params=[i.value for i in MigSpec] + [InputParam.MIGRATION_BADGE],
+                             op=OpType.UPDATE,
+                             db_conn=db_conn,
+                             errors=errors)
         if not errors:
             # create and persist the migration specs
             migration_spec: MigrationSpec
             id_migration: int = migration_spec_params.pop(MigrationSpec.Db.ID_MIGRATION)
             for mig_spec, spec_value in migration_spec_params.items():
+                vl_spec: str = str(spec_value)
+                if vl_spec.startswith("[") and vl_spec.endswith("]"):
+                    vl_spec = vl_spec[1:len(vl_spec)]
                 if MigrationSpec.exists(where_data={MigrationSpec.Db.ID_MIGRATION: id_migration,
                                                     MigrationSpec.Db.CD_SPEC: mig_spec},
                                         db_engine=PYDB_DB_ENGINE,
@@ -39,14 +42,21 @@ def update_migration_specs(input_params: dict[str, Any],
                                                    db_engine=PYDB_DB_ENGINE,
                                                    db_conn=db_conn,
                                                    errors=errors)
-                    migration_spec.vl_spec = spec_value
-                    migration_spec.update(db_engine=PYDB_DB_ENGINE,
-                                          db_conn=db_conn,
-                                          errors=errors)
-                elif not errors:
+                    if vl_spec:
+                        migration_spec.vl_spec = vl_spec
+                        migration_spec.update(db_engine=PYDB_DB_ENGINE,
+                                              db_conn=db_conn,
+                                              errors=errors)
+                    else:
+                        migration_spec.delete(db_engine=PYDB_DB_ENGINE,
+                                              db_conn=db_conn,
+                                              errors=errors)
+                elif not errors and vl_spec:
                     migration_spec = MigrationSpec()
                     migration_spec.id_migration = id_migration
-                    migration_spec.cd_spec = spec_value
+                    # noinspection PyTypeChecker
+                    migration_spec.cd_spec = mig_spec
+                    migration_spec.vl_spec = vl_spec
                     migration_spec.insert(db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
@@ -65,8 +75,8 @@ def update_migration_specs(input_params: dict[str, Any],
                      engine=PYDB_DB_ENGINE)
 
 
-def delete_migration_specs(input_params: dict[str, Any],
-                           errors: list[str]) -> None:
+def delete_migration_spec(input_params: dict[str, Any],
+                          errors: list[str]) -> None:
 
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
@@ -74,11 +84,11 @@ def delete_migration_specs(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_spec_params: dict[str, Any] = \
-            validate_migration_specs(input_params=input_params,
-                                     valid_params=[InputParam.MIGRATION_BADGE, InputParam.MIGRATION_SPECS],
-                                     op=OpType.DELETE,
-                                     db_conn=db_conn,
-                                     errors=errors)
+            __validate_input(input_params=input_params,
+                             valid_params=[InputParam.MIGRATION_BADGE, InputParam.MIGRATION_SPECS],
+                             op=OpType.DELETE,
+                             db_conn=db_conn,
+                             errors=errors)
         if not errors:
             # delete the migration specs
             migration_spec: MigrationSpec
@@ -100,11 +110,11 @@ def delete_migration_specs(input_params: dict[str, Any],
                      engine=PYDB_DB_ENGINE)
 
 
-def validate_migration_specs(input_params: dict[str, Any],
-                             valid_params: list[str],
-                             op: OpType,
-                             db_conn: Any,
-                             errors: list[str]) -> dict[str, Any]:
+def __validate_input(input_params: dict[str, Any],
+                     valid_params: list[str],
+                     op: OpType,
+                     db_conn: Any,
+                     errors: list[str]) -> dict[str, Any]:
 
     # initialize the return variable
     result: dict[str, Any] = {}
@@ -149,32 +159,31 @@ def validate_migration_specs(input_params: dict[str, Any],
     if not errors and op == OpType.UPDATE:
         for mig_spec in MigSpec:
             curr_errors: list[str] = []
-            param_key: MigSpec = MigSpec(mig_spec.value)
-            param_value: Any = None
+            value: Any = None
             match mig_spec.anyval:
                 case MigSpecType.BOOL:
-                    param_value = validate_bool(source=input_params,
-                                                attr=param_key,
-                                                errors=curr_errors)
+                    value = validate_bool(source=input_params,
+                                          attr=mig_spec,
+                                          errors=curr_errors)
                 case MigSpecType.INT:
-                    param_value = validate_int(source=input_params,
-                                               attr=param_key,
-                                               errors=curr_errors)
+                    value = validate_int(source=input_params,
+                                         attr=mig_spec,
+                                         errors=curr_errors)
                 case MigSpecType.STR:
-                    param_value = validate_str(source=input_params,
-                                               attr=param_key,
-                                               errors=curr_errors)
+                    value = validate_str(source=input_params,
+                                         attr=mig_spec,
+                                         errors=curr_errors)
                 case MigSpecType.LIST_STR:
-                    param_value = validate_strs(source=input_params,
-                                                attr=param_key,
-                                                errors=curr_errors)
+                    value = validate_strs(source=input_params,
+                                          attr=mig_spec,
+                                          errors=curr_errors)
                 case MigSpecType.LIST_INT:
-                    param_value = validate_ints(source=input_params,
-                                                attr=param_key,
-                                                errors=curr_errors)
+                    value = validate_ints(source=input_params,
+                                          attr=mig_spec,
+                                          errors=curr_errors)
             if curr_errors:
                 errors.extend(curr_errors)
-            elif param_value is not None:
-                result[param_key] = param_value
+            elif value is not None:
+                result[mig_spec] = value
 
     return result

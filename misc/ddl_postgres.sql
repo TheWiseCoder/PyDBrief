@@ -183,8 +183,9 @@ CREATE TABLE migration_spec (
 	id_migration int8 NOT NULL,
 	cd_spec varchar(32) NOT NULL,
     vl_spec varchar(256),
-	CONSTRAINT ck_migration_specp CHECK (((cd_spec)::text = ANY (ARRAY[
+	CONSTRAINT ck_migration_spec CHECK (((cd_spec)::text = ANY (ARRAY[
       ('exclude-columns'::character varying)::text,
+      ('exclude-constraints'::character varying)::text,
       ('exclude-relations'::character varying)::text,
       ('flatten-storage'::character varying)::text,
       ('include-relations'::character varying)::text,
