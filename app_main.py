@@ -486,16 +486,15 @@ def service_migration_spec(nm_migration_badge: str = None) -> Response:
     return result
 
 
-@flask_app.route(rule="/migrate:",
-                 methods=[HttpMethod.POST])
 @flask_app.route(rule="/migrate/<nm_badge>",
-                 methods=[HttpMethod.DELETE])
+                 methods=[HttpMethod.GET])
 def service_migrate(nm_badge: str = None) -> Response:
     """
     Initiate or abort a migration operation.
 
     :return: *Response* with the operation outcome
     """
+    pass
 
 
 @flask_app.route(rule="/migrate",

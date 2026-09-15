@@ -244,9 +244,6 @@ def retrieve_migrations(input_params: dict[str, Any],
 def verify_migration(input_params: dict[str, Any],
                      errors: list[str]) -> None:
 
-    # initialize the return variable
-    result: dict[str, Any] = {}
-
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                               errors=errors)
