@@ -322,8 +322,8 @@ def setup_columns(target_columns: Iterable[Column],
     for target_column in target_columns:
         try:
             # convert the type
-            target_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                              target_rdbms=target_rdbms,
+            target_type: Any = migrate_column(source_db=source_rdbms,
+                                              target_db=target_rdbms,
                                               ref_column=target_column,
                                               optimize_pks=optimize_pks,
                                               override_columns=override_columns,

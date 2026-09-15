@@ -1,6 +1,6 @@
 from logging import Logger
 from pypomes_core import dict_get_key
-from pypomes_db import DbRange, DbEngine
+from pypomes_db import DbEngine, DbParam, DbRange, db_get_param
 # 'Type' is same as 'typing.Type'
 from sqlalchemy.sql.elements import Type
 from sqlalchemy.sql.schema import Column
@@ -540,8 +540,8 @@ LOB_TYPES: Final[list[str]] = [
 ]
 
 
-def migrate_column(source_rdbms: DbEngine,
-                   target_rdbms: DbEngine,
+def migrate_column(source_db: DbEngine | str,
+                   target_db: DbEngine | str,
                    ref_column: Column,
                    optimize_pks: bool,
                    override_columns: dict[str, Type],
@@ -552,6 +552,9 @@ def migrate_column(source_rdbms: DbEngine,
 
     # initialize the return variable
     result: Any = None
+
+    target_type: DbEngine = db_get_param(key=DbParam.TYPE,
+                                         engine=target_db) if isinstance(target_db, str) else target_db
 
     # retrieve needed properties and define specific features
     type_original: Any = ref_column.type
@@ -569,12 +572,12 @@ def migrate_column(source_rdbms: DbEngine,
     numeric_precision: int = (type_original.precision
                               if is_numeric and hasattr(type_original, "precision") else None)
     # base message
-    msg: str = (f"Rdbms {target_rdbms}, type {type_original} in "
+    msg: str = (f"Rdbms {target_db}, type {type_original} in "
                 f"{ref_column.table.fullname}.{ref_column.name}")
 
     # PostgreSQL does not accept value other than '1' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
-    if target_rdbms == DbEngine.POSTGRES and \
+    if target_type == DbEngine.POSTGRES and \
        is_identity and hasattr(ref_column.identity, "cache"):
         ref_column.identity.cache = 1
 
@@ -590,8 +593,8 @@ def migrate_column(source_rdbms: DbEngine,
         fk_name: str = f"{fk_column.table.name}.{fk_column.name}"
         # prevent endless loop
         if fk_name not in fk_stack:
-            fk_type: Any = migrate_column(source_rdbms=source_rdbms,
-                                          target_rdbms=target_rdbms,
+            fk_type: Any = migrate_column(source_db=source_db,
+                                          target_db=target_db,
                                           ref_column=fk_column,
                                           optimize_pks=optimize_pks,
                                           override_columns=override_columns,
@@ -610,8 +613,8 @@ def migrate_column(source_rdbms: DbEngine,
     # finally, inspect the migration equivalences
     if not type_equiv:
         (native_ordinal, reference_ordinal, nat_equivalences) = \
-            establish_equivalences(source_rdbms=source_rdbms,
-                                   target_rdbms=target_rdbms)
+            establish_equivalences(source_db=source_db,
+                                   target_db=target_db)
 
         # inspect the native equivalences first
         for nat_equivalence in nat_equivalences:
@@ -636,7 +639,7 @@ def migrate_column(source_rdbms: DbEngine,
                         type_equiv = REF_INTEGER
                     elif ref_column.identity.maxvalue <= DbRange.BIGINT_MAX:
                         type_equiv = REF_BIGINT
-                    elif target_rdbms == DbEngine.POSTGRES:
+                    elif target_db == DbEngine.POSTGRES:
                         # PostgreSQL will not accept a REF_NUMERIC column as identity
                         type_equiv = REF_BIGINT
                         ref_column.identity.maxvalue = DbRange.BIGINT_MAX
@@ -645,7 +648,7 @@ def migrate_column(source_rdbms: DbEngine,
                            ref_column.identity.minvalue < DbRange.BIGINT_MIN:
                             ref_column.identity.minvalue = DbRange.BIGINT_MIN
                         warn_msg: str = (f"{msg} - forced to type INT8, as "
-                                         f"{target_rdbms} does not accept type NUMERIC for IDENTITY columns")
+                                         f"{target_db} does not accept type NUMERIC for IDENTITY columns")
                         migration_warnings.append(warn_msg)
                         logger.warning(msg=warn_msg)
                 elif not numeric_precision or numeric_precision > 9:
@@ -688,12 +691,17 @@ def migrate_column(source_rdbms: DbEngine,
     return result
 
 
-def establish_equivalences(source_rdbms: DbEngine,
-                           target_rdbms: DbEngine) -> tuple[int, int, list[tuple]]:
+def establish_equivalences(source_db: DbEngine | str,
+                           target_db: DbEngine | str) -> tuple[int, int, list[tuple]]:
+
+    source_type: DbEngine = db_get_param(key=DbParam.TYPE,
+                                         engine=source_db) if isinstance(source_db, str) else source_db
+    target_type: DbEngine = db_get_param(key=DbParam.TYPE,
+                                         engine=target_db) if isinstance(target_db, str) else target_db
 
     # make 'nat_equivalences' point to the appropriate list
     nat_equivalences: list[tuple] | None = None
-    match source_rdbms:
+    match source_type:
         case DbEngine.MYSQL:
             nat_equivalences = MSQL_EQUIVALENCES
         case DbEngine.ORACLE:
@@ -706,10 +714,10 @@ def establish_equivalences(source_rdbms: DbEngine,
     # establish the ordinals
     nat_ordinal: int | None = None
     ref_ordinal: int | None = None
-    match target_rdbms:
+    match target_type:
         case DbEngine.MYSQL:
             ref_ordinal = 1
-            match source_rdbms:
+            match source_type:
                 case DbEngine.ORACLE:
                     nat_ordinal = 1
                 case DbEngine.POSTGRES:
@@ -718,7 +726,7 @@ def establish_equivalences(source_rdbms: DbEngine,
                     nat_ordinal = 3
         case DbEngine.ORACLE:
             ref_ordinal = 2
-            match source_rdbms:
+            match source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.POSTGRES:
@@ -727,7 +735,7 @@ def establish_equivalences(source_rdbms: DbEngine,
                     nat_ordinal = 3
         case DbEngine.POSTGRES:
             ref_ordinal = 3
-            match source_rdbms:
+            match source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.ORACLE:
@@ -736,7 +744,7 @@ def establish_equivalences(source_rdbms: DbEngine,
                     nat_ordinal = 3
         case DbEngine.SQLSERVER:
             ref_ordinal = 4
-            match source_rdbms:
+            match source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.ORACLE:
@@ -753,24 +761,26 @@ def is_lob_column(col_type: str) -> bool:
 
 
 def name_to_type(type_name: str,
-                 rdbms: DbEngine) -> Type | None:
+                 db_engine: DbEngine | str) -> Type | None:
 
-    types: dict[str, Type] = __get_types(rdbms=rdbms)
+    types: dict[str, Type] = __get_types(db_engine=db_engine)
     return types.get(type_name)
 
 
 def type_to_name(col_type: Type,
-                 rdbms: DbEngine) -> str:
+                 db_engine: DbEngine | str) -> str:
 
-    types: dict[str, Type] = __get_types(rdbms=rdbms)
+    types: dict[str, Type] = __get_types(db_engine=db_engine)
     return dict_get_key(source=types,
                         value=col_type)
 
 
-def __get_types(rdbms: DbEngine) -> dict[str, Type]:
+def __get_types(db_engine: DbEngine | str) -> dict[str, Type]:
 
     result: dict[str, Type] | None = None
-    match rdbms:
+    db_type: DbEngine = db_get_param(key=DbParam.TYPE,
+                                     engine=db_engine) if isinstance(db_engine, str) else db_engine
+    match db_type:
         case DbEngine.MYSQL:
             result = MSQL_TYPES
         case DbEngine.ORACLE:

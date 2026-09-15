@@ -12,11 +12,13 @@ from entities.migration import (
     SPAN_LOBDATA_CHANNELS, SPAN_LOBDATA_CHANNEL_SIZE,
     SPAN_PLAINDATA_CHANNELS, SPAN_PLAINDATA_CHANNEL_SIZE
 )
-from entities.session import Session
+from entities.database import Database
 from entities.migration_issue import MigrationIssue
 from entities.migration_span import MigrationSpan
 from entities.migration_spec import MigrationSpec
 from entities.migration_table import MigrationTable
+from entities.s3 import S3
+from entities.session import Session
 
 
 def create_migration(input_params: dict[str, Any],
@@ -237,6 +239,56 @@ def retrieve_migrations(input_params: dict[str, Any],
                  engine=PYDB_DB_ENGINE)
 
     return result
+
+
+def verify_migration(input_params: dict[str, Any],
+                     errors: list[str]) -> None:
+
+    # initialize the return variable
+    result: dict[str, Any] = {}
+
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        migration_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                            valid_params=[InputParam.BADGE],
+                                                            op=OpType.VERIFY,
+                                                            db_conn=db_conn,
+                                                            errors=errors)
+        if not errors:
+            migration: Migration = Migration(nm_badge=migration_params.get(Migration.Db.NM_BADGE),
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
+            if not errors:
+                session: Session = Session(migration.id_session,
+                                           db_engine=PYDB_DB_ENGINE,
+                                           db_conn=db_conn,
+                                           errors=errors)
+                if not errors:
+                    database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                                                               db_conn=db_conn,
+                                                               errors=errors)
+                    if not errors:
+                        conn: Any = db_connect(engine=database.cd_engine,
+                                               errors=errors)
+                        if not errors:
+                            db_close(conn,
+                                     engine=PYDB_DB_ENGINE)
+                            database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+                                                             db_conn=db_conn,
+                                                             errors=errors)
+                            if not errors:
+                                conn: Any = db_connect(engine=database.cd_engine,
+                                                       errors=errors)
+                                if not errors:
+                                    db_close(conn,
+                                             engine=PYDB_DB_ENGINE)
+                                _s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
+                                                                db_conn=db_conn,
+                                                                errors=errors)
 
 
 def __validate_input(input_params: dict[str, Any],

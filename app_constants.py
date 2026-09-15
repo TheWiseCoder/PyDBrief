@@ -6,6 +6,14 @@ PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE",
                                          def_value="pydbrief")
 
 
+class MigIncremental(StrEnum):
+    """
+    Parameters for incremental migration.
+    """
+    COUNT = auto()
+    OFFSET = auto()
+
+
 class InputParam(StrEnum):
     """
     Parameters for data input.
@@ -91,4 +99,5 @@ class OpType(StrEnum):
     CREATE = auto()
     DELETE = auto()
     RETRIEVE = auto()
+    VERIFY = auto()
     UPDATE = auto()

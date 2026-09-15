@@ -69,7 +69,7 @@ def assert_relation(relation: str,
     # process list of excludes
     if excludes and relation not in excludes:
         for exclude in excludes:
-            if (str_find_char(exclude, ".^*+?[]()|\{}") >= 0 and
+            if (str_find_char(exclude, ".^*+?[]()|\\{}") >= 0 and
                 re.search(pattern=exclude.replace("$", "\\$"),
                           string=relation)):
                 result = False
@@ -80,7 +80,7 @@ def assert_relation(relation: str,
         result = relation in includes
         if not result:
             for include in includes:
-                if (str_find_char(include, ".^*+?[]()|\{}") >= 0 and
+                if (str_find_char(include, ".^*+?[]()|\\{}") >= 0 and
                     re.search(pattern=include.replace("$", "\\$"),
                               string=relation)):
                     result = True
@@ -597,7 +597,7 @@ def __assert_override_columns(input_params: dict[str, str],
             column_name: str = override_column[:int(f"{override_column.rindex('=')}")].lower()
             type_name: str = override_column.replace(column_name, "", 1)[1:].lower()
             column_type: Type = name_to_type(type_name=type_name,
-                                             rdbms=rdbms)
+                                             db_engine=rdbms)
             if column_name and column_type:
                 result[column_name] = column_type
             else:
