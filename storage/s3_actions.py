@@ -34,11 +34,14 @@ def create_s3(input_params: dict[str, Any],
 
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
             else:
                 db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
 
 def update_s3(input_params: dict[str, Any],
@@ -67,11 +70,14 @@ def update_s3(input_params: dict[str, Any],
 
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
             else:
                 db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
 
 def delete_s3(input_params: dict[str, Any],
@@ -99,11 +105,14 @@ def delete_s3(input_params: dict[str, Any],
 
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
             else:
                 db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
 
 def retrieve_s3s(input_params: dict[str, Any],

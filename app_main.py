@@ -369,13 +369,13 @@ def service_migration(nm_badge: str = None) -> Response:
       - *lobdata-channel-size*: size of channels used in lobdata migration
 
     Steps of migration:
-      - *migrate-metadata*: migrate the schema's metadata (this creates or transforms the destination schema)
+      - *migrate-metadata*: migrate the schema's metadata
       - *migrate-plaindata*: migrate non-LOB data
       - *migrate-lobdata*: migrate LOBs (large binary objects)
       - *correlate-plaindata*: make sure tables in target and source databases have the same PK content
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
-      - *syncronize-lobdata*: make sure LOBs in target and source destinations e´xist
+      - *syncronize-lobdata*: make sure LOBs in target and source destinations exist
 
     :param nm_badge: the identification of migration instance
     :return: the operation outcome

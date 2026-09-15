@@ -1,12 +1,12 @@
 from typing import Any
 from pypomes_core import (
-    DatetimeFormat, validate_int, validate_str, validate_format_error
+    DatetimeFormat, validate_int, validate_str, validate_enum, validate_format_error
 )
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
-    Migration,
+    Migration, MigStep,
     SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT,
     SPAN_CHUNK_SIZE, SPAN_INCREMENTAL_SIZE,
     SPAN_LOBDATA_CHANNELS, SPAN_LOBDATA_CHANNEL_SIZE,
@@ -34,19 +34,22 @@ def create_migration(input_params: dict[str, Any],
                                                             errors=errors)
         if not errors:
             # create and persist the migration
-            miration: Migration = Migration()
-            miration.set(migration_params)
-            miration.insert(db_engine=PYDB_DB_ENGINE,
-                            db_conn=db_conn,
-                            errors=errors)
+            migration: Migration = Migration()
+            migration.set(migration_params)
+            migration.insert(db_engine=PYDB_DB_ENGINE,
+                             db_conn=db_conn,
+                             errors=errors)
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def update_migration(input_params: dict[str, Any],
@@ -64,20 +67,25 @@ def update_migration(input_params: dict[str, Any],
                                                             errors=errors)
         if not errors:
             migration: Migration = Migration(nm_badge=migration_params.get(Migration.Db.NM_BADGE),
+                                             db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
             if not errors:
                 migration.set(data=migration_params)
-                migration.update(db_conn=db_conn,
+                migration.update(db_engine=PYDB_DB_ENGINE,
+                                 db_conn=db_conn,
                                  errors=errors)
 
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
             else:
                 db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
 
 def delete_migration(input_params: dict[str, Any],
@@ -90,7 +98,7 @@ def delete_migration(input_params: dict[str, Any],
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                             valid_params=[InputParam.BADGE],
-                                                            op=OpType.CREATE,
+                                                            op=OpType.DELETE,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
@@ -105,11 +113,14 @@ def delete_migration(input_params: dict[str, Any],
                                  errors=errors)
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
             else:
                 db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
 
 def retrieve_migrations(input_params: dict[str, Any],
@@ -132,7 +143,7 @@ def retrieve_migrations(input_params: dict[str, Any],
             where_data: dict[str, Any] | None = None
             if Migration.Db.NM_BADGE in migration_params:
                 where_data = {Migration.Db.NM_BADGE: migration_params.get(Migration.Db.NM_BADGE)}
-            elif Migration.Db.ID_SESSION:
+            elif Migration.Db.ID_SESSION in migration_params:
                 where_data = {Migration.Db.ID_SESSION: migration_params.get(Migration.Db.ID_SESSION)}
 
             if where_data:
@@ -205,9 +216,10 @@ def retrieve_migrations(input_params: dict[str, Any],
                                               InputParam.DONE: migration_span.is_done})
                         mig_table[InputParam.SPANS] = mig_spans
                         mig_tables.append(mig_table)
-
                     if errors:
                         break
+                    mig_data[InputParam.TABLES] = mig_tables
+
                     result[migration.nm_badge] = mig_data
             else:
                 # 100: {} (omits the attribute "code")
@@ -215,11 +227,14 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                     "Either 'BADGE' or 'SESSION' must be specified"))
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
     return result
 
@@ -246,6 +261,14 @@ def __validate_input(input_params: dict[str, Any],
     if nm_badge:
         result[Migration.Db.NM_BADGE] = nm_badge
 
+    cd_step: MigStep = validate_enum(source=input_params,
+                                     attr=InputParam.STEP,
+                                     enum_class=MigStep,
+                                     required=op == OpType.CREATE,
+                                     errors=errors)
+    if cd_step:
+        result[Migration.Db.CD_STEP] = cd_step
+
     cd_session: str = validate_str(source=input_params,
                                    attr=InputParam.SESSION,
                                    max_length=64,
@@ -262,73 +285,65 @@ def __validate_input(input_params: dict[str, Any],
             result[Migration.Db.ID_SESSION] = values[0]
 
     nr_batch_size_in: int = validate_int(source=input_params,
-                                         attr=InputParam.MIGRATION_BADGE,
+                                         attr=InputParam.BATCH_SIZE_IN,
                                          min_val=SPAN_BATCH_SIZE_IN[0],
                                          max_val=SPAN_BATCH_SIZE_IN[2],
-                                         required=op == OpType.CREATE,
                                          errors=errors)
     if nr_batch_size_in:
         result[Migration.Db.NR_BATCH_SIZE_IN] = nr_batch_size_in
 
     nr_batch_size_out: int = validate_int(source=input_params,
-                                          attr=InputParam.MIGRATION_BADGE,
+                                          attr=InputParam.BATCH_SIZE_OUT,
                                           min_val=SPAN_BATCH_SIZE_OUT[0],
                                           max_val=SPAN_BATCH_SIZE_OUT[2],
-                                          required=op == OpType.CREATE,
                                           errors=errors)
     if nr_batch_size_out:
         result[Migration.Db.NR_BATCH_SIZE_OUT] = nr_batch_size_out
 
     nr_chunk_size: int = validate_int(source=input_params,
-                                      attr=InputParam.MIGRATION_BADGE,
+                                      attr=InputParam.CHUNK_SIZE,
                                       min_val=SPAN_CHUNK_SIZE[0],
                                       max_val=SPAN_CHUNK_SIZE[2],
-                                      required=op == OpType.CREATE,
                                       errors=errors)
     if nr_chunk_size:
         result[Migration.Db.NR_CHUNK_SIZE] = nr_chunk_size
 
     nr_incremental_size: int = validate_int(source=input_params,
-                                            attr=InputParam.MIGRATION_BADGE,
+                                            attr=InputParam.INCREMENTAL_SIZE,
                                             min_val=SPAN_INCREMENTAL_SIZE[0],
                                             max_val=SPAN_INCREMENTAL_SIZE[2],
-                                            required=op == OpType.CREATE,
                                             errors=errors)
     if nr_incremental_size:
         result[Migration.Db.NR_INCREMENTAL_SIZE] = nr_incremental_size
 
     nr_lobdata_channels: int = validate_int(source=input_params,
-                                            attr=InputParam.MIGRATION_BADGE,
+                                            attr=InputParam.LOBDATA_CHANNELS,
                                             min_val=SPAN_LOBDATA_CHANNELS[0],
                                             max_val=SPAN_LOBDATA_CHANNELS[2],
-                                            required=op == OpType.CREATE,
                                             errors=errors)
     if nr_lobdata_channels:
         result[Migration.Db.NR_LOBDATA_CHANNELS] = nr_lobdata_channels
 
     nr_lobdata_channel_size: int = validate_int(source=input_params,
-                                                attr=InputParam.MIGRATION_BADGE,
+                                                attr=InputParam.LOBDATA_CHANNEL_SIZE,
                                                 min_val=SPAN_LOBDATA_CHANNEL_SIZE[0],
                                                 max_val=SPAN_LOBDATA_CHANNEL_SIZE[2],
-                                                required=op == OpType.CREATE,
                                                 errors=errors)
     if nr_lobdata_channel_size:
         result[Migration.Db.NR_LOBDATA_CHANNEL_SIZE] = nr_lobdata_channel_size
 
     nr_plaindata_channels: int = validate_int(source=input_params,
-                                              attr=InputParam.MIGRATION_BADGE,
+                                              attr=InputParam.PLAINDATA_CHANNELS,
                                               min_val=SPAN_PLAINDATA_CHANNELS[0],
                                               max_val=SPAN_PLAINDATA_CHANNELS[2],
-                                              required=op == OpType.CREATE,
                                               errors=errors)
     if nr_plaindata_channels:
-        result[Migration.Db.NR_LOBDATA_CHANNELS] = nr_plaindata_channels
+        result[Migration.Db.NR_PLAINDATA_CHANNELS] = nr_plaindata_channels
 
     nr_plaindata_channel_size: int = validate_int(source=input_params,
-                                                  attr=InputParam.MIGRATION_BADGE,
+                                                  attr=InputParam.PLAINDATA_CHANNEL_SIZE,
                                                   min_val=SPAN_PLAINDATA_CHANNEL_SIZE[0],
                                                   max_val=SPAN_PLAINDATA_CHANNEL_SIZE[2],
-                                                  required=op == OpType.CREATE,
                                                   errors=errors)
     if nr_plaindata_channel_size:
         result[Migration.Db.NR_PLAINDATA_CHANNEL_SIZE] = nr_plaindata_channel_size

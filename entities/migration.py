@@ -2,7 +2,7 @@ from __future__ import annotations  # allow forward references
 from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
-from pypomes_core import StrEnumDesc
+from pypomes_core import EnumUseAny, StrEnumAny
 from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
@@ -26,7 +26,7 @@ SPAN_PLAINDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_PLAINDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (10000, 1000000, 100000)
 
 
-class MigStep(StrEnumDesc):
+class MigStep(EnumUseAny, StrEnumAny):
     """
     Steps for migration.
     """
@@ -95,16 +95,17 @@ class Migration(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
+        self.cd_step: MigStep | None = None
         self.id_session: int | None = None
         self.nm_badge: str | None = None
-        self.nr_batch_size_in: int = SPAN_BATCH_SIZE_IN[2]
-        self.nr_batch_size_out: int = SPAN_BATCH_SIZE_OUT[2]
-        self.nr_chunk_size: int = SPAN_CHUNK_SIZE[2]
-        self.nr_incremental_size: int = SPAN_INCREMENTAL_SIZE[2]
-        self.nr_lobdata_channels: int = SPAN_LOBDATA_CHANNELS[2]
-        self.nr_lobdata_channel_size: int = SPAN_LOBDATA_CHANNEL_SIZE[2]
-        self.nr_plaindata_channels: int = SPAN_PLAINDATA_CHANNELS[2]
-        self.nr_plaidata_channel_size: int = SPAN_PLAINDATA_CHANNEL_SIZE[2]
+        self.nr_batch_size_in: int | None = None
+        self.nr_batch_size_out: int | None = None
+        self.nr_chunk_size: int | None = None
+        self.nr_incremental_size: int | None = None
+        self.nr_lobdata_channels: int | None = None
+        self.nr_lobdata_channel_size: int | None = None
+        self.nr_plaindata_channels: int | None = None
+        self.nr_plaindata_channel_size: int | None = None
 
         # nullables in DB
         self.ts_start: datetime | None = None
@@ -242,4 +243,7 @@ class Migration(PySob):
 
 
 Migration.initialize(db_specs=(Migration.Db, int),
+                     attrs_enum=Migration.ATTRS_ENUM,
+                     attrs_input=Migration.ATTRS_INPUT,
+                     attrs_unique=Migration.ATTRS_UNIQUE,
                      logger=Migration.LOGGER)

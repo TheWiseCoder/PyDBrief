@@ -31,11 +31,14 @@ def create_session(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def update_session(input_params: dict[str, Any],
@@ -63,11 +66,14 @@ def update_session(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def delete_session(input_params: dict[str, Any],
@@ -96,11 +102,14 @@ def delete_session(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def retrieve_sessions(input_params: dict[str, Any],
@@ -159,11 +168,14 @@ def retrieve_sessions(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
         else:
             db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
     return result
 
