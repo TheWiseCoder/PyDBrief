@@ -1,21 +1,20 @@
 from typing import Any
 from pypomes_core import (
-    DatetimeFormat, validate_int, validate_str, validate_enum, validate_format_error
+    DatetimeFormat, validate_format_error,
+    validate_bool, validate_int, validate_enum, validate_str, validate_strs
 )
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
     Migration, MigStep,
-    SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT,
-    SPAN_CHUNK_SIZE, SPAN_INCREMENTAL_SIZE,
+    SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT, SPAN_CHUNK_SIZE,
     SPAN_LOBDATA_CHANNELS, SPAN_LOBDATA_CHANNEL_SIZE,
     SPAN_PLAINDATA_CHANNELS, SPAN_PLAINDATA_CHANNEL_SIZE
 )
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
 from entities.migration_span import MigrationSpan
-from entities.migration_spec import MigrationSpec
 from entities.migration_table import MigrationTable
 from entities.s3 import S3
 from entities.session import Session
@@ -179,17 +178,6 @@ def retrieve_migrations(input_params: dict[str, Any],
                                            InputParam.ONSET: migration_issue.ts_onset.strftime(DatetimeFormat.LATIN)})
                     mig_data[InputParam.ISSUES] = mig_issues
 
-                    mig_specs: list[dict[str, Any]] = []
-                    migration_specs: list[MigrationSpec] = \
-                        migration.get_migration_specs(db_engine=PYDB_DB_ENGINE,
-                                                      db_conn=db_conn,
-                                                      errors=errors)
-                    if errors:
-                        break
-                    for migration_spec in migration_specs:
-                        mig_specs.append({migration_spec.cd_spec: migration_spec.vl_spec})
-                    mig_data[InputParam.SPECS] = mig_specs
-
                     mig_tables: list[dict[str, Any]] = []
                     migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
                                                                                             db_conn=db_conn,
@@ -333,6 +321,48 @@ def __validate_input(input_params: dict[str, Any],
         if values:
             result[Migration.Db.ID_SESSION] = values[0]
 
+    is_flatten_storage: bool = validate_bool(source=input_params,
+                                             attr=InputParam.FLATTEN_STORAGE,
+                                             errors=errors)
+    if isinstance(is_flatten_storage, bool):
+        result[Migration.Db.IS_FLATTEN_STORAGE] = is_flatten_storage
+
+    is_optimize_pks: bool = validate_bool(source=input_params,
+                                          attr=InputParam.OPTIMIZE_PKS,
+                                          errors=errors)
+    if isinstance(is_optimize_pks, bool):
+        result[Migration.Db.IS_OPTIMIZE_PKS] = is_optimize_pks
+
+    is_process_indexes: bool = validate_bool(source=input_params,
+                                             attr=InputParam.PROCESS_INDEXES,
+                                             errors=errors)
+    if isinstance(is_process_indexes, bool):
+        result[Migration.Db.IS_PROCESS_INDEXES] = is_process_indexes
+
+    is_process_views: bool = validate_bool(source=input_params,
+                                           attr=InputParam.PROCESS_VIEWS,
+                                           errors=errors)
+    if isinstance(is_process_views, bool):
+        result[Migration.Db.IS_PROCESS_VIEWS] = is_process_views
+
+    is_reflect_filetype: bool = validate_bool(source=input_params,
+                                              attr=InputParam.REFLECT_FILETYPE,
+                                              errors=errors)
+    if isinstance(is_reflect_filetype, bool):
+        result[Migration.Db.IS_REFLECT_FILETYPE] = is_reflect_filetype
+
+    is_relax_reflection: bool = validate_bool(source=input_params,
+                                              attr=InputParam.RELAX_REFLECTION,
+                                              errors=errors)
+    if isinstance(is_relax_reflection, bool):
+        result[Migration.Db.IS_RELAX_REFLECTION] = is_relax_reflection
+
+    is_skip_nonempty: bool = validate_bool(source=input_params,
+                                           attr=InputParam.SKIP_NONEMPTY,
+                                           errors=errors)
+    if isinstance(is_skip_nonempty, bool):
+        result[Migration.Db.IS_SKIP_NONEMPTY] = is_skip_nonempty
+
     nr_batch_size_in: int = validate_int(source=input_params,
                                          attr=InputParam.BATCH_SIZE_IN,
                                          min_val=SPAN_BATCH_SIZE_IN[0],
@@ -356,14 +386,6 @@ def __validate_input(input_params: dict[str, Any],
                                       errors=errors)
     if nr_chunk_size:
         result[Migration.Db.NR_CHUNK_SIZE] = nr_chunk_size
-
-    nr_incremental_size: int = validate_int(source=input_params,
-                                            attr=InputParam.INCREMENTAL_SIZE,
-                                            min_val=SPAN_INCREMENTAL_SIZE[0],
-                                            max_val=SPAN_INCREMENTAL_SIZE[2],
-                                            errors=errors)
-    if nr_incremental_size:
-        result[Migration.Db.NR_INCREMENTAL_SIZE] = nr_incremental_size
 
     nr_lobdata_channels: int = validate_int(source=input_params,
                                             attr=InputParam.LOBDATA_CHANNELS,
@@ -396,5 +418,53 @@ def __validate_input(input_params: dict[str, Any],
                                                   errors=errors)
     if nr_plaindata_channel_size:
         result[Migration.Db.NR_PLAINDATA_CHANNEL_SIZE] = nr_plaindata_channel_size
+
+    exclude_columns: list[str] = validate_strs(source=input_params,
+                                               attr=InputParam.EXCLUDE_COLUMNS,
+                                               errors=errors)
+    if exclude_columns:
+        result[Migration.Db.DS_EXCLUDE_COLUMNS] = ",".join([i for i in exclude_columns])
+
+    exclude_constraints: list[str] = validate_strs(source=input_params,
+                                                   attr=InputParam.EXCLUDE_CONSTRAINTS,
+                                                   errors=errors)
+    if exclude_constraints:
+        result[Migration.Db.DS_EXCLUDE_CONSTRAINTS] = ",".join([i for i in exclude_constraints])
+
+    exclude_relations: list[str] = validate_strs(source=input_params,
+                                                 attr=InputParam.EXCLUDE_RELATIONS,
+                                                 errors=errors)
+    if exclude_relations:
+        result[Migration.Db.DS_EXCLUDE_RELATIONS] = ",".join([i for i in exclude_relations])
+
+    include_relations: list[str] = validate_strs(source=input_params,
+                                                 attr=InputParam.INCLUDE_RELATIONS,
+                                                 errors=errors)
+    if include_relations:
+        result[Migration.Db.DS_INCLUDE_RELATIONS] = ",".join([i for i in include_relations])
+
+    named_lobdata: list[str] = validate_strs(source=input_params,
+                                             attr=InputParam.NAMED_LOBDATA,
+                                             errors=errors)
+    if named_lobdata:
+        result[Migration.Db.DS_NAMED_LOBDATA] = ",".join([i for i in named_lobdata])
+
+    omit_defaults: list[str] = validate_strs(source=input_params,
+                                             attr=InputParam.OMIT_DEFAULTS,
+                                             errors=errors)
+    if omit_defaults:
+        result[Migration.Db.DS_OMIT_DEFAULTS] = ",".join([i for i in omit_defaults])
+
+    override_columns: list[str] = validate_strs(source=input_params,
+                                                attr=InputParam.OVERRIDE_COLUMNS,
+                                                errors=errors)
+    if override_columns:
+        result[Migration.Db.DS_OVERRIDE_COLUMNS] = ",".join([i for i in override_columns])
+
+    remove_ctrlchars: list[str] = validate_strs(source=input_params,
+                                                attr=InputParam.REMOVE_CTRLCHARS,
+                                                errors=errors)
+    if remove_ctrlchars:
+        result[Migration.Db.DS_REMOVE_CTRLCHARS] = ",".join([i for i in remove_ctrlchars])
 
     return result

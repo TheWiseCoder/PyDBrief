@@ -29,15 +29,13 @@ from pypomes_logging import (
 )
 
 from app_constants import InputParam
+from migration import pydb_migration
 from storage.database_actions import (
     create_database, update_database, delete_database, retrieve_databases
 )
 from storage.migration_actions import (
     create_migration, update_migration, delete_migration,
     retrieve_migrations, verify_migration
-)
-from storage.migration_spec_actions import (
-    update_migration_spec, delete_migration_spec
 )
 from storage.s3_actions import (
     create_s3, update_s3, delete_s3, retrieve_s3s
@@ -364,11 +362,27 @@ def service_migration(nm_badge: str = None) -> Response:
       - *batch-size-in*: maximum number of rows to retrieve per batch
       - *batch-size-out*: maximum number of rows to output per batch
       - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying
+      - *exclude-columns*: optional list of table columns not to migrate
+      - *exclude-constraints*: optional list of constraints not to migrate
+      - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
+      - *flatten-storage*: whether to omit path on LOB migration to S3 storage
+      - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
+      - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
       - *incremental-size*: maximum number of rows to migrate, for tables flagged for incremental migration
-      - *plaindata-channels*: number of simultaneous channels to use in plaindata migration
-      - *plaindata-channel-size*: size of channels used in plaindata migration
       - *lobdata-channels*: number of simultaneous channels to use in lobdata migration
       - *lobdata-channel-size*: size of channels used in lobdata migration
+      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
+      - *omit_defaults*: optional list of columns whose default values are to be imitted
+      - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
+      - *override-columns*: optional list of columns with forced migration types
+      - *plaindata-channels*: number of simultaneous channels to use in plaindata migration
+      - *plaindata-channel-size*: size of channels used in plaindata migration
+      - *process-indexes*: whether to migrate indexes (defaults to *False*)
+      - *process-views*: whether to migrate views (defaults to *False*)
+      - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
+      - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
+      - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
+      - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
 
     Steps of migration:
       - *migrate-metadata*: migrate the schema's metadata
@@ -377,7 +391,6 @@ def service_migration(nm_badge: str = None) -> Response:
       - *correlate-plaindata*: make sure tables in target and source databases have the same PK content
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
-      - *syncronize-lobdata*: make sure LOBs in target and source destinations exist
 
     :param nm_badge: the identification of the migration instance
     :return: the operation outcome
@@ -422,70 +435,6 @@ def service_migration(nm_badge: str = None) -> Response:
     return result
 
 
-@flask_app.route(rule="/migration_spec/<nm_migration_badge>",
-                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
-def service_migration_spec(nm_migration_badge: str = None) -> Response:
-    """
-    Entry point for handling migration specifications.
-
-    The parameters are as follows:
-      - *exclude-columns*: optional list of table columns not to migrate
-      - *exclude-constraints*: optional list of constraints not to migrate
-      - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
-      - *flatten-storage*: whether to omit path on LOB migration to S3 storage
-      - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
-      - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
-      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-      - *omit_defaults*: optional list of columns whose default values are to be imitted
-      - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
-      - *override-columns*: optional list of columns with forced migration types
-      - *process-indexes*: whether to migrate indexes (defaults to *False*)
-      - *process-views*: whether to migrate views (defaults to *False*)
-      - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
-      - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
-      - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
-      - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
-
-    These are noteworthy:
-      - the parameters *include-relations* and *exclude-relations* are mutually exclusive
-      - if *migrate-plaindata* is set, it is assumed that metadata is also being, or has already been, migrated
-      - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
-        or have already been, migrated.
-
-    :param nm_migration_badge: the identification of the migration instance
-    :return: the operation outcome
-    """
-    # initialize the errors list
-    errors: list[str] = []
-
-    # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
-    if nm_migration_badge:
-        input_params[InputParam.MIGRATION_BADGE] = nm_migration_badge
-
-    # log the request
-    msg: str = __log_init(request=request,
-                          input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
-
-    reply: dict[StrEnum | str, Any] | None = None
-    match request.method:
-        case HttpMethod.PATCH:
-            update_migration_spec(input_params=input_params,
-                                  errors=errors)
-        case HttpMethod.DELETE:
-            delete_migration_spec(input_params=input_params,
-                                  errors=errors)
-
-    # build the response
-    result: Response = _build_response(reply=reply,
-                                       errors=errors)
-    # log the response
-    PYPOMES_LOGGER.info(msg=f"Response {result}")
-
-    return result
-
-
 @flask_app.route(rule="/migrate/<nm_badge>",
                  methods=[HttpMethod.GET])
 def service_migrate(nm_badge: str = None) -> Response:
@@ -494,7 +443,20 @@ def service_migrate(nm_badge: str = None) -> Response:
 
     :return: *Response* with the operation outcome
     """
-    pass
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    if nm_badge:
+        input_params[InputParam.BADGE] = nm_badge
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] = None
 
 
 @flask_app.route(rule="/migrate",

@@ -69,3 +69,8 @@ $ ls -l <path-for-site-packages>
       ENV PYDB_REGISTRY_DOCKER=$PYDB_REGISTRY_DOCKER
       ARG PYDB_REGISTRY_HOST
       ENV PYDB_REGISTRY_HOST=$PYDB_REGISTRY_HOST
+
+# when getting the error
+#   'An attempt was made to access a socket in a way forbidden by its access permissions',
+# run on CMD Administrador:
+net stop winnat

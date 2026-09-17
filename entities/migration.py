@@ -10,7 +10,6 @@ from typing import Any, Final, get_args, get_origin
 
 from app_constants import PYDB_DB_ENGINE, InputParam
 from entities.migration_issue import MigrationIssue
-from entities.migration_spec import MigrationSpec
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable
 
@@ -19,7 +18,6 @@ from entities.migration_table import MigrationTable
 SPAN_BATCH_SIZE_IN: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 SPAN_BATCH_SIZE_OUT: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
 SPAN_CHUNK_SIZE: Final[tuple[int, int, int]] = (1024, 16777216, 1048576)
-SPAN_INCREMENTAL_SIZE: Final[tuple[int, int, int]] = (1000, 10000000, 100000)
 SPAN_LOBDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_LOBDATA_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 100000, 10000)
 SPAN_PLAINDATA_CHANNELS: Final[tuple[int, int, int]] = (1, 127, 1)
@@ -35,7 +33,6 @@ class MigStep(EnumUseAny, StrEnumAny):
     MIGRATE_LOBDATA = ("ML", "migrate-lobdata")
     MIGRATE_METADATA = ("MM", "migrate-metadata")
     MIGRATE_PLAINDATA = ("MP", "migrate-plaindata")
-    SYNCHRONIZE_LOBDATA = ("SL", "synchronize-lobdata")
     SYNCHRONIZE_PLAINDATA = ("SP", "synchronize-plaindata")
 
 
@@ -47,12 +44,27 @@ class Migration(PySob):
         TABLE = "migration"
         ID = auto()
         CD_STEP = auto()
+        DS_EXCLUDE_RELATIONS = auto()
+        DS_INCLUDE_RELATIONS = auto()
+        DS_INCREMENTAL_MIGRATIONS = auto()
+        DS_EXCLUDE_COLUMNS = auto()
+        DS_EXCLUDE_CONSTRAINTS = auto()
+        DS_NAMED_LOBDATA = auto()
+        DS_OMIT_DEFAULTS = auto()
+        DS_OVERRIDE_COLUMNS = auto()
+        DS_REMOVE_CTRLCHARS = auto()
         ID_SESSION = auto()
+        IS_FLATTEN_STORAGE = auto()
+        IS_OPTIMIZE_PKS = auto()
+        IS_PROCESS_INDEXES = auto()
+        IS_PROCESS_VIEWS = auto()
+        IS_REFLECT_FILETYPE = auto()
+        IS_RELAX_REFLECTION = auto()
+        IS_SKIP_NONEMPTY = auto()
         NM_BADGE = auto()
         NR_BATCH_SIZE_IN = auto()
         NR_BATCH_SIZE_OUT = auto()
         NR_CHUNK_SIZE = auto()
-        NR_INCREMENTAL_SIZE = auto()
         NR_LOBDATA_CHANNELS = auto()
         NR_LOBDATA_CHANNEL_SIZE = auto()
         NR_PLAINDATA_CHANNELS = auto()
@@ -73,18 +85,34 @@ class Migration(PySob):
         (InputParam.BATCH_SIZE_IN, Db.NR_BATCH_SIZE_IN),
         (InputParam.BATCH_SIZE_OUT, Db.NR_BATCH_SIZE_OUT),
         (InputParam.CHUNK_SIZE, Db.NR_CHUNK_SIZE),
-        (InputParam.INCREMENTAL_SIZE, Db.NR_INCREMENTAL_SIZE),
+        (InputParam.EXCLUDE_COLUMNS, Db.DS_EXCLUDE_COLUMNS),
+        (InputParam.EXCLUDE_CONSTRAINTS, Db.DS_EXCLUDE_CONSTRAINTS),
+        (InputParam.NAMED_LOBDATA, Db.DS_NAMED_LOBDATA),
+        (InputParam.EXCLUDE_RELATIONS, Db.DS_EXCLUDE_RELATIONS),
+        (InputParam.FLATTEN_STORAGE, Db.IS_FLATTEN_STORAGE),
+        (InputParam.INCLUDE_RELATIONS, Db.DS_INCLUDE_RELATIONS),
+        (InputParam.INCREMENTAL_MIGRATIONS, Db.DS_INCREMENTAL_MIGRATIONS),
         (InputParam.LOBDATA_CHANNEL_SIZE, Db.NR_LOBDATA_CHANNEL_SIZE),
         (InputParam.LOBDATA_CHANNELS, Db.NR_LOBDATA_CHANNELS),
+        (InputParam.OMIT_DEFAULTS, Db.DS_OMIT_DEFAULTS),
+        (InputParam.OVERRIDE_COLUMNS, Db.DS_OVERRIDE_COLUMNS),
+        (InputParam.OPTIMIZE_PKS, Db.IS_OPTIMIZE_PKS),
+        (InputParam.REMOVE_CTRLCHARS, Db.DS_REMOVE_CTRLCHARS),
         (InputParam.PLAINDATA_CHANNEL_SIZE, Db.NR_PLAINDATA_CHANNEL_SIZE),
         (InputParam.PLAINDATA_CHANNELS, Db.NR_PLAINDATA_CHANNELS),
+        (InputParam.PROCESS_INDEXES, Db.IS_PROCESS_INDEXES),
+        (InputParam.PROCESS_VIEWS, Db.IS_PROCESS_VIEWS),
+        (InputParam.REFLECT_FILETYPE, Db.IS_REFLECT_FILETYPE),
+        (InputParam.RELAX_REFLECTION, Db.IS_RELAX_REFLECTION),
+        (InputParam.REMOVE_CTRLCHARS, Db.DS_REMOVE_CTRLCHARS),
+        (InputParam.SKIP_NONEMPTY, Db.IS_SKIP_NONEMPTY),
         (InputParam.SESSION, None)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
                  __id: int = None,
-                 __references: [type[list[MigrationSpec], type[list[MigrationTable]]]] = None,
+                 __references: type[list[MigrationIssue] | list[MigrationTable]] | list[type] = None,
                  /,
                  nm_badge: str = None,
                  id_session: int = None,
@@ -98,6 +126,23 @@ class Migration(PySob):
         self.cd_step: MigStep | None = None
         self.id_session: int | None = None
         self.nm_badge: str | None = None
+
+        # nullables in DB
+        self.ds_exclude_columns: str | None = None
+        self.ds_exclude_constraints: str | None = None
+        self.ds_exclude_relations: str | None = None
+        self.ds_include_relations: str | None = None
+        self.ds_named_lobdata: str | None = None
+        self.ds_omit_defaults: str | None = None
+        self.ds_override_columns: str | None = None
+        self.ds_remove_ctrlchars: str | None = None
+        self.is_flatten_storage: bool = False
+        self.is_optimize_pks: bool = False
+        self.is_process_indexes: bool = False
+        self.is_process_views: bool = False
+        self.is_reflect_filetype: bool = False
+        self.is_relax_reflection: bool = False
+        self.is_skip_nonempty: bool = False
         self.nr_batch_size_in: int | None = None
         self.nr_batch_size_out: int | None = None
         self.nr_chunk_size: int | None = None
@@ -106,16 +151,12 @@ class Migration(PySob):
         self.nr_lobdata_channel_size: int | None = None
         self.nr_plaindata_channels: int | None = None
         self.nr_plaindata_channel_size: int | None = None
-
-        # nullables in DB
         self.ts_start: datetime | None = None
         self.ts_finish: datetime | None = None
 
         # references (lists)
         self.__migration_issues: list[MigrationIssue] | None = None
         self.__id_migration_issues: int | None = None
-        self.__migration_specs: list[MigrationSpec] | None = None
-        self.__id_migration_specs: int | None = None
         self.__migration_tables: list[MigrationTable] | None = None
         self.__id_migration_tables: int | None = None
 
@@ -147,19 +188,6 @@ class Migration(PySob):
                              committable=committable,
                              errors=errors)
         return self.__migration_issues
-
-    def get_migration_specs(self,
-                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                            db_conn: Any = None,
-                            committable: bool = None,
-                            errors: list[str] = None) -> list[MigrationSpec] | None:
-
-        self.load_references(list[MigrationSpec],
-                             db_engine=db_engine,
-                             db_conn=db_conn,
-                             committable=committable,
-                             errors=errors)
-        return self.__migration_specs
 
     def get_migration_tables(self,
                              __references: list[type[MigrationSpan]] = None,
@@ -212,20 +240,6 @@ class Migration(PySob):
                             errors=errors)
                         if not errors:
                             self.__id_migration_issues = self.id
-
-                if not errors and cls is MigrationSpec:
-                    if not self.id:
-                        self.__migration_specs = None
-                        self.__id_migration_specs = None
-                    elif self.__id_migration_specs != self.id:
-                        self.__migration_specs = MigrationSpec.retrieve(
-                            where_data={MigrationSpec.Db.ID_MIGRATION: self.id},
-                            db_engine=db_engine,
-                            db_conn=db_conn,
-                            committable=committable,
-                            errors=errors)
-                        if not errors:
-                            self.__id_migration_specs = self.id
 
                 if not errors and cls is MigrationTable:
                     if not self.id:

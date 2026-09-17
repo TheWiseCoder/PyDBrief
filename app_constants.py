@@ -55,7 +55,6 @@ class InputParam(StrEnum):
     LOBDATA_CHANNELS = "lobdata-channels"
     LOBDATA_CHANNEL_SIZE = "lobdata-channel-size"
     MIGRATION_BADGE = "migration-badge"
-    MIGRATION_SPECS = "migration-specs"
     NAMED_LOBDATA = "named-lobdata"
     OMIT_DEFAULTS = "omit-defaults"
     OPTIMIZE_PKS = "optimize-pks"

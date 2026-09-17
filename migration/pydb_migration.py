@@ -1,14 +1,27 @@
 import sys
 from pypomes_core import (
-    str_is_int, str_splice,
+    str_is_int, str_splice, validate_str,
     validate_format_error, str_sanitize, exc_format
 )
 from pypomes_db import DbEngine
-from typing import Type
+from typing import Any, Type
 
-from app_constants import MigIncremental
-from entities.migration_spec import MigSpec
+from app_constants import PYDB_DB_ENGINE, InputParam, MigIncremental
+from entities.migration import Migration
+from entities.migration_span import MigrationSpan
+from entities.migration_table import MigrationTable
 from migration.pydb_types import name_to_type
+
+
+def migrate(input_params: dict[str, Any],
+            errors: list[str]) -> None:
+
+    migration_badge: str = validate_str(source=input_params,
+                                        attr=InputParam.MIGRATION_BADGE,
+                                        errors=errors)
+    if migration_badge:
+        migration: Migration = Migration(nm_badge=migration_badge,
+                                         db_engine=PYDB_DB_ENGINE)
 
 
 def process_override_columns(override_columns: list[str],
@@ -39,7 +52,7 @@ def process_override_columns(override_columns: list[str],
         # 101: {}
         errors.append(validate_format_error(101,
                                             f"Syntax error: {exc_err}",
-                                            f"@{MigSpec.OVERRIDE_COLUMNS}"))
+                                            f"@{InputParam.OVERRIDE_COLUMNS}"))
     return result
 
 

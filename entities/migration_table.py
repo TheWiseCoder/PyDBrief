@@ -7,7 +7,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE, InputParam
 from entities.migration_span import MigrationSpan
 
 
@@ -25,6 +25,8 @@ class MigrationTable(PySob):
 
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.ID_MIGRATION, Db.NM_TABLE)
+    ]
+    ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 

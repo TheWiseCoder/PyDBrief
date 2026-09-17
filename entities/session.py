@@ -259,7 +259,6 @@ class Session(PySob):
                             errors: list[str] = None) -> list[Session]:
 
         from entities.migration_span import MigrationSpan
-        from entities.migration_spec import MigrationSpec
 
         result: list[Session] | None = None
 
@@ -283,18 +282,12 @@ class Session(PySob):
                                                                         errors=errors)
             if errors:
                 break
-            # make sure lists of migration specs and tables are filled
+            # make sure list of migration tables is filled
             for migration in migrations:
-                migration.load_references(list[MigrationSpec],
+                migration.load_references(list[MigrationTable],
                                           db_engine=db_engine,
                                           db_conn=db_conn,
                                           errors=errors)
-                if errors:
-                    break
-                _migration_tables: list[MigrationTable] = migration.get_migration_tables([MigrationSpan],
-                                                                                         db_engine=db_engine,
-                                                                                         db_conn=db_conn,
-                                                                                         errors=errors)
                 if errors:
                     break
         if not errors:

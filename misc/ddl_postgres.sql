@@ -1,6 +1,5 @@
 DROP TABLE migration_span;
 DROP TABLE migration_table;
-DROP TABLE migration_spec;
 DROP TABLE migration_issue;
 DROP TABLE migration;
 DROP TABLE session;
@@ -12,7 +11,6 @@ DROP SEQUENCE sq_s3;
 DROP SEQUENCE sq_session;
 DROP SEQUENCE sq_migration;
 DROP SEQUENCE sq_migration_issue;
-DROP SEQUENCE sq_migration_spec;
 DROP SEQUENCE sq_migration_table;
 DROP SEQUENCE sq_migration_span;
 
@@ -68,6 +66,7 @@ CREATE TABLE s3 (
 	nm_region varchar(64),
 	CONSTRAINT ck_s3_type CHECK (((cd_type)::text = ANY (ARRAY[
       ('aws'::character varying)::text,
+      ('gcs'::character varying)::text,
       ('minio'::character varying)::text]))),
 	CONSTRAINT pk_s3 PRIMARY KEY (id),
 	CONSTRAINT uk_s3 UNIQUE (cd_engine)
@@ -116,30 +115,43 @@ CREATE TABLE migration (
 	id int8 DEFAULT nextval('sq_migration'::regclass) NOT NULL,
 	cd_step varchar(2) NOT NULL,
 	id_session int8 NOT NULL,
+    ds_exclude_relations varchar(256),
+    ds_include_relations varchar(256),
+    ds_exclude_columns varchar(256),
+    ds_exclude_constraints varchar(256),
+    ds_incremental_migrations varchar(4000),
+    ds_named_lobdata varchar(4000),
+    ds_omit_defaults varchar(256),
+    ds_override_columns varchar(256),
+    ds_remove_ctrlchars varchar(256),
+    nr_batch_size_in int8,
+    nr_batch_size_out int8,
+    nr_chunk_size int8,
+    is_flatten_storage bool,
+    is_optimize_pks bool,
+    is_process_indexes bool,
+    is_process_views bool,
+    is_reflect_filetype bool,
+    is_relax_reflection bool,
+    is_skip_nonempty bool,
 	nm_badge varchar(64) NOT NULL,
-    nr_batch_size_in int8 NOT NULL,
-    nr_batch_size_out int8 NOT NULL,
-    nr_chunk_size int8 NOT NULL,
-    nr_incremental_size int8 NOT NULL,
-    nr_lobdata_channels int2 NOT NULL,
-    nr_lobdata_channel_size int8 NOT NULL,
-    nr_plaindata_channels int2 NOT NULL,
-    nr_plaindata_channel_size int8 NOT NULL,
+    nr_lobdata_channels int2,
+    nr_lobdata_channel_size int8,
+    nr_plaindata_channels int2,
+    nr_plaindata_channel_size int8,
 	ts_start timestamp,
 	ts_finish timestamp,
 	CONSTRAINT ck_migration_step CHECK (((cd_step)::text = ANY (ARRAY[
       ('CL'::character varying)::text, ('CP'::character varying)::text,
       ('ML'::character varying)::text, ('MM'::character varying)::text,
-      ('MP'::character varying)::text, ('SL'::character varying)::text,
-      ('SP'::character varying)::text]))),
+      ('MP'::character varying)::text, ('SP'::character varying)::text]))),
     CONSTRAINT ck_migration_batch_size_in CHECK (nr_batch_size_in >= 0),
     CONSTRAINT ck_migration_batch_size_out CHECK (nr_batch_size_out >= 0),
     CONSTRAINT ck_migration_chunk_size CHECK (nr_chunk_size >= 0),
-    CONSTRAINT ck_migration_incremental_size CHECK (nr_incremental_size >= 0),
-    CONSTRAINT ck_lobdata_channels CHECK (nr_lobdata_channels >= 0),
-    CONSTRAINT ck_lobdata_channel_size CHECK (nr_lobdata_channel_size >= 0),
-    CONSTRAINT ck_plaindata_channels CHECK (nr_plaindata_channels >= 0),
-    CONSTRAINT ck_plaindata_channel_size CHECK (nr_plaindata_channel_size >= 0),
+    CONSTRAINT ck_migration_lobdata_channels CHECK (nr_lobdata_channels >= 0),
+    CONSTRAINT ck_migration_lobdata_channel_size CHECK (nr_lobdata_channel_size >= 0),
+    CONSTRAINT ck_migration_plaindata_channels CHECK (nr_plaindata_channels >= 0),
+    CONSTRAINT ck_migration_plaindata_channel_size CHECK (nr_plaindata_channel_size >= 0),
     CONSTRAINT fk_migration_session FOREIGN KEY (id_session) REFERENCES session(id),
 	CONSTRAINT pk_migration PRIMARY KEY (id),
 	CONSTRAINT uk_migration_1 UNIQUE (nm_badge),
@@ -167,42 +179,6 @@ CREATE TABLE migration_issue (
       ('W'::character varying)::text]))),
     CONSTRAINT fk_migration_issue_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_issue PRIMARY KEY (id)
-);
-
-
-CREATE SEQUENCE sq_migration_spec
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1
-	CACHE 1
-	NO CYCLE;
-
-CREATE TABLE migration_spec (
-	id int8 DEFAULT nextval('sq_migration_spec'::regclass) NOT NULL,
-	id_migration int8 NOT NULL,
-	cd_spec varchar(32) NOT NULL,
-    vl_spec varchar(256),
-	CONSTRAINT ck_migration_spec CHECK (((cd_spec)::text = ANY (ARRAY[
-      ('exclude-columns'::character varying)::text,
-      ('exclude-constraints'::character varying)::text,
-      ('exclude-relations'::character varying)::text,
-      ('flatten-storage'::character varying)::text,
-      ('include-relations'::character varying)::text,
-      ('incremental-migrations'::character varying)::text,
-      ('named-lobdata'::character varying)::text,
-      ('omit-defaults'::character varying)::text,
-      ('optimize-pks'::character varying)::text,
-      ('override-columns'::character varying)::text,
-      ('process-indexes'::character varying)::text,
-      ('process-views'::character varying)::text,
-      ('reflect-filetype'::character varying)::text,
-      ('relax-reflection'::character varying)::text,
-      ('remove-ctrlchars'::character varying)::text,
-      ('skip-nonempty'::character varying)::text]))),
-    CONSTRAINT fk_migration_spec_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
-	CONSTRAINT pk_migration_spec PRIMARY KEY (id),
-	CONSTRAINT uk_migration_spec UNIQUE (id_migration, cd_spec)
 );
 
 
