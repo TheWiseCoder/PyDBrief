@@ -165,6 +165,53 @@ def retrieve_migrations(input_params: dict[str, Any],
                         break
                     mig_data[InputParam.SESSION] = values[0]
 
+                    if migration.nr_batch_size_in is not None:
+                        mig_data[InputParam.BATCH_SIZE_IN] = migration.nr_batch_size_in
+                    if migration.nr_batch_size_out is not None:
+                        mig_data[InputParam.BATCH_SIZE_OUT] = migration.nr_batch_size_out
+                    if migration.nr_chunk_size is not None:
+                        mig_data[InputParam.CHUNK_SIZE] = migration.nr_chunk_size
+                    if migration.ds_exclude_columns is not None:
+                        mig_data[InputParam.EXCLUDE_COLUMNS] = migration.ds_exclude_columns
+                    if migration.ds_exclude_constraints is not None:
+                        mig_data[InputParam.EXCLUDE_CONSTRAINTS] = migration.ds_exclude_constraints
+                    if migration.ds_named_lobdata is not None:
+                        mig_data[InputParam.NAMED_LOBDATA] = migration.ds_named_lobdata
+                    if migration.ds_exclude_relations is not None:
+                        mig_data[InputParam.EXCLUDE_RELATIONS] = migration.ds_exclude_relations
+                    if migration.is_flatten_storage is not None:
+                        mig_data[InputParam.FLATTEN_STORAGE] = migration.is_flatten_storage
+                    if migration.ds_include_relations is not None:
+                        mig_data[InputParam.INCLUDE_RELATIONS] = migration.ds_include_relations
+                    if migration.ds_incremental_migrations is not None:
+                        mig_data[InputParam.INCREMENTAL_MIGRATIONS] = migration.ds_incremental_migrations
+                    if migration.nr_lobdata_channel_size is not None:
+                        mig_data[InputParam.LOBDATA_CHANNEL_SIZE] = migration.nr_lobdata_channel_size
+                    if migration.nr_lobdata_channels is not None:
+                        mig_data[InputParam.LOBDATA_CHANNELS] = migration.nr_lobdata_channels
+                    if migration.ds_omit_defaults is not None:
+                        mig_data[InputParam.OMIT_DEFAULTS] = migration.ds_omit_defaults
+                    if migration.ds_override_columns is not None:
+                        mig_data[InputParam.OVERRIDE_COLUMNS] = migration.ds_override_columns
+                    if migration.is_optimize_pks is not None:
+                        mig_data[InputParam.OPTIMIZE_PKS] = migration.is_optimize_pks
+                    if migration.nr_plaindata_channel_size is not None:
+                        mig_data[InputParam.PLAINDATA_CHANNEL_SIZE] = migration.nr_plaindata_channel_size
+                    if migration.nr_plaindata_channels is not None:
+                        mig_data[InputParam.PLAINDATA_CHANNELS] = migration.nr_plaindata_channels
+                    if migration.is_process_indexes is not None:
+                        mig_data[InputParam.PROCESS_INDEXES] = migration.is_process_indexes
+                    if migration.is_process_views is not None:
+                        mig_data[InputParam.PROCESS_VIEWS] = migration.is_process_views
+                    if migration.is_reflect_filetype is not None:
+                        mig_data[InputParam.REFLECT_FILETYPE] = migration.is_reflect_filetype
+                    if migration.is_relax_reflection is not None:
+                        mig_data[InputParam.RELAX_REFLECTION] = migration.is_relax_reflection
+                    if migration.ds_remove_ctrlchars is not None:
+                        mig_data[InputParam.REMOVE_CTRLCHARS] = migration.ds_remove_ctrlchars
+                    if migration.is_skip_nonempty is not None:
+                        mig_data[InputParam.SKIP_NONEMPTY] = migration.is_skip_nonempty
+
                     mig_issues: list[dict[str, Any]] = []
                     migration_issues: list[MigrationIssue] = \
                         migration.get_migration_issues(db_engine=PYDB_DB_ENGINE,
@@ -442,6 +489,12 @@ def __validate_input(input_params: dict[str, Any],
                                                  errors=errors)
     if include_relations:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = ",".join([i for i in include_relations])
+
+    incremental_migrations: list[str] = validate_strs(source=input_params,
+                                                      attr=InputParam.INCREMENTAL_MIGRATIONS,
+                                                      errors=errors)
+    if incremental_migrations:
+        result[Migration.Db.DS_INCREMENTAL_MIGRATIONS] = ",".join([i for i in incremental_migrations])
 
     named_lobdata: list[str] = validate_strs(source=input_params,
                                              attr=InputParam.NAMED_LOBDATA,

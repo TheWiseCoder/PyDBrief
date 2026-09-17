@@ -97,7 +97,6 @@ class Migration(PySob):
         (InputParam.OMIT_DEFAULTS, Db.DS_OMIT_DEFAULTS),
         (InputParam.OVERRIDE_COLUMNS, Db.DS_OVERRIDE_COLUMNS),
         (InputParam.OPTIMIZE_PKS, Db.IS_OPTIMIZE_PKS),
-        (InputParam.REMOVE_CTRLCHARS, Db.DS_REMOVE_CTRLCHARS),
         (InputParam.PLAINDATA_CHANNEL_SIZE, Db.NR_PLAINDATA_CHANNEL_SIZE),
         (InputParam.PLAINDATA_CHANNELS, Db.NR_PLAINDATA_CHANNELS),
         (InputParam.PROCESS_INDEXES, Db.IS_PROCESS_INDEXES),
@@ -132,6 +131,7 @@ class Migration(PySob):
         self.ds_exclude_constraints: str | None = None
         self.ds_exclude_relations: str | None = None
         self.ds_include_relations: str | None = None
+        self.ds_incremental_migrations: str | None = None
         self.ds_named_lobdata: str | None = None
         self.ds_omit_defaults: str | None = None
         self.ds_override_columns: str | None = None
