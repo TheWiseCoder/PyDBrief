@@ -8,14 +8,14 @@ from pypomes_db import db_connect, db_commit, db_rollback, db_close
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
     Migration, MigStep,
-    SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT, SPAN_CHUNK_SIZE,
     SPAN_LOBDATA_CHANNELS, SPAN_LOBDATA_CHANNEL_SIZE,
     SPAN_PLAINDATA_CHANNELS, SPAN_PLAINDATA_CHANNEL_SIZE
 )
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
-from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable
+from entities.migration_span import MigrationSpan
+from entities.migration_work import MigrationWork
 from entities.s3 import S3
 from entities.session import Session
 
@@ -165,34 +165,18 @@ def retrieve_migrations(input_params: dict[str, Any],
                         break
                     mig_data[InputParam.SESSION] = values[0]
 
-                    if migration.nr_batch_size_in is not None:
-                        mig_data[InputParam.BATCH_SIZE_IN] = migration.nr_batch_size_in
-                    if migration.nr_batch_size_out is not None:
-                        mig_data[InputParam.BATCH_SIZE_OUT] = migration.nr_batch_size_out
-                    if migration.nr_chunk_size is not None:
-                        mig_data[InputParam.CHUNK_SIZE] = migration.nr_chunk_size
-                    if migration.ds_exclude_columns is not None:
-                        mig_data[InputParam.EXCLUDE_COLUMNS] = migration.ds_exclude_columns
-                    if migration.ds_exclude_constraints is not None:
-                        mig_data[InputParam.EXCLUDE_CONSTRAINTS] = migration.ds_exclude_constraints
-                    if migration.ds_named_lobdata is not None:
-                        mig_data[InputParam.NAMED_LOBDATA] = migration.ds_named_lobdata
                     if migration.ds_exclude_relations is not None:
                         mig_data[InputParam.EXCLUDE_RELATIONS] = migration.ds_exclude_relations
                     if migration.is_flatten_storage is not None:
                         mig_data[InputParam.FLATTEN_STORAGE] = migration.is_flatten_storage
                     if migration.ds_include_relations is not None:
                         mig_data[InputParam.INCLUDE_RELATIONS] = migration.ds_include_relations
-                    if migration.ds_incremental_migrations is not None:
-                        mig_data[InputParam.INCREMENTAL_MIGRATIONS] = migration.ds_incremental_migrations
                     if migration.nr_lobdata_channel_size is not None:
                         mig_data[InputParam.LOBDATA_CHANNEL_SIZE] = migration.nr_lobdata_channel_size
                     if migration.nr_lobdata_channels is not None:
                         mig_data[InputParam.LOBDATA_CHANNELS] = migration.nr_lobdata_channels
                     if migration.ds_omit_defaults is not None:
                         mig_data[InputParam.OMIT_DEFAULTS] = migration.ds_omit_defaults
-                    if migration.ds_override_columns is not None:
-                        mig_data[InputParam.OVERRIDE_COLUMNS] = migration.ds_override_columns
                     if migration.is_optimize_pks is not None:
                         mig_data[InputParam.OPTIMIZE_PKS] = migration.is_optimize_pks
                     if migration.nr_plaindata_channel_size is not None:
@@ -207,8 +191,6 @@ def retrieve_migrations(input_params: dict[str, Any],
                         mig_data[InputParam.REFLECT_FILETYPE] = migration.is_reflect_filetype
                     if migration.is_relax_reflection is not None:
                         mig_data[InputParam.RELAX_REFLECTION] = migration.is_relax_reflection
-                    if migration.ds_remove_ctrlchars is not None:
-                        mig_data[InputParam.REMOVE_CTRLCHARS] = migration.ds_remove_ctrlchars
                     if migration.is_skip_nonempty is not None:
                         mig_data[InputParam.SKIP_NONEMPTY] = migration.is_skip_nonempty
 
@@ -232,30 +214,60 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     for migration_table in migration_tables:
-                        mig_table: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
-                        if migration_table.ts_start:
-                            mig_table[InputParam.START] = \
-                                migration_table.ts_start.strftime(format=DatetimeFormat.LATIN)
-                        if migration_table.ts_finish:
-                            mig_table[InputParam.FINISH] = \
-                                migration_table.ts_finish.strftime(format=DatetimeFormat.LATIN)
+                        mig_table_custom: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
+                        if migration_table.nr_batch_size_in is not None:
+                            mig_table_custom[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
+                        if migration_table.nr_batch_size_out is not None:
+                            mig_table_custom[InputParam.BATCH_SIZE_OUT] = migration_table.nr_batch_size_out
+                        if migration_table.nr_chunk_size is not None:
+                            mig_table_custom[InputParam.CHUNK_SIZE] = migration_table.nr_chunk_size
+                        if migration_table.nr_incremental_count is not None:
+                            mig_table_custom[InputParam.INCREMENTAL_COUNT] = migration_table.nr_incremental_count
+                        if migration_table.nr_incremental_offset is not None:
+                            mig_table_custom[InputParam.INCREMENTAL_OFFSET] = migration_table.nr_incremental_offset
+                        if migration_table.ds_exclude_columns is not None:
+                            mig_table_custom[InputParam.EXCLUDE_COLUMNS] = migration_table.ds_exclude_columns
+                        if migration_table.ds_exclude_constraints is not None:
+                            mig_table_custom[InputParam.EXCLUDE_CONSTRAINTS] = migration_table.ds_exclude_constraints
+                        if migration_table.ds_omit_defaults is not None:
+                            mig_table_custom[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
+                        if migration_table.ds_override_columns is not None:
+                            mig_table_custom[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
+
+                        mig_tables.append(mig_table_custom)
+                    if errors:
+                        break
+                    mig_data[InputParam.CUSTOM_TABLES] = mig_tables
+
+                    mig_works: list[dict[str, Any]] = []
+                    migration_works: list[MigrationWork] = migration.get_migration_works(db_engine=PYDB_DB_ENGINE,
+                                                                                         db_conn=db_conn,
+                                                                                         errors=errors)
+                    if errors:
+                        break
+                    for migration_work in migration_works:
+                        mig_work: dict[str, Any] = {InputParam.NAME: migration_work.nm_table}
+                        if migration_work.ts_start:
+                            mig_work[InputParam.START] = migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
+                        if migration_work.ts_finish:
+                            mig_work[InputParam.FINISH] = migration_work.ts_finish.strftime(format=DatetimeFormat.LATIN)
 
                         mig_spans: list[dict[str, Any]] = []
                         migration_spans: list[MigrationSpan] = \
-                            migration_table.get_migration_spans(db_engine=PYDB_DB_ENGINE,
-                                                                db_conn=db_conn,
-                                                                errors=errors)
+                            migration_work.get_migration_spans(db_engine=PYDB_DB_ENGINE,
+                                                               db_conn=db_conn,
+                                                               errors=errors)
                         if errors:
                             break
                         for migration_span in migration_spans:
                             mig_spans.append({InputParam.FIRST_ROW: migration_span.nr_first_row,
                                               InputParam.LAST_ROW: migration_span.nr_last_row,
                                               InputParam.DONE: migration_span.is_done})
-                        mig_table[InputParam.SPANS] = mig_spans
-                        mig_tables.append(mig_table)
+                        mig_work[InputParam.SPANS] = mig_spans
+                        mig_tables.append(mig_work)
                     if errors:
                         break
-                    mig_data[InputParam.TABLES] = mig_tables
+                    mig_data[InputParam.WORK_TABLES] = mig_works
 
                     result[migration.nm_badge] = mig_data
             else:
@@ -410,30 +422,6 @@ def __validate_input(input_params: dict[str, Any],
     if isinstance(is_skip_nonempty, bool):
         result[Migration.Db.IS_SKIP_NONEMPTY] = is_skip_nonempty
 
-    nr_batch_size_in: int = validate_int(source=input_params,
-                                         attr=InputParam.BATCH_SIZE_IN,
-                                         min_val=SPAN_BATCH_SIZE_IN[0],
-                                         max_val=SPAN_BATCH_SIZE_IN[2],
-                                         errors=errors)
-    if nr_batch_size_in:
-        result[Migration.Db.NR_BATCH_SIZE_IN] = nr_batch_size_in
-
-    nr_batch_size_out: int = validate_int(source=input_params,
-                                          attr=InputParam.BATCH_SIZE_OUT,
-                                          min_val=SPAN_BATCH_SIZE_OUT[0],
-                                          max_val=SPAN_BATCH_SIZE_OUT[2],
-                                          errors=errors)
-    if nr_batch_size_out:
-        result[Migration.Db.NR_BATCH_SIZE_OUT] = nr_batch_size_out
-
-    nr_chunk_size: int = validate_int(source=input_params,
-                                      attr=InputParam.CHUNK_SIZE,
-                                      min_val=SPAN_CHUNK_SIZE[0],
-                                      max_val=SPAN_CHUNK_SIZE[2],
-                                      errors=errors)
-    if nr_chunk_size:
-        result[Migration.Db.NR_CHUNK_SIZE] = nr_chunk_size
-
     nr_lobdata_channels: int = validate_int(source=input_params,
                                             attr=InputParam.LOBDATA_CHANNELS,
                                             min_val=SPAN_LOBDATA_CHANNELS[0],
@@ -466,18 +454,6 @@ def __validate_input(input_params: dict[str, Any],
     if nr_plaindata_channel_size:
         result[Migration.Db.NR_PLAINDATA_CHANNEL_SIZE] = nr_plaindata_channel_size
 
-    exclude_columns: list[str] = validate_strs(source=input_params,
-                                               attr=InputParam.EXCLUDE_COLUMNS,
-                                               errors=errors)
-    if exclude_columns:
-        result[Migration.Db.DS_EXCLUDE_COLUMNS] = ",".join([i for i in exclude_columns])
-
-    exclude_constraints: list[str] = validate_strs(source=input_params,
-                                                   attr=InputParam.EXCLUDE_CONSTRAINTS,
-                                                   errors=errors)
-    if exclude_constraints:
-        result[Migration.Db.DS_EXCLUDE_CONSTRAINTS] = ",".join([i for i in exclude_constraints])
-
     exclude_relations: list[str] = validate_strs(source=input_params,
                                                  attr=InputParam.EXCLUDE_RELATIONS,
                                                  errors=errors)
@@ -489,35 +465,5 @@ def __validate_input(input_params: dict[str, Any],
                                                  errors=errors)
     if include_relations:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = ",".join([i for i in include_relations])
-
-    incremental_migrations: list[str] = validate_strs(source=input_params,
-                                                      attr=InputParam.INCREMENTAL_MIGRATIONS,
-                                                      errors=errors)
-    if incremental_migrations:
-        result[Migration.Db.DS_INCREMENTAL_MIGRATIONS] = ",".join([i for i in incremental_migrations])
-
-    named_lobdata: list[str] = validate_strs(source=input_params,
-                                             attr=InputParam.NAMED_LOBDATA,
-                                             errors=errors)
-    if named_lobdata:
-        result[Migration.Db.DS_NAMED_LOBDATA] = ",".join([i for i in named_lobdata])
-
-    omit_defaults: list[str] = validate_strs(source=input_params,
-                                             attr=InputParam.OMIT_DEFAULTS,
-                                             errors=errors)
-    if omit_defaults:
-        result[Migration.Db.DS_OMIT_DEFAULTS] = ",".join([i for i in omit_defaults])
-
-    override_columns: list[str] = validate_strs(source=input_params,
-                                                attr=InputParam.OVERRIDE_COLUMNS,
-                                                errors=errors)
-    if override_columns:
-        result[Migration.Db.DS_OVERRIDE_COLUMNS] = ",".join([i for i in override_columns])
-
-    remove_ctrlchars: list[str] = validate_strs(source=input_params,
-                                                attr=InputParam.REMOVE_CTRLCHARS,
-                                                errors=errors)
-    if remove_ctrlchars:
-        result[Migration.Db.DS_REMOVE_CTRLCHARS] = ",".join([i for i in remove_ctrlchars])
 
     return result

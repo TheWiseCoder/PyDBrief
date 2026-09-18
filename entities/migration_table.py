@@ -1,14 +1,18 @@
 from __future__ import annotations  # allow forward references
-from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
 from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
-from pypomes_sob import PySob, Sob
-from typing import Any, Final, get_args, get_origin
+from pypomes_sob import PySob
+from typing import Any, Final
 
 from app_constants import PYDB_DB_ENGINE, InputParam
-from entities.migration_span import MigrationSpan
+
+
+# values are (min, max, default)
+SPAN_BATCH_SIZE_IN: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
+SPAN_BATCH_SIZE_OUT: Final[tuple[int, int, int]] = (1000, 1000000, 1000000)
+SPAN_CHUNK_SIZE: Final[tuple[int, int, int]] = (1024, 16777216, 1048576)
 
 
 class MigrationTable(PySob):
@@ -19,7 +23,18 @@ class MigrationTable(PySob):
         TABLE = "migration_table"
         ID = auto()
         ID_MIGRATION = auto()
+        DS_EXCLUDE_COLUMNS = auto()
+        DS_EXCLUDE_CONSTRAINTS = auto()
+        DS_NAMED_LOBDATA = auto()
+        DS_OMIT_DEFAULTS = auto()
+        DS_OVERRIDE_COLUMNS = auto()
+        DS_REMOVE_CTRLCHARS = auto()
         NM_TABLE = auto()
+        NR_BATCH_SIZE_IN = auto()
+        NR_BATCH_SIZE_OUT = auto()
+        NR_CHUNK_SIZE = auto()
+        NR_INCREMENTAL_COUNT = auto()
+        NR_INCREMENTAL_OFFSET = auto()
         TS_START = auto()
         TS_FINISH = auto()
 
@@ -27,31 +42,45 @@ class MigrationTable(PySob):
         (Db.ID_MIGRATION, Db.NM_TABLE)
     ]
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
+        (InputParam.BATCH_SIZE_IN, Db.NR_BATCH_SIZE_IN),
+        (InputParam.BATCH_SIZE_OUT, Db.NR_BATCH_SIZE_OUT),
+        (InputParam.CHUNK_SIZE, Db.NR_CHUNK_SIZE),
+        (InputParam.EXCLUDE_COLUMNS, Db.DS_EXCLUDE_COLUMNS),
+        (InputParam.EXCLUDE_CONSTRAINTS, Db.DS_EXCLUDE_CONSTRAINTS),
+        (InputParam.NAMED_LOBDATA, Db.DS_NAMED_LOBDATA),
+        (InputParam.OMIT_DEFAULTS, Db.DS_OMIT_DEFAULTS),
+        (InputParam.OVERRIDE_COLUMNS, Db.DS_OVERRIDE_COLUMNS),
+        (InputParam.REMOVE_CTRLCHARS, Db.DS_REMOVE_CTRLCHARS),
+        (InputParam.TABLE, None)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
-                 __references: type[list[MigrationSpan]],
                  __id: int = None,
                  /,
                  id_migration: int = None,
-                 nm_table: str = None,
+                 nm_table: int = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.id_migration: int | None = None
+        self.id_session: int | None = None
         self.nm_table: str | None = None
 
         # nullables in DB
-        self.ts_start: datetime | None = None
-        self.ts_finish: datetime | None = None
-
-        # references (lists)
-        self.__migration_spans: list[MigrationSpan] | None = None
-        self.__id_migration_spans: int | None = None
+        self.ds_exclude_columns: str | None = None
+        self.ds_exclude_constraints: str | None = None
+        self.nr_incremental_count: int | None = None
+        self.nr_incremental_offset: int | None = None
+        self.ds_named_lobdata: str | None = None
+        self.ds_omit_defaults: str | None = None
+        self.ds_override_columns: str | None = None
+        self.ds_remove_ctrlchars: str | None = None
+        self.nr_batch_size_in: int | None = None
+        self.nr_batch_size_out: int | None = None
+        self.nr_chunk_size: int | None = None
 
         where_data: dict[str, Any] | None = None
         if __id:
@@ -60,54 +89,14 @@ class MigrationTable(PySob):
             where_data = {MigrationTable.Db.ID_MIGRATION: id_migration,
                           MigrationTable.Db.NM_TABLE: nm_table}
 
-        super().__init__(where_data=where_data,
-                         db_engine=db_engine,
+        super().__init__(db_engine=db_engine,
+                         where_data=where_data,
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
 
-    def get_migration_spans(self,
-                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                            db_conn: Any = None,
-                            committable: bool = None,
-                            errors: list[str] = None):
-
-        self.load_references(list[MigrationSpan],
-                             db_engine=db_engine,
-                             db_conn=db_conn,
-                             committable=committable,
-                             errors=errors)
-        return self.__migration_spans
-
-    def load_references(self,
-                        __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
-                        /,
-                        db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                        db_conn: Any = None,
-                        committable: bool = None,
-                        errors: list[str] = None) -> None:
-
-        if not isinstance(errors, list):
-            errors = []
-        for reference in __references if isinstance(__references, list) else [__references]:
-            cls: type = get_origin(tp=reference) or reference
-            if not errors and cls is list:
-                cls = get_args(tp=reference)[0]
-                if not errors and cls is MigrationSpan:
-                    if not self.id:
-                        self.__migration_spans = None
-                        self.__id_migration_spans = None
-                    elif self.__id_migration_spans != self.id:
-                        self.__migration_spans = MigrationSpan.retrieve(
-                            where_data={MigrationSpan.Db.ID_MIGRATION_TABLE: self.id},
-                            db_engine=db_engine,
-                            db_conn=db_conn,
-                            committable=committable,
-                            errors=errors)
-                        if not errors:
-                            self.__id_migration_spans = self.id
-
 
 MigrationTable.initialize(db_specs=(MigrationTable.Db, int),
+                          attrs_input=MigrationTable.ATTRS_INPUT,
                           attrs_unique=MigrationTable.ATTRS_UNIQUE,
                           logger=MigrationTable.LOGGER)

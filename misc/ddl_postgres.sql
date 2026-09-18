@@ -1,4 +1,5 @@
 DROP TABLE migration_span;
+DROP TABLE migration_work;
 DROP TABLE migration_table;
 DROP TABLE migration_issue;
 DROP TABLE migration;
@@ -13,6 +14,7 @@ DROP SEQUENCE sq_migration;
 DROP SEQUENCE sq_migration_issue;
 DROP SEQUENCE sq_migration_table;
 DROP SEQUENCE sq_migration_span;
+DROP SEQUENCE sq_migration_work;
 
 
 CREATE SEQUENCE sq_database
@@ -115,18 +117,9 @@ CREATE TABLE migration (
 	id int8 DEFAULT nextval('sq_migration'::regclass) NOT NULL,
 	cd_step varchar(2) NOT NULL,
 	id_session int8 NOT NULL,
+	nm_badge varchar(64) NOT NULL,
     ds_exclude_relations varchar(256),
     ds_include_relations varchar(256),
-    ds_exclude_columns varchar(256),
-    ds_exclude_constraints varchar(256),
-    ds_incremental_migrations varchar(4000),
-    ds_named_lobdata varchar(4000),
-    ds_omit_defaults varchar(256),
-    ds_override_columns varchar(256),
-    ds_remove_ctrlchars varchar(256),
-    nr_batch_size_in int8,
-    nr_batch_size_out int8,
-    nr_chunk_size int8,
     is_flatten_storage bool,
     is_optimize_pks bool,
     is_process_indexes bool,
@@ -134,7 +127,6 @@ CREATE TABLE migration (
     is_reflect_filetype bool,
     is_relax_reflection bool,
     is_skip_nonempty bool,
-	nm_badge varchar(64) NOT NULL,
     nr_lobdata_channels int2,
     nr_lobdata_channel_size int8,
     nr_plaindata_channels int2,
@@ -145,9 +137,6 @@ CREATE TABLE migration (
       ('CL'::character varying)::text, ('CP'::character varying)::text,
       ('ML'::character varying)::text, ('MM'::character varying)::text,
       ('MP'::character varying)::text, ('SP'::character varying)::text]))),
-    CONSTRAINT ck_migration_batch_size_in CHECK (nr_batch_size_in >= 0),
-    CONSTRAINT ck_migration_batch_size_out CHECK (nr_batch_size_out >= 0),
-    CONSTRAINT ck_migration_chunk_size CHECK (nr_chunk_size >= 0),
     CONSTRAINT ck_migration_lobdata_channels CHECK (nr_lobdata_channels >= 0),
     CONSTRAINT ck_migration_lobdata_channel_size CHECK (nr_lobdata_channel_size >= 0),
     CONSTRAINT ck_migration_plaindata_channels CHECK (nr_plaindata_channels >= 0),
@@ -194,11 +183,45 @@ CREATE TABLE migration_table (
 	id int8 DEFAULT nextval('sq_migration_table'::regclass) NOT NULL,
 	id_migration int8 NOT NULL,
 	nm_table varchar(64) NOT NULL,
-	ts_start timestamp,
-	ts_finish timestamp,
+    ds_exclude_columns varchar(256),
+    ds_exclude_constraints varchar(256),
+    ds_named_lobdata varchar(4000),
+    ds_omit_defaults varchar(256),
+    ds_override_columns varchar(256),
+    ds_remove_ctrlchars varchar(256),
+    nr_batch_size_in int8,
+    nr_batch_size_out int8,
+    nr_chunk_size int8,
+    nr_incremental_count int8,
+    nr_incremental_offset int8,
+    CONSTRAINT ck_migration_table_batch_size_in CHECK (nr_batch_size_in >= 0),
+    CONSTRAINT ck_migration_table_batch_size_out CHECK (nr_batch_size_out >= 0),
+    CONSTRAINT ck_migration_table_chunk_size CHECK (nr_chunk_size >= 0),
+    CONSTRAINT ck_migration_table_incremental_count CHECK (nr_incremental_count >= 0),
+    CONSTRAINT ck_migration_table_incremental_offset CHECK (nr_incremental_count >= 0),
     CONSTRAINT fk_migration_table_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_table PRIMARY KEY (id),
 	CONSTRAINT uk_migration_table UNIQUE (id_migration, nm_table)
+);
+
+
+CREATE SEQUENCE sq_migration_work
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+CREATE TABLE migration_work (
+	id int8 DEFAULT nextval('sq_migration_work'::regclass) NOT NULL,
+	id_migration int8 NOT NULL,
+	nm_table varchar(64) NOT NULL,
+	ts_start timestamp,
+	ts_finish timestamp,
+    CONSTRAINT fk_migration_work_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
+	CONSTRAINT pk_migration_work PRIMARY KEY (id),
+	CONSTRAINT uk_migration_work UNIQUE (id_migration, nm_table)
 );
 
 
@@ -212,12 +235,12 @@ CREATE SEQUENCE sq_migration_span
 
 CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
-	id_migration_table int8 NOT NULL,
+	id_migration_work int8 NOT NULL,
     is_done bool DEFAULT false NOT NULL,
     nr_first_row int8 NOT NULL,
     nr_last_row int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_last_row >= 0 AND nr_last_row >= nr_first_row),
-    CONSTRAINT fk_migration_span_migration_table FOREIGN KEY (id_migration_table) REFERENCES migration_table(id),
+    CONSTRAINT fk_migration_span_table FOREIGN KEY (id_migration_work) REFERENCES migration_work(id),
 	CONSTRAINT pk_migration_span PRIMARY KEY (id),
-	CONSTRAINT uk_migration_span UNIQUE (id_migration_table, nr_first_row)
+	CONSTRAINT uk_migration_span UNIQUE (id_migration_work, nr_first_row)
 );

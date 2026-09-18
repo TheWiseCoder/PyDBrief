@@ -37,6 +37,10 @@ from storage.migration_actions import (
     create_migration, update_migration, delete_migration,
     retrieve_migrations, verify_migration
 )
+from storage.migration_table_actions import (
+    create_migration_table, update_migration_table,
+    delete_migration_table, retrieve_migration_tables
+)
 from storage.s3_actions import (
     create_s3, update_s3, delete_s3, retrieve_s3s
 )
@@ -359,29 +363,18 @@ def service_migration(nm_badge: str = None) -> Response:
       - *badge*: identifies the migration instance
       - *session*: the session the migration belongs to
       - *step*: the migration step (one from the list below)
-      - *batch-size-in*: maximum number of rows to retrieve per batch
-      - *batch-size-out*: maximum number of rows to output per batch
-      - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying
-      - *exclude-columns*: optional list of table columns not to migrate
-      - *exclude-constraints*: optional list of constraints not to migrate
       - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
       - *flatten-storage*: whether to omit path on LOB migration to S3 storage
       - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
-      - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
-      - *incremental-size*: maximum number of rows to migrate, for tables flagged for incremental migration
       - *lobdata-channels*: number of simultaneous channels to use in lobdata migration
       - *lobdata-channel-size*: size of channels used in lobdata migration
-      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-      - *omit_defaults*: optional list of columns whose default values are to be imitted
       - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
-      - *override-columns*: optional list of columns with forced migration types
       - *plaindata-channels*: number of simultaneous channels to use in plaindata migration
       - *plaindata-channel-size*: size of channels used in plaindata migration
       - *process-indexes*: whether to migrate indexes (defaults to *False*)
       - *process-views*: whether to migrate views (defaults to *False*)
       - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
       - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
-      - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
       - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
 
     Steps of migration:
@@ -392,7 +385,7 @@ def service_migration(nm_badge: str = None) -> Response:
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
-    :param nm_badge: the identification of the migration instance
+    :param nm_badge: the migration instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -426,6 +419,72 @@ def service_migration(nm_badge: str = None) -> Response:
             case HttpMethod.DELETE:
                 delete_migration(input_params=input_params,
                                  errors=errors)
+    # build the response
+    result: Response = _build_response(reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
+@flask_app.route(rule="/migration_table",
+                 methods=[HttpMethod.POST])
+@flask_app.route(rule="/migration_table/<nm_badge>/<nm_table>",
+                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
+def service_migration_table(nm_badge: str = None,
+                            nm_table: str = None) -> Response:
+    """
+    Entry point for handling migration tables.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *table*: identifies the migration table
+      - *batch-size-in*: maximum number of rows to retrieve per batch
+      - *batch-size-out*: maximum number of rows to output per batch
+      - *chunk-size*: maximum size, in bytes, of data chunks in LOB data copying
+      - *exclude-columns*: optional list of table columns not to migrate
+      - *exclude-constraints*: optional list of constraints not to migrate
+      - *incremental-count*: maximum number of rows to migrate
+      - *incremental-offset*: number of rows to skip
+      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
+      - *omit_defaults*: optional list of columns whose default values are to be omitted
+      - *override-columns*: optional list of columns with forced migration types
+      - *remove-ctrlchars*: optional list of columns with embedded control characters in its data
+
+    :param nm_badge: the migration instance
+    :param nm_table: the migration table
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    if nm_badge:
+        input_params[InputParam.BADGE] = nm_badge
+    if nm_table:
+        input_params[InputParam.BADGE] = nm_table
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] | None = None
+    match request.method:
+        case HttpMethod.GET:
+            reply = retrieve_migration_tables(input_params=input_params,
+                                              errors=errors)
+        case HttpMethod.POST:
+            create_migration_table(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.PATCH:
+            update_migration_table(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.DELETE:
+            delete_migration_table(input_params=input_params,
+                                   errors=errors)
     # build the response
     result: Response = _build_response(reply=reply,
                                        errors=errors)

@@ -9,7 +9,7 @@ from typing import Any, Type
 from app_constants import PYDB_DB_ENGINE, InputParam, MigIncremental
 from entities.migration import Migration
 from entities.migration_span import MigrationSpan
-from entities.migration_table import MigrationTable
+from entities.migration_work import MigrationWork
 from migration.pydb_types import name_to_type
 
 
@@ -17,7 +17,7 @@ def migrate(input_params: dict[str, Any],
             errors: list[str]) -> None:
 
     migration_badge: str = validate_str(source=input_params,
-                                        attr=InputParam.MIGRATION_BADGE,
+                                        attr=InputParam.BADGE,
                                         errors=errors)
     if migration_badge:
         migration: Migration = Migration(nm_badge=migration_badge,

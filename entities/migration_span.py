@@ -11,25 +11,25 @@ from app_constants import PYDB_DB_ENGINE
 
 class MigrationSpan(PySob):
     """
-    Entity *MigrationSpan*.
+    Entity *MigrationTableSpan*.
     """
     class Db(StrEnum):
-        TABLE = "migration_span"
+        TABLE = "migration_table_span"
         ID = auto()
-        ID_MIGRATION_TABLE = auto()
+        ID_MIGRATION_WORK = auto()
         IS_DONE = auto()
         NR_FIRST_ROW = auto()
         NR_LAST_ROW = auto()
 
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
-        (Db.ID_MIGRATION_TABLE, Db.NR_FIRST_ROW)
+        (Db.ID_MIGRATION_WORK, Db.NR_FIRST_ROW)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
                  __id: int = None,
                  /,
-                 id_migration_table: int = None,
+                 id_migration_work: int = None,
                  nr_first_row: int = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
@@ -37,7 +37,7 @@ class MigrationSpan(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.id_migration_table: int | None = None
+        self.id_migration_work: int | None = None
         self.is_done: bool = False
         self.nr_first_row: int | None = None
         self.nr_last_row: int | None = None
@@ -45,8 +45,8 @@ class MigrationSpan(PySob):
         where_data: dict[str, Any] | None = None
         if __id:
             where_data = {MigrationSpan.Db.ID: __id}
-        elif id_migration_table and isinstance(nr_first_row, int):
-            where_data = {MigrationSpan.Db.ID_MIGRATION_TABLE: id_migration_table,
+        elif id_migration_work and isinstance(nr_first_row, int):
+            where_data = {MigrationSpan.Db.ID_MIGRATION_WORK: id_migration_work,
                           MigrationSpan.Db.NR_FIRST_ROW: nr_first_row}
 
         super().__init__(where_data=where_data,

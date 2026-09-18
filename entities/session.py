@@ -10,7 +10,6 @@ from typing import Any, Final, get_args, get_origin
 
 from entities.database import Database
 from entities.migration import Migration
-from entities.migration_table import MigrationTable
 from entities.s3 import S3
 
 from app_constants import PYDB_DB_ENGINE, InputParam
@@ -59,7 +58,7 @@ class Session(PySob):
 
     def __init__(self,
                  __id: int = None,
-                 __references: type[Database | Migration] = None,
+                 __references: type[Database | S3 | list[Migration]] = None,
                  /,
                  cd_session: str = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
@@ -85,13 +84,10 @@ class Session(PySob):
         self.__target_s3: S3 | None = None
 
         # references (lists)
-        self.__active_migrations: list[Migration] | None = None
-        self.__id_active_migrations: int | None = None
-        self.__all_migrations: list[Migration] | None = None
-        self.__id_all_migrations: int | None = None
+        self.__migrations: list[Migration] | None = None
+        self.__id_migrations: int | None = None
 
         # transients
-        self.__flag_active: bool = True
         self.__flag_source: bool = True
 
         where_data: dict[str, Any] | None = None
@@ -148,33 +144,18 @@ class Session(PySob):
                              errors=errors)
         return self.__target_s3
 
-    def get_active_migrations(self,
-                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                              db_conn: Any = None,
-                              committable: bool = None,
-                              errors: list[str] = None) -> list[Migration] | None:
+    def get_migrations(self,
+                       db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                       db_conn: Any = None,
+                       committable: bool = None,
+                       errors: list[str] = None):
 
-        self.__flag_active = True
         self.load_references(list[Migration],
                              db_engine=db_engine,
                              db_conn=db_conn,
                              committable=committable,
                              errors=errors)
-        return self.__active_migrations
-
-    def get_all_migrations(self,
-                           db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                           db_conn: Any = None,
-                           committable: bool = None,
-                           errors: list[str] = None):
-
-        self.__flag_active = False
-        self.load_references(list[Migration],
-                             db_engine=db_engine,
-                             db_conn=db_conn,
-                             committable=committable,
-                             errors=errors)
-        return self.__all_migrations
+        return self.__migrations
 
     def load_references(self,
                         # HAZARD: may fail on direct external invocations
@@ -224,76 +205,18 @@ class Session(PySob):
             if not errors and cls is list:
                 cls = get_args(tp=reference)[0]
                 if not errors and cls is Migration:
-                    if self.__flag_active:
-                        if not self.id:
-                            self.__active_migrations = None
-                            self.__id_active_migrations = None
-                        elif self.__id_active_migrations != self.id:
-                            self.__active_migrations = Migration.retrieve(
-                                where_data={Migration.Db.ID_SESSION: self.id,
-                                            Migration.Db.TS_START: None},
-                                db_engine=db_engine,
-                                db_conn=db_conn,
-                                committable=committable,
-                                errors=errors)
-                            if not errors:
-                                self.__id_active_migrations = self.id
-                    else:
-                        if not self.id:
-                            self.__all_migrations = None
-                            self.__id_all_migrations = None
-                        elif self.__id_all_migrations != self.id:
-                            self.__all_migrations = Migration.retrieve(
-                                where_data={Migration.Db.ID_SESSION: self.id},
-                                db_engine=db_engine,
-                                db_conn=db_conn,
-                                committable=committable,
-                                errors=errors)
-                            if not errors:
-                                self.__id_all_migrations = self.id
-
-    @staticmethod
-    def get_active_sessions(db_engine: DbEngine | str = PYDB_DB_ENGINE,
-                            db_conn: Any = None,
-                            committable: bool = None,
-                            errors: list[str] = None) -> list[Session]:
-
-        from entities.migration_span import MigrationSpan
-
-        result: list[Session] | None = None
-
-        # make sure 'errors' is a list
-        if errors is None:
-            errors = []
-
-        # retrieve only sessions with at least one active migration
-        sessions: list[Session] = Session.retrieve(
-            joins=[(Migration, (Session.Db.ID, Migration.Db.ID_SESSION))],
-            where_data={f"{Migration.get_alias()}.{Migration.Db.TS_FINISH}": None},
-            db_engine=db_engine,
-            db_conn=db_conn,
-            committable=committable,
-            errors=errors)
-
-        # make sure lists of active migrations are filled
-        for session in sessions or []:
-            migrations: list[Migration] = session.get_active_migrations(db_engine=db_engine,
-                                                                        db_conn=db_conn,
-                                                                        errors=errors)
-            if errors:
-                break
-            # make sure list of migration tables is filled
-            for migration in migrations:
-                migration.load_references(list[MigrationTable],
-                                          db_engine=db_engine,
-                                          db_conn=db_conn,
-                                          errors=errors)
-                if errors:
-                    break
-        if not errors:
-            result = sessions
-
-        return result
+                    if not self.id:
+                        self.__migrations = None
+                        self.__id_migrations = None
+                    elif self.__id_migrations != self.id:
+                        self.__migrations = Migration.retrieve(
+                            where_data={Migration.Db.ID_SESSION: self.id},
+                            db_engine=db_engine,
+                            db_conn=db_conn,
+                            committable=committable,
+                            errors=errors)
+                        if not errors:
+                            self.__id_migrations = self.id
 
 
 Session.initialize(db_specs=(Session.Db, int),
