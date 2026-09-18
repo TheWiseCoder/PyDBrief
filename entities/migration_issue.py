@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE, InputParam
 
 
 class IssueType(StrEnum):
@@ -32,6 +32,11 @@ class MigrationIssue(PySob):
         ID_MIGRATION = auto()
         TS_ONSET = auto()
 
+    ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
+        (InputParam.ISSUE, Db.DS_ISSUE),
+        (InputParam.TYPE, Db.CD_TYPE),
+        (InputParam.BADGE, None)
+    ]
     ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
         Db.CD_TYPE: IssueType
     }

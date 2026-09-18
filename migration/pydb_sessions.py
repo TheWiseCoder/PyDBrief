@@ -13,6 +13,7 @@ from app_constants_old import (
     RANGE_PLAINDATA_CHANNELS, RANGE_PLAINDATA_CHANNEL_SIZE,
     MigConfig, MigSpec, MigMetric, MigSpot, MigStep
 )
+from app_constants import PYDB_DB_ENGINE
 from entities.session import Session
 
 
@@ -29,9 +30,13 @@ def get_active_sessions(db_conn: Any = None,
         errors = []
     global active_sessions
     if active_sessions is None:
-        active_sessions = Session.get_active_sessions(db_conn=db_conn,
-                                                      committable=committable,
-                                                      errors=errors)
+        from entities.session import SessionState
+        active_states: list[SessionState] = [SessionState.CREATED, SessionState.STARTED]
+        active_sessions = Session.retrieve(where_data={Session.Db.CD_STATE: active_states},
+                                           db_engine=PYDB_DB_ENGINE,
+                                           db_conn=db_conn,
+                                           committable=committable,
+                                           errors=errors)
     if not errors:
         result = active_sessions
 

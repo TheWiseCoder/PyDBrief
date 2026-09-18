@@ -174,9 +174,9 @@ def service_ignore() -> Response:
 
 @flask_app.route(rule="/database",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/database/<db_engine>",
+@flask_app.route(rule="/database/<cd_engine>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_database(db_engine: str = None) -> Response:
+def service_database(cd_engine: str = None) -> Response:
     """
     Entry point for handling database engines to use.
 
@@ -191,7 +191,7 @@ def service_database(db_engine: str = None) -> Response:
       - *db-client*: the client package (Oracle, only)
       - *db-driver*: the database access driver (SQLServer, only)
 
-    :param db_engine: the identification of the database engine instance
+    :param cd_engine: the identification of the database engine instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -199,8 +199,8 @@ def service_database(db_engine: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if db_engine:
-        input_params[InputParam.DB_ENGINE] = db_engine
+    if cd_engine:
+        input_params[InputParam.CD_ENGINE] = cd_engine
 
     # log the request
     msg: str = __log_init(request=request,
@@ -235,9 +235,9 @@ def service_database(db_engine: str = None) -> Response:
 
 @flask_app.route(rule="/s3",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/s3/<s3_engine>",
+@flask_app.route(rule="/s3/<cd_engine>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_s3(s3_engine: str = None) -> Response:
+def service_s3(cd_engine: str = None) -> Response:
     """
     Entry point for handling S3 engines to use.
 
@@ -251,7 +251,7 @@ def service_s3(s3_engine: str = None) -> Response:
       - *s3-region-name*: the name of the region where the engine is located (AWS only)
       - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
 
-    :param s3_engine: the identification of the database engine instance
+    :param cd_engine: the identification of the database engine instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -259,8 +259,8 @@ def service_s3(s3_engine: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if s3_engine:
-        input_params[InputParam.S3_ENGINE] = s3_engine
+    if cd_engine:
+        input_params[InputParam.CD_ENGINE] = cd_engine
 
     # log the request
     msg: str = __log_init(request=request,
@@ -351,11 +351,11 @@ def service_session(cd_session: str = None) -> Response:
 
 @flask_app.route(rule="/migration",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/migration/<nm_badge>",
+@flask_app.route(rule="/migration/<cd_badge>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-@flask_app.route(rule="/migration:verify/<nm_badge>",
+@flask_app.route(rule="/migration:verify/<cd_badge>",
                  methods=[HttpMethod.GET])
-def service_migration(nm_badge: str = None) -> Response:
+def service_migration(cd_badge: str = None) -> Response:
     """
     Entry point for handling migrations.
 
@@ -385,7 +385,7 @@ def service_migration(nm_badge: str = None) -> Response:
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
-    :param nm_badge: the migration instance
+    :param cd_badge: the migration instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -393,8 +393,8 @@ def service_migration(nm_badge: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if nm_badge:
-        input_params[InputParam.BADGE] = nm_badge
+    if cd_badge:
+        input_params[InputParam.CD_BADGE] = cd_badge
 
     # log the request
     msg: str = __log_init(request=request,
@@ -462,9 +462,9 @@ def service_migration_table(nm_badge: str = None,
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
     if nm_badge:
-        input_params[InputParam.BADGE] = nm_badge
+        input_params[InputParam.CD_BADGE] = nm_badge
     if nm_table:
-        input_params[InputParam.BADGE] = nm_table
+        input_params[InputParam.CD_TABLE] = nm_table
 
     # log the request
     msg: str = __log_init(request=request,

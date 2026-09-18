@@ -48,8 +48,9 @@ def update_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # validate the input data
+    valid_params: list[str] = [InputParam.CD_ENGINE] + [i[0] for i in S3.ATTRS_INPUT]
     s3_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                 valid_params=[i[0] for i in S3.ATTRS_INPUT],
+                                                 valid_params=valid_params,
                                                  op=OpType.UPDATE,
                                                  errors=errors)
     if not errors:
@@ -57,7 +58,7 @@ def update_s3(input_params: dict[str, Any],
         db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                                   errors=errors)
         if db_conn:
-            s3: S3 = S3(cd_engine=s3_params.get(S3.Db.CD_ENGINE),
+            s3: S3 = S3(cd_engine=s3_params.get(InputParam.CD_ENGINE),
                         db_engine=PYDB_DB_ENGINE,
                         db_conn=db_conn,
                         errors=errors)
@@ -85,7 +86,7 @@ def delete_s3(input_params: dict[str, Any],
 
     # validate the input data
     s3_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                 valid_params=[InputParam.S3_ENGINE],
+                                                 valid_params=[InputParam.CD_ENGINE],
                                                  op=OpType.DELETE,
                                                  errors=errors)
     if not errors:
@@ -94,7 +95,7 @@ def delete_s3(input_params: dict[str, Any],
                                   errors=errors)
         if db_conn:
             # obtain and delete the database
-            s3: S3 = S3(cd_engine=s3_params.get(S3.Db.CD_ENGINE),
+            s3: S3 = S3(cd_engine=s3_params.get(InputParam.CD_ENGINE),
                         db_engine=PYDB_DB_ENGINE,
                         db_conn=db_conn,
                         errors=errors)
@@ -123,17 +124,36 @@ def retrieve_s3s(input_params: dict[str, Any],
 
     # validate the input data
     s3_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                 valid_params=[InputParam.S3_ENGINE],
+                                                 valid_params=[InputParam.S3_ENGINE, InputParam.S3_TYPE],
                                                  op=OpType.RETRIEVE,
                                                  errors=errors)
-    where_data: dict[str, Any] | None = None
-    if S3.Db.CD_ENGINE in s3_params:
-        where_data = {S3.Db.CD_ENGINE: s3_params.get(S3.Db.CD_ENGINE)}
-    s3s: list[S3] = S3.retrieve(where_data=where_data,
-                                db_engine=PYDB_DB_ENGINE,
-                                errors=errors)
-    for s3 in s3s or []:
-        result[s3.cd_engine] = s3.get_inputs()
+    if not errors:
+        # obtain DB connection
+        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                                  errors=errors)
+        if db_conn:
+            where_data: dict[str, Any] | None = None
+            if S3.Db.CD_ENGINE in s3_params:
+                where_data = {S3.Db.CD_ENGINE: s3_params.get(S3.Db.CD_ENGINE)}
+            elif S3.Db.CD_TYPE in s3_params:
+                where_data = {S3.Db.CD_TYPE: s3_params.get(S3.Db.CD_TYPE)}
+            s3s: list[S3] = S3.retrieve(where_data=where_data,
+                                        db_engine=PYDB_DB_ENGINE,
+                                        db_conn=db_conn,
+                                        errors=errors)
+            for s3 in s3s or []:
+                result[s3.cd_engine] = s3.get_inputs()
+
+            # conclude the operation
+            if errors:
+                db_rollback(connection=db_conn,
+                            engine=PYDB_DB_ENGINE)
+            else:
+                db_commit(connection=db_conn,
+                          engine=PYDB_DB_ENGINE,
+                          errors=errors)
+            db_close(connection=db_conn,
+                     engine=PYDB_DB_ENGINE)
 
     return result
 
@@ -151,10 +171,19 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
+    # this identifies the S3 instance
+    cd_engine: str = validate_str(source=input_params,
+                                  attr=InputParam.CD_ENGINE,
+                                  required=op in [OpType.UPDATE, OpType.DELETE],
+                                  errors=errors)
+    if cd_engine:
+        result[InputParam.CD_ENGINE] = cd_engine
+
+    # this is the value assigned to the attribute
     s3_engine: str = validate_str(source=input_params,
                                   attr=InputParam.S3_ENGINE,
                                   max_length=64,
-                                  required=op != OpType.RETRIEVE,
+                                  required=op == OpType.CREATE,
                                   errors=errors)
     if s3_engine:
         result[S3.Db.CD_ENGINE] = s3_engine

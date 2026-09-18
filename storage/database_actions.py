@@ -46,8 +46,9 @@ def update_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
     # validate the input data
+    valid_params: list[str] = [InputParam.CD_ENGINE] + [i[0] for i in Database.ATTRS_INPUT]
     database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[i[0] for i in Database.ATTRS_INPUT],
+                                                       valid_params=valid_params,
                                                        op=OpType.UPDATE,
                                                        errors=errors)
     if not errors:
@@ -55,7 +56,7 @@ def update_database(input_params: dict[str, Any],
         db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                                   errors=errors)
         if db_conn:
-            database: Database = Database(cd_engine=database_params.get(Database.Db.CD_ENGINE),
+            database: Database = Database(cd_engine=database_params.get(InputParam.CD_ENGINE),
                                           db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
@@ -83,7 +84,7 @@ def delete_database(input_params: dict[str, Any],
 
     # validate the input data
     database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[InputParam.DB_ENGINE],
+                                                       valid_params=[InputParam.CD_ENGINE],
                                                        op=OpType.DELETE,
                                                        errors=errors)
     if not errors:
@@ -92,7 +93,7 @@ def delete_database(input_params: dict[str, Any],
                                   errors=errors)
         if db_conn:
             # obtain and delete the database
-            database: Database = Database(cd_engine=database_params.get(Database.Db.CD_ENGINE),
+            database: Database = Database(cd_engine=database_params.get(InputParam.CD_ENGINE),
                                           db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
@@ -120,7 +121,7 @@ def retrieve_databases(input_params: dict[str, Any],
 
     # validate the input data
     database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[InputParam.DB_ENGINE],
+                                                       valid_params=[InputParam.DB_ENGINE, InputParam.DB_TYPE],
                                                        op=OpType.RETRIEVE,
                                                        errors=errors)
     if not errors:
@@ -131,6 +132,8 @@ def retrieve_databases(input_params: dict[str, Any],
             where_data: dict[str, Any] | None = None
             if Database.Db.CD_ENGINE in database_params:
                 where_data = {Database.Db.CD_ENGINE: database_params.get(Database.Db.CD_ENGINE)}
+            elif Database.Db.CD_TYPE in database_params:
+                where_data = {Database.Db.CD_TYPE: database_params.get(Database.Db.CD_TYPE)}
             databases: list[Database] = Database.retrieve(where_data=where_data,
                                                           db_engine=PYDB_DB_ENGINE,
                                                           db_conn=db_conn,
@@ -154,10 +157,19 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
+    # this identifies the database instance
+    cd_engine: str = validate_str(source=input_params,
+                                  attr=InputParam.CD_ENGINE,
+                                  required=op in [OpType.UPDATE, OpType.DELETE],
+                                  errors=errors)
+    if cd_engine:
+        result[InputParam.CD_ENGINE] = cd_engine
+
+    # this is the value assigned to the attribute
     db_engine: str = validate_str(source=input_params,
                                   attr=InputParam.DB_ENGINE,
                                   max_length=64,
-                                  required=op != OpType.RETRIEVE,
+                                  required=op == OpType.CREATE,
                                   errors=errors)
     if db_engine:
         result[Database.Db.CD_ENGINE] = db_engine

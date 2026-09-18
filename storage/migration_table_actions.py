@@ -43,12 +43,13 @@ def create_migration_table(input_params: dict[str, Any],
 
 def update_migration_table(input_params: dict[str, Any],
                            errors: list[str]) -> None:
+
     # validate the input data
-    migration_table_params: dict[str, Any] = \
-        __validate_input(input_params=input_params,
-                         valid_params=[InputParam.BADGE] + [i[0] for i in MigrationTable.ATTRS_INPUT],
-                         op=OpType.UPDATE,
-                         errors=errors)
+    valid_params: list[str] = [InputParam.CD_BADGE, InputParam.CD_TABLE] + [i[0] for i in MigrationTable.ATTRS_INPUT]
+    migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                              valid_params=valid_params,
+                                                              op=OpType.UPDATE,
+                                                              errors=errors)
     if not errors:
         # obtain DB connection
         db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
@@ -62,11 +63,12 @@ def update_migration_table(input_params: dict[str, Any],
                 errors=errors
             )
             if values:
-                migration_table: MigrationTable = MigrationTable(id_migration=values[0],
-                                                                 nm_table=migration_table_params.get(InputParam.TABLE),
-                                                                 db_engine=PYDB_DB_ENGINE,
-                                                                 db_conn=db_conn,
-                                                                 errors=errors)
+                migration_table: MigrationTable = \
+                    MigrationTable(id_migration=values[0],
+                                   nm_table=migration_table_params.get(InputParam.CD_TABLE),
+                                   db_engine=PYDB_DB_ENGINE,
+                                   db_conn=db_conn,
+                                   errors=errors)
                 if not errors:
                     migration_table.set(data=migration_table_params)
                     migration_table.update(db_engine=PYDB_DB_ENGINE,
@@ -218,19 +220,30 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
+    # this identifies the migration instance
     badge: str = validate_str(source=input_params,
-                              attr=InputParam.BADGE,
-                              max_length=64,
+                              attr=InputParam.CD_BADGE,
+                              required=op in [OpType.UPDATE, OpType.DELETE],
                               errors=errors)
     if badge:
-        result[InputParam.BADGE] = badge
+        result[InputParam.CD_BADGE] = badge
 
+    # this identifies the migration table
     table: str = validate_str(source=input_params,
                               attr=InputParam.TABLE,
                               max_length=64,
+                              required=op == OpType.CREATE,
                               errors=errors)
     if table:
-        result[InputParam.TABLE] = table
+        result[InputParam.CD_TABLE] = table
+
+    # this is the value assigned to the attribute
+    nm_table: str = validate_str(source=input_params,
+                                 attr=InputParam.TABLE,
+                                 max_length=64,
+                                 errors=errors)
+    if nm_table:
+        result[MigrationTable.Db.NM_TABLE] = table
 
     nr_batch_size_in: int = validate_int(source=input_params,
                                          attr=InputParam.BATCH_SIZE_IN,

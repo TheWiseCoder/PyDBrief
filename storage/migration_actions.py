@@ -61,13 +61,14 @@ def update_migration(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[str] = [InputParam.CD_BADGE] + [i[0] for i in Migration.ATTRS_INPUT]
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[i[0] for i in Migration.ATTRS_INPUT],
+                                                            valid_params=valid_params,
                                                             op=OpType.UPDATE,
                                                             db_conn=None,
                                                             errors=errors)
         if not errors:
-            migration: Migration = Migration(nm_badge=migration_params.get(Migration.Db.NM_BADGE),
+            migration: Migration = Migration(nm_badge=migration_params.get(InputParam.CD_BADGE),
                                              db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
@@ -98,13 +99,13 @@ def delete_migration(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.BADGE],
+                                                            valid_params=[InputParam.CD_BADGE],
                                                             op=OpType.DELETE,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             # obtain and delete the migration
-            migration: Migration = Migration(nm_badge=migration_params.get(Migration.Db.NM_BADGE),
+            migration: Migration = Migration(nm_badge=migration_params.get(InputParam.CD_BADGE),
                                              db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
@@ -136,16 +137,16 @@ def retrieve_migrations(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.SESSION, InputParam.BADGE],
+                                                            valid_params=[InputParam.CD_SESSION, InputParam.CD_BADGE],
                                                             op=OpType.RETRIEVE,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             where_data: dict[str, Any] | None = None
-            if Migration.Db.NM_BADGE in migration_params:
-                where_data = {Migration.Db.NM_BADGE: migration_params.get(Migration.Db.NM_BADGE)}
-            elif Migration.Db.ID_SESSION in migration_params:
-                where_data = {Migration.Db.ID_SESSION: migration_params.get(Migration.Db.ID_SESSION)}
+            if InputParam.CD_BADGE in migration_params:
+                where_data = {Migration.Db.NM_BADGE: migration_params.get(InputParam.CD_BADGE)}
+            elif InputParam.CD_SESSION in migration_params:
+                where_data = {Migration.Db.ID_SESSION: migration_params.get(InputParam.CD_SESSION)}
 
             if where_data:
                 migrations: list[Migration] = Migration.retrieve(where_data=where_data,
@@ -297,7 +298,7 @@ def verify_migration(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.BADGE],
+                                                            valid_params=[InputParam.CD_BADGE],
                                                             op=OpType.VERIFY,
                                                             db_conn=db_conn,
                                                             errors=errors)
@@ -349,10 +350,19 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
+    # this identifies the migration instance
+    badge: str = validate_str(source=input_params,
+                              attr=InputParam.CD_BADGE,
+                              required=op in [OpType.UPDATE, OpType.DELETE],
+                              errors=errors)
+    if badge:
+        result[InputParam.CD_BADGE] = badge
+
+    # this is the value assigned to the attribute
     nm_badge: str = validate_str(source=input_params,
                                  attr=InputParam.BADGE,
                                  max_length=64,
-                                 required=op != OpType.RETRIEVE,
+                                 required=op == OpType.CREATE,
                                  errors=errors)
     if nm_badge:
         result[Migration.Db.NM_BADGE] = nm_badge
