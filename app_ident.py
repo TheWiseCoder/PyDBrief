@@ -6,7 +6,7 @@ from typing import Final
 
 # establish the app's name and current version
 APP_NAME: str = "PyDBrief"
-APP_VERSION: Final[str] = "2.3.3"
+APP_VERSION: Final[str] = "2.3.4"
 
 # load environment variables for local execution
 if os.getenv("APP_LOCAL_DEPLOYMENT") == "1":

@@ -121,7 +121,7 @@ def retrieve_databases(input_params: dict[str, Any],
 
     # validate the input data
     database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[InputParam.DB_ENGINE, InputParam.DB_TYPE],
+                                                       valid_params=[InputParam.CD_ENGINE, InputParam.DB_TYPE],
                                                        op=OpType.RETRIEVE,
                                                        errors=errors)
     if not errors:
@@ -130,8 +130,8 @@ def retrieve_databases(input_params: dict[str, Any],
                                   errors=errors)
         if db_conn:
             where_data: dict[str, Any] | None = None
-            if Database.Db.CD_ENGINE in database_params:
-                where_data = {Database.Db.CD_ENGINE: database_params.get(Database.Db.CD_ENGINE)}
+            if InputParam.CD_ENGINE in database_params:
+                where_data = {Database.Db.CD_ENGINE: database_params.get(InputParam.CD_ENGINE)}
             elif Database.Db.CD_TYPE in database_params:
                 where_data = {Database.Db.CD_TYPE: database_params.get(Database.Db.CD_TYPE)}
             databases: list[Database] = Database.retrieve(where_data=where_data,
@@ -233,7 +233,7 @@ def __validate_input(input_params: dict[str, Any],
                                   attr=InputParam.DB_CLIENT,
                                   errors=errors)
     if db_client:
-        if result[Database.Db.CD_TYPE] != DbEngine.ORACLE:
+        if Database.Db.CD_TYPE in result and result[Database.Db.CD_TYPE] != DbEngine.ORACLE:
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,
                                                 db_client,

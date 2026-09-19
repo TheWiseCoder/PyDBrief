@@ -16,8 +16,9 @@ def create_session(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[InputParam] = [InputParam.SESSION] + [item[0] for item in Session.ATTRS_INPUT]
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[item[0] for item in Session.ATTRS_INPUT],
+                                                          valid_params=valid_params,
                                                           op=OpType.CREATE,
                                                           db_conn=db_conn,
                                                           errors=errors)
@@ -194,13 +195,23 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
+    # this identifies the database instance
     cd_session: str = validate_str(source=input_params,
                                    attr=InputParam.CD_SESSION,
                                    max_length=64,
-                                   required=op != OpType.RETRIEVE,
+                                   required=op in [OpType.UPDATE, OpType.DELETE],
                                    errors=errors)
     if cd_session:
         result[Session.Db.CD_SESSION] = cd_session
+
+    # this is the value assigned to the attribute
+    session: str = validate_str(source=input_params,
+                                attr=InputParam.SESSION,
+                                max_length=64,
+                                required=op == OpType.CREATE,
+                                errors=errors)
+    if session:
+        result[Session.Db.CD_SESSION] = session
 
     source_db: str = validate_str(source=input_params,
                                   attr=InputParam.SOURCE_DB,
