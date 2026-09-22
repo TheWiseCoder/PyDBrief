@@ -10,6 +10,7 @@ from typing import Any, Final, get_args, get_origin
 
 from app_constants import PYDB_DB_ENGINE, InputParam
 from entities.migration_issue import MigrationIssue
+from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
 from entities.migration_span import MigrationSpan
 from entities.migration_work import MigrationWork
@@ -125,8 +126,10 @@ class Migration(PySob):
         # references (lists)
         self.__migration_issues: list[MigrationIssue] | None = None
         self.__id_migration_issues: int | None = None
+        self.__migration_reports: list[MigrationTable] | None = None
+        self.__id_migration_reports: int | None = None
         self.__migration_tables: list[MigrationTable] | None = None
-        self.__id_migration_table: int | None = None
+        self.__id_migration_tables: int | None = None
         self.__migration_works: list[MigrationWork] | None = None
         self.__id_migration_works: int | None = None
 
@@ -158,6 +161,19 @@ class Migration(PySob):
                              committable=committable,
                              errors=errors)
         return self.__migration_issues
+
+    def get_migration_reports(self,
+                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                              db_conn: Any = None,
+                              committable: bool = None,
+                              errors: list[str] = None) -> list[MigrationReport] | None:
+
+        self.load_references(list[MigrationReport],
+                             db_engine=db_engine,
+                             db_conn=db_conn,
+                             committable=committable,
+                             errors=errors)
+        return self.__migration_reports
 
     def get_migration_tables(self,
                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
@@ -224,11 +240,25 @@ class Migration(PySob):
                         if not errors:
                             self.__id_migration_issues = self.id
 
+                if not errors and cls is MigrationReport:
+                    if not self.id:
+                        self.__migration_reports = None
+                        self.__id_migration_reports = None
+                    elif self.__id_migration_tables != self.id:
+                        self.__migration_reports = MigrationReport.retrieve(
+                            where_data={MigrationReport.Db.ID_MIGRATION: self.id},
+                            db_engine=db_engine,
+                            db_conn=db_conn,
+                            committable=committable,
+                            errors=errors)
+                        if not errors:
+                            self.__id_migration_reports = self.id
+
                 if not errors and cls is MigrationTable:
                     if not self.id:
                         self.__migration_tables = None
-                        self.__id_migration_table = None
-                    elif self.__id_migration_table != self.id:
+                        self.__id_migration_tables = None
+                    elif self.__id_migration_tables != self.id:
                         self.__migration_tables = MigrationTable.retrieve(
                             where_data={MigrationTable.Db.ID_MIGRATION: self.id},
                             db_engine=db_engine,
@@ -236,7 +266,7 @@ class Migration(PySob):
                             committable=committable,
                             errors=errors)
                         if not errors:
-                            self.__id_migration_table = self.id
+                            self.__id_migration_tables = self.id
 
                 if not errors and cls is MigrationWork:
                     if not self.id:

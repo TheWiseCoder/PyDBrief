@@ -13,6 +13,7 @@ from entities.migration import (
 )
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
+from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
 from entities.migration_span import MigrationSpan
 from entities.migration_work import MigrationWork
@@ -36,6 +37,7 @@ def create_migration(input_params: dict[str, Any],
         if not errors:
             # create and persist the migration
             migration: Migration = Migration()
+            migration.id_session = migration_params.pop(InputParam.SESSION).id
             migration.set(migration_params)
             migration.insert(db_engine=PYDB_DB_ENGINE,
                              db_conn=db_conn,
@@ -61,22 +63,20 @@ def update_migration(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
-        valid_params: list[str] = [InputParam.CD_BADGE] + [i[0] for i in Migration.ATTRS_INPUT]
+        valid_params: list[str] = [InputParam.MIGRATION_ID] + [i[0] for i in Migration.ATTRS_INPUT]
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                             valid_params=valid_params,
                                                             op=OpType.UPDATE,
                                                             db_conn=None,
                                                             errors=errors)
         if not errors:
-            migration: Migration = Migration(nm_badge=migration_params.get(InputParam.CD_BADGE),
-                                             db_engine=PYDB_DB_ENGINE,
-                                             db_conn=db_conn,
-                                             errors=errors)
-            if not errors:
-                migration.set(data=migration_params)
-                migration.update(db_engine=PYDB_DB_ENGINE,
-                                 db_conn=db_conn,
-                                 errors=errors)
+            migration: Migration = migration_params.pop(InputParam.MIGRATION)
+            if InputParam.SESSION in migration_params:
+                migration.id_session = migration_params.pop(InputParam.SESSION).id
+            migration.set(data=migration_params)
+            migration.update(db_engine=PYDB_DB_ENGINE,
+                             db_conn=db_conn,
+                             errors=errors)
 
             # conclude the operation
             if errors:
@@ -99,30 +99,27 @@ def delete_migration(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.CD_BADGE],
+                                                            valid_params=[InputParam.MIGRATION_ID],
                                                             op=OpType.DELETE,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             # obtain and delete the migration
-            migration: Migration = Migration(nm_badge=migration_params.get(InputParam.CD_BADGE),
-                                             db_engine=PYDB_DB_ENGINE,
-                                             db_conn=db_conn,
-                                             errors=errors)
-            if not errors:
-                migration.delete(db_engine=PYDB_DB_ENGINE,
-                                 db_conn=db_conn,
-                                 errors=errors)
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+            migration: Migration = migration_params[InputParam.MIGRATION]
+            migration.delete(db_engine=PYDB_DB_ENGINE,
+                             db_conn=db_conn,
+                             errors=errors)
+
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def retrieve_migrations(input_params: dict[str, Any],
@@ -137,16 +134,16 @@ def retrieve_migrations(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.CD_SESSION, InputParam.CD_BADGE],
+                                                            valid_params=[InputParam.BADGE, InputParam.SESSION],
                                                             op=OpType.RETRIEVE,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             where_data: dict[str, Any] | None = None
-            if InputParam.CD_BADGE in migration_params:
-                where_data = {Migration.Db.NM_BADGE: migration_params.get(InputParam.CD_BADGE)}
-            elif InputParam.CD_SESSION in migration_params:
-                where_data = {Migration.Db.ID_SESSION: migration_params.get(InputParam.CD_SESSION)}
+            if Migration.Db.NM_BADGE in migration_params:
+                where_data = {Migration.Db.NM_BADGE: migration_params[Migration.Db.NM_BADGE]}
+            elif Migration.Db.ID_SESSION in migration_params:
+                where_data = {Migration.Db.ID_SESSION: migration_params[Migration.Db.ID_SESSION]}
 
             if where_data:
                 migrations: list[Migration] = Migration.retrieve(where_data=where_data,
@@ -208,6 +205,19 @@ def retrieve_migrations(input_params: dict[str, Any],
                                            InputParam.ONSET: migration_issue.ts_onset.strftime(DatetimeFormat.LATIN)})
                     mig_data[InputParam.ISSUES] = mig_issues
 
+                    mig_reports: list[dict[str, Any]] = []
+                    migration_reports: list[MigrationReport] = \
+                        migration.get_migration_reports(db_engine=PYDB_DB_ENGINE,
+                                                        db_conn=db_conn,
+                                                        errors=errors)
+                    if errors:
+                        break
+                    for migration_report in migration_reports:
+                        mig_reports.append(
+                            {InputParam.PATH: migration_report.ds_path,
+                             InputParam.CREATION: migration_report.ts_creation.strftime(DatetimeFormat.LATIN)})
+                    mig_data[InputParam.REPORTS] = mig_reports
+
                     mig_tables: list[dict[str, Any]] = []
                     migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
                                                                                             db_conn=db_conn,
@@ -215,27 +225,27 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     for migration_table in migration_tables:
-                        mig_table_custom: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
+                        mig_table: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
                         if migration_table.nr_batch_size_in is not None:
-                            mig_table_custom[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
+                            mig_table[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
                         if migration_table.nr_batch_size_out is not None:
-                            mig_table_custom[InputParam.BATCH_SIZE_OUT] = migration_table.nr_batch_size_out
+                            mig_table[InputParam.BATCH_SIZE_OUT] = migration_table.nr_batch_size_out
                         if migration_table.nr_chunk_size is not None:
-                            mig_table_custom[InputParam.CHUNK_SIZE] = migration_table.nr_chunk_size
+                            mig_table[InputParam.CHUNK_SIZE] = migration_table.nr_chunk_size
                         if migration_table.nr_incremental_count is not None:
-                            mig_table_custom[InputParam.INCREMENTAL_COUNT] = migration_table.nr_incremental_count
+                            mig_table[InputParam.INCREMENTAL_COUNT] = migration_table.nr_incremental_count
                         if migration_table.nr_incremental_offset is not None:
-                            mig_table_custom[InputParam.INCREMENTAL_OFFSET] = migration_table.nr_incremental_offset
+                            mig_table[InputParam.INCREMENTAL_OFFSET] = migration_table.nr_incremental_offset
                         if migration_table.ds_exclude_columns is not None:
-                            mig_table_custom[InputParam.EXCLUDE_COLUMNS] = migration_table.ds_exclude_columns
+                            mig_table[InputParam.EXCLUDE_COLUMNS] = migration_table.ds_exclude_columns
                         if migration_table.ds_exclude_constraints is not None:
-                            mig_table_custom[InputParam.EXCLUDE_CONSTRAINTS] = migration_table.ds_exclude_constraints
+                            mig_table[InputParam.EXCLUDE_CONSTRAINTS] = migration_table.ds_exclude_constraints
                         if migration_table.ds_omit_defaults is not None:
-                            mig_table_custom[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
+                            mig_table[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
                         if migration_table.ds_override_columns is not None:
-                            mig_table_custom[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
+                            mig_table[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
 
-                        mig_tables.append(mig_table_custom)
+                        mig_tables.append(mig_table)
                     if errors:
                         break
                     mig_data[InputParam.CUSTOM_TABLES] = mig_tables
@@ -350,15 +360,29 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
-    # this identifies the migration instance
-    badge: str = validate_str(source=input_params,
-                              attr=InputParam.CD_BADGE,
-                              required=op in [OpType.UPDATE, OpType.DELETE],
-                              errors=errors)
-    if badge:
-        result[InputParam.CD_BADGE] = badge
+    # identify the migration instance (UPDATE and DELETE operations)
+    migration_id: str = validate_str(source=input_params,
+                                     attr=InputParam.MIGRATION_ID,
+                                     required=op in [OpType.UPDATE, OpType.DELETE],
+                                     errors=errors)
+    if migration_id:
+        result[InputParam.MIGRATION] = Migration(nm_badge=migration_id,
+                                                 db_engine=PYDB_DB_ENGINE,
+                                                 db_conn=db_conn,
+                                                 errors=errors)
 
-    # this is the value assigned to the attribute
+    # identify the session instance (CREATE and UPDATE operations)
+    cd_session: str = validate_str(source=input_params,
+                                   attr=InputParam.SESSION,
+                                   max_length=64,
+                                   required=op == OpType.CREATE,
+                                   errors=errors)
+    if cd_session:
+        result[InputParam.SESSION] = Session(cd_session=cd_session,
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
+
     nm_badge: str = validate_str(source=input_params,
                                  attr=InputParam.BADGE,
                                  max_length=64,
@@ -374,21 +398,6 @@ def __validate_input(input_params: dict[str, Any],
                                      errors=errors)
     if cd_step:
         result[Migration.Db.CD_STEP] = cd_step
-
-    cd_session: str = validate_str(source=input_params,
-                                   attr=InputParam.SESSION,
-                                   max_length=64,
-                                   required=op == OpType.CREATE,
-                                   errors=errors)
-    if cd_session:
-        values: list[int] = Session.get_values(attrs=Session.Db.ID,
-                                               where_data={Session.Db.CD_SESSION: cd_session},
-                                               min_count=1,
-                                               max_count=1,
-                                               db_engine=PYDB_DB_ENGINE,
-                                               db_conn=db_conn)
-        if values:
-            result[Migration.Db.ID_SESSION] = values[0]
 
     is_flatten_storage: bool = validate_bool(source=input_params,
                                              attr=InputParam.FLATTEN_STORAGE,

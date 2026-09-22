@@ -1,6 +1,9 @@
 import sys
+from enum import StrEnum
 from logging import Logger
-from pypomes_core import str_sanitize, exc_format, validate_format_error
+from pypomes_core import (
+    str_sanitize, exc_format, validate_format_error
+)
 from pypomes_db import db_execute
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
@@ -8,20 +11,20 @@ from sqlalchemy import (
 from sqlalchemy.exc import SAWarning
 from typing import Any
 
-from entities.migration import Migration, MigStep
-from entities.session import Session
-
-from app_constants import InputParam
+from app_constants_old import (
+    MigConfig, MigStep, MigSpec, MigSpot
+)
+from migration.pydb_sessions import get_session_registry
+from migration.pydb_types_old import is_lob_column
+from migration.pydb_validator import assert_relation
 from migration.pydb_database import column_set_nullable, view_get_ddl
-from migration.pydb_types import is_lob_column
-from migration.steps.pydb_migration import (
-    assert_relation, prune_metadata, setup_schema, setup_tables
+from migration.steps.pydb_migration_old import (
+    prune_metadata, setup_schema, setup_tables
 )
 from migration.steps.pydb_engine import build_engine
 
 
-def migrate_metadata(migration: Migration,
-                     session: Session,
+def migrate_metadata(session_id: str,
                      migration_warnings: list[str],
                      errors: list[str],
                      logger: Logger) -> dict[str, Any]:
@@ -29,23 +32,30 @@ def migrate_metadata(migration: Migration,
     # initialize the return variable
     result: dict[str, Any] | None = None
 
+    # retrieve the registry data for the session
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
+    session_steps: dict[MigStep, Any] = session_registry[MigConfig.STEPS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+
     # create engines
-    source_engine: Engine = build_engine(db_engine=session.get_source_db().cd_engine,
+    source_engine: Engine = build_engine(db_engine=session_spots[MigSpot.FROM_RDBMS],
                                          errors=errors,
                                          logger=logger)
-    target_engine: Engine = build_engine(db_engine=session.get_target_db().cd_engine,
+    target_engine: Engine = build_engine(db_engine=session_spots[MigSpot.TO_RDBMS],
                                          errors=errors,
                                          logger=logger)
     # were both engines created ?
     if source_engine and target_engine:
         # yes, proceed
         from_schema: str | None = None
+        step_metadata: bool = session_steps[MigStep.MIGRATE_METADATA]
 
         # obtain the source schema's internal name
         source_inspector: Inspector = inspect(subject=source_engine,
                                               raiseerr=True)
         for schema_name in source_inspector.get_schema_names():
-            if session.nm_source_schema == schema_name.lower():
+            if session_specs[MigSpec.FROM_SCHEMA] == schema_name.lower():
                 # use the actual name with its case imprint
                 from_schema = schema_name
                 break
@@ -63,8 +73,9 @@ def migrate_metadata(migration: Migration,
                                   _md: MetaData) -> bool:
                 rel = rel.lower()
                 result = (rel not in schema_views and
-                          assert_relation(migration=migration,
-                                          relation=rel))
+                          assert_relation(relation=rel,
+                                          excludes=session_specs[MigSpec.EXCLUDE_RELATIONS],
+                                          includes=session_specs[MigSpec.INCLUDE_RELATIONS]))
                 logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
                 return result
 
@@ -87,7 +98,7 @@ def migrate_metadata(migration: Migration,
                                         schema=from_schema,
                                         views=False,
                                         only=assert_reflection,
-                                        resolve_fks=not migration.is_relax_reflection)
+                                        resolve_fks=not session_specs[MigSpec.RELAX_REFLECTION])
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
@@ -102,18 +113,23 @@ def migrate_metadata(migration: Migration,
             if not errors:
                 # build list of views to migrate
                 target_views: list[str] = []
-                if migration.is_process_views:
-                    if migration.ds_include_relations or migration.ds_exclude_relations:
-                        target_views.extend([v for v in schema_views if assert_relation(migration=migration,
-                                                                                        relation=v)])
+                if session_specs[MigSpec.PROCESS_VIEWS]:
+                    if session_specs[MigSpec.INCLUDE_RELATIONS]:
+                        target_views.extend([v for v in (session_specs[MigSpec.INCLUDE_RELATIONS] or [])
+                                             if v in schema_views])
                     else:
                         target_views = schema_views
 
                 # prepare the source metadata for migration
-                prune_metadata(migration=migration,
-                               session=session,
+                prune_metadata(source_schema=session_specs[MigSpec.FROM_SCHEMA],
                                source_metadata=source_metadata,
+                               process_indexes=session_specs[MigSpec.PROCESS_INDEXES],
                                schema_views=schema_views,
+                               include_relations=session_specs[MigSpec.INCLUDE_RELATIONS] or [],
+                               exclude_relations=session_specs[MigSpec.EXCLUDE_RELATIONS] or [],
+                               exclude_columns=session_specs[MigSpec.EXCLUDE_COLUMNS] or [],
+                               exclude_constraints=session_specs[MigSpec.EXCLUDE_CONSTRAINTS] or [],
+                               step_metadata=step_metadata,
                                logger=logger)
 
                 # proceed with the appropriate tables
@@ -135,10 +151,10 @@ def migrate_metadata(migration: Migration,
                                                         "schema-migration",
                                                         exc_err))
                 if not errors:
-                    if migration.cd_step == MigStep.MIGRATE_METADATA:
+                    if step_metadata:
                         # migrate the schema
-                        to_schema: str = setup_schema(target_db=session.get_target_db().cd_engine,
-                                                      target_schema=session.nm_target_schema,
+                        to_schema: str = setup_schema(target_db=session_spots[MigSpot.TO_RDBMS],
+                                                      target_schema=session_specs[MigSpec.TO_SCHEMA],
                                                       target_engine=target_engine,
                                                       target_tables=target_tables,
                                                       target_views=target_views,
@@ -146,32 +162,39 @@ def migrate_metadata(migration: Migration,
                                                       errors=errors,
                                                       logger=logger)
                         if not to_schema:
-                            err_msg: str = f"Unable to migrate schema to RDBMS '{session.get_source_db().cd_engine}'"
+                            err_msg: str = f"Unable to migrate schema to RDBMS {session_spots[MigSpot.TO_RDBMS]}"
                             logger.error(msg=err_msg)
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,
                                                                 err_msg))
                     else:
-                        to_schema = session.nm_target_schema
+                        to_schema = session_specs[MigSpec.TO_SCHEMA]
 
                     if not errors:
                         # migrate tables' metadata (not applicable for views)
-                        result = setup_tables(migration=migration,
-                                              session=session,
+                        result = setup_tables(source_rdbms=session_spots[MigSpot.FROM_RDBMS],
+                                              target_rdbms=session_spots[MigSpot.TO_RDBMS],
+                                              source_schema=from_schema,
+                                              target_schema=to_schema,
+                                              target_s3=session_spots[MigSpot.TO_S3],
                                               target_tables=target_tables,
+                                              optimize_pks=session_specs[MigSpec.OPTIMIZE_PKS],
+                                              override_columns=session_specs[MigSpec.OVERRIDE_COLUMNS] or {},
+                                              omit_defaults=session_specs[MigSpec.OMIT_DEFAULTS] or [],
+                                              step_metadata=step_metadata,
                                               migration_warnings=migration_warnings,
                                               errors=errors,
                                               logger=logger)
 
                         # proceed, if migrating the metadata was indicated
-                        if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
+                        if not errors and step_metadata:
                             # migrate the tables, one at a time
                             for target_table in target_tables:
                                 try:
                                     source_metadata.create_all(bind=target_engine,
                                                                tables=[target_table],
                                                                checkfirst=False)
-                                    if not session.id_target_s3:
+                                    if not session_spots[MigSpot.TO_S3]:
                                         # make sure LOB columns are nullable
                                         # (SQLAlchemy fails at that, in certain sitations)
                                         columns_props: dict = result.get(target_table.name).get("columns")
@@ -180,8 +203,8 @@ def migrate_metadata(migration: Migration,
                                                "nullable" not in props.get("features", []):
                                                 props["features"] = props.get("features", [])
                                                 props["features"].append("nullable")
-                                                column_set_nullable(db_type=session.get_target_db().cd_type,
-                                                                    table=f"{session.nm_target_schema}."
+                                                column_set_nullable(db_type=session_spots[MigSpot.TO_RDBMS],
+                                                                    table=f"{session_specs[MigSpec.TO_SCHEMA]}."
                                                                           f"{target_table.name}",
                                                                     column=name,
                                                                     errors=errors)
@@ -199,32 +222,32 @@ def migrate_metadata(migration: Migration,
                                 curr_errors: list[str] = []
                                 view_ddl: str = view_get_ddl(view_name=target_view,
                                                              view_type="M" if target_view in mat_views else "P",
-                                                             source_db=session.get_source_db().cd_engine,
+                                                             source_db=session_spots[MigSpot.FROM_RDBMS],
                                                              source_schema=from_schema,
                                                              target_schema=to_schema,
                                                              errors=errors,
                                                              logger=logger)
                                 if view_ddl:
                                     db_execute(exc_stmt=view_ddl,
-                                               engine=session.get_source_db().cd_engine,
+                                               engine=session_spots[MigSpot.TO_RDBMS],
                                                errors=curr_errors)
                                 # errors ?
                                 if curr_errors:
                                     # yes, report them
                                     errors.extend(curr_errors)
                                     err_msg: str = ("Unable to create view "
-                                                    f"{session.nm_target_schema}.{target_view}")
+                                                    f"{session_specs[MigSpec.TO_SCHEMA]}.{target_view}")
                                     logger.error(msg=err_msg)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",
                                                                         err_msg))
         else:
-            err_msg: str = f"schema not found in RDBMS '{session.get_source_db().cd_engine}'"
+            err_msg: str = f"schema not found in RDBMS {session_spots[MigSpot.FROM_RDBMS]}"
             logger.error(msg=err_msg)
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,
-                                                session.nm_source_schema,
-                                                f"@{InputParam.SOURCE_SCHEMA}",
+                                                session_specs[MigSpec.FROM_SCHEMA],
+                                                "@from-schema",
                                                 err_msg))
     return result

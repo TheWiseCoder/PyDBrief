@@ -29,7 +29,7 @@ from app_constants_old import (
 )
 from migration.pydb_database import db_pool_setup
 from migration.pydb_sessions import get_session_registry
-from migration.pydb_types import name_to_type
+from migration.pydb_types_old import name_to_type
 
 SERVICE_PARAMS: Final[dict[str, list[str]]] = {
     f"/sessions:{HttpMethod.PATCH}": [MigSpec.IS_ACTIVE],
@@ -153,7 +153,7 @@ def validate_rdbms(input_params: dict[str, Any],
             if db_driver:
                 session_registry[db_engine][DbConfig.DRIVER] = db_driver
             # build the connection pool
-            db_pool_setup(rdbms=db_engine,
+            db_pool_setup(db_engine=db_engine,
                           errors=errors)
         else:
             # 145: Invalid, inconsistent, or missing arguments

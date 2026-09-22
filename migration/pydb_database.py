@@ -2,23 +2,24 @@ from logging import Logger
 from pypomes_core import validate_format_error
 from pypomes_db import (
     DbEngine, DbParam, DbConnectionPool, DbPoolEvent,
-    db_get_pool, db_get_param, db_get_view_ddl, db_execute
+    db_get_pool, db_get_param, db_get_type, db_get_view_ddl, db_execute
 )
 from typing import Literal
 
 
-def db_pool_setup(rdbms: DbEngine,
+def db_pool_setup(db_engine: str,
                   errors: list[str]) -> None:
 
-    pool: DbConnectionPool = db_get_pool(engine=rdbms)
+    pool: DbConnectionPool = db_get_pool(engine=db_engine)
     if not pool:
-        pool = DbConnectionPool(rdbms,
+        pool = DbConnectionPool(db_engine,
                                 errors=errors)
         if not errors:
+            db_type: DbEngine = db_get_type(engine=db_engine)
             stmts: list[str] = []
             # fine-tune all database sessions, as needed
             # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
-            match rdbms:
+            match db_engine:
                 case DbEngine.MYSQL:
                     stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
                 case DbEngine.ORACLE:
@@ -34,31 +35,31 @@ def db_pool_setup(rdbms: DbEngine,
 
 
 def schema_create(schema: str,
-                  rdbms: DbEngine,
+                  db_engine: str,
                   errors: list[str],
                   logger: Logger) -> None:
 
-    if rdbms == DbEngine.ORACLE:
+    if db_get_type(engine=db_engine) == DbEngine.ORACLE:
         stmt: str = f"CREATE USER {schema} IDENTIFIED BY {schema}"
     else:
         user: str = db_get_param(key=DbParam.USER,
-                                 engine=rdbms)
+                                 engine=db_engine)
         stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
     db_execute(exc_stmt=stmt,
-               engine=rdbms,
+               engine=db_engine,
                errors=errors)
 
-    logger.debug(msg=f"RDBMS {rdbms}, created schema {schema}")
+    logger.debug(msg=f"RDBMS {db_engine}, created schema {schema}")
 
 
-def column_set_nullable(rdbms: DbEngine,
+def column_set_nullable(db_type: DbEngine,
                         table: str,
                         column: str,
                         errors: list[str]) -> None:
 
     # build the statement
     alter_stmt: str | None = None
-    match rdbms:
+    match db_type:
         case DbEngine.MYSQL:
             pass
         case DbEngine.ORACLE:
@@ -69,13 +70,13 @@ def column_set_nullable(rdbms: DbEngine,
                           f"ALTER COLUMN {column} DROP NOT NULL")
     # execute it
     db_execute(exc_stmt=alter_stmt,
-               engine=rdbms,
+               engine=db_type,
                errors=errors)
 
 
 def view_get_ddl(view_name: str,
                  view_type: Literal["M", "P"],
-                 source_rdbms: DbEngine,
+                 source_db: str,
                  source_schema: str,
                  target_schema: str,
                  errors: list[str],
@@ -84,7 +85,7 @@ def view_get_ddl(view_name: str,
     # obtain the DDL used to create the view
     result: str = db_get_view_ddl(view_type=view_type,
                                   view_name=f"{source_schema}.{view_name}",
-                                  engine=source_rdbms,
+                                  engine=source_db,
                                   errors=errors)
     if result:
         # DDL has been retrieved, modify it to point to the target schema
@@ -117,7 +118,7 @@ def view_get_ddl(view_name: str,
     else:
         # DDL has not been retrieved, report the problem
         err_msg: str = ("unable to retrieve DDL script "
-                        f"for view {source_rdbms}.{source_schema}.{view_name}")
+                        f"for view {source_db}.{source_schema}.{view_name}")
         logger.error(msg=err_msg)
         # 102: Unexpected error: {}
         errors.append(validate_format_error(102,
@@ -125,7 +126,7 @@ def view_get_ddl(view_name: str,
     return result
 
 
-def table_embedded_nulls(rdbms: DbEngine,
+def table_embedded_nulls(db_engine: str,
                          table: str,
                          errors: list[str],
                          logger: Logger) -> None:
@@ -134,7 +135,7 @@ def table_embedded_nulls(rdbms: DbEngine,
     # ("A string literal cannot contain NUL (0x00) characters.")
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem
-        err_msg: str = (f"Table {rdbms}.{table} has control characters embedded in string data, "
+        err_msg: str = (f"Table {db_engine}.{table} has control characters embedded in string data, "
                         f"which are not accepted by the destination database. Please add this "
                         f"table to the 'remove-ctrlchars' migration parameter, and try again.")
         logger.error(msg=err_msg)

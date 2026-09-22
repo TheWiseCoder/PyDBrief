@@ -10,6 +10,7 @@ from flask import (
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from pathlib import Path
+from threading import Thread
 from typing import Any, Final
 
 # must be imported before PyPomes and local packages
@@ -17,8 +18,8 @@ from app_ident import APP_NAME, APP_VERSION, get_env_keys
 
 from pypomes_core import (
     Mimetype, pypomes_versions,
-    dict_clone, dict_jsonify,
-    exc_format, validate_format_errors
+    dict_clone, dict_jsonify, validate_str,
+    exc_format, validate_format_error, validate_format_errors
 )
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
@@ -28,14 +29,22 @@ from pypomes_logging import (
     logging_get_params, logging_log_forward, service_logging
 )
 
-from app_constants import InputParam
-from migration import pydb_migration
+from app_constants import PYDB_DB_ENGINE, InputParam
+from entities.migration import Migration
+from entities.migration_table import MigrationTable
+from entities.session import Session, SessionState
+from entities.s3 import S3
+from migration.pydb_migrator import migrate
 from storage.database_actions import (
     create_database, update_database, delete_database, retrieve_databases
 )
 from storage.migration_actions import (
     create_migration, update_migration, delete_migration,
     retrieve_migrations, verify_migration
+)
+from storage.migration_issue_actions import (
+    create_migration_issue, update_migration_issue,
+    delete_migration_issue, retrieve_migration_issues
 )
 from storage.migration_table_actions import (
     create_migration_table, update_migration_table,
@@ -47,16 +56,6 @@ from storage.s3_actions import (
 from storage.session_actions import (
     create_session, update_session, delete_session, retrieve_sessions
 )
-
-# -------------------------------------------------------------------- #
-from app_constants_old import MigConfig, MigSpec
-from migration.pydb_sessions import get_session_params, get_session_registry, abort_session_migration
-from migration.pydb_migrator import migrate
-from migration.pydb_validator import (
-    assert_expected_params,
-    validate_metrics, validate_spots, validate_steps, validate_specs
-)
-# -------------------------------------------------------------------- #
 
 
 # create the Flask application
@@ -174,9 +173,9 @@ def service_ignore() -> Response:
 
 @flask_app.route(rule="/database",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/database/<cd_engine>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_database(cd_engine: str = None) -> Response:
+@flask_app.route(rule="/database/<engine-id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
+def service_database(engine_id: str = None) -> Response:
     """
     Entry point for handling database engines to use.
 
@@ -191,7 +190,7 @@ def service_database(cd_engine: str = None) -> Response:
       - *db-client*: the client package (Oracle, only)
       - *db-driver*: the database access driver (SQLServer, only)
 
-    :param cd_engine: the identification of the database engine instance
+    :param engine_id: the identification of the database engine instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -199,8 +198,8 @@ def service_database(cd_engine: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if cd_engine:
-        input_params[InputParam.CD_ENGINE] = cd_engine
+    if engine_id:
+        input_params[InputParam.ENGINE_ID] = engine_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -235,9 +234,9 @@ def service_database(cd_engine: str = None) -> Response:
 
 @flask_app.route(rule="/s3",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/s3/<cd_engine>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_s3(cd_engine: str = None) -> Response:
+@flask_app.route(rule="/s3/<engine_id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
+def service_s3(engine_id: str = None) -> Response:
     """
     Entry point for handling S3 engines to use.
 
@@ -251,7 +250,7 @@ def service_s3(cd_engine: str = None) -> Response:
       - *s3-region-name*: the name of the region where the engine is located (AWS only)
       - *s3-secure-access*: whether to use Transport Security Layer (MinIO only)
 
-    :param cd_engine: the identification of the database engine instance
+    :param engine_id: the identification of the database engine instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -259,8 +258,8 @@ def service_s3(cd_engine: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if cd_engine:
-        input_params[InputParam.CD_ENGINE] = cd_engine
+    if engine_id:
+        input_params[InputParam.ENGINE_ID] = engine_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -294,10 +293,10 @@ def service_s3(cd_engine: str = None) -> Response:
 
 
 @flask_app.route(rule="/session",
-                 methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/session/<cd_session>",
+                 methods=[HttpMethod.POST])
+@flask_app.route(rule="/session/<session_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_session(cd_session: str = None) -> Response:
+def service_session(session_id: str = None) -> Response:
     """
     Entry point for handling migration sessions.
 
@@ -309,7 +308,7 @@ def service_session(cd_session: str = None) -> Response:
       - *source-schema*: name of schema in source database
       - *target-schema*: name of schema in target database
 
-    :param cd_session: the identification of the migration session instance
+    :param session_id: the identification of the migration session instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -317,8 +316,8 @@ def service_session(cd_session: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if cd_session:
-        input_params[InputParam.CD_SESSION] = cd_session
+    if session_id:
+        input_params[InputParam.SESSION_ID] = session_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -351,11 +350,11 @@ def service_session(cd_session: str = None) -> Response:
 
 @flask_app.route(rule="/migration",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/migration/<cd_badge>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-@flask_app.route(rule="/migration:verify/<cd_badge>",
+@flask_app.route(rule="/migration/<migration_id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
+@flask_app.route(rule="/migration:verify/<migration_id>",
                  methods=[HttpMethod.GET])
-def service_migration(cd_badge: str = None) -> Response:
+def service_migration(migration_id: str = None) -> Response:
     """
     Entry point for handling migrations.
 
@@ -385,7 +384,7 @@ def service_migration(cd_badge: str = None) -> Response:
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
-    :param cd_badge: the migration instance
+    :param migration_id: he identification of the migration instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -393,8 +392,8 @@ def service_migration(cd_badge: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if cd_badge:
-        input_params[InputParam.CD_BADGE] = cd_badge
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -428,12 +427,68 @@ def service_migration(cd_badge: str = None) -> Response:
     return result
 
 
+@flask_app.route(rule="/migration_issue",
+                 methods=[HttpMethod.POST])
+@flask_app.route(rule="/migration_issue/<migration_id>/<table_id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
+def service_migration_issue(migration_id: str = None,
+                            table_id: str = None) -> Response:
+    """
+    Entry point for handling migration issues.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *table*: identifies the migration table
+      - *issue*: the text of the issue
+
+    :param migration_id: the migration instance identification
+    :param table_id: the name of migration table
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
+    if table_id:
+        input_params[InputParam.TABLE_ID] = table_id
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] | None = None
+    match request.method:
+        case HttpMethod.GET:
+            reply = retrieve_migration_issues(input_params=input_params,
+                                              errors=errors)
+        case HttpMethod.POST:
+            create_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.PATCH:
+            update_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.DELETE:
+            delete_migration_issue(input_params=input_params,
+                                   errors=errors)
+    # build the response
+    result: Response = _build_response(reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
 @flask_app.route(rule="/migration_table",
                  methods=[HttpMethod.POST])
-@flask_app.route(rule="/migration_table/<nm_badge>/<nm_table>",
+@flask_app.route(rule="/migration_table/<migration_id>/<table_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_migration_table(nm_badge: str = None,
-                            nm_table: str = None) -> Response:
+def service_migration_table(migration_id: str = None,
+                            table_id: str = None) -> Response:
     """
     Entry point for handling migration tables.
 
@@ -452,8 +507,8 @@ def service_migration_table(nm_badge: str = None,
       - *override-columns*: optional list of columns with forced migration types
       - *remove-ctrlchars*: optional list of columns with embedded control characters in its data
 
-    :param nm_badge: the migration instance
-    :param nm_table: the migration table
+    :param migration_id: the migration instance identification
+    :param table_id: the name of the migration table
     :return: the operation outcome
     """
     # initialize the errors list
@@ -461,10 +516,10 @@ def service_migration_table(nm_badge: str = None,
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if nm_badge:
-        input_params[InputParam.CD_BADGE] = nm_badge
-    if nm_table:
-        input_params[InputParam.CD_TABLE] = nm_table
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
+    if table_id:
+        input_params[InputParam.TABLE_ID] = table_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -494,9 +549,9 @@ def service_migration_table(nm_badge: str = None,
     return result
 
 
-@flask_app.route(rule="/migrate/<nm_badge>",
+@flask_app.route(rule="/migrate/<migration_id>",
                  methods=[HttpMethod.GET])
-def service_migrate(nm_badge: str = None) -> Response:
+def service_migrate(migration_id: str = None) -> Response:
     """
     Initiate or abort a migration operation.
 
@@ -507,159 +562,72 @@ def service_migrate(nm_badge: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = http_get_parameters(request=request)
-    if nm_badge:
-        input_params[InputParam.BADGE] = nm_badge
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
 
     # log the request
     msg: str = __log_init(request=request,
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    reply: dict[StrEnum | str, Any] = None
-
-
-@flask_app.route(rule="/migrate",
-                 methods=[HttpMethod.POST])
-@flask_app.route(rule="/migrate/<session_id>",
-                 methods=[HttpMethod.DELETE])
-def service_migrate_old(session_id: str = None) -> Response:
-    """
-    Initiate or abort a migration operation.
-
-    :return: *Response* with the operation outcome
-    """
-    # initialize the errors list
-    errors: list[str] = []
-
-    # retrieve and validate the input parameters
-    input_params: dict[str, str] = get_session_params(request=request,
-                                                      session_id=session_id,
-                                                      errors=errors)
-    # log the request
-    msg: str = __log_init(request=request,
-                          input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
-
-    assert_expected_params(service="/migrate",
-                           method=request.method,
-                           input_params=input_params,
-                           errors=errors)
-
-    session_id: str = input_params.get(MigSpec.SESSION_ID)
-    reply: dict[str, Any] | None = None
-    if not errors:
-        if request.method == HttpMethod.POST:
-            reply = migrate_data(session_id=session_id,
-                                 input_params=input_params,
-                                 base_url=f"{request.scheme}://{request.host}",
-                                 requester=request.headers.get("X-Forwarded-For",
-                                                               request.remote_addr),
-                                 errors=errors)
-        elif abort_session_migration(session_id=session_id,
-                                     errors=errors):
-            reply = {
-                "status": f"Migration in session '{session_id}' marked for abortion"
-            }
-
+    # obtain the migration instance
+    migration_id: str = validate_str(source=input_params,
+                                     attr=InputParam.MIGRATION_ID,
+                                     max_length=64,
+                                     errors=errors)
+    if migration_id:
+        # obtain migration instance
+        migration: Migration = Migration(None,
+                                         type[list[MigrationTable]],
+                                         nm_badge=migration_id,
+                                         db_engine=PYDB_DB_ENGINE,
+                                         errors=errors)
+        if not errors and migration.ts_finish:
+            errors.append(validate_format_error(100,
+                                                f"Migration '{migration_id}' has finished"))
+        if not errors:
+            # obtain session instance
+            session: Session = Session(migration.id_session,
+                                       type[S3],
+                                       db_engine=PYDB_DB_ENGINE,
+                                       errors=errors)
+            if not errors:
+                if session.cd_state == SessionState.FINISHED:
+                    errors.append(validate_format_error(100,
+                                                        f"Session '{session.cd_session}' has no outstanding migration"))
+                elif session.cd_state == SessionState.CREATED:
+                    session.cd_state = SessionState.STARTED
+                    session.update(db_engine=PYDB_DB_ENGINE,
+                                   errors=errors)
+                    # make sure database instancess are available
+                    _source_db = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                                                       errors=errors)
+                    if not errors:
+                        _target_db = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+                                                           errors=errors)
+            # launch the migration
+            if not errors:
+                try:
+                    mig_thread: Thread = Thread(target=migrate,
+                                                kwargs={"migration": migration,
+                                                        "session": session,
+                                                        "app_name": APP_NAME,
+                                                        "app_version": APP_VERSION,
+                                                        "base_url": f"{request.scheme}://{request.host}",
+                                                        "logger": PYPOMES_LOGGER})
+                    mig_thread.start()
+                except Exception as e:
+                    # 100: {}
+                    exc_err: str = exc_format(exc=e,
+                                              exc_info=sys.exc_info())
+                    errors.append(validate_format_error(100,
+                                                        f"Error launching migration '{migration_id}': '{exc_err}'"))
     # build the response
-    result: Response = _build_response_old(client_id=input_params.get(MigSpec.CLIENT_ID),
-                                           reply=reply,
-                                           errors=errors)
+    result: Response = _build_response(reply=None,
+                                       errors=errors)
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
 
-    return result
-
-
-def migrate_data(session_id: str,
-                 input_params: dict[str, Any],
-                 base_url: str,
-                 requester: str,
-                 errors: list[str]) -> dict[str, Any]:
-    """
-    Migrate the specified schema/tables/views/indexes from the source to the target RDBMS.
-
-    Sources and targets for the migration:
-      - *from-rdbms*: the source RDBMS for the migration
-      - *from-schema*: the source schema for the migration
-      - *to-rdbms*: the destination RDBMS for the migration
-      - *to-schema*: the destination schema for the migration
-      - *to-s3*: optionally, the destination cloud storage for the LOBs
-
-    Steps of migration to be carried out:
-      - *migrate-metadata*: migrate the schema's metadata (this creates or transforms the destination schema)
-      - *migrate-plaindata*: migrate non-LOB data
-      - *migrate-lobdata*: migrate LOBs (large binary objects)
-      - *correlate-plaindata*: make sure tables in target and source databases have the same PK content
-      - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
-      - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
-
-    Migration specs:
-      - *process-indexes*: whether to migrate indexes (defaults to *False*)
-      - *process-views*: whether to migrate views (defaults to *False*)
-      - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
-      - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
-      - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
-      - *flatten-storage*: whether to omit path on LOB migration to S3 storage
-      - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
-      - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
-      - *exclude-constraints*: optional list of constraints not to migrate
-      - *incremental-migration*: optional list of tables for which migration is to be carried out incrementally
-      - *remove-ctrlchars*: optional list of tables having columns with embedded control characters in string data
-      - *exclude-columns*: optional list of table columns not to migrate
-      - *override-columns*: optional list of columns with forced migration types
-      - *omit_defaults*: optional list of columns whose default values are to be imitted
-      - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
-      - *named-lobdata*: optional list of LOB columns and their associated names and extensions
-      - *migration-badge*: optional name for migration (used on JSON and log file creation)
-      - *session-id*: optional session identification, defaults to the client's active session
-
-    These are noteworthy:
-      - the parameters *include-relations* and *exclude-relations* are mutually exclusive
-      - if *migrate-plaindata* is set, it is assumed that metadata is also being, or has already been, migrated
-      - if *migrate-lobdata* is set, and *to-s3* is not, it is assumed that plain data are also being,
-        or have already been, migrated.
-
-    :param session_id: the session identification
-    :param input_params: the input parameters
-    :param base_url: PyDBrief's base access address
-    :param requester: origin of the reuest
-    :param errors: incidental errors
-    :return: *Response* with the operation outcome
-    """
-    # initialize the return variable
-    result: dict[str, Any] | None = None
-
-    # validate the migration spots
-    validate_spots(input_params=input_params,
-                   session_id=session_id,
-                   errors=errors)
-
-    # validate the migration steps
-    validate_steps(input_params=input_params,
-                   session_id=session_id,
-                   errors=errors)
-
-    # validate the migration specs
-    validate_specs(input_params=input_params,
-                   session_id=session_id,
-                   errors=errors)
-
-    # validate the migration metrics
-    validate_metrics(input_params=get_session_registry(session_id=session_id)[MigConfig.METRICS],
-                     session_id=session_id,
-                     errors=errors)
-
-    # is migration possible ?
-    if not errors:
-        # yes, migrate the data
-        result = migrate(session_id=session_id,
-                         app_name=APP_NAME,
-                         base_url=base_url,
-                         requester=requester,
-                         app_version=APP_VERSION,
-                         errors=errors,
-                         logger=PYPOMES_LOGGER)
     return result
 
 
@@ -701,7 +669,7 @@ def handle_exception(exc: Exception) -> Response:
     return result
 
 
-def _build_response(reply: dict,
+def _build_response(reply: dict[str, Any] | None,
                     errors: list[str]) -> Response:
 
     # declare the return variable
@@ -718,27 +686,6 @@ def _build_response(reply: dict,
             result = jsonify(reply)
         else:
             result = Response(status=HttpStatus.NO_CONTENT)
-    return result
-
-
-def _build_response_old(client_id: str,
-                        reply: dict,
-                        errors: list[str]) -> Response:
-
-    # declare the return variable
-    result: Response
-
-    if errors:
-        reply_err: dict = {"errors": validate_format_errors(errors)}
-        if isinstance(reply, dict):
-            reply_err.update(reply)
-        result = jsonify(reply_err)
-        result.status_code = HttpStatus.BAD_REQUEST
-    else:
-        # 'reply' might be 'None'
-        result = jsonify(reply)
-    result.set_cookie(key="client-id",
-                      value=client_id)
     return result
 
 

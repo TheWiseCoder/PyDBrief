@@ -7,7 +7,7 @@ from pypomes_db import DbEngine, db_connect, db_commit, db_sync_data
 from app_constants_old import (
     MigConfig, MigMetric, MigIncremental, MigSpot, MigSpec
 )
-from migration import pydb_types
+from migration import pydb_types_old
 from migration.pydb_database import table_embedded_nulls
 from migration.pydb_sessions import assert_session_abort, get_session_registry
 
@@ -99,7 +99,7 @@ def synchronize_plain(session_id: str,
                                   target_conn=db_conn,
                                   errors=op_errors) or (0, 0, 0)
             if op_errors:
-                table_embedded_nulls(rdbms=target_db,
+                table_embedded_nulls(db_engine=target_db,
                                      table=target_table,
                                      errors=op_errors,
                                      logger=logger)

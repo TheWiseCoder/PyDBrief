@@ -2,19 +2,24 @@ import threading
 from concurrent import futures
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
+from enum import StrEnum
 from logging import Logger
 from pypomes_core import (
     TZ_LOCAL, timestamp_duration, validate_format_error
 )
-from pypomes_db import db_is_reserved_word, db_count, db_table_exists, db_migrate_data
+from pypomes_db import (
+    DbEngine, db_is_reserved_word,
+    db_count, db_table_exists, db_migrate_data
+)
 from typing import Any
 
-from entities.migration import Migration
-from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT
-from entities.session import Session, sessions_aborting
+from app_constants_old import (
+    MigConfig, MigSpot, MigSpec, MigMetric, MigIncremental
+)
 from migration.pydb_common import build_channel_data
 from migration.pydb_database import table_embedded_nulls
-from migration.pydb_types import is_lob_column
+from migration.pydb_sessions import assert_session_abort, get_session_registry
+from migration.pydb_types_old import is_lob_column
 
 # structure of the thread registry:
 # plaindata_registry: dict[int, dict[str, Any]] = {
@@ -37,8 +42,8 @@ plaindata_registry: dict[int, dict[str, Any]] = {}
 plaindata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_plaindata(migration: Migration,
-                      session: Session,
+def migrate_plaindata(session_id: str,
+                      incr_migrations: dict[str, dict[MigIncremental, int]],
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       migration_warnings: list[str],
@@ -57,27 +62,33 @@ def migrate_plaindata(migration: Migration,
             "child-threads": []
         }
 
-    # retrieve the source and target RDBMS engines, and the channel count
-    source_db: str = session.get_source_db().cd_engine
-    target_db: str = session.get_target_db().cd_engine
-    channel_count: int = migration.nr_plaindata_channels
+    # retrieve the registry data for the session
+    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
+    session_metrics: dict[MigMetric, int] = session_registry[MigConfig.METRICS]
+    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
+    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
+
+    # retrieve the source and target RDBMS engines
+    source_engine: DbEngine = session_spots[MigSpot.FROM_RDBMS]
+    target_engine: DbEngine = session_spots[MigSpot.TO_RDBMS]
+
+    # retrieve the channel and batch specs
+    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+    batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
+    batch_size_out: int = session_metrics[MigMetric.BATCH_SIZE_OUT]
 
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if assert_session_abort(session_id=session_id,
+                                errors=errors,
+                                logger=logger):
             break
 
-        # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
-        batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[1]
-        batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[1]
-
-        source_table: str = f"{session.nm_source_schema}.{table_name}"
-        target_table: str = f"{session.nm_target_schema}.{table_name}"
+        source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
+        target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
+        has_ctrlchars: bool = table_name in (session_specs[MigSpec.REMOVE_CTRLCHARS] or [])
         with plaindata_lock:
             plaindata_registry[mother_thread][source_table] = {
                 "table-count": 0,
@@ -86,19 +97,22 @@ def migrate_plaindata(migration: Migration,
 
         # verify whether the target table exists
         if db_table_exists(table_name=target_table,
-                           engine=target_db,
+                           engine=target_engine,
                            errors=errors):
             # obtain limit and offset
-            limit_count: int = (migration_table.nr_incremental_count if migration_table else 0) or 0
-            offset_count: int = (migration_table.nr_incremental_offset if migration_table else 0) or 0
+            limit_count: int = 0
+            offset_count: int = 0
+            if table_name in incr_migrations:
+                limit_count = incr_migrations[table_name].get(MigIncremental.COUNT)
+                offset_count = incr_migrations[table_name].get(MigIncremental.OFFSET)
 
             # is a nonempty target table an issue ?
-            if (migration.is_skip_nonempty and
+            if (session_specs[MigSpec.SKIP_NONEMPTY] and
                     not limit_count and (db_count(table=target_table,
-                                                  engine=target_db,
+                                                  engine=target_engine,
                                                   errors=errors) or 0) > 0):
                 # yes, skip it
-                logger.debug(msg=f"Skipped nonempty {target_db}.{target_table}")
+                logger.debug(msg=f"Skipped nonempty {target_engine}.{target_table}")
                 table_data["plain-status"] = "skipped"
 
             elif not errors:
@@ -109,7 +123,7 @@ def migrate_plaindata(migration: Migration,
 
                 # count migrateable tuples on source table
                 table_count: int = (db_count(table=source_table,
-                                             engine=source_db,
+                                             engine=source_engine,
                                              errors=errors) or 0) - offset_count
                 if table_count > 0:
                     identity_column: str | None = None
@@ -124,7 +138,7 @@ def migrate_plaindata(migration: Migration,
                             features: list[str] = column_data.get("features", [])
                             source_columns.append(column_name)
                             if db_is_reserved_word(word=column_name,
-                                                   engine=target_db):
+                                                   engine=target_engine):
                                 target_columns.append(f'"{column_name}"')
                             else:
                                 target_columns.append(column_name)
@@ -135,7 +149,7 @@ def migrate_plaindata(migration: Migration,
 
                     if not orderby_columns:
                         warn_msg: str = ""
-                        if migration.nr_plaindata_channels > 1:
+                        if session_metrics[MigMetric.PLAINDATA_CHANNELS] > 1:
                             warn_msg = "Multi-channel migration"
                         elif limit_count:
                             warn_msg = "Incremental migration"
@@ -144,28 +158,28 @@ def migrate_plaindata(migration: Migration,
                         elif batch_size_in:
                             warn_msg = "Batch reading"
                         if warn_msg:
-                            warn_msg += f" specified for table having no PKs: {source_db}.{source_table}"
+                            warn_msg += f" specified for table having no PKs: {source_engine}.{source_table}"
                             migration_warnings.append(warn_msg)
                             logger.warning(msg=warn_msg)
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(channel_size=migration.nr_plaindata_channel_size,
+                        build_channel_data(channel_size=session_metrics[MigMetric.PLAINDATA_CHANNEL_SIZE],
                                            table_count=table_count,
                                            offset_count=offset_count,
                                            limit_count=limit_count)
                     max_workers: int = min(channel_count, len(channel_data))
                     tot_count: int = sum(i[1] for i in channel_data)
                     logger.debug(msg=f"Started migrating {tot_count} tuples from "
-                                     f"{source_db}.{source_table} to {target_db}.{target_table}, "
+                                     f"{source_engine}.{source_table} to {target_engine}.{target_table}, "
                                      f"in {len(channel_data)} steps, using {max_workers} channels")
                     if max_workers == 1:
                         # execute single task in current thread
                         _migrate_plain(mother_thread=mother_thread,
-                                       source_db=source_db,
+                                       source_engine=source_engine,
                                        source_table=source_table,
                                        source_columns=source_columns,
-                                       target_db=target_db,
+                                       target_engine=target_engine,
                                        target_table=target_table,
                                        target_columns=target_columns,
                                        orderby_clause=", ".join(orderby_columns),
@@ -174,7 +188,7 @@ def migrate_plaindata(migration: Migration,
                                        identity_column=identity_column,
                                        batch_size_in=batch_size_in,
                                        batch_size_out=batch_size_out,
-                                       has_ctrlchars=migration_table.is_remove_ctrlchars)
+                                       has_ctrlchars=has_ctrlchars)
                     else:
                         # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -182,10 +196,10 @@ def migrate_plaindata(migration: Migration,
                             for channel_datum in channel_data:
                                 future: Future = executor.submit(_migrate_plain,
                                                                  mother_thread=mother_thread,
-                                                                 source_db=source_db,
+                                                                 source_engine=source_engine,
                                                                  source_table=source_table,
                                                                  source_columns=source_columns,
-                                                                 target_db=target_db,
+                                                                 target_engine=target_engine,
                                                                  target_table=target_table,
                                                                  target_columns=target_columns,
                                                                  orderby_clause=", ".join(orderby_columns),
@@ -194,7 +208,7 @@ def migrate_plaindata(migration: Migration,
                                                                  identity_column=identity_column,
                                                                  batch_size_in=batch_size_in,
                                                                  batch_size_out=batch_size_out,
-                                                                 has_ctrlchars=migration_table.is_remove_ctrlchars)
+                                                                 has_ctrlchars=has_ctrlchars)
                                 task_futures.append(future)
 
                             # wait for all task futures to complete, then shutdown down the executor
@@ -207,7 +221,7 @@ def migrate_plaindata(migration: Migration,
                             status = "error"
                             errors.extend(plaindata_registry[mother_thread][source_table]["errors"])
                     if status == "error":
-                        table_embedded_nulls(db_engine=target_db,
+                        table_embedded_nulls(db_engine=target_engine,
                                              table=target_table,
                                              errors=errors,
                                              logger=logger)
@@ -223,14 +237,14 @@ def migrate_plaindata(migration: Migration,
                     "plain-performance": f"{count/secs:.2f} tuples/s"
                 })
                 logger.debug(msg=f"Migrated {count} plaindata in table {table_name}, "
-                                 f"from {source_db} to {target_db}, "
+                                 f"from {source_engine} to {target_engine}, "
                                  f"status {status}, duration {duration}")
                 result += count
 
         elif not errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "
-                            f"table {target_db}.{target_table} was not found")
+                            f"table {target_engine}.{target_table} was not found")
             logger.error(msg=err_msg)
             # 101: {}
             errors.append(validate_format_error(101,
@@ -247,10 +261,10 @@ def migrate_plaindata(migration: Migration,
 
 
 def _migrate_plain(mother_thread: int,
-                   source_db: str,
+                   source_engine: DbEngine,
                    source_table: str,
                    source_columns: list[str],
-                   target_db: str,
+                   target_engine: DbEngine,
                    target_table: str,
                    target_columns: list[str],
                    orderby_clause: str,
@@ -266,10 +280,10 @@ def _migrate_plain(mother_thread: int,
         plaindata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
-    count: int = db_migrate_data(source_engine=source_db,
+    count: int = db_migrate_data(source_engine=source_engine,
                                  source_table=source_table,
                                  source_columns=source_columns,
-                                 target_engine=target_db,
+                                 target_engine=target_engine,
                                  target_table=target_table,
                                  target_columns=target_columns,
                                  orderby_clause=orderby_clause,

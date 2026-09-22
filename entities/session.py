@@ -15,6 +15,9 @@ from entities.s3 import S3
 from app_constants import PYDB_DB_ENGINE, InputParam
 
 
+sessions_aborting: set[str] = set()
+
+
 class SessionState(StrEnum):
     """
     Possible states for a migration session.
@@ -58,7 +61,7 @@ class Session(PySob):
 
     def __init__(self,
                  __id: int = None,
-                 __references: type[Database | S3 | list[Migration]] = None,
+                 __references: type[S3 | list[Migration]] = None,  # 'type[Database]' would apply to source DB, only
                  /,
                  cd_session: str = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,

@@ -14,18 +14,27 @@ def create_migration_issue(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
-        migration_issue_params: dict[str, Any] = \
-            __validate_input(input_params=input_params,
-                             valid_params=[i[0] for i in MigrationIssue.ATTRS_INPUT],
-                             op=OpType.CREATE,
-                             errors=errors)
+        valid_params: list[str] = [i[0] for i in MigrationIssue.ATTRS_INPUT]
+        migration_issue_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                  valid_params=valid_params,
+                                                                  op=OpType.CREATE,
+                                                                  db_conn=db_conn,
+                                                                  errors=errors)
         if not errors:
-            # create and persist the migration issue
-            migration_issue: MigrationIssue = MigrationIssue()
-            migration_issue.set(migration_issue_params)
-            migration_issue.insert(db_engine=PYDB_DB_ENGINE,
-                                   db_conn=db_conn,
-                                   errors=errors)
+            # create and persist the migration issue instance
+            values: list[int] = Migration.get_values(
+                Migration.Db.ID,
+                where_data={Migration.Db.NM_BADGE: migration_issue_params.pop(InputParam.BADGE)},
+                db_engine=PYDB_DB_ENGINE,
+                db_conn=db_conn,
+                errors=errors)
+            if values:
+                migration_issue: MigrationIssue = MigrationIssue()
+                migration_issue.id_migration = values[0]
+                migration_issue.set(migration_issue_params)
+                migration_issue.insert(db_engine=PYDB_DB_ENGINE,
+                                       db_conn=db_conn,
+                                       errors=errors)
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,
@@ -41,70 +50,74 @@ def create_migration_issue(input_params: dict[str, Any],
 def update_migration_issue(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
-    # validate the input data
-    valid_params: list[str] = [InputParam.CD_ISSUE] + [i[0] for i in MigrationIssue.ATTRS_INPUT]
-    migration_issue_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                              valid_params=valid_params,
-                                                              op=OpType.UPDATE,
-                                                              errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
-            migration_issue: MigrationIssue = \
-                MigrationIssue(migration_issue_params.get(InputParam.CD_ISSUE),
-                               db_engine=PYDB_DB_ENGINE,
-                               db_conn=db_conn,
-                               errors=errors)
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        valid_params: list[str] = [InputParam.CD_ISSUE] + [i[0] for i in MigrationIssue.ATTRS_INPUT]
+        migration_issue_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                  valid_params=valid_params,
+                                                                  op=OpType.UPDATE,
+                                                                  db_conn=db_conn,
+                                                                  errors=errors)
+        if not errors:
+            # obtain and update the migration issue instance
+            migration_issue: MigrationIssue = migration_issue_params.pop(InputParam.MIGRATION_ISSUE)
+            if InputParam.BADGE in migration_issue_params:
+                values: list[int] = Migration.get_values(
+                    Migration.Db.ID,
+                    where_data={Migration.Db.NM_BADGE: migration_issue_params.pop(InputParam.BADGE)},
+                    db_engine=PYDB_DB_ENGINE,
+                    db_conn=db_conn,
+                    errors=errors)
+                if values:
+                    migration_issue.id_migration = values[0]
             if not errors:
                 migration_issue.set(data=migration_issue_params)
                 migration_issue.update(db_engine=PYDB_DB_ENGINE,
                                        db_conn=db_conn,
                                        errors=errors)
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def delete_migration_issue(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
-    # validate the input data
-    migration_issue_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                              valid_params=[InputParam.CD_ISSUE],
-                                                              op=OpType.DELETE,
-                                                              errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
-            migration_issue: MigrationIssue = MigrationIssue(migration_issue_params.get(InputParam.CD_ISSUE),
-                                                             db_engine=PYDB_DB_ENGINE,
-                                                             db_conn=db_conn,
-                                                             errors=errors)
-            if not errors:
-                migration_issue.delete(db_engine=PYDB_DB_ENGINE,
-                                       db_conn=db_conn,
-                                       errors=errors)
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        migration_issue_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                  valid_params=[InputParam.ISSUE_ID],
+                                                                  op=OpType.DELETE,
+                                                                  db_conn=db_conn,
+                                                                  errors=errors)
+        if not errors:
+            migration_issue: MigrationIssue = migration_issue_params.pop(InputParam.MIGRATION_ISSUE)
+            migration_issue.delete(db_engine=PYDB_DB_ENGINE,
+                                   db_conn=db_conn,
+                                   errors=errors)
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def retrieve_migration_issues(input_params: dict[str, Any],
@@ -120,34 +133,31 @@ def retrieve_migration_issues(input_params: dict[str, Any],
         # validate the input data
         migration_issue_params: dict[str, Any] = \
             __validate_input(input_params=input_params,
-                             valid_params=[InputParam.S3_ENGINE, InputParam.S3_TYPE],
+                             valid_params=[InputParam.BADGE, InputParam.TYPE],
                              op=OpType.RETRIEVE,
+                             db_conn=db_conn,
                              errors=errors)
         if not errors:
-            where_data: dict[str, Any] | None = None
-            if InputParam.CD_ISSUE in migration_issue_params:
-                where_data = {MigrationIssue.Db.ID: migration_issue_params.get(InputParam.CD_ISSUE)}
-            elif InputParam.CD_BADGE in migration_issue_params:
-                values: list[int] = Migration.get_values(
-                    attrs=Migration.Db.ID,
-                    where_data={Migration.Db.NM_BADGE: migration_issue_params.get(InputParam.CD_BADGE)},
-                    db_engine=PYDB_DB_ENGINE,
-                    db_conn=db_conn)
-                if values:
-                    where_data = {MigrationIssue.Db.ID_MIGRATION: values[0]}
+            values: list[int] = Migration.get_values(
+                attrs=Migration.Db.ID,
+                where_data={Migration.Db.NM_BADGE: migration_issue_params.get(InputParam.BADGE)},
+                db_engine=PYDB_DB_ENGINE,
+                db_conn=db_conn,
+                errors=errors)
+            if values:
+                where_data: dict[str, Any] = {MigrationIssue.Db.ID_MIGRATION: values[0]}
+                if InputParam.TYPE in migration_issue_params:
+                    where_data[MigrationIssue.Db.CD_TYPE] = migration_issue_params[InputParam.TYPE]
 
-            if where_data:
+                result[InputParam.MIGRATION] = migration_issue_params.get(InputParam.BADGE)
+                result[InputParam.ISSUES]: list[dict[str, Any]] = []
                 migration_issues: list[MigrationIssue] = MigrationIssue.retrieve(where_data=where_data,
                                                                                  db_engine=PYDB_DB_ENGINE,
                                                                                  db_conn=db_conn,
                                                                                  errors=errors)
                 for migration_issue in migration_issues or []:
-                    mig_issue_data: dict[str, Any] = migration_issue.get_inputs()
-                    result[migration_issue.id] = mig_issue_data
-            else:
-                # 100: {} (omits the attribute "code")
-                errors.append(validate_format_error(100,
-                                                    "Either 'CD-ISSUE' or 'BADGE' must be specified"))
+                    result[InputParam.ISSUES].append(migration_issue.get_inputs())
+
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,
@@ -165,6 +175,7 @@ def retrieve_migration_issues(input_params: dict[str, Any],
 def __validate_input(input_params: dict[str, Any],
                      valid_params: list[str],
                      op: OpType,
+                     db_conn: Any,
                      errors: list[str]) -> dict[str, Any]:
 
     # initialize the return variable
@@ -175,21 +186,25 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
-    # this identifies the migration issue instance
-    cd_issue: int = validate_int(source=input_params,
-                                 attr=InputParam.CD_ISSUE,
+    # identify the migration issue instance (in UPDATE and DELETE operations)
+    issue_id: int = validate_int(source=input_params,
+                                 attr=InputParam.ISSUE_ID,
                                  required=op in [OpType.UPDATE, OpType.DELETE],
                                  errors=errors)
-    if cd_issue:
-        result[InputParam.CD_ISSUE] = cd_issue
+    if issue_id:
+        result[InputParam.ISSUE] = MigrationIssue(issue_id,
+                                                  db_engine=PYDB_DB_ENGINE,
+                                                  db_conn=db_conn,
+                                                  errors=errors)
 
-    # this identifies the migration instance
-    cd_badge: str = validate_str(source=input_params,
-                                 attr=InputParam.BADGE,
-                                 errors=errors)
-    if cd_badge:
-        result[InputParam.CD_BADGE] = cd_badge
+    badge: str = validate_str(source=input_params,
+                              attr=InputParam.BADGE,
+                              required=op in [OpType.CREATE, OpType.RETRIEVE],
+                              errors=errors)
+    if badge:
+        result[InputParam.BADGE] = badge
 
+    # HAZARD: 'type' is a builtin name
     cd_type: IssueType = validate_enum(source=input_params,
                                        attr=InputParam.TYPE,
                                        enum_class=IssueType,
@@ -198,12 +213,12 @@ def __validate_input(input_params: dict[str, Any],
     if cd_type:
         result[MigrationIssue.Db.CD_TYPE] = cd_type
 
-    # this is the value assigned to the attribute
-    ds_issue: str = validate_str(source=input_params,
-                                 attr=InputParam.DESCRIPTION,
-                                 max_length=64,
-                                 errors=errors)
-    if ds_issue:
-        result[MigrationIssue.Db.DS_ISSUE] = ds_issue
+    issue: str = validate_str(source=input_params,
+                              attr=InputParam.ISSUE,
+                              max_length=2048,
+                              required=op == OpType.CREATE,
+                              errors=errors)
+    if issue:
+        result[MigrationIssue.Db.DS_ISSUE] = issue
 
     return result

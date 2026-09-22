@@ -1,5 +1,7 @@
 from typing import Any
-from pypomes_core import validate_format_error, validate_int, validate_str, validate_strs
+from pypomes_core import (
+    validate_format_error, validate_bool, validate_int, validate_str, validate_strs
+)
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
@@ -12,6 +14,7 @@ from entities.session import Session
 
 def create_migration_table(input_params: dict[str, Any],
                            errors: list[str]) -> None:
+
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                               errors=errors)
@@ -21,14 +24,21 @@ def create_migration_table(input_params: dict[str, Any],
             __validate_input(input_params=input_params,
                              valid_params=[i[0] for i in MigrationTable.ATTRS_INPUT],
                              op=OpType.CREATE,
+                             db_conn=db_conn,
                              errors=errors)
         if not errors:
             # create and persist the migration
-            migration_table: MigrationTable = MigrationTable()
-            migration_table.set(migration_table_params)
-            migration_table.insert(db_engine=PYDB_DB_ENGINE,
-                                   db_conn=db_conn,
-                                   errors=errors)
+            migration: Migration = Migration(nm_badge=migration_table_params.pop(InputParam.BADGE),
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
+            if not errors:
+                migration_table: MigrationTable = MigrationTable()
+                migration_table.id_migration = migration.id
+                migration_table.set(migration_table_params)
+                migration_table.insert(db_engine=PYDB_DB_ENGINE,
+                                       db_conn=db_conn,
+                                       errors=errors)
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,
@@ -44,36 +54,25 @@ def create_migration_table(input_params: dict[str, Any],
 def update_migration_table(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
-    # validate the input data
-    valid_params: list[str] = [InputParam.CD_BADGE, InputParam.CD_TABLE] + [i[0] for i in MigrationTable.ATTRS_INPUT]
-    migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                              valid_params=valid_params,
-                                                              op=OpType.UPDATE,
-                                                              errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
-            values: list[int] = Migration.get_values(
-                attrs=Migration.Db.ID,
-                where_data={Migration.Db.NM_BADGE: migration_table_params.get(InputParam.BADGE)},
-                db_engine=PYDB_DB_ENGINE,
-                db_conn=db_conn,
-                errors=errors
-            )
-            if values:
-                migration_table: MigrationTable = \
-                    MigrationTable(id_migration=values[0],
-                                   nm_table=migration_table_params.get(InputParam.CD_TABLE),
-                                   db_engine=PYDB_DB_ENGINE,
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        valid_params: list[str] = ([InputParam.MIGRATION_ID, InputParam.TABLE_ID] +
+                                   [i[0] for i in MigrationTable.ATTRS_INPUT])
+        migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                  valid_params=valid_params,
+                                                                  op=OpType.UPDATE,
+                                                                  db_conn=db_conn,
+                                                                  errors=errors)
+        if not errors:
+            # obtain and update the migration table
+            migration_table: MigrationTable = migration_table_params.pop(InputParam.MIGRATION_TABLE)
+            migration_table.set(data=migration_table_params)
+            migration_table.update(db_engine=PYDB_DB_ENGINE,
                                    db_conn=db_conn,
                                    errors=errors)
-                if not errors:
-                    migration_table.set(data=migration_table_params)
-                    migration_table.update(db_engine=PYDB_DB_ENGINE,
-                                           db_conn=db_conn,
-                                           errors=errors)
             # conclude the operation
             if errors:
                 db_rollback(connection=db_conn,
@@ -89,44 +88,33 @@ def update_migration_table(input_params: dict[str, Any],
 def delete_migration_table(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
-    # validate the input data
-    migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                              valid_params=[InputParam.BADGE, InputParam.TABLE],
-                                                              op=OpType.DELETE,
-                                                              errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        valid_params: list[str] = ([InputParam.MIGRATION_ID, InputParam.TABLE_ID])
+        migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                  valid_params=valid_params,
+                                                                  op=OpType.DELETE,
+                                                                  db_conn=db_conn,
+                                                                  errors=errors)
+        if not errors:
             # obtain and delete the migration table
-            values: list[int] = Migration.get_values(
-                attrs=Migration.Db.ID,
-                where_data={Migration.Db.NM_BADGE: migration_table_params.get(InputParam.BADGE)},
-                db_engine=PYDB_DB_ENGINE,
-                db_conn=db_conn,
-                errors=errors
-            )
-            if values:
-                migration_table: MigrationTable = MigrationTable(id_migration=values[0],
-                                                                 nm_table=migration_table_params.get(InputParam.TABLE),
-                                                                 db_engine=PYDB_DB_ENGINE,
-                                                                 db_conn=db_conn,
-                                                                 errors=errors)
-                if not errors:
-                    migration_table.delete(db_engine=PYDB_DB_ENGINE,
-                                           db_conn=db_conn,
-                                           errors=errors)
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+            migration_table: MigrationTable = migration_table_params.pop(InputParam.MIGRATION_TABLE)
+            migration_table.delete(db_engine=PYDB_DB_ENGINE,
+                                   db_conn=db_conn,
+                                   errors=errors)
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def retrieve_migration_tables(input_params: dict[str, Any],
@@ -141,17 +129,23 @@ def retrieve_migration_tables(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                                  valid_params=[InputParam.SESSION, InputParam.BADGE],
+                                                                  valid_params=[InputParam.BADGE, InputParam.TABLE],
                                                                   op=OpType.RETRIEVE,
+                                                                  db_conn=db_conn,
                                                                   errors=errors)
         if not errors:
-            where_data: dict[str, Any] | None = None
-            if Migration.Db.NM_BADGE in migration_table_params:
-                where_data = {Migration.Db.NM_BADGE: migration_table_params.get(Migration.Db.NM_BADGE)}
-            elif Migration.Db.ID_SESSION in migration_table_params:
-                where_data = {Migration.Db.ID_SESSION: migration_table_params.get(Migration.Db.ID_SESSION)}
+            values: list[int] = Migration.get_values(
+                attrs=Migration.Db.ID,
+                where_data={Migration.Db.NM_BADGE: migration_table_params.get(InputParam.BADGE)},
+                db_engine=PYDB_DB_ENGINE,
+                db_conn=db_conn,
+                errors=errors
+            )
+            if values:
+                where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: values[0]}
+                if InputParam.TABLE in migration_table_params:
+                    where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
 
-            if where_data:
                 migration_tables: list[MigrationTable] = MigrationTable.retrieve(where_data=where_data,
                                                                                  db_engine=PYDB_DB_ENGINE,
                                                                                  db_conn=db_conn,
@@ -185,14 +179,10 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                         mig_table_data[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
                     if migration_table.ds_override_columns is not None:
                         mig_table_data[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
-                    if migration_table.ds_remove_ctrlchars is not None:
-                        mig_table_data[InputParam.REMOVE_CTRLCHARS] = migration_table.ds_remove_ctrlchars
+                    if migration_table.is_remove_ctrlchars is not None:
+                        mig_table_data[InputParam.REMOVE_CTRLCHARS] = migration_table.is_remove_ctrlchars
 
                     result[migration_table.nm_table] = mig_table_data
-            else:
-                # 100: {} (omits the attribute "code")
-                errors.append(validate_format_error(100,
-                                                    "Either 'BADGE' or 'SESSION' must be specified"))
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,
@@ -210,6 +200,7 @@ def retrieve_migration_tables(input_params: dict[str, Any],
 def __validate_input(input_params: dict[str, Any],
                      valid_params: list[str],
                      op: OpType,
+                     db_conn: Any,
                      errors: list[str]) -> dict[str, Any]:
 
     # initialize the return variable
@@ -220,29 +211,44 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
-    # this identifies the migration instance
+    # identify the migration table instance (UPDATE and DELETE operations)
+    migration_id: str = validate_str(source=input_params,
+                                     attr=InputParam.MIGRATION_ID,
+                                     required=op in [OpType.UPDATE, OpType.DELETE],
+                                     errors=errors)
+    table_id: str = validate_str(source=input_params,
+                                 attr=InputParam.TABLE_ID,
+                                 max_length=64,
+                                 required=op in [OpType.UPDATE, OpType.DELETE],
+                                 errors=errors)
+    if table_id:
+        if InputParam.MIGRATION in result:
+            where_data: dict[str, Any] = \
+                {f"{Migration.get_alias()}.{Migration.Db.NM_BADGE}": migration_id,
+                 f"{MigrationTable.get_alias()}.{MigrationTable.Db.NM_TABLE}": table_id}
+            migration_table: MigrationTable = \
+                MigrationTable.get_single(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
+                                          where_data=where_data,
+                                          db_engine=PYDB_DB_ENGINE,
+                                          db_conn=db_conn,
+                                          errors=errors)
+            if not errors:
+                result[InputParam.MIGRATION_TABLE] = migration_table
+
     badge: str = validate_str(source=input_params,
-                              attr=InputParam.CD_BADGE,
-                              required=op in [OpType.UPDATE, OpType.DELETE],
+                              attr=InputParam.BADGE,
+                              max_length=64,
+                              required=op in [OpType.CREATE, OpType.RETRIEVE],
                               errors=errors)
     if badge:
-        result[InputParam.CD_BADGE] = badge
+        result[InputParam.BADGE] = badge
 
-    # this identifies the migration table
     table: str = validate_str(source=input_params,
                               attr=InputParam.TABLE,
                               max_length=64,
-                              required=op == OpType.CREATE,
+                              required=op in [OpType.CREATE],
                               errors=errors)
     if table:
-        result[InputParam.CD_TABLE] = table
-
-    # this is the value assigned to the attribute
-    nm_table: str = validate_str(source=input_params,
-                                 attr=InputParam.TABLE,
-                                 max_length=64,
-                                 errors=errors)
-    if nm_table:
         result[MigrationTable.Db.NM_TABLE] = table
 
     nr_batch_size_in: int = validate_int(source=input_params,
@@ -305,16 +311,36 @@ def __validate_input(input_params: dict[str, Any],
     if omit_defaults:
         result[MigrationTable.Db.DS_OMIT_DEFAULTS] = ",".join([i for i in omit_defaults])
 
-    override_columns: list[str] = validate_strs(source=input_params,
-                                                attr=InputParam.OVERRIDE_COLUMNS,
-                                                errors=errors)
+    override_columns: list[str] = __validate_override_columns(input_params=input_params,
+                                                              errors=errors)
     if override_columns:
         result[MigrationTable.Db.DS_OVERRIDE_COLUMNS] = ",".join([i for i in override_columns])
 
-    remove_ctrlchars: list[str] = validate_strs(source=input_params,
-                                                attr=InputParam.REMOVE_CTRLCHARS,
-                                                errors=errors)
-    if remove_ctrlchars:
-        result[MigrationTable.Db.DS_REMOVE_CTRLCHARS] = ",".join([i for i in remove_ctrlchars])
+    remove_ctrlchars: bool = validate_bool(source=input_params,
+                                           attr=InputParam.REMOVE_CTRLCHARS,
+                                           errors=errors)
+    if isinstance(remove_ctrlchars, bool):
+        result[MigrationTable.Db.IS_REMOVE_CTRLCHARS] = remove_ctrlchars
+
+    return result
+
+
+def __validate_override_columns(input_params: dict[str, str],
+                                errors: list[str]) -> list[str]:
+
+    # initialize the return variable
+    result: list[str] | None = validate_strs(source=input_params,
+                                             attr=InputParam.OVERRIDE_COLUMNS,
+                                             errors=errors)
+    for item in result or []:
+        # format of item is <column_name>=<column_type>
+        pos: int = item.find('=')
+        if pos < 3 or pos > len(item) - 4:
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                f"Invalid value",
+                                                f"@{InputParam.OVERRIDE_COLUMNS}"))
+            result = None
+            break
 
     return result

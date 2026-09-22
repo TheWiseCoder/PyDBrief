@@ -1,13 +1,13 @@
-import re
 from collections.abc import Iterable
 from logging import Logger
 from pypomes_core import (
-    str_as_list, str_find_char, str_is_int, str_is_float,
+    str_is_int, str_is_float,
     exc_format, str_sanitize, validate_format_error
 )
 from pypomes_db import (
     DbEngine, db_drop_table, db_drop_view, db_convert_default
 )
+from pypomes_s3 import S3Engine
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index, Constraint,
     CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause, TextClause,
@@ -18,21 +18,23 @@ from sys import exc_info
 from typing import Any
 
 from migration.pydb_database import schema_create
-from migration.pydb_types import is_lob_column, migrate_column, name_to_type
-from entities.migration import Migration, MigStep
-from entities.migration_table import MigrationTable
-from entities.session import Session
+from migration.pydb_types_old import is_lob_column, migrate_column
 
 
-def prune_metadata(migration: Migration,
-                   session: Session,
+def prune_metadata(source_schema: str,
                    source_metadata: MetaData,
+                   process_indexes: bool,
                    schema_views: list[str],
+                   include_relations: list[str],
+                   exclude_relations: list[str],
+                   exclude_columns: list[str],
+                   exclude_constraints: list[str],
+                   step_metadata: bool,
                    logger: Logger) -> None:
 
     # build list of prunable tables
-    migration_tables: list[MigrationTable] = migration.get_migration_tables() or []
-    prunable_tables: list[MigrationTable] = [t for t in migration_tables if t.ds_exclude_columns]
+    prunable_tables: set[str] = {column[:(column + ".").index(".")]
+                                 for column in exclude_columns}
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
@@ -42,21 +44,22 @@ def prune_metadata(migration: Migration,
         table_name: str = source_table.name
 
         # verify whether relation 'source_table' complies with these conditions for migration:
+        #   - relation is not listed in 'exclude_relations' AND
         #   - relation is not listed in 'schema_views' AND
-        #   - schemas agree AND
-        #   - relation is asserted in 'assert_relation()'
-        if (table_name not in schema_views and
-            source_table.schema == session.nm_source_schema and
-            assert_relation(migration=migration,
-                            relation=table_name)):
+        #   - relation is listed in 'include_relations' OR
+        #   - 'include_relations' is empty AND schemas agree
+        if (table_name not in exclude_relations and
+            table_name not in schema_views and
+            (table_name in include_relations or
+             (not include_relations and source_table.schema == source_schema))):
+
             # prune table
-            prunable_table: MigrationTable = next((t for t in prunable_tables if t.nm_table == table_name), None)
-            if prunable_table:
+            if source_table.name in prunable_tables:
                 # look for columns to exclude
                 # noinspection PyProtectedMember
                 # ruff: noqa: SLF001 (checks for accesses on "private" class members)
                 excluded_columns: list[Column] = [column for column in source_table._columns
-                                                  if column.name in (prunable_table.ds_exclude_columns or "")]
+                                                  if f"{source_table.name}.{column.name}" in exclude_columns]
                 # traverse the list of columns to exclude
                 for excluded_column in excluded_columns:
                     # remove the column from table's metadata and log the event
@@ -65,18 +68,18 @@ def prune_metadata(migration: Migration,
                     source_table._columns.remove(excluded_column)
                     logger.info(msg=f"Column '{excluded_column.name}' "
                                     f"removed from table '{source_table.name}'")
-            if migration.cd_step != MigStep.MIGRATE_METADATA:
+            if not step_metadata:
                 # nothing else to do here for 'table_name', as metadata are not being migrated
                 continue
 
             # handle indexes for 'source_table'
-            if migration.is_process_indexes:
-                # build list of tainted indexes - 'index' is tainted if not asserted
+            if process_indexes:
+                # build list of tainted indexes - 'index' is tainted if:
                 #   - 'index' is listed in 'exclude_relations' OR
                 #   - 'included_relations' is not empty AND 'index' is not listed therein
                 tainted_indexes: list[Index] = [index for index in source_table.indexes
-                                                if not assert_relation(migration=migration,
-                                                                       relation=index.name)]
+                                                if index.name in exclude_relations or
+                                                (include_relations and index.name not in include_relations)]
                 # remove tainted indexes
                 if len(tainted_indexes) == len(source_table.indexes):
                     source_table.indexes.clear()
@@ -86,47 +89,46 @@ def prune_metadata(migration: Migration,
             else:
                 source_table.indexes.clear()
 
-            if prunable_table:
-                # mark these constraints as tainted:
-                #   - duplicate CK constraints in table
-                #     (prevent error 'check constraint already exists')
-                #   - constraints listed in 'exclude_constraints'
-                table_cks: list[str] = []
-                tainted_constraints: list[Constraint] = []
-                for constraint in source_table.constraints:
-                    if constraint.name in table_cks or \
-                       constraint.name in (prunable_table.ds_exclude_constraints or ""):
-                        if constraint not in tainted_constraints:
-                            tainted_constraints.append(constraint)
-                    elif isinstance(constraint, CheckConstraint):
-                        table_cks.append(constraint.name)
+            # mark these constraints as tainted:
+            #   - duplicate CK constraints in table
+            #     (prevent error 'check constraint already exists')
+            #   - constraints listed in 'exclude_constraints'
+            table_cks: list[str] = []
+            tainted_constraints: list[Constraint] = []
+            for constraint in source_table.constraints:
+                if constraint.name in table_cks or \
+                   constraint.name in exclude_constraints:
+                    if constraint not in tainted_constraints:
+                        tainted_constraints.append(constraint)
+                elif isinstance(constraint, CheckConstraint):
+                    table_cks.append(constraint.name)
 
-                # drop the tainted constraints
-                for tainted_constraint in tainted_constraints:
-                    source_table.constraints.remove(tainted_constraint)
-                    # FK constraints require special handling
-                    if isinstance(tainted_constraint, ForeignKeyConstraint):
-                        # directly removing a foreign key is not available in SqlAlchemy:
-                        #   - after being removed from 'source_table.constraints', it reappears
-                        #   - nullifying its 'constraint' attribute has the desired effect
-                        #   - removing it from 'column.foreign_keys' prevents 'column'
-                        #     from being flagged later as having a 'foreign-key' feature
-                        foreign_key: ForeignKey | None = None
-                        # noinspection PyProtectedMember
-                        # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-                        for column in source_table._columns:
-                            for fk in column.foreign_keys:
-                                if fk.name == tainted_constraint.name:
-                                    foreign_key = fk
-                                    break
-                            if foreign_key:
-                                foreign_key.constraint = None
-                                column.foreign_keys.remove(foreign_key)
+            # drop the tainted constraints
+            for tainted_constraint in tainted_constraints:
+                source_table.constraints.remove(tainted_constraint)
+                # FK constraints require special handling
+                if isinstance(tainted_constraint, ForeignKeyConstraint):
+                    # directly removing a foreign key is not available in SqlAlchemy:
+                    #   - after being removed from 'source_table.constraints', it reappears
+                    #   - nullifying its 'constraint' attribute has the desired effect
+                    #   - removing it from 'column.foreign_keys' prevents 'column'
+                    #     from being flagged later as having a 'foreign-key' feature
+                    foreign_key: ForeignKey | None = None
+                    # noinspection PyProtectedMember
+                    # ruff: noqa: SLF001 (checks for accesses on "private" class members)
+                    for column in source_table._columns:
+                        for fk in column.foreign_keys:
+                            if fk.name == tainted_constraint.name:
+                                foreign_key = fk
                                 break
+                        if foreign_key:
+                            foreign_key.constraint = None
+                            column.foreign_keys.remove(foreign_key)
+                            break
 
-                    # log the constraint removal
-                    logger.info(msg=f"Constraint '{tainted_constraint.name}' "
-                                    f"removed from table '{source_table.name}'")
+                # log the constraint removal
+                logger.info(msg=f"Constraint '{tainted_constraint.name}' "
+                                f"removed from table '{source_table.name}'")
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
@@ -195,9 +197,16 @@ def setup_schema(target_db: DbEngine | str,
     return result
 
 
-def setup_tables(migration: Migration,
-                 session: Session,
+def setup_tables(source_rdbms: DbEngine,
+                 target_rdbms: DbEngine,
+                 source_schema: str,
+                 target_schema: str,
+                 target_s3: S3Engine,
                  target_tables: list[Table],
+                 optimize_pks: bool,
+                 override_columns: dict[str, Type],
+                 omit_defaults: list[str],
+                 step_metadata: bool,
                  migration_warnings: list[str],
                  errors: list[str],
                  logger: Logger) -> dict[str, Any]:
@@ -208,13 +217,11 @@ def setup_tables(migration: Migration,
     # assign the target schema to all migration candidate tables
     # (to all tables at once, before their individual transformations)
     for target_table in target_tables:
-        target_table.schema = session.nm_target_schema
+        target_table.schema = target_schema
 
     # setup target tables
     for target_table in target_tables:
-        # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == target_table.name), None)
+
         # initialize the local errors list
         op_errors: list[str] = []
         # build the list of migrated columns for this table
@@ -231,9 +238,9 @@ def setup_tables(migration: Migration,
                 "source-type": column_type
             }
             # mark LOB column for S3 migration
-            if session.id_target_s3 and is_lob_column(col_type=column_type):
+            if target_s3 and is_lob_column(col_type=column_type):
                 s3_columns.append(column)
-                table_display[column.name]["target-type"] = session.get_target_s3().cd_type
+                table_display[column.name]["target-type"] = target_s3.value
 
         # remove the S3-targeted LOB columns
         for s3_column in s3_columns:
@@ -242,11 +249,14 @@ def setup_tables(migration: Migration,
             target_table._columns.remove(s3_column)
 
         # migrate the columns
-        if migration.cd_step == MigStep.MIGRATE_METADATA:
-            setup_columns(migration=migration,
-                          session=session,
-                          target_columns=columns,
-                          migration_table=migration_table,
+        if step_metadata:
+            setup_columns(target_columns=columns,
+                          source_rdbms=source_rdbms,
+                          target_rdbms=target_rdbms,
+                          optimize_pks=optimize_pks,
+                          omit_defaults=[t[t.find(".")+1:] for t in omit_defaults
+                                         if t.startswith(target_table.name + ".")],
+                          override_columns=override_columns,
                           migration_warnings=migration_warnings,
                           table_display=table_display,
                           errors=op_errors,
@@ -257,8 +267,7 @@ def setup_tables(migration: Migration,
                 features: list[str] = []
                 if hasattr(column, "identity") and column.identity:
                     if "identity" in features:
-                        err_msg: str = (f"Table {session.get_source_db().cd_engine}."
-                                        f"{session.nm_source_schema}.{target_table.name} "
+                        err_msg: str = (f"Table {source_rdbms}.{source_schema}.{target_table.name} "
                                         "has more than one identity column")
                         logger.error(msg=err_msg)
                         # 102: Unexpected error: {}
@@ -298,30 +307,26 @@ def setup_tables(migration: Migration,
     return result
 
 
-def setup_columns(migration: Migration,
-                  session: Session,
-                  target_columns: Iterable[Column],
-                  migration_table: MigrationTable | None,
+def setup_columns(target_columns: Iterable[Column],
+                  source_rdbms: DbEngine,
+                  target_rdbms: DbEngine,
+                  optimize_pks: bool,
+                  omit_defaults: list[str],
+                  override_columns: dict[str, Type],
                   migration_warnings: list[str],
                   table_display: dict[str, Any],
                   errors: list[str],
                   logger: Logger) -> None:
 
     # set the target columns
-    override_columns: list[str] = str_as_list(migration_table.ds_override_columns)
     for target_column in target_columns:
         try:
             # convert the type
-            override_type: Type | None = None
-            for override_column in override_columns:
-                if override_column.startswith(target_column.name + "="):
-                    override_type = name_to_type(type_name=override_column[override_column.index("=")+1:],
-                                                 db_type=session.get_target_db().cd_type)
-                    break
-            target_type: Any = migrate_column(migration=migration,
-                                              session=session,
+            target_type: Any = migrate_column(source_db=source_rdbms,
+                                              target_db=target_rdbms,
                                               ref_column=target_column,
-                                              override_type=override_type,
+                                              optimize_pks=optimize_pks,
+                                              override_columns=override_columns,
                                               migration_warnings=migration_warnings,
                                               fk_stack=[],
                                               errors=errors,
@@ -333,7 +338,7 @@ def setup_columns(migration: Migration,
             target_column.type = target_type
             table_display[target_column.name]["target-type"] = str(target_column.type)
             column_name: str = f"{target_column.table.name}.{target_column.name}"
-            logger.debug(msg=f"Rdbms {session.get_target_db().cd_type}, type {target_column.type} "
+            logger.debug(msg=f"Rdbms {target_rdbms}, type {target_column.type} "
                              f"in {column_name} converted to {target_type}")
 
             # set LOB column's nullability
@@ -343,7 +348,7 @@ def setup_columns(migration: Migration,
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
-                if column_name in migration_table.ds_omit_defaults:
+                if column_name in omit_defaults:
                     target_column.server_default = None
                 elif isinstance(target_column.server_default, DefaultClause):
                     def_orig: Any = target_column.server_default.arg
@@ -358,8 +363,8 @@ def setup_columns(migration: Migration,
                         if any(ord(ch) < 32 for ch in def_val):
                             def_val = "".join(ch if ord(ch) > 31 else "" for ch in def_val)
                         def_conv: str = db_convert_default(value=def_val,
-                                                           source_engine=session.get_source_db().cd_engine,
-                                                           target_engine=session.get_target_db().cd_engine)
+                                                           source_engine=source_rdbms,
+                                                           target_engine=target_rdbms)
                         if def_conv:
                             if def_conv != def_save:
                                 target_column.server_default = DefaultClause(arg=text(text=def_conv))
@@ -382,34 +387,3 @@ def setup_columns(migration: Migration,
             # 102: Unexpected error: {}
             errors.append(validate_format_error(102,
                                                 exc_err))
-
-
-def assert_relation(migration: Migration,
-                    relation: str) -> bool:
-
-    # initialize the return variable
-    result: bool = True
-
-    # process list of excludes
-    excludes: list[str] = str_as_list(migration.ds_exclude_relations)
-    if excludes and relation not in excludes:
-        for exclude in excludes:
-            if (str_find_char(exclude, ".^*+?[]()|\\{}") >= 0 and
-                re.search(pattern=exclude.replace("$", "\\$"),
-                          string=relation)):
-                result = False
-                break
-
-    # process list of includes
-    includes: list[str] = str_as_list(migration.ds_include_relations)
-    if result and includes:
-        # relation was not excluded, so process list of includes
-        result = relation in includes
-        if not result:
-            for include in includes:
-                if (str_find_char(include, ".^*+?[]()|\\{}") >= 0 and
-                    re.search(pattern=include.replace("$", "\\$"),
-                              string=relation)):
-                    result = True
-                    break
-    return result

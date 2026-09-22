@@ -11,106 +11,101 @@ from entities.database import Database
 def create_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
-    # validate the input data
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[i[0] for i in Database.ATTRS_INPUT],
-                                                       op=OpType.CREATE,
-                                                       errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        database_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                           valid_params=[i[0] for i in Database.ATTRS_INPUT],
+                                                           op=OpType.CREATE,
+                                                           db_conn=db_conn,
+                                                           errors=errors)
+        if not errors:
             # create and persist the database
             database: Database = Database()
-            if InputParam.DB_PWD in database_params:
-                database._nm_pwd = database_params.pop(InputParam.DB_PWD)
+            database._nm_pwd = database_params.pop(InputParam.DB_PWD)
             database.set(database_params)
             database.insert(db_engine=PYDB_DB_ENGINE,
                             db_conn=db_conn,
                             errors=errors)
 
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def update_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
-    # validate the input data
-    valid_params: list[str] = [InputParam.CD_ENGINE] + [i[0] for i in Database.ATTRS_INPUT]
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=valid_params,
-                                                       op=OpType.UPDATE,
-                                                       errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
-            database: Database = Database(cd_engine=database_params.get(InputParam.CD_ENGINE),
-                                          db_engine=PYDB_DB_ENGINE,
-                                          db_conn=db_conn,
-                                          errors=errors)
-            if not errors:
-                if InputParam.DB_PWD in database_params:
-                    database._nm_pwd = database_params.pop(InputParam.DB_PWD)
-                database.set(data=database_params)
-                database.update(db_conn=db_conn,
-                                errors=errors)
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        valid_params: list[str] = [InputParam.ENGINE_ID] + [i[0] for i in Database.ATTRS_INPUT]
+        database_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                           valid_params=valid_params,
+                                                           op=OpType.UPDATE,
+                                                           db_conn=db_conn,
+                                                           errors=errors)
+        if not errors:
+            database: Database = database_params.pop(InputParam.DATABASE)
+            if InputParam.DB_PWD in database_params:
+                database._nm_pwd = database_params.pop(InputParam.DB_PWD)
+            database.set(data=database_params)
+            database.update(db_conn=db_conn,
+                            errors=errors)
 
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def delete_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
-    # validate the input data
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[InputParam.CD_ENGINE],
-                                                       op=OpType.DELETE,
-                                                       errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        database_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                           valid_params=[InputParam.ENGINE_ID],
+                                                           op=OpType.DELETE,
+                                                           db_conn=db_conn,
+                                                           errors=errors)
+        if not errors:
             # obtain and delete the database
-            database: Database = Database(cd_engine=database_params.get(InputParam.CD_ENGINE),
-                                          db_engine=PYDB_DB_ENGINE,
-                                          db_conn=db_conn,
-                                          errors=errors)
-            if not errors:
-                database.delete(db_engine=PYDB_DB_ENGINE,
-                                db_conn=db_conn,
-                                errors=errors)
-            # conclude the operation
-            if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
-            else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+            database: Database = database_params[InputParam.DATABASE]
+            database.delete(db_engine=PYDB_DB_ENGINE,
+                            db_conn=db_conn,
+                            errors=errors)
+
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
 
 
 def retrieve_databases(input_params: dict[str, Any],
@@ -119,21 +114,22 @@ def retrieve_databases(input_params: dict[str, Any],
     # initialize the return variable
     result: dict[str, Any] = {}
 
-    # validate the input data
-    database_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                       valid_params=[InputParam.CD_ENGINE, InputParam.DB_TYPE],
-                                                       op=OpType.RETRIEVE,
-                                                       errors=errors)
-    if not errors:
-        # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-        if db_conn:
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        database_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                           valid_params=[InputParam.DB_ENGINE, InputParam.DB_TYPE],
+                                                           op=OpType.RETRIEVE,
+                                                           db_conn=db_conn,
+                                                           errors=errors)
+        if not errors:
             where_data: dict[str, Any] | None = None
-            if InputParam.CD_ENGINE in database_params:
-                where_data = {Database.Db.CD_ENGINE: database_params.get(InputParam.CD_ENGINE)}
+            if Database.Db.CD_ENGINE in database_params:
+                where_data = {Database.Db.CD_ENGINE: database_params[Database.Db.CD_ENGINE]}
             elif Database.Db.CD_TYPE in database_params:
-                where_data = {Database.Db.CD_TYPE: database_params.get(Database.Db.CD_TYPE)}
+                where_data = {Database.Db.CD_TYPE: database_params[Database.Db.CD_TYPE]}
             databases: list[Database] = Database.retrieve(where_data=where_data,
                                                           db_engine=PYDB_DB_ENGINE,
                                                           db_conn=db_conn,
@@ -147,6 +143,7 @@ def retrieve_databases(input_params: dict[str, Any],
 def __validate_input(input_params: dict[str, Any],
                      valid_params: list[str],
                      op: OpType,
+                     db_conn: Any,
                      errors: list[str]) -> dict[str, Any]:
 
     # initialize the return variable
@@ -157,15 +154,17 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
-    # this identifies the database instance
-    cd_engine: str = validate_str(source=input_params,
-                                  attr=InputParam.CD_ENGINE,
+    # identify the database instance (UPDATE and DELETE operations)
+    engine_id: str = validate_str(source=input_params,
+                                  attr=InputParam.ENGINE_ID,
                                   required=op in [OpType.UPDATE, OpType.DELETE],
                                   errors=errors)
-    if cd_engine:
-        result[InputParam.CD_ENGINE] = cd_engine
+    if engine_id:
+        result[InputParam.DATABASE] = Database(cd_engine=engine_id,
+                                               db_engine=PYDB_DB_ENGINE,
+                                               db_conn=db_conn,
+                                               errors=errors)
 
-    # this is the value assigned to the attribute
     db_engine: str = validate_str(source=input_params,
                                   attr=InputParam.DB_ENGINE,
                                   max_length=64,

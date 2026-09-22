@@ -15,14 +15,14 @@ from pypomes_s3 import (
 )
 from typing import Any
 
-import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
+import migration.steps.pydb_migrate_lobdata_old as lobdata_ctrl
 from app_constants_old import (
     MigConfig, MigMetric, MigSpec, MigSpot
 )
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_sessions import assert_session_abort, get_session_registry
-from migration.pydb_types import is_lob_column
-from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
+from migration.pydb_types_old import is_lob_column
+from migration.steps.pydb_migrate_lobdata_old import migrate_lob_columns
 
 # structure of the thread registry:
 # lobdata_ctrl.lobdata_registry: dict[int, dict[str, Any]] = {

@@ -28,7 +28,7 @@ class MigrationTable(PySob):
         DS_NAMED_LOBDATA = auto()
         DS_OMIT_DEFAULTS = auto()
         DS_OVERRIDE_COLUMNS = auto()
-        DS_REMOVE_CTRLCHARS = auto()
+        IS_REMOVE_CTRLCHARS = auto()
         NM_TABLE = auto()
         NR_BATCH_SIZE_IN = auto()
         NR_BATCH_SIZE_OUT = auto()
@@ -50,8 +50,9 @@ class MigrationTable(PySob):
         (InputParam.NAMED_LOBDATA, Db.DS_NAMED_LOBDATA),
         (InputParam.OMIT_DEFAULTS, Db.DS_OMIT_DEFAULTS),
         (InputParam.OVERRIDE_COLUMNS, Db.DS_OVERRIDE_COLUMNS),
-        (InputParam.REMOVE_CTRLCHARS, Db.DS_REMOVE_CTRLCHARS),
-        (InputParam.TABLE, None)
+        (InputParam.REMOVE_CTRLCHARS, Db.IS_REMOVE_CTRLCHARS),
+        (InputParam.TABLE, Db.NM_TABLE),
+        (InputParam.BADGE, None)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
@@ -59,7 +60,7 @@ class MigrationTable(PySob):
                  __id: int = None,
                  /,
                  id_migration: int = None,
-                 nm_table: int = None,
+                 nm_table: str = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
@@ -72,15 +73,15 @@ class MigrationTable(PySob):
         # nullables in DB
         self.ds_exclude_columns: str | None = None
         self.ds_exclude_constraints: str | None = None
-        self.nr_incremental_count: int | None = None
-        self.nr_incremental_offset: int | None = None
         self.ds_named_lobdata: str | None = None
         self.ds_omit_defaults: str | None = None
         self.ds_override_columns: str | None = None
-        self.ds_remove_ctrlchars: str | None = None
+        self.is_remove_ctrlchars: bool | None = None
         self.nr_batch_size_in: int | None = None
         self.nr_batch_size_out: int | None = None
         self.nr_chunk_size: int | None = None
+        self.nr_incremental_count: int | None = None
+        self.nr_incremental_offset: int | None = None
 
         where_data: dict[str, Any] | None = None
         if __id:

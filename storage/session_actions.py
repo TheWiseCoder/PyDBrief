@@ -25,6 +25,10 @@ def create_session(input_params: dict[str, Any],
         if not errors:
             # create and persist the database
             session: Session = Session()
+            session.id_source_db = session_params.pop(InputParam.SOURCE_DB).id
+            session.id_target_db = session_params.pop(InputParam.TARGET_DB).id
+            if InputParam.TARGET_S3 in session_params:
+                session.id_target_db = session_params.pop(InputParam.TARGET_S3)
             session.set(session_params)
             session.insert(db_engine=PYDB_DB_ENGINE,
                            db_conn=db_conn,
@@ -50,20 +54,23 @@ def update_session(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[InputParam] = [InputParam.SESSION_ID] + [i[0] for i in Session.ATTRS_INPUT]
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[item[0] for item in Session.ATTRS_INPUT],
+                                                          valid_params=valid_params,
                                                           op=OpType.UPDATE,
                                                           db_conn=db_conn,
                                                           errors=errors)
         if not errors:
-            session: Session = Session(cd_session=session_params.get(Session.Db.CD_SESSION),
-                                       db_engine=PYDB_DB_ENGINE,
-                                       db_conn=db_conn,
-                                       errors=errors)
-            if not errors:
-                session.set(data=session_params)
-                session.update(db_conn=db_conn,
-                               errors=errors)
+            session: Session = session_params.pop(InputParam.SESSION)
+            if InputParam.SOURCE_DB in session_params:
+                session.id_source_db = session_params.pop(InputParam.SOURCE_DB).id
+            if InputParam.TARGET_DB in session_params:
+                session.id_target_db = session_params.pop(InputParam.TARGET_DB).id
+            if InputParam.TARGET_S3 in session_params:
+                session.id_target_db = session_params.pop(InputParam.TARGET_S3).id
+            session.set(data=session_params)
+            session.update(db_conn=db_conn,
+                           errors=errors)
 
         # conclude the operation
         if errors:
@@ -86,20 +93,16 @@ def delete_session(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[InputParam.CD_SESSION],
+                                                          valid_params=[InputParam.SESSION_ID],
                                                           op=OpType.DELETE,
                                                           db_conn=db_conn,
                                                           errors=errors)
         if not errors:
             # obtain and delete the database
-            session: Session = Session(cd_session=session_params.get(Session.Db.CD_SESSION),
-                                       db_engine=PYDB_DB_ENGINE,
-                                       db_conn=db_conn,
-                                       errors=errors)
-            if not errors:
-                session.delete(db_engine=PYDB_DB_ENGINE,
-                               db_conn=db_conn,
-                               errors=errors)
+            session: Session = session_params[InputParam.SESSION]
+            session.delete(db_engine=PYDB_DB_ENGINE,
+                           db_conn=db_conn,
+                           errors=errors)
 
         # conclude the operation
         if errors:
@@ -125,7 +128,7 @@ def retrieve_sessions(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[InputParam.CD_SESSION],
+                                                          valid_params=[InputParam.SESSION],
                                                           op=OpType.RETRIEVE,
                                                           db_conn=db_conn,
                                                           errors=errors)
@@ -195,70 +198,61 @@ def __validate_input(input_params: dict[str, Any],
                                          f"@{key}")
                    for key in input_params if key not in valid_params])
 
-    # this identifies the database instance
-    cd_session: str = validate_str(source=input_params,
-                                   attr=InputParam.CD_SESSION,
+    # identify the session instance (UPDATE and DELETE operations)
+    session_id: str = validate_str(source=input_params,
+                                   attr=InputParam.SESSION_ID,
                                    max_length=64,
                                    required=op in [OpType.UPDATE, OpType.DELETE],
                                    errors=errors)
+    if session_id:
+        result[InputParam.SESSION_ID] = session_id
+
+    cd_session: str = validate_str(source=input_params,
+                                   attr=InputParam.SESSION,
+                                   max_length=64,
+                                   required=op == OpType.CREATE,
+                                   errors=errors)
     if cd_session:
-        result[Session.Db.CD_SESSION] = cd_session
+        result[Session.Db.CD_SESSION] = Session(cd_session=cd_session,
+                                                db_engine=PYDB_DB_ENGINE,
+                                                db_conn=db_conn,
+                                                errors=errors)
 
-    # this is the value assigned to the attribute
-    session: str = validate_str(source=input_params,
-                                attr=InputParam.SESSION,
-                                max_length=64,
-                                required=op == OpType.CREATE,
-                                errors=errors)
-    if session:
-        result[Session.Db.CD_SESSION] = session
-
+    # identify the source database instance (CREATE and UPDATE operations)
     source_db: str = validate_str(source=input_params,
                                   attr=InputParam.SOURCE_DB,
-                                  max_length=64,
                                   required=op == OpType.CREATE,
                                   errors=errors)
     if source_db:
-        values: list[int] = Database.get_values(attrs=Database.Db.ID,
-                                                where_data={Database.Db.CD_ENGINE: source_db},
-                                                min_count=1,
-                                                max_count=1,
+        result[InputParam.SOURCE_DB] = Database(cd_engine=source_db,
                                                 db_engine=PYDB_DB_ENGINE,
                                                 db_conn=db_conn,
                                                 errors=errors)
-        if values:
-            result[Session.Db.ID_SOURCE_DB] = values[0]
 
+    # identify the target database instance (CREATE and UPDATE operations)
     target_db: str = validate_str(source=input_params,
                                   attr=InputParam.TARGET_DB,
-                                  max_length=64,
                                   required=op == OpType.CREATE,
                                   errors=errors)
     if target_db:
-        values: list[int] = Database.get_values(attrs=Database.Db.ID,
-                                                where_data={Database.Db.CD_ENGINE: target_db},
-                                                min_count=1,
-                                                max_count=1,
-                                                db_engine=PYDB_DB_ENGINE,
-                                                db_conn=db_conn,
-                                                errors=errors)
-        if values:
-            result[Session.Db.ID_TARGET_DB] = values[0]
+        if target_db == source_db:
+            # 100: {}
+            errors.append(validate_format_error(100,
+                                                "Source and target databases cannot be the same"))
+        else:
+            result[InputParam.TARGET_DB] = Database(cd_engine=target_db,
+                                                    db_engine=PYDB_DB_ENGINE,
+                                                    db_conn=db_conn,
+                                                    errors=errors)
 
     target_s3: str = validate_str(source=input_params,
                                   attr=InputParam.TARGET_S3,
-                                  max_length=64,
                                   errors=errors)
     if target_s3:
-        values: list[int] = S3.get_values(attrs=S3.Db.ID,
-                                          where_data={S3.Db.CD_ENGINE: target_s3},
-                                          min_count=1,
-                                          max_count=1,
+        result[InputParam.TARGET_S3] = S3(cd_engine=target_s3,
                                           db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
-        if values:
-            result[Session.Db.ID_TARGET_S3] = values[0]
 
     source_schema: str = validate_str(source=input_params,
                                       attr=InputParam.SOURCE_SCHEMA,

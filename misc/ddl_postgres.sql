@@ -1,6 +1,7 @@
 DROP TABLE migration_span;
 DROP TABLE migration_work;
 DROP TABLE migration_table;
+DROP TABLE migration_report;
 DROP TABLE migration_issue;
 DROP TABLE migration;
 DROP TABLE session;
@@ -12,6 +13,7 @@ DROP SEQUENCE sq_s3;
 DROP SEQUENCE sq_session;
 DROP SEQUENCE sq_migration;
 DROP SEQUENCE sq_migration_issue;
+DROP SEQUENCE sq_migration_report;
 DROP SEQUENCE sq_migration_table;
 DROP SEQUENCE sq_migration_span;
 DROP SEQUENCE sq_migration_work;
@@ -168,6 +170,25 @@ CREATE TABLE migration_issue (
       ('W'::character varying)::text]))),
     CONSTRAINT fk_migration_issue_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_issue PRIMARY KEY (id)
+);
+
+
+CREATE SEQUENCE sq_migration_report
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;
+
+CREATE TABLE migration_report (
+	id int8 DEFAULT nextval('sq_migration_report'::regclass) NOT NULL,
+	id_migration int8 NOT NULL,
+	ds_path varchar(1024) NOT NULL,
+	ts_creation timestamp NOT NULL,
+    CONSTRAINT fk_migration_report FOREIGN KEY (id_migration) REFERENCES migration(id),
+	CONSTRAINT pk_migration_report PRIMARY KEY (id),
+	CONSTRAINT uk_migration_report UNIQUE (ds_path)
 );
 
 
