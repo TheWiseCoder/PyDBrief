@@ -138,10 +138,10 @@ def retrieve_sessions(input_params: dict[str, Any],
                 where_data = {Session.Db.CD_SESSION: session_params.get(Session.Db.CD_SESSION)}
             else:
                 where_data = {Session.Db.CD_STATE: [SessionState.CREATED, SessionState.STARTED]}
-            sessions: list[Session] = Session.retrieve(where_data=where_data,
-                                                       db_engine=PYDB_DB_ENGINE,
-                                                       db_conn=db_conn,
-                                                       errors=errors)
+            sessions: list[Session] = Session.get_instances(where_data=where_data,
+                                                            db_engine=PYDB_DB_ENGINE,
+                                                            db_conn=db_conn,
+                                                            errors=errors)
             for session in sessions or []:
                 session_data: dict[str, Any] = session.get_inputs()
                 session_data[InputParam.STATE] = session.cd_state.name
@@ -240,7 +240,7 @@ def __validate_input(input_params: dict[str, Any],
             errors.append(validate_format_error(100,
                                                 "Source and target databases cannot be the same"))
         else:
-            result[InputParam.TARGET_DB] = Database(cd_engine=target_db,
+            result[InputParam.TARGET_DB] = Database(cd_engine=target_db.lower(),
                                                     db_engine=PYDB_DB_ENGINE,
                                                     db_conn=db_conn,
                                                     errors=errors)
@@ -249,7 +249,7 @@ def __validate_input(input_params: dict[str, Any],
                                   attr=InputParam.TARGET_S3,
                                   errors=errors)
     if target_s3:
-        result[InputParam.TARGET_S3] = S3(cd_engine=target_s3,
+        result[InputParam.TARGET_S3] = S3(cd_engine=target_s3.lower(),
                                           db_engine=PYDB_DB_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
@@ -260,7 +260,7 @@ def __validate_input(input_params: dict[str, Any],
                                       required=op == OpType.CREATE,
                                       errors=errors)
     if source_schema:
-        result[Session.Db.NM_SOURCE_SCHEMA] = source_schema
+        result[Session.Db.NM_SOURCE_SCHEMA] = source_schema.lower()
 
     target_schema: str = validate_str(source=input_params,
                                       attr=InputParam.TARGET_SCHEMA,
@@ -268,6 +268,6 @@ def __validate_input(input_params: dict[str, Any],
                                       required=op == OpType.CREATE,
                                       errors=errors)
     if target_schema:
-        result[Session.Db.NM_TARGET_SCHEMA] = target_schema
+        result[Session.Db.NM_TARGET_SCHEMA] = target_schema.lower()
 
     return result

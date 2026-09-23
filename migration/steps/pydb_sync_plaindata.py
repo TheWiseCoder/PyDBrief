@@ -1,25 +1,22 @@
 import threading
-from enum import StrEnum
 from logging import Logger
 from typing import Any
-from pypomes_db import DbEngine, db_connect, db_commit, db_sync_data
+from pypomes_db import db_connect, db_commit, db_sync_data
 
-from app_constants_old import (
-    MigConfig, MigMetric, MigIncremental, MigSpot, MigSpec
-)
-from migration import pydb_types_old
+from entities.migration import Migration, MigStep
+from entities.migration_table import MigrationTable
+from entities.session import Session, sessions_aborting
 from migration.pydb_database import table_embedded_nulls
-from migration.pydb_sessions import assert_session_abort, get_session_registry
+from migration.pydb_types import is_lob_column
 
 
-def synchronize_plain(session_id: str,
-                      incr_migrations: dict[str, dict[MigIncremental, int]],
-                      correlate_only: bool,
-                      migration_threads: list[int],
-                      migrated_tables: dict[str, Any],
-                      # migration_warnings: list[str],
-                      errors: list[str],
-                      logger: Logger) -> tuple[int, int, int]:
+def synchronize_plaindata(migration: Migration,
+                          session: Session,
+                          migration_threads: list[int],
+                          migrated_tables: dict[str, Any],
+                          # migration_warnings: list[str],
+                          errors: list[str],
+                          logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
     result_deletes: int = 0
@@ -29,31 +26,31 @@ def synchronize_plain(session_id: str,
     # add to the thread registration
     migration_threads.append(threading.get_ident())
 
-    # retrieve the registry data for the session
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
-
     # retrieve the source and target RDBMS engines
-    source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
-    target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
-
-    # retrieve the input batch size
-    batch_size_in: int = session_metrics[MigMetric.BATCH_SIZE_IN]
+    source_db: str = session.get_source_db().cd_engine
+    target_db: str = session.get_target_db().cd_engine
+    correlate_only: bool = migration.cd_step == MigStep.CORRELATE_PLAINDATA
 
     # traverse list of migrated tables to synchronize their plain data
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if assert_session_abort(session_id=session_id,
-                                errors=errors,
-                                logger=logger):
+        if session.cd_session in sessions_aborting:
+            sessions_aborting.remove(session.cd_session)
             break
 
-        source_table: str = f"{session_specs[MigSpec.FROM_SCHEMA]}.{table_name}"
-        target_table: str = f"{session_specs[MigSpec.TO_SCHEMA]}.{table_name}"
-        has_nulls: bool = table_name in (session_specs[MigSpec.REMOVE_CTRLCHARS] or [])
+        # obtain the corresponding MigrationTable instance
+        migration_table: MigrationTable = \
+            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
+
+        # obtain input batch size, limit and offset
+        batch_size_in: int = migration_table.nr_batch_size_in
+        limit_count: int = (migration_table.nr_incremental_count if migration_table else 0) or 0
+        offset_count: int = (migration_table.nr_incremental_offset if migration_table else 0) or 0
+
+        source_table: str = f"{session.nm_source_schema}.{table_name}"
+        target_table: str = f"{session.nm_target_schema}.{table_name}"
+        has_ctrlchars: bool = migration_table.is_remove_ctrlchars
 
         # identify identity column and build the lists of PK and sync columns
         op_errors: list[str] = []
@@ -63,7 +60,7 @@ def synchronize_plain(session_id: str,
         for column_name, column_data in table_data["columns"].items():
             # exclude LOB (large binary objects) types
             column_type: str = column_data.get("source-type")
-            if not pydb_types.is_lob_column(col_type=column_type):
+            if not is_lob_column(col_type=column_type):
                 features: list[str] = column_data.get("features", [])
                 if "primary-key" in features:
                     pk_columns.append(column_name)
@@ -77,13 +74,6 @@ def synchronize_plain(session_id: str,
                                   errors=op_errors)
         counts: tuple[int, int, int] = (0,  0, 0)
         if not op_errors:
-            # obtain limit and offset
-            limit_count: int = 0
-            offset_count: int = 0
-            if table_name in incr_migrations:
-                limit_count = incr_migrations[table_name].get(MigIncremental.COUNT)
-                offset_count = incr_migrations[table_name].get(MigIncremental.OFFSET)
-
             counts = db_sync_data(source_engine=source_db,
                                   source_table=source_table,
                                   target_engine=target_db,
@@ -95,7 +85,7 @@ def synchronize_plain(session_id: str,
                                   offset_count=offset_count,
                                   limit_count=limit_count,
                                   batch_size=batch_size_in,
-                                  has_nulls=has_nulls,
+                                  has_nulls=has_ctrlchars,
                                   target_conn=db_conn,
                                   errors=op_errors) or (0, 0, 0)
             if op_errors:

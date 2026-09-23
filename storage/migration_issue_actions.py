@@ -151,10 +151,10 @@ def retrieve_migration_issues(input_params: dict[str, Any],
 
                 result[InputParam.MIGRATION] = migration_issue_params.get(InputParam.BADGE)
                 result[InputParam.ISSUES]: list[dict[str, Any]] = []
-                migration_issues: list[MigrationIssue] = MigrationIssue.retrieve(where_data=where_data,
-                                                                                 db_engine=PYDB_DB_ENGINE,
-                                                                                 db_conn=db_conn,
-                                                                                 errors=errors)
+                migration_issues: list[MigrationIssue] = MigrationIssue.get_instances(where_data=where_data,
+                                                                                      db_engine=PYDB_DB_ENGINE,
+                                                                                      db_conn=db_conn,
+                                                                                      errors=errors)
                 for migration_issue in migration_issues or []:
                     result[InputParam.ISSUES].append(migration_issue.get_inputs())
 

@@ -133,10 +133,10 @@ def retrieve_s3s(input_params: dict[str, Any],
                 where_data = {S3.Db.CD_ENGINE: s3_params.get(S3.Db.CD_ENGINE)}
             elif S3.Db.CD_TYPE in s3_params:
                 where_data = {S3.Db.CD_TYPE: s3_params.get(S3.Db.CD_TYPE)}
-            s3s: list[S3] = S3.retrieve(where_data=where_data,
-                                        db_engine=PYDB_DB_ENGINE,
-                                        db_conn=db_conn,
-                                        errors=errors)
+            s3s: list[S3] = S3.get_instances(where_data=where_data,
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
             for s3 in s3s or []:
                 result[s3.cd_engine] = s3.get_inputs()
 
@@ -174,7 +174,7 @@ def __validate_input(input_params: dict[str, Any],
                                   required=op in [OpType.UPDATE, OpType.DELETE],
                                   errors=errors)
     if engine_id:
-        result[InputParam.S3] = S3(cd_engine=engine_id,
+        result[InputParam.S3] = S3(cd_engine=engine_id.lower(),
                                    db_engine=PYDB_DB_ENGINE,
                                    db_conn=db_conn,
                                    errors=errors)
@@ -185,7 +185,7 @@ def __validate_input(input_params: dict[str, Any],
                                   required=op == OpType.CREATE,
                                   errors=errors)
     if s3_engine:
-        result[S3.Db.CD_ENGINE] = s3_engine
+        result[S3.Db.CD_ENGINE] = s3_engine.lower()
 
     s3_type: DbEngine = validate_enum(source=input_params,
                                       attr=InputParam.S3_TYPE,

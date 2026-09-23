@@ -212,7 +212,7 @@ class Session(PySob):
                         self.__migrations = None
                         self.__id_migrations = None
                     elif self.__id_migrations != self.id:
-                        self.__migrations = Migration.retrieve(
+                        self.__migrations = Migration.get_instances(
                             where_data={Migration.Db.ID_SESSION: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,

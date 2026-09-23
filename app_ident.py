@@ -35,7 +35,7 @@ def get_env_keys() -> list[str]:
 def __set_logging_file_path():
 
     from pypomes_core import APP_PREFIX, env_get_str, env_is_docker
-    from app_constants_old import REGISTRY_DOCKER, REGISTRY_HOST
+    from app_constants import REGISTRY_DOCKER, REGISTRY_HOST
 
     # retrieve the logging file name from the environment
     env_key: str = f"{APP_PREFIX}_LOGGING_FILEPATH"

@@ -146,10 +146,10 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                 if InputParam.TABLE in migration_table_params:
                     where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
 
-                migration_tables: list[MigrationTable] = MigrationTable.retrieve(where_data=where_data,
-                                                                                 db_engine=PYDB_DB_ENGINE,
-                                                                                 db_conn=db_conn,
-                                                                                 errors=errors)
+                migration_tables: list[MigrationTable] = MigrationTable.get_instances(where_data=where_data,
+                                                                                      db_engine=PYDB_DB_ENGINE,
+                                                                                      db_conn=db_conn,
+                                                                                      errors=errors)
                 for migration_table in migration_tables or []:
                     mig_table_data: dict[str, Any] = migration_table.get_inputs()
                     values: list[int] = Session.get_values(attrs=Session.Db.CD_SESSION,
@@ -225,13 +225,13 @@ def __validate_input(input_params: dict[str, Any],
         if InputParam.MIGRATION in result:
             where_data: dict[str, Any] = \
                 {f"{Migration.get_alias()}.{Migration.Db.NM_BADGE}": migration_id,
-                 f"{MigrationTable.get_alias()}.{MigrationTable.Db.NM_TABLE}": table_id}
+                 f"{MigrationTable.get_alias()}.{MigrationTable.Db.NM_TABLE}": table_id.lower()}
             migration_table: MigrationTable = \
-                MigrationTable.get_single(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
-                                          where_data=where_data,
-                                          db_engine=PYDB_DB_ENGINE,
-                                          db_conn=db_conn,
-                                          errors=errors)
+                MigrationTable.get_instance(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
+                                            where_data=where_data,
+                                            db_engine=PYDB_DB_ENGINE,
+                                            db_conn=db_conn,
+                                            errors=errors)
             if not errors:
                 result[InputParam.MIGRATION_TABLE] = migration_table
 
@@ -249,7 +249,7 @@ def __validate_input(input_params: dict[str, Any],
                               required=op in [OpType.CREATE],
                               errors=errors)
     if table:
-        result[MigrationTable.Db.NM_TABLE] = table
+        result[MigrationTable.Db.NM_TABLE] = table.lower()
 
     nr_batch_size_in: int = validate_int(source=input_params,
                                          attr=InputParam.BATCH_SIZE_IN,
@@ -279,13 +279,13 @@ def __validate_input(input_params: dict[str, Any],
                                                attr=InputParam.EXCLUDE_COLUMNS,
                                                errors=errors)
     if exclude_columns:
-        result[MigrationTable.Db.DS_EXCLUDE_COLUMNS] = ",".join([i for i in exclude_columns])
+        result[MigrationTable.Db.DS_EXCLUDE_COLUMNS] = (",".join([i for i in exclude_columns])).lower()
 
     exclude_constraints: list[str] = validate_strs(source=input_params,
                                                    attr=InputParam.EXCLUDE_CONSTRAINTS,
                                                    errors=errors)
     if exclude_constraints:
-        result[MigrationTable.Db.DS_EXCLUDE_CONSTRAINTS] = ",".join([i for i in exclude_constraints])
+        result[MigrationTable.Db.DS_EXCLUDE_CONSTRAINTS] = (",".join([i for i in exclude_constraints])).lower()
 
     incremental_count: int = validate_int(source=input_params,
                                           attr=InputParam.INCREMENTAL_COUNT,
@@ -309,12 +309,12 @@ def __validate_input(input_params: dict[str, Any],
                                              attr=InputParam.OMIT_DEFAULTS,
                                              errors=errors)
     if omit_defaults:
-        result[MigrationTable.Db.DS_OMIT_DEFAULTS] = ",".join([i for i in omit_defaults])
+        result[MigrationTable.Db.DS_OMIT_DEFAULTS] = (",".join([i for i in omit_defaults])).lower()
 
     override_columns: list[str] = __validate_override_columns(input_params=input_params,
                                                               errors=errors)
     if override_columns:
-        result[MigrationTable.Db.DS_OVERRIDE_COLUMNS] = ",".join([i for i in override_columns])
+        result[MigrationTable.Db.DS_OVERRIDE_COLUMNS] = (",".join([i for i in override_columns])).lower()
 
     remove_ctrlchars: bool = validate_bool(source=input_params,
                                            attr=InputParam.REMOVE_CTRLCHARS,

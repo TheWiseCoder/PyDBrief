@@ -29,7 +29,7 @@ class MigrationWork(PySob):
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
-                 __references: type[list[MigrationSpan]],
+                 __references: type[list[MigrationSpan]] = None,
                  __id: int = None,
                  /,
                  id_migration: int = None,
@@ -66,11 +66,13 @@ class MigrationWork(PySob):
                          errors=errors)
 
     def get_migration_spans(self,
+                            refresh: bool = False,
                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None):
-
+        if refresh:
+            self.__id_migration_spans = None
         self.load_references(list[MigrationSpan],
                              db_engine=db_engine,
                              db_conn=db_conn,
@@ -97,7 +99,7 @@ class MigrationWork(PySob):
                         self.__migration_spans = None
                         self.__id_migration_spans = None
                     elif self.__id_migration_spans != self.id:
-                        self.__migration_spans = MigrationSpan.retrieve(
+                        self.__migration_spans = MigrationSpan.get_instances(
                             where_data={MigrationSpan.Db.ID_MIGRATION_WORK: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,

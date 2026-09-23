@@ -130,10 +130,10 @@ def retrieve_databases(input_params: dict[str, Any],
                 where_data = {Database.Db.CD_ENGINE: database_params[Database.Db.CD_ENGINE]}
             elif Database.Db.CD_TYPE in database_params:
                 where_data = {Database.Db.CD_TYPE: database_params[Database.Db.CD_TYPE]}
-            databases: list[Database] = Database.retrieve(where_data=where_data,
-                                                          db_engine=PYDB_DB_ENGINE,
-                                                          db_conn=db_conn,
-                                                          errors=errors)
+            databases: list[Database] = Database.get_instances(where_data=where_data,
+                                                               db_engine=PYDB_DB_ENGINE,
+                                                               db_conn=db_conn,
+                                                               errors=errors)
             for database in databases or []:
                 result[database.cd_engine] = database.get_inputs()
 
@@ -160,7 +160,7 @@ def __validate_input(input_params: dict[str, Any],
                                   required=op in [OpType.UPDATE, OpType.DELETE],
                                   errors=errors)
     if engine_id:
-        result[InputParam.DATABASE] = Database(cd_engine=engine_id,
+        result[InputParam.DATABASE] = Database(cd_engine=engine_id.lower(),
                                                db_engine=PYDB_DB_ENGINE,
                                                db_conn=db_conn,
                                                errors=errors)
@@ -171,7 +171,7 @@ def __validate_input(input_params: dict[str, Any],
                                   required=op == OpType.CREATE,
                                   errors=errors)
     if db_engine:
-        result[Database.Db.CD_ENGINE] = db_engine
+        result[Database.Db.CD_ENGINE] = db_engine.lower()
 
     db_type: DbEngine = validate_enum(source=input_params,
                                       attr=InputParam.DB_TYPE,
@@ -202,7 +202,7 @@ def __validate_input(input_params: dict[str, Any],
                                 required=op == OpType.CREATE,
                                 errors=errors)
     if db_name:
-        result[Database.Db.CD_NAME] = db_name
+        result[Database.Db.CD_NAME] = db_name.lower()
 
     db_host: str = validate_str(source=input_params,
                                 attr=InputParam.DB_HOST,
@@ -210,7 +210,7 @@ def __validate_input(input_params: dict[str, Any],
                                 required=op == OpType.CREATE,
                                 errors=errors)
     if db_host:
-        result[Database.Db.NM_HOST] = db_host
+        result[Database.Db.NM_HOST] = db_host.lower()
 
     db_port: int = validate_int(source=input_params,
                                 attr=InputParam.DB_PORT,

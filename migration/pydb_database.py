@@ -15,11 +15,11 @@ def db_pool_setup(db_engine: str,
         pool = DbConnectionPool(db_engine,
                                 errors=errors)
         if not errors:
-            db_type: DbEngine = db_get_type(engine=db_engine)
             stmts: list[str] = []
+            db_type: DbEngine = db_get_type(engine=db_engine)
             # fine-tune all database sessions, as needed
             # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
-            match db_engine:
+            match db_type:
                 case DbEngine.MYSQL:
                     stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
                 case DbEngine.ORACLE:

@@ -146,10 +146,10 @@ def retrieve_migrations(input_params: dict[str, Any],
                 where_data = {Migration.Db.ID_SESSION: migration_params[Migration.Db.ID_SESSION]}
 
             if where_data:
-                migrations: list[Migration] = Migration.retrieve(where_data=where_data,
-                                                                 db_engine=PYDB_DB_ENGINE,
-                                                                 db_conn=db_conn,
-                                                                 errors=errors)
+                migrations: list[Migration] = Migration.get_instances(where_data=where_data,
+                                                                      db_engine=PYDB_DB_ENGINE,
+                                                                      db_conn=db_conn,
+                                                                      errors=errors)
                 for migration in migrations or []:
                     mig_data: dict[str, Any] = migration.get_inputs()
                     values: list[int] = Session.get_values(attrs=Session.Db.CD_SESSION,
@@ -477,12 +477,12 @@ def __validate_input(input_params: dict[str, Any],
                                                  attr=InputParam.EXCLUDE_RELATIONS,
                                                  errors=errors)
     if exclude_relations:
-        result[Migration.Db.DS_EXCLUDE_RELATIONS] = ",".join([i for i in exclude_relations])
+        result[Migration.Db.DS_EXCLUDE_RELATIONS] = (",".join([i for i in exclude_relations])).lower()
 
     include_relations: list[str] = validate_strs(source=input_params,
                                                  attr=InputParam.INCLUDE_RELATIONS,
                                                  errors=errors)
     if include_relations:
-        result[Migration.Db.DS_INCLUDE_RELATIONS] = ",".join([i for i in include_relations])
+        result[Migration.Db.DS_INCLUDE_RELATIONS] = (",".join([i for i in include_relations])).lower()
 
     return result

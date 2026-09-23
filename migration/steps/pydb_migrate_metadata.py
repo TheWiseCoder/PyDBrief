@@ -9,15 +9,16 @@ from sqlalchemy.exc import SAWarning
 from typing import Any
 
 from entities.migration import Migration, MigStep
+from entities.migration_issue import MigrationIssue, IssueType
 from entities.session import Session
 
 from app_constants import InputParam
 from migration.pydb_database import column_set_nullable, view_get_ddl
+from migration.pydb_engine import build_engine
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_migration import (
     assert_relation, prune_metadata, setup_schema, setup_tables
 )
-from migration.steps.pydb_engine import build_engine
 
 
 def migrate_metadata(migration: Migration,
@@ -36,9 +37,7 @@ def migrate_metadata(migration: Migration,
     target_engine: Engine = build_engine(db_engine=session.get_target_db().cd_engine,
                                          errors=errors,
                                          logger=logger)
-    # were both engines created ?
     if source_engine and target_engine:
-        # yes, proceed
         from_schema: str | None = None
 
         # obtain the source schema's internal name
@@ -95,6 +94,9 @@ def migrate_metadata(migration: Migration,
                 exc_err: str = str_sanitize(exc_format(exc=e,
                                                        exc_info=sys.exc_info()))
                 logger.error(msg=exc_err)
+                MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_type=IssueType.ERROR,
+                                         ds_issue=exc_err)
                 # 104: The operation {} returned the error {}
                 errors.append(validate_format_error(104,
                                                     "schema-reflection",
@@ -131,6 +133,9 @@ def migrate_metadata(migration: Migration,
                                                            exc_info=sys.exc_info()))
                     logger.error(msg=exc_err)
                     # 104: The operation {} returned the error {}
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_type=IssueType.ERROR,
+                                             ds_issue=exc_err)
                     errors.append(validate_format_error(104,
                                                         "schema-migration",
                                                         exc_err))
@@ -148,6 +153,9 @@ def migrate_metadata(migration: Migration,
                         if not to_schema:
                             err_msg: str = f"Unable to migrate schema to RDBMS '{session.get_source_db().cd_engine}'"
                             logger.error(msg=err_msg)
+                            MigrationIssue.new_issue(id_migration=migration.id,
+                                                     cd_type=IssueType.ERROR,
+                                                     ds_issue=err_msg)
                             # 102: Unexpected error: {}
                             errors.append(validate_format_error(102,
                                                                 err_msg))
@@ -190,6 +198,9 @@ def migrate_metadata(migration: Migration,
                                     exc_err: str = str_sanitize(exc_format(exc=e,
                                                                            exc_info=sys.exc_info()))
                                     logger.error(msg=exc_err)
+                                    MigrationIssue.new_issue(id_migration=migration.id,
+                                                             cd_type=IssueType.ERROR,
+                                                             ds_issue=exc_err)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",
@@ -211,10 +222,17 @@ def migrate_metadata(migration: Migration,
                                 # errors ?
                                 if curr_errors:
                                     # yes, report them
-                                    errors.extend(curr_errors)
+                                    for curr_error in curr_errors:
+                                        errors.append(curr_error)
+                                        MigrationIssue.new_issue(id_migration=migration.id,
+                                                                 cd_type=IssueType.ERROR,
+                                                                 ds_issue=curr_error)
                                     err_msg: str = ("Unable to create view "
                                                     f"{session.nm_target_schema}.{target_view}")
                                     logger.error(msg=err_msg)
+                                    MigrationIssue.new_issue(id_migration=migration.id,
+                                                             cd_type=IssueType.ERROR,
+                                                             ds_issue=err_msg)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",

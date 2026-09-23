@@ -578,7 +578,7 @@ def service_migrate(migration_id: str = None) -> Response:
     if migration_id:
         # obtain migration instance
         migration: Migration = Migration(None,
-                                         type[list[MigrationTable]],
+                                         [MigrationTable],
                                          nm_badge=migration_id,
                                          db_engine=PYDB_DB_ENGINE,
                                          errors=errors)
@@ -588,23 +588,20 @@ def service_migrate(migration_id: str = None) -> Response:
         if not errors:
             # obtain session instance
             session: Session = Session(migration.id_session,
-                                       type[S3],
+                                       S3,
                                        db_engine=PYDB_DB_ENGINE,
                                        errors=errors)
             if not errors:
-                if session.cd_state == SessionState.FINISHED:
-                    errors.append(validate_format_error(100,
-                                                        f"Session '{session.cd_session}' has no outstanding migration"))
-                elif session.cd_state == SessionState.CREATED:
-                    session.cd_state = SessionState.STARTED
-                    session.update(db_engine=PYDB_DB_ENGINE,
-                                   errors=errors)
-                    # make sure database instancess are available
-                    _source_db = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                # make sure database instancess are available
+                _source_db = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                                                   errors=errors)
+                if not errors:
+                    _target_db = session.get_target_db(db_engine=PYDB_DB_ENGINE,
                                                        errors=errors)
-                    if not errors:
-                        _target_db = session.get_target_db(db_engine=PYDB_DB_ENGINE,
-                                                           errors=errors)
+                    if not errors and session.cd_state != SessionState.STARTED:
+                        session.cd_state = SessionState.STARTED
+                        session.update(db_engine=PYDB_DB_ENGINE,
+                                       errors=errors)
             # launch the migration
             if not errors:
                 try:

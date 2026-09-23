@@ -1,21 +1,20 @@
 import hashlib
 import mimetypes
 import pickle
-from enum import StrEnum
 from logging import Logger
 from pypomes_core import Mimetype, file_get_mimetype, file_get_extension, str_from_any
-from pypomes_db import db_stream_lobs, DbEngine
-from pypomes_s3 import s3_data_store, S3Engine
+from pypomes_db import db_stream_lobs
+from pypomes_s3 import s3_data_store
 from pathlib import Path
 from typing import Any
 
-from app_constants_old import (
-    MigConfig, MigMetric, MigSpot, MigSpec
-)
-from migration.pydb_sessions import assert_session_abort, get_session_registry
+from entities.migration import Migration
+from entities.migration_issue import MigrationIssue, IssueType
+from entities.session import Session, sessions_aborting
 
 
-def s3_migrate_lobs(session_id: str,
+def s3_migrate_lobs(migration: Migration,
+                    session: Session,
                     db_conn: Any,
                     s3_client: Any,
                     source_table: str,
@@ -28,6 +27,7 @@ def s3_migrate_lobs(session_id: str,
                     limit_count: int,
                     forced_filetype: str,
                     reference_column: str,
+                    chunk_size: int,
                     migration_warnings: list[str],
                     errors: list[str],
                     logger: Logger) -> tuple[int, int]:
@@ -36,17 +36,10 @@ def s3_migrate_lobs(session_id: str,
     result_count: int = 0
     result_size: int = 0
 
-    # retrieve the registry data for the session
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-
     # retrieve the configuration for the migration
-    source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
-    target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
-    target_s3: S3Engine = session_spots[MigSpot.TO_S3]
-    chunk_size: int = session_metrics[MigMetric.CHUNK_SIZE]
+    source_db: str = session.get_source_db().cd_engine
+    target_db: str = session.get_target_db().cd_engine
+    target_s3: str = session.get_target_s3().cd_engine
 
     # initialize the file and mime types
     forced_mimetype: Mimetype | None = None
@@ -61,6 +54,9 @@ def s3_migrate_lobs(session_id: str,
                 warn_msg: str = f"Unable fo obtain a mimetype for forced filetype '{forced_filetype}'"
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
+                MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_type=IssueType.WARNING,
+                                         ds_issue=warn_msg)
 
     # initialize the remaining properties
     identifier: str | None = None
@@ -90,10 +86,8 @@ def s3_migrate_lobs(session_id: str,
                                    errors=errors):
 
         # verify whether current migration is marked for abortion
-        if errors or assert_session_abort(session_id=session_id,
-                                          errors=errors,
-                                          logger=logger):
-            # abort the lobdata streaming
+        if session.cd_session in sessions_aborting:
+            sessions_aborting.remove(session.cd_session)
             break
 
         # LOB identification
@@ -136,7 +130,7 @@ def s3_migrate_lobs(session_id: str,
             if lob_data:
                 # determine LOB's mimetype and file extension
                 if not mimetype:
-                    if session_specs[MigSpec.REFLECT_FILETYPE]:
+                    if migration.is_reflect_filetype:
                         mimetype = file_get_mimetype(file_data=lob_data)
                         if mimetype:
                             extension = file_get_extension(mimetype=mimetype)
@@ -172,6 +166,9 @@ def s3_migrate_lobs(session_id: str,
                                      f"'{Path(lob_prefix) / identifier}' to {target_s3}")
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_type=IssueType.WARNING,
+                                             ds_issue=warn_msg)
                 lob_data = None
             else:
                 logger.warning(f"Attempted to migrate empty LOB '{identifier}'")

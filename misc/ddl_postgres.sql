@@ -209,7 +209,7 @@ CREATE TABLE migration_table (
     ds_named_lobdata varchar(4000),
     ds_omit_defaults varchar(256),
     ds_override_columns varchar(256),
-    ds_remove_ctrlchars varchar(256),
+    is_remove_ctrlchars bool,
     nr_batch_size_in int8,
     nr_batch_size_out int8,
     nr_chunk_size int8,

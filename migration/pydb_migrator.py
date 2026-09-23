@@ -4,29 +4,29 @@ import sys
 import threading
 import warnings
 from datetime import datetime
+from io import BytesIO
 from logging import Logger
 from pypomes_core import (
-    TZ_LOCAL, timestamp_duration, pypomes_versions, dict_jsonify,
-    str_is_int, str_splice, str_sanitize,
-    validate_format_error, exc_format
+    TZ_LOCAL, DatetimeFormat,
+    timestamp_duration, env_is_docker, pypomes_versions,
+    dict_jsonify, str_sanitize, validate_format_error, exc_format
 )
-from pypomes_db import DbEngine, db_connect, db_commit, db_rollback, db_close
 from pypomes_logging import logging_get_entries, logging_get_params
-from typing import Any, Type
+from pathlib import Path
+from typing import Any
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigIncremental
+from app_constants import REGISTRY_DOCKER, REGISTRY_HOST, PYDB_DB_ENGINE, InputParam
 from app_ident import get_env_keys
 from entities.migration import Migration, MigStep
-from entities.migration_span import MigrationSpan
+from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
 from entities.migration_work import MigrationWork
-from entities.database import Database
 from entities.session import Session, SessionState
-from entities.s3 import S3
-from migration.pydb_types_old import name_to_type
+from migration.steps.pydb_correlate_lobdata import correlate_lobdata
 from migration.steps.pydb_migrate_lobdata import migrate_lobdata
 from migration.steps.pydb_migrate_metadata import migrate_metadata
 from migration.steps.pydb_migrate_plaindata import migrate_plaindata
+from migration.steps.pydb_sync_plaindata import synchronize_plaindata
 
 
 def migrate(migration: Migration,
@@ -36,6 +36,9 @@ def migrate(migration: Migration,
             base_url: str,
             requester: str,
             logger: Logger) -> None:
+
+    # time the migration start
+    migration_started: datetime = datetime.now(tz=TZ_LOCAL)
 
     # initialize the errors list
     errors: list[str] = []
@@ -89,10 +92,8 @@ def migrate(migration: Migration,
     # initialize the thread registration
     migration_threads: list[int] = [threading.get_ident()]
 
-    # proceed, if migration of plain data and/or LOB data has been indicated
-    if (not errors and migrated_tables and
-        migration.cd_step in [MigStep.MIGRATE_PLAINDATA, MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_PLAINDATA,
-                              MigStep.CORRELATE_LOBDATA, MigStep.SYNCHRONIZE_PLAINDATA]):
+    # proceed, if migration/synchronization/correlation has been indicated
+    if not errors and migrated_tables and migration.cd_step != MigStep.MIGRATE_METADATA:
 
         # migrate the plain data
         if migration.cd_step == MigStep.MIGRATE_PLAINDATA:
@@ -149,57 +150,143 @@ def migrate(migration: Migration,
             logger.debug(msg=f"Finished migrating {lob_count} LOBs, "
                              f"{lob_bytes} bytes, in {duration} ({performance})")
 
+        # correlate the LOBs
+        if not errors and migration.cd_step == MigStep.CORRELATE_LOBDATA:
+            logger.info(msg="Started correlating the LOBs")
 
-def process_override_columns(override_columns: list[str],
-                             db_engine: DbEngine | str,
-                             errors: list[str]) -> dict[str, Type]:
+            # ignore warnings from 'boto3' and 'minio' packages
+            # (they generate the warning "datetime.datetime.utcnow() is deprecated...")
+            warnings.filterwarnings(action="ignore")
 
-    # initialize the return variable
-    result: dict[str, Type] = {}
+            started: datetime = datetime.now(tz=TZ_LOCAL)
+            counts: tuple[int, int, int] = correlate_lobdata(migration=migration,
+                                                             session=session,
+                                                             migration_threads=migration_threads,
+                                                             migrated_tables=migrated_tables,
+                                                             migration_warnings=migration_warnings,
+                                                             errors=errors,
+                                                             logger=logger)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            op_report.update({
+                "total-lob-count": counts[0],
+                "total-lob-deletes": counts[1],
+                "total-lob-inserts": counts[2],
+                "total-lob-duration": duration
+            })
+            logger.info(msg="Finished correlating the LOBs")
 
-    # process the override columns list
+        # correlate/synchronize the plain data
+        if not errors and migration.cd_step in [MigStep.CORRELATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
+            op: str = "correlating" if migration.cd_step == MigStep.CORRELATE_PLAINDATA else "synchronizing"
+            logger.info(msg=f"Started {op} the plain data")
+            started: datetime = datetime.now(tz=TZ_LOCAL)
+            counts: tuple[int, int, int] = synchronize_plaindata(migration=migration,
+                                                                 session=session,
+                                                                 migration_threads=migration_threads,
+                                                                 migrated_tables=migrated_tables,
+                                                                 # migration_warnings=migration_warnings,
+                                                                 errors=errors,
+                                                                 logger=logger)
+            finished: datetime = datetime.now(tz=TZ_LOCAL)
+            duration: str = timestamp_duration(start=started,
+                                               finish=finished)
+            op_report.update({
+                "total-plain-deletes": counts[0],
+                "total-plain-inserts": counts[1],
+                "total-plain-updates": counts[2],
+                "total-plain-duration": duration
+            })
+            logger.info(msg=f"Finished {op} the plain data")
+
+    # update the migration and session instances
+    if not errors:
+        migration_works: list[MigrationWork] = migration.get_migration_works(refresh=True,
+                                                                             db_engine=PYDB_DB_ENGINE,
+                                                                             errors=errors)
+        if not errors:
+            is_finished: bool = True
+            for migration_work in migration_works:
+                if migration_work.ts_finish is None:
+                    is_finished = False
+                    break
+            if is_finished:
+                migration.ts_finish = datetime.now(tz=TZ_LOCAL)
+                migration.update(db_engine=PYDB_DB_ENGINE,
+                                 errors=errors)
+                if not errors:
+                    session: Session = Session.get_instance([Migration],
+                                                            where_data={Session.Db.ID: migration.id_session},
+                                                            db_engine=PYDB_DB_ENGINE,
+                                                            errors=errors)
+                    if not errors:
+                        migrations: list[Migration] = session.get_migrations(db_engine=PYDB_DB_ENGINE)
+                        for mig in migrations or []:
+                            if mig.ts_finish is None:
+                                is_finished = False
+                                break
+                    if is_finished:
+                        session.cd_session = SessionState.FINISHED
+
+    migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
+    op_report.update({
+        "total-tables": len(migrated_tables),
+        "migrated-tables": migrated_tables,
+        "started": migration_started.strftime(format=DatetimeFormat.INV),
+        "finished": migration_finished.strftime(format=DatetimeFormat.INV),
+        "duration": timestamp_duration(start=migration_started,
+                                       finish=migration_finished)
+    })
+
     try:
-        for override_column in override_columns:
-            # format of 'override_column' is <table_name>.<column_name>=<column_type>
-            column_name: str = override_column[:int(f"{override_column.rindex('=')}")].lower()
-            type_name: str = override_column.replace(column_name, "", 1)[1:].lower()
-            column_type: Type = name_to_type(type_name=type_name,
-                                             db_engine=db_engine)
-            if column_name and column_type:
-                result[column_name] = column_type
-            else:
-                # 142: Invalid value {}: {}
-                errors.append(validate_format_error(142,
-                                                    type_name,
-                                                    f"not a valid column type for dtabase engine {db_engine}"))
+        __log_migration(badge=migration.nm_badge,
+                        threads=migration_threads,
+                        errors=errors,
+                        log_json=op_report)
     except Exception as e:
         exc_err: str = str_sanitize(exc_format(exc=e,
                                                exc_info=sys.exc_info()))
+        logger.error(msg=exc_err)
+        MigrationIssue.new_issue(id_migration=migration.id,
+                                 cd_type=IssueType.ERROR,
+                                 ds_issue=exc_err)
         # 101: {}
         errors.append(validate_format_error(101,
-                                            f"Syntax error: {exc_err}",
-                                            f"@{InputParam.OVERRIDE_COLUMNS}"))
-    return result
+                                            exc_err))
 
 
-def process_incremental_migrations(incremental_migrations: list[str],
-                                   def_size: int) -> dict[str, dict[MigIncremental, int]]:
+def __log_migration(badge: str,
+                    threads: list[int],
+                    log_json: dict[str, Any],
+                    errors: list[str]) -> None:
 
-    # initialize the return variable
-    result: dict[str, dict[MigIncremental, int]] = {}
+    # define the base path
+    base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
 
-    # format of 'incremental_migrations' is [<table-name>[=<size>[:<offset>],...]
-    for incremental_table in incremental_migrations:
-        if ":" not in incremental_table:
-            incremental_table += ":"
-        # noinspection PyTypeChecker
-        terms: tuple[str, str, str] = str_splice(incremental_table,
-                                                 seps=["=", ":"])
-        size: int = int(terms[1]) if str_is_int(terms[1]) else def_size
-        offset: int = int(terms[2]) if str_is_int(terms[2]) else 0
-        result[terms[0]] = {
-            MigIncremental.COUNT: size,
-            MigIncremental.OFFSET: offset
-        }
+    log_file: Path = Path(base_path,
+                          f"{badge}.log")
+    # create intermediate missing folders
+    log_file.parent.mkdir(parents=True,
+                          exist_ok=True)
+    # write the log file
+    log_entries: BytesIO = logging_get_entries(log_threads=list(map(str, set(threads))),
+                                               errors=errors)
+    if log_entries:
+        log_entries.seek(0)
+        with log_file.open("wb") as f:
+            f.write(log_entries.getvalue())
 
-    return result
+    # write the JSON file
+    if errors:
+        log_json = log_json.copy()
+        log_json["errors"] = errors
+    json_data = json.dumps(obj=log_json,
+                           ensure_ascii=False,
+                           indent=4)
+    json_file: Path = Path(base_path,
+                           f"{badge}.json")
+    with json_file.open("w") as f:
+        f.write(json_data)
+
+    # sent the files to the S3 storage

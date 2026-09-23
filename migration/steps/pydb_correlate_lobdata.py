@@ -2,27 +2,26 @@ import threading
 from datetime import datetime
 from concurrent import futures
 from concurrent.futures import Future, ThreadPoolExecutor
-from enum import StrEnum
 from logging import Logger
 from pathlib import Path
 from pypomes_core import (
-    TZ_LOCAL,
-    timestamp_duration, list_correlate, list_prune_duplicates
+    TZ_LOCAL, timestamp_duration,
+    str_as_list, list_correlate, list_prune_duplicates
 )
-from pypomes_db import DbEngine, db_count, db_select
+from pypomes_db import db_count, db_select
 from pypomes_s3 import (
     S3Engine, s3_get_client, s3_items_get_info, s3_items_remove
 )
 from typing import Any
 
-import migration.steps.pydb_migrate_lobdata_old as lobdata_ctrl
-from app_constants_old import (
-    MigConfig, MigMetric, MigSpec, MigSpot
-)
+from entities.migration import Migration
+from entities.migration_issue import MigrationIssue, IssueType
+from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
+from entities.session import Session, sessions_aborting
+import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
 from migration.pydb_common import build_channel_data, build_lob_prefix
-from migration.pydb_sessions import assert_session_abort, get_session_registry
-from migration.pydb_types_old import is_lob_column
-from migration.steps.pydb_migrate_lobdata_old import migrate_lob_columns
+from migration.pydb_types import is_lob_column
+from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 
 # structure of the thread registry:
 # lobdata_ctrl.lobdata_registry: dict[int, dict[str, Any]] = {
@@ -48,12 +47,13 @@ from migration.steps.pydb_migrate_lobdata_old import migrate_lob_columns
 # }
 
 
-def correlate_lobs(session_id: str,
-                   migration_threads: list[int],
-                   migrated_tables: dict[str, Any],
-                   migration_warnings: list[str],
-                   errors: list[str],
-                   logger: Logger) -> tuple[int, int, int]:
+def correlate_lobdata(migration: Migration,
+                      session: Session,
+                      migration_threads: list[int],
+                      migrated_tables: dict[str, Any],
+                      migration_warnings: list[str],
+                      errors: list[str],
+                      logger: Logger) -> tuple[int, int, int]:
 
     # initialize the return variables
     result_count: int = 0
@@ -68,40 +68,34 @@ def correlate_lobs(session_id: str,
             "child-threads": []
         }
 
-    # retrieve the registry data for the session
-    session_registry: dict[StrEnum, Any] = get_session_registry(session_id=session_id)
-    session_metrics: dict[MigMetric, Any] = session_registry[MigConfig.METRICS]
-    session_specs: dict[MigSpec, Any] = session_registry[MigConfig.SPECS]
-    session_spots: dict[MigSpot, Any] = session_registry[MigConfig.SPOTS]
-
     # retrieve the source and target DB and S3 engines
-    source_db: DbEngine = session_spots[MigSpot.FROM_RDBMS]
-    target_db: DbEngine = session_spots[MigSpot.TO_RDBMS]
-    target_s3: S3Engine = session_spots[MigSpot.TO_S3]
+    source_db: str = session.get_source_db().cd_engine
+    target_db: str = session.get_target_db().cd_engine
+    target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None
 
     # retrieve the channel count
-    channel_count: int = session_metrics[MigMetric.LOBDATA_CHANNELS]
+    channel_count: int = migration.nr_lobdata_channels
 
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
 
-        # error may come from previous iteration
-        if errors or assert_session_abort(session_id=session_id,
-                                          errors=errors,
-                                          logger=logger):
-            # abort the lobdata synchronization
+        # verify whether current migration is marked for abortion
+        if session.cd_session in sessions_aborting:
+            sessions_aborting.remove(session.cd_session)
             break
 
-        source_schema: str = session_specs[MigSpec.FROM_SCHEMA]
-        source_table: str = f"{source_schema}.{table_name}"
-        target_schema: str = session_specs[MigSpec.TO_SCHEMA]
-        target_table: str = f"{target_schema}.{table_name}"
+        source_table: str = f"{session.nm_source_schema}.{table_name}"
+        target_table: str = f"{session.nm_target_schema}.{table_name}"
         with lobdata_ctrl.lobdata_lock:
             lobdata_ctrl.lobdata_registry[mother_thread][source_table] = {
                 "table-count": 0,
                 "table-bytes": 0,
                 "errors": []
             }
+
+        # obtain the corresponding MigrationTable instance
+        migration_table: MigrationTable = \
+            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
 
         # organize the information, using LOB types from the columns list
         pk_columns: list[str] = []
@@ -111,7 +105,8 @@ def correlate_lobs(session_id: str,
             column_type: str = column_data.get("source-type")
             if is_lob_column(col_type=column_type):
                 # synchronizing to S3 requires the lob column be mapped in 'named-lobdata'
-                for item in (session_specs[MigSpec.NAMED_LOBDATA] or []):
+                named_lobdata: list[str] = str_as_list(migration_table.ds_named_lobdata)
+                for item in named_lobdata:
                     # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
                     if item.startswith(f"{table_name}.{column_name}="):
                         lob_columns.append((column_name, item[item.index("=")+1:]))
@@ -149,6 +144,9 @@ def correlate_lobs(session_id: str,
                                      f"{source_db}.{source_table}.{reference_column}")
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_type=IssueType.WARNING,
+                                             ds_issue=warn_msg)
 
                     # start synchronizing 'lob_column'
                     with lobdata_ctrl.lobdata_lock:
@@ -158,14 +156,13 @@ def correlate_lobs(session_id: str,
                             f"{reference_column}-s3-full": {}
                         })
                     # obtain an S3 prefix for storing the lobdata
-                    lob_prefix: Path = build_lob_prefix(session_registry=session_registry,
-                                                        target_db=target_db,
+                    lob_prefix: Path = build_lob_prefix(session=session,
                                                         target_table=target_table,
                                                         column_name=reference_column)
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(channel_size=session_metrics[MigMetric.LOBDATA_CHANNEL_SIZE],
+                        build_channel_data(channel_size=migration.nr_lobdata_channel_size,
                                            table_count=table_count,
                                            offset_count=0,
                                            limit_count=0)
@@ -180,25 +177,25 @@ def correlate_lobs(session_id: str,
                                      f"using {max_workers} channels")
                     if max_workers == 1:
                         # execute single task in current thread
-                        _compute_lob_lists(mother_thread=mother_thread,
+                        _compute_lob_lists(session=session,
+                                           mother_thread=mother_thread,
                                            source_table=source_table,
                                            reference_column=reference_column,
                                            where_clause=where_clause,
-                                           s3_engine=target_s3,
+                                           lob_prefix=lob_prefix,
                                            offset_count=channel_data[0][0],
-                                           limit_count=tot_count,
-                                           lob_prefix=lob_prefix)
+                                           limit_count=tot_count)
                     else:
                         # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=max_workers) as executor:
                             task_futures: list[Future] = []
                             for channel_datum in channel_data:
                                 future: Future = executor.submit(_compute_lob_lists,
+                                                                 session=session,
                                                                  mother_thread=mother_thread,
                                                                  source_table=source_table,
                                                                  reference_column=reference_column,
                                                                  where_clause=where_clause,
-                                                                 s3_engine=target_s3,
                                                                  lob_prefix=lob_prefix,
                                                                  offset_count=channel_datum[0],
                                                                  limit_count=channel_datum[1])
@@ -217,7 +214,11 @@ def correlate_lobs(session_id: str,
                         op_errors: list[str] = table_data.get("errors")
                         if op_errors:
                             status = "error"
-                            errors.extend(op_errors)
+                            for op_error in op_errors:
+                                errors.append(op_error)
+                                MigrationIssue.new_issue(id_migration=migration.id,
+                                                         cd_type=IssueType.ERROR,
+                                                         ds_issue=op_error)
                         else:
                             lob_count = table_data.get("table-count")
                             col_db_names = table_data.get(f"{reference_column}-db-names")
@@ -273,12 +274,9 @@ def correlate_lobs(session_id: str,
 
             # migrate the LOBs in 'table_inserts'
             if lob_columns:
-                migrate_lob_columns(mother_thread=mother_thread,
-                                    session_id=session_id,
-                                    source_db=source_db,
-                                    target_db=target_db,
-                                    target_s3=target_s3,
-                                    source_schema=source_schema,
+                migrate_lob_columns(migration=migration,
+                                    session=session,
+                                    mother_thread=mother_thread,
                                     source_table=source_table,
                                     target_table=target_table,
                                     pk_columns=pk_columns,
@@ -286,6 +284,7 @@ def correlate_lobs(session_id: str,
                                     lob_tuples=table_inserts,
                                     offset_count=0,
                                     limit_count=0,
+                                    chunk_size=migration_table.nr_chunk_size or SPAN_CHUNK_SIZE[1],
                                     migration_warnings=migration_warnings,
                                     errors=errors,
                                     logger=logger)
@@ -310,11 +309,11 @@ def correlate_lobs(session_id: str,
     return result_count, result_deletes, result_inserts
 
 
-def _compute_lob_lists(mother_thread: int,
+def _compute_lob_lists(session: Session,
+                       mother_thread: int,
                        source_table: str,
                        reference_column: str,
                        where_clause: str,
-                       s3_engine: S3Engine,
                        lob_prefix: Path,
                        offset_count: int,
                        limit_count: int) -> None:
@@ -331,7 +330,7 @@ def _compute_lob_lists(mother_thread: int,
 
     # obtain an S3 client
     errors: list[str] = []
-    s3_client: Any = s3_get_client(engine=s3_engine,
+    s3_client: Any = s3_get_client(engine=session.get_target_s3().cd_engine,
                                    errors=errors)
     if not errors:
         db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
@@ -339,6 +338,7 @@ def _compute_lob_lists(mother_thread: int,
                                                orderby_clause=reference_column,
                                                offset_count=offset_count,
                                                limit_count=limit_count,
+                                               engine=session.get_source_db().cd_engine,
                                                errors=errors)
         if not errors:
             lobs_db_names = [db_item[0] for db_item in db_items]
@@ -348,7 +348,7 @@ def _compute_lob_lists(mother_thread: int,
             db_items.clear()
 
             obj_id: str | None = None
-            match s3_engine:
+            match session.get_target_s3().cd_type:
                 case S3Engine.AWS:
                     obj_id = "Key"
                 case S3Engine.MINIO:

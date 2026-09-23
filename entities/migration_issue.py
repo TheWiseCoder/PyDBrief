@@ -66,6 +66,26 @@ class MigrationIssue(PySob):
                          committable=committable,
                          errors=errors)
 
+    @classmethod
+    def new_issue(cls,
+                  id_migration: int,
+                  cd_type: IssueType,
+                  ds_issue: str,
+                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                  db_conn: Any = None,
+                  committable: bool = None,
+                  errors: list[str] = None) -> None:
+
+        migration_issue: MigrationIssue = MigrationIssue()
+        migration_issue.id_migration = id_migration
+        migration_issue.cd_type = cd_type
+        migration_issue.ds_issue = ds_issue
+        migration_issue.ts_onset = datetime.now(tz=TZ_LOCAL)
+        migration_issue.insert(db_engine=db_engine,
+                               db_conn=db_conn,
+                               committable=committable,
+                               errors=errors)
+
 
 MigrationIssue.initialize(db_specs=(MigrationIssue.Db, int),
                           attrs_enum=MigrationIssue.ATTRS_ENUM,

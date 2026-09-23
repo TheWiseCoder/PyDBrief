@@ -190,11 +190,13 @@ class Migration(PySob):
 
     def get_migration_works(self,
                             __references: list[type[MigrationSpan]] = None,
+                            refresh: bool = False,
                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None) -> list[MigrationWork] | None:
-
+        if refresh:
+            self.__id_migration_works = None
         if not isinstance(errors, list):
             errors = []
         self.load_references(list[MigrationWork],
@@ -231,7 +233,7 @@ class Migration(PySob):
                         self.__migration_issues = None
                         self.__id_migration_issues = None
                     elif self.__id_migration_issues != self.id:
-                        self.__migration_issues = MigrationIssue.retrieve(
+                        self.__migration_issues = MigrationIssue.get_instances(
                             where_data={MigrationIssue.Db.ID_MIGRATION: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,
@@ -245,7 +247,7 @@ class Migration(PySob):
                         self.__migration_reports = None
                         self.__id_migration_reports = None
                     elif self.__id_migration_tables != self.id:
-                        self.__migration_reports = MigrationReport.retrieve(
+                        self.__migration_reports = MigrationReport.get_instances(
                             where_data={MigrationReport.Db.ID_MIGRATION: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,
@@ -259,7 +261,7 @@ class Migration(PySob):
                         self.__migration_tables = None
                         self.__id_migration_tables = None
                     elif self.__id_migration_tables != self.id:
-                        self.__migration_tables = MigrationTable.retrieve(
+                        self.__migration_tables = MigrationTable.get_instances(
                             where_data={MigrationTable.Db.ID_MIGRATION: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,
@@ -273,7 +275,7 @@ class Migration(PySob):
                         self.__migration_works = None
                         self.__id_migration_works = None
                     elif self.__id_migration_works != self.id:
-                        self.__migration_works = MigrationWork.retrieve(
+                        self.__migration_works = MigrationWork.get_instances(
                             where_data={MigrationWork.Db.ID_MIGRATION: self.id},
                             db_engine=db_engine,
                             db_conn=db_conn,
