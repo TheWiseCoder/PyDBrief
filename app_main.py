@@ -30,6 +30,7 @@ from pypomes_logging import (
 )
 
 from app_constants import PYDB_DB_ENGINE, InputParam
+from app_init import init_app
 from entities.migration import Migration
 from entities.migration_table import MigrationTable
 from entities.session import Session, SessionState
@@ -57,38 +58,45 @@ from storage.session_actions import (
     create_session, update_session, delete_session, retrieve_sessions
 )
 
-
 # create the Flask application
 flask_app: Final[Flask] = Flask(__name__)
 
-# support cross-origin resource sharing
-CORS(flask_app)
+if init_app(logger=PYPOMES_LOGGER):
 
-# set the logging endpoint
-flask_app.add_url_rule(rule="/logging",
-                       endpoint="logging",
-                       view_func=service_logging,
-                       methods=[HttpMethod.GET, HttpMethod.POST])
+    # support cross-origin resource sharing
+    CORS(flask_app)
 
-# make PyDBrief's REST API available as a Swagger app
-swagger_blueprint: Blueprint = get_swaggerui_blueprint(
-    base_url="/apidocs",
-    api_url="/swagger",
-    config={"defaultModelsExpandDepth": -1}
-)
-flask_app.register_blueprint(blueprint=swagger_blueprint)
+    # set the logging endpoint
+    flask_app.add_url_rule(rule="/logging",
+                           endpoint="logging",
+                           view_func=service_logging,
+                           methods=[HttpMethod.GET, HttpMethod.POST])
 
-# configure 'jsonify()' with 'ensure_ascii=False'
-flask_app.config["JSON_AS_ASCII"] = False
+    # make PyDBrief's REST API available as a Swagger app
+    swagger_blueprint: Blueprint = get_swaggerui_blueprint(
+        base_url="/apidocs",
+        api_url="/swagger",
+        config={"defaultModelsExpandDepth": -1}
+    )
+    flask_app.register_blueprint(blueprint=swagger_blueprint)
 
-# forward SQLAlchemy's logging activity to PYPOMES_LOGGER
-if os.getenv("PYDB_LOG_SQLALCHEMY") == "1":
-    logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
-    logging_log_forward(source_logger=logger,
-                        target_logger=PYPOMES_LOGGER)
-    logger = logging.getLogger("sqlalchemy.dialects")
-    logging_log_forward(source_logger=logger,
-                        target_logger=PYPOMES_LOGGER)
+    # configure 'jsonify()' with 'ensure_ascii=False'
+    flask_app.config["JSON_AS_ASCII"] = False
+
+    # forward SQLAlchemy's logging activity to PYPOMES_LOGGER
+    if os.getenv("PYDB_LOG_SQLALCHEMY") == "1":
+        logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
+        logging_log_forward(source_logger=logger,
+                            target_logger=PYPOMES_LOGGER)
+        logger = logging.getLogger("sqlalchemy.dialects")
+        logging_log_forward(source_logger=logger,
+                            target_logger=PYPOMES_LOGGER)
+else:
+    # abort the execution
+    err_msg: str = "Execution aborted"
+    PYPOMES_LOGGER.critical(msg=err_msg)
+    sys.stderr.write(err_msg)
+    sys.exit(1)
 
 
 @flask_app.route(rule="/swagger",

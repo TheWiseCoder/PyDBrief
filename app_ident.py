@@ -9,6 +9,7 @@ APP_NAME: str = "PyDBrief"
 APP_VERSION: Final[str] = "2.3.5"
 
 # load environment variables for local execution
+# (this must precede importing 'pypomes_core')
 if os.getenv("APP_LOCAL_DEPLOYMENT") == "1":
     load_dotenv(dotenv_path=Path.cwd() / ".env_local")
 
@@ -59,4 +60,5 @@ def __set_logging_file_path():
 
 
 # set the logging file's path
+# (this must precede importing 'pypomes_logging')
 __set_logging_file_path()
