@@ -181,7 +181,7 @@ def service_ignore() -> Response:
 
 @flask_app.route(rule="/database",
                  methods=[HttpMethod.GET, HttpMethod.POST])
-@flask_app.route(rule="/database/<engine-id>",
+@flask_app.route(rule="/database/<engine_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.PATCH])
 def service_database(engine_id: str = None) -> Response:
     """
@@ -301,7 +301,7 @@ def service_s3(engine_id: str = None) -> Response:
 
 
 @flask_app.route(rule="/session",
-                 methods=[HttpMethod.POST])
+                 methods=[HttpMethod.GET, HttpMethod.POST])
 @flask_app.route(rule="/session/<session_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
 def service_session(session_id: str = None) -> Response:

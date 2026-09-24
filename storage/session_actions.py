@@ -28,7 +28,7 @@ def create_session(input_params: dict[str, Any],
             session.id_source_db = session_params.pop(InputParam.SOURCE_DB).id
             session.id_target_db = session_params.pop(InputParam.TARGET_DB).id
             if InputParam.TARGET_S3 in session_params:
-                session.id_target_db = session_params.pop(InputParam.TARGET_S3)
+                session.id_target_s3 = session_params.pop(InputParam.TARGET_S3).id
             session.set(session_params)
             session.insert(db_engine=PYDB_DB_ENGINE,
                            db_conn=db_conn,
@@ -54,7 +54,8 @@ def update_session(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
-        valid_params: list[InputParam] = [InputParam.SESSION_ID] + [i[0] for i in Session.ATTRS_INPUT]
+        valid_params: list[InputParam] = ([InputParam.SESSION, InputParam.SESSION_ID] +
+                                          [i[0] for i in Session.ATTRS_INPUT])
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                           valid_params=valid_params,
                                                           op=OpType.UPDATE,
@@ -205,6 +206,10 @@ def __validate_input(input_params: dict[str, Any],
                                    required=op in [OpType.UPDATE, OpType.DELETE],
                                    errors=errors)
     if session_id:
+        result[InputParam.SESSION] = Session(cd_session=session_id,
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
         result[InputParam.SESSION_ID] = session_id
 
     cd_session: str = validate_str(source=input_params,
@@ -213,10 +218,7 @@ def __validate_input(input_params: dict[str, Any],
                                    required=op == OpType.CREATE,
                                    errors=errors)
     if cd_session:
-        result[Session.Db.CD_SESSION] = Session(cd_session=cd_session,
-                                                db_engine=PYDB_DB_ENGINE,
-                                                db_conn=db_conn,
-                                                errors=errors)
+        result[Session.Db.CD_SESSION] = cd_session
 
     # identify the source database instance (CREATE and UPDATE operations)
     source_db: str = validate_str(source=input_params,

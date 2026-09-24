@@ -142,8 +142,8 @@ def retrieve_migrations(input_params: dict[str, Any],
             where_data: dict[str, Any] | None = None
             if Migration.Db.NM_BADGE in migration_params:
                 where_data = {Migration.Db.NM_BADGE: migration_params[Migration.Db.NM_BADGE]}
-            elif Migration.Db.ID_SESSION in migration_params:
-                where_data = {Migration.Db.ID_SESSION: migration_params[Migration.Db.ID_SESSION]}
+            elif InputParam.SESSION in migration_params:
+                where_data = {Migration.Db.ID_SESSION: migration_params[InputParam.SESSION].id}
 
             if where_data:
                 migrations: list[Migration] = Migration.get_instances(where_data=where_data,

@@ -35,8 +35,6 @@ class MigrationTable(PySob):
         NR_CHUNK_SIZE = auto()
         NR_INCREMENTAL_COUNT = auto()
         NR_INCREMENTAL_OFFSET = auto()
-        TS_START = auto()
-        TS_FINISH = auto()
 
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.ID_MIGRATION, Db.NM_TABLE)
