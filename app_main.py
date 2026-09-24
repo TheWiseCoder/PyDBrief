@@ -300,7 +300,7 @@ def service_s3(engine_id: str = None) -> Response:
 @flask_app.route(rule="/session",
                  methods=[HttpMethod.GET, HttpMethod.POST])
 @flask_app.route(rule="/session/<session_id>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
 def service_session(session_id: str = None) -> Response:
     """
     Entry point for handling migration sessions.

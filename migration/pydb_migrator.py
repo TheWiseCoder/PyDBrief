@@ -16,7 +16,10 @@ from pypomes_s3 import s3_get_client, s3_data_store, s3_file_store
 from pathlib import Path
 from typing import Any
 
-from app_constants import REGISTRY_DOCKER, REGISTRY_HOST, PYDB_DB_ENGINE, PYDB_S3_ENGINE, InputParam
+from app_constants import (
+    REGISTRY_DOCKER, REGISTRY_HOST,
+    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_PATH, InputParam
+)
 from app_ident import get_env_keys
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
@@ -296,11 +299,13 @@ def __log_migration(migration: Migration,
         f.write(json_data)
 
     # send the files to the S3 storage, if configured
-    if PYDB_S3_ENGINE:
+    if PYDB_S3_ENGINE and PYDB_S3_BASE_PATH:
         errors = []
         s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
                                   errors=errors)
         if s3_client:
+            log_file = Path(PYDB_S3_BASE_PATH,
+                            f"{migration.nm_badge}.log")
             s3_file_store(identifier=log_file.name,
                           filepath=log_file,
                           mimetype=Mimetype.TEXT,
@@ -313,6 +318,8 @@ def __log_migration(migration: Migration,
                                           cd_type=IssueType.ERROR,
                                           ds_issues=errors)
             else:
+                json_file = Path(PYDB_S3_BASE_PATH,
+                                 f"{migration.nm_badge}.json")
                 s3_data_store(identifier=json_file.name,
                               data=json_data,
                               length=len(json_data.encode("utf-8")),

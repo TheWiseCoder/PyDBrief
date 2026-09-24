@@ -133,8 +133,9 @@ def retrieve_migrations(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[str] = [InputParam.BADGE, InputParam.SESSION]
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.BADGE, InputParam.SESSION],
+                                                            valid_params=valid_params,
                                                             op=OpType.RETRIEVE,
                                                             db_conn=db_conn,
                                                             errors=errors)

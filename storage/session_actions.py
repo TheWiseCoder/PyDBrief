@@ -1,5 +1,5 @@
 from typing import Any
-from pypomes_core import validate_str, validate_format_error
+from pypomes_core import validate_str, validate_format_error, validate_enum
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
@@ -128,8 +128,9 @@ def retrieve_sessions(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[str] = [InputParam.SESSION, InputParam.STATE]
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                          valid_params=[InputParam.SESSION],
+                                                          valid_params=valid_params,
                                                           op=OpType.RETRIEVE,
                                                           db_conn=db_conn,
                                                           errors=errors)
@@ -137,6 +138,8 @@ def retrieve_sessions(input_params: dict[str, Any],
             where_data: dict[str, Any]
             if Session.Db.CD_SESSION in session_params:
                 where_data = {Session.Db.CD_SESSION: session_params.get(Session.Db.CD_SESSION)}
+            elif InputParam.STATE in session_params:
+                where_data = {Session.Db.CD_STATE: session_params.get(InputParam.STATE)}
             else:
                 where_data = {Session.Db.CD_STATE: [SessionState.CREATED, SessionState.STARTED]}
             sessions: list[Session] = Session.get_instances(where_data=where_data,
@@ -186,7 +189,7 @@ def retrieve_sessions(input_params: dict[str, Any],
 
 
 def __validate_input(input_params: dict[str, Any],
-                     valid_params: list[InputParam],
+                     valid_params: list[str],
                      op: OpType,
                      db_conn: Any,
                      errors: list[str]) -> dict[str, Any]:
@@ -210,7 +213,6 @@ def __validate_input(input_params: dict[str, Any],
                                              db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
-        result[InputParam.SESSION_ID] = session_id
 
     cd_session: str = validate_str(source=input_params,
                                    attr=InputParam.SESSION,
@@ -219,6 +221,14 @@ def __validate_input(input_params: dict[str, Any],
                                    errors=errors)
     if cd_session:
         result[Session.Db.CD_SESSION] = cd_session
+
+    # retrieve operation, only
+    cd_state: SessionState = validate_enum(source=input_params,
+                                           attr=InputParam.STATE,
+                                           enum_class=SessionState,
+                                           errors=errors)
+    if cd_state:
+        result[InputParam.STATE] = cd_state
 
     # identify the source database instance (CREATE and UPDATE operations)
     source_db: str = validate_str(source=input_params,

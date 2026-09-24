@@ -27,7 +27,7 @@ def create_migration_table(input_params: dict[str, Any],
                              db_conn=db_conn,
                              errors=errors)
         if not errors:
-            # create and persist the migration
+            # create and persist the migration table instance
             migration: Migration = Migration(nm_badge=migration_table_params.pop(InputParam.BADGE),
                                              db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
@@ -67,7 +67,7 @@ def update_migration_table(input_params: dict[str, Any],
                                                                   db_conn=db_conn,
                                                                   errors=errors)
         if not errors:
-            # obtain and update the migration table
+            # obtain and update the migration table instance
             migration_table: MigrationTable = migration_table_params.pop(InputParam.MIGRATION_TABLE)
             migration_table.set(data=migration_table_params)
             migration_table.update(db_engine=PYDB_DB_ENGINE,
@@ -128,8 +128,9 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[str] = [InputParam.BADGE, InputParam.TABLE]
         migration_table_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                                  valid_params=[InputParam.BADGE, InputParam.TABLE],
+                                                                  valid_params=valid_params,
                                                                   op=OpType.RETRIEVE,
                                                                   db_conn=db_conn,
                                                                   errors=errors)

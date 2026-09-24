@@ -4,7 +4,9 @@ from typing import Final
 
 PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE",
                                          def_value="pydbrief")
-PYDB_S3_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE")
+PYDB_S3_ENGINE: Final[str] = env_get_str(key="PYDB_S3_ENGINE",
+                                         def_value="pydbrief")
+PYDB_S3_BASE_PATH: Final[str] = env_get_str(key="PYDB_S3_BASE_PATH")
 REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")
 

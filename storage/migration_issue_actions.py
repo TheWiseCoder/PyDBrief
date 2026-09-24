@@ -22,15 +22,13 @@ def create_migration_issue(input_params: dict[str, Any],
                                                                   errors=errors)
         if not errors:
             # create and persist the migration issue instance
-            values: list[int] = Migration.get_values(
-                Migration.Db.ID,
-                where_data={Migration.Db.NM_BADGE: migration_issue_params.pop(InputParam.BADGE)},
-                db_engine=PYDB_DB_ENGINE,
-                db_conn=db_conn,
-                errors=errors)
-            if values:
+            migration: Migration = Migration(nm_badge=migration_issue_params.pop(InputParam.BADGE),
+                                             db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
+            if not errors:
                 migration_issue: MigrationIssue = MigrationIssue()
-                migration_issue.id_migration = values[0]
+                migration_issue.id_migration = migration.id
                 migration_issue.set(migration_issue_params)
                 migration_issue.insert(db_engine=PYDB_DB_ENGINE,
                                        db_conn=db_conn,
@@ -64,20 +62,10 @@ def update_migration_issue(input_params: dict[str, Any],
         if not errors:
             # obtain and update the migration issue instance
             migration_issue: MigrationIssue = migration_issue_params.pop(InputParam.MIGRATION_ISSUE)
-            if InputParam.BADGE in migration_issue_params:
-                values: list[int] = Migration.get_values(
-                    Migration.Db.ID,
-                    where_data={Migration.Db.NM_BADGE: migration_issue_params.pop(InputParam.BADGE)},
-                    db_engine=PYDB_DB_ENGINE,
-                    db_conn=db_conn,
-                    errors=errors)
-                if values:
-                    migration_issue.id_migration = values[0]
-            if not errors:
-                migration_issue.set(data=migration_issue_params)
-                migration_issue.update(db_engine=PYDB_DB_ENGINE,
-                                       db_conn=db_conn,
-                                       errors=errors)
+            migration_issue.set(data=migration_issue_params)
+            migration_issue.update(db_engine=PYDB_DB_ENGINE,
+                                   db_conn=db_conn,
+                                   errors=errors)
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,

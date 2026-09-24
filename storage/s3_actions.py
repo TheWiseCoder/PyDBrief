@@ -122,8 +122,9 @@ def retrieve_s3s(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
+        valid_params: list[str] = [InputParam.S3_ENGINE, InputParam.S3_TYPE]
         s3_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                     valid_params=[InputParam.S3_ENGINE, InputParam.S3_TYPE],
+                                                     valid_params=valid_params,
                                                      op=OpType.RETRIEVE,
                                                      db_conn=db_conn,
                                                      errors=errors)
