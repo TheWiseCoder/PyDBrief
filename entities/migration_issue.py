@@ -105,8 +105,9 @@ class MigrationIssue(PySob):
                                      db_conn=db_conn,
                                      committable=committable,
                                      errors=curr_errors)
-            if curr_errors and isinstance(errors, list):
-                errors.extend(curr_errors)
+            if curr_errors:
+                if isinstance(errors, list):
+                    errors.extend(curr_errors)
                 break
 
 

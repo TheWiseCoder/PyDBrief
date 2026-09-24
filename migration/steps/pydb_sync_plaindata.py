@@ -53,7 +53,7 @@ def synchronize_plaindata(migration: Migration,
         has_ctrlchars: bool = migration_table.is_remove_ctrlchars
 
         # identify identity column and build the lists of PK and sync columns
-        op_errors: list[str] = []
+        curr_errors: list[str] = []
         pk_columns: list[str] = []
         sync_columns: list[str] = []
         identity_column: str | None = None
@@ -71,9 +71,9 @@ def synchronize_plaindata(migration: Migration,
 
         # obtain target DB connection
         db_conn: Any = db_connect(engine=target_db,
-                                  errors=op_errors)
+                                  errors=curr_errors)
         counts: tuple[int, int, int] = (0,  0, 0)
-        if not op_errors:
+        if not curr_errors:
             counts = db_sync_data(source_engine=source_db,
                                   source_table=source_table,
                                   target_engine=target_db,
@@ -87,23 +87,23 @@ def synchronize_plaindata(migration: Migration,
                                   batch_size=batch_size_in,
                                   has_nulls=has_ctrlchars,
                                   target_conn=db_conn,
-                                  errors=op_errors) or (0, 0, 0)
-            if op_errors:
+                                  errors=curr_errors) or (0, 0, 0)
+            if curr_errors:
                 table_embedded_nulls(db_engine=target_db,
                                      table=target_table,
-                                     errors=op_errors,
+                                     errors=curr_errors,
                                      logger=logger)
-                errors.extend(op_errors)
+                errors.extend(curr_errors)
 
             # unconditionally commit the transaction
             db_commit(connection=db_conn,
                       engine=target_db,
-                      errors=op_errors)
+                      errors=curr_errors)
 
         deletes: int = counts[0]
         inserts: int = counts[1]
         updates: int = counts[2]
-        if op_errors:
+        if curr_errors:
             status: str = "partial"
         else:
             status: str = "full"

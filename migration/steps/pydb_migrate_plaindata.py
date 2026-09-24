@@ -267,10 +267,10 @@ def __migrate_plaindata(session: Session,
 
         with plaindata_lock:
             result = plaindata_registry[mother_thread][source_table]["table-count"]
-            op_errors: list[str] = plaindata_registry[mother_thread][source_table]["errors"]
-            if op_errors:
+            curr_errors: list[str] = plaindata_registry[mother_thread][source_table]["errors"]
+            if curr_errors:
                 status = "error"
-                errors.extend(op_errors)
+                errors.extend(curr_errors)
         if status == "error":
             table_embedded_nulls(db_engine=source_db,
                                  table=source_table,

@@ -174,14 +174,14 @@ def setup_schema(target_db: DbEngine | str,
                           errors=errors)
     else:
         # no, create the target schema
-        op_errors: list[str] = []
+        curr_errors: list[str] = []
         schema_create(schema=target_schema,
                       db_engine=target_db,
-                      errors=op_errors,
+                      errors=curr_errors,
                       logger=logger)
         # SANITY CHECK: errorless schema creation failure might happen
-        if op_errors:
-            errors.extend(op_errors)
+        if curr_errors:
+            errors.extend(curr_errors)
         else:
             # refresh the target RDBMS inspector
             target_inspector = inspect(subject=target_engine,
@@ -216,7 +216,7 @@ def setup_tables(migration: Migration,
         migration_table: MigrationTable = \
             next((t for t in (migration.get_migration_tables() or []) if t.nm_table == target_table.name), None)
         # initialize the local errors list
-        op_errors: list[str] = []
+        curr_errors: list[str] = []
         # build the list of migrated columns for this table
         table_display: dict[str, Any] = {}
         # noinspection PyProtectedMember
@@ -249,9 +249,9 @@ def setup_tables(migration: Migration,
                           migration_table=migration_table,
                           migration_warnings=migration_warnings,
                           table_display=table_display,
-                          errors=op_errors,
+                          errors=curr_errors,
                           logger=logger)
-        if not op_errors:
+        if not curr_errors:
             # register the target column properties
             for column in columns:
                 features: list[str] = []
@@ -262,8 +262,8 @@ def setup_tables(migration: Migration,
                                         "has more than one identity column")
                         logger.error(msg=err_msg)
                         # 102: Unexpected error: {}
-                        op_errors.append(validate_format_error(102,
-                                                               err_msg))
+                        curr_errors.append(validate_format_error(102,
+                                                                 err_msg))
                     else:
                         features.append("identity")
                 if hasattr(column, "primary_key") and column.primary_key:
@@ -280,8 +280,8 @@ def setup_tables(migration: Migration,
                     table_display[column.name]["features"] = features
 
         # register the migrated table
-        if op_errors:
-            errors.extend(op_errors)
+        if curr_errors:
+            errors.extend(curr_errors)
         else:
             migrated_table: dict = {
                 "columns": table_display,
