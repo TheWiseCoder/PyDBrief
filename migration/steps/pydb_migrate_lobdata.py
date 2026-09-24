@@ -168,14 +168,13 @@ def migrate_lobdata(migration: Migration,
             with lobdata_lock:
                 lob_count: int = lobdata_registry[mother_thread][source_table]["table-count"]
                 lob_bytes: int = lobdata_registry[mother_thread][source_table]["table-bytes"]
-                op_errors: list[str] = lobdata_registry[mother_thread][source_table]["errors"]
-                if op_errors:
+                curr_errors: list[str] = lobdata_registry[mother_thread][source_table]["errors"]
+                if curr_errors:
                     status = "error"
-                    for op_error in op_errors:
-                        errors.append(op_error)
-                        MigrationIssue.new_issue(id_migration=migration.id,
-                                                 cd_type=IssueType.ERROR,
-                                                 ds_issue=op_error)
+                    errors.extend(curr_errors)
+                    MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_type=IssueType.ERROR,
+                                              ds_issues=curr_errors)
 
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -447,7 +446,7 @@ def _s3_migrate_lobs(migration: Migration,
 
     # obtain an S3 client
     errors: list[str] = []
-    s3_client = s3_get_client(engine=session.get_target_db().cd_engine,
+    s3_client = s3_get_client(engine=session.get_target_s3().cd_engine,
                               errors=errors)
     if s3_client:
         db_conn: Any = None
@@ -504,10 +503,9 @@ def _s3_migrate_lobs(migration: Migration,
                                                       logger=logger)
             with lobdata_lock:
                 if errors:
-                    for error in errors:
-                        MigrationIssue.new_issue(id_migration=migration.id,
-                                                 cd_type=IssueType.ERROR,
-                                                 ds_issue=error)
+                    MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_type=IssueType.ERROR,
+                                              ds_issues=errors)
                     lobdata_registry[mother_thread][source_table]["errors"].extend(errors)
                 else:
                     lobdata_registry[mother_thread][source_table]["table-count"] += totals[0]

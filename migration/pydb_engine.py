@@ -30,7 +30,7 @@ def build_engine(db_engine: DbEngine | str,
     return result
 
 
-def excecute_stmt(db_engine: DbEngine,
+def excecute_stmt(db_engine: DbEngine | str,
                   sa_engine: Engine,
                   stmt: str,
                   errors: list[str],

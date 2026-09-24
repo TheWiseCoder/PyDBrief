@@ -7,15 +7,16 @@ from datetime import datetime
 from io import BytesIO
 from logging import Logger
 from pypomes_core import (
-    TZ_LOCAL, DatetimeFormat,
+    TZ_LOCAL, DatetimeFormat, Mimetype,
     timestamp_duration, env_is_docker, pypomes_versions,
     dict_jsonify, str_sanitize, validate_format_error, exc_format
 )
 from pypomes_logging import logging_get_entries, logging_get_params
+from pypomes_s3 import s3_get_client, s3_data_store, s3_file_store
 from pathlib import Path
 from typing import Any
 
-from app_constants import REGISTRY_DOCKER, REGISTRY_HOST, PYDB_DB_ENGINE, InputParam
+from app_constants import REGISTRY_DOCKER, REGISTRY_HOST, PYDB_DB_ENGINE, PYDB_S3_ENGINE, InputParam
 from app_ident import get_env_keys
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
@@ -240,10 +241,10 @@ def migrate(migration: Migration,
     })
 
     try:
-        __log_migration(badge=migration.nm_badge,
+        __log_migration(migration=migration,
                         threads=migration_threads,
-                        errors=errors,
-                        log_json=op_report)
+                        log_json=op_report,
+                        errors=errors)
     except Exception as e:
         exc_err: str = str_sanitize(exc_format(exc=e,
                                                exc_info=sys.exc_info()))
@@ -256,16 +257,21 @@ def migrate(migration: Migration,
                                             exc_err))
 
 
-def __log_migration(badge: str,
+# 'errors' contains the errors incident upon the migration activity, if any
+def __log_migration(migration: Migration,
                     threads: list[int],
                     log_json: dict[str, Any],
                     errors: list[str]) -> None:
 
     # define the base path
     base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
+    # SANITY CHECK: remove volume indicator
+    pos: int = base_path.find(":")
+    if pos > 0:
+        base_path = base_path[pos+1:]
 
     log_file: Path = Path(base_path,
-                          f"{badge}.log")
+                          f"{migration.nm_badge}.log")
     # create intermediate missing folders
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
@@ -281,12 +287,41 @@ def __log_migration(badge: str,
     if errors:
         log_json = log_json.copy()
         log_json["errors"] = errors
-    json_data = json.dumps(obj=log_json,
-                           ensure_ascii=False,
-                           indent=4)
+    json_data: str = json.dumps(obj=log_json,
+                                ensure_ascii=False,
+                                indent=2)
     json_file: Path = Path(base_path,
-                           f"{badge}.json")
+                           f"{migration.nm_badge}.json")
     with json_file.open("w") as f:
         f.write(json_data)
 
-    # sent the files to the S3 storage
+    # send the files to the S3 storage, if configured
+    if PYDB_S3_ENGINE:
+        errors = []
+        s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
+                                  errors=errors)
+        if s3_client:
+            s3_file_store(identifier=log_file.name,
+                          filepath=log_file,
+                          mimetype=Mimetype.TEXT,
+                          prefix=log_file.parent,
+                          engine=PYDB_S3_ENGINE,
+                          client=s3_client,
+                          errors=errors)
+            if errors:
+                MigrationIssue.new_issues(id_migration=migration.id,
+                                          cd_type=IssueType.ERROR,
+                                          ds_issues=errors)
+            else:
+                s3_data_store(identifier=json_file.name,
+                              data=json_data,
+                              length=len(json_data.encode("utf-8")),
+                              prefix=json_file.parent,
+                              mimetype=Mimetype.JSON,
+                              engine=PYDB_S3_ENGINE,
+                              client=s3_client,
+                              errors=errors)
+                if errors:
+                    MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_type=IssueType.ERROR,
+                                              ds_issues=errors)

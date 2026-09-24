@@ -86,6 +86,29 @@ class MigrationIssue(PySob):
                                committable=committable,
                                errors=errors)
 
+    @classmethod
+    def new_issues(cls,
+                   id_migration: int,
+                   cd_type: IssueType,
+                   ds_issues: list[str],
+                   db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                   db_conn: Any = None,
+                   committable: bool = None,
+                   errors: list[str] = None) -> None:
+
+        curr_errors: list[str] = []
+        for ds_issue in ds_issues:
+            MigrationIssue.new_issue(id_migration=id_migration,
+                                     cd_type=cd_type,
+                                     ds_issue=ds_issue,
+                                     db_engine=db_engine,
+                                     db_conn=db_conn,
+                                     committable=committable,
+                                     errors=curr_errors)
+            if curr_errors and isinstance(errors, list):
+                errors.extend(curr_errors)
+                break
+
 
 MigrationIssue.initialize(db_specs=(MigrationIssue.Db, int),
                           attrs_enum=MigrationIssue.ATTRS_ENUM,

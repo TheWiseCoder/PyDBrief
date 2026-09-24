@@ -222,11 +222,10 @@ def migrate_metadata(migration: Migration,
                                 # errors ?
                                 if curr_errors:
                                     # yes, report them
-                                    for curr_error in curr_errors:
-                                        errors.append(curr_error)
-                                        MigrationIssue.new_issue(id_migration=migration.id,
-                                                                 cd_type=IssueType.ERROR,
-                                                                 ds_issue=curr_error)
+                                    errors.extend(curr_errors)
+                                    MigrationIssue.new_issues(id_migration=migration.id,
+                                                              cd_type=IssueType.ERROR,
+                                                              ds_issues=curr_errors)
                                     err_msg: str = ("Unable to create view "
                                                     f"{session.nm_target_schema}.{target_view}")
                                     logger.error(msg=err_msg)

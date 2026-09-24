@@ -211,14 +211,13 @@ def correlate_lobdata(migration: Migration,
                     col_s3_full: dict[str, str] = {}
                     with lobdata_ctrl.lobdata_lock:
                         table_data: dict[str, Any] = lobdata_ctrl.lobdata_registry[mother_thread][source_table]
-                        op_errors: list[str] = table_data.get("errors")
-                        if op_errors:
+                        curr_errors: list[str] = table_data.get("errors")
+                        if curr_errors:
                             status = "error"
-                            for op_error in op_errors:
-                                errors.append(op_error)
-                                MigrationIssue.new_issue(id_migration=migration.id,
-                                                         cd_type=IssueType.ERROR,
-                                                         ds_issue=op_error)
+                            errors.extend(curr_errors)
+                            MigrationIssue.new_issues(id_migration=migration.id,
+                                                      cd_type=IssueType.ERROR,
+                                                      ds_issues=curr_errors)
                         else:
                             lob_count = table_data.get("table-count")
                             col_db_names = table_data.get(f"{reference_column}-db-names")

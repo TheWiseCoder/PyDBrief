@@ -80,9 +80,6 @@ if init_app(logger=PYPOMES_LOGGER):
     )
     flask_app.register_blueprint(blueprint=swagger_blueprint)
 
-    # configure 'jsonify()' with 'ensure_ascii=False'
-    flask_app.config["JSON_AS_ASCII"] = False
-
     # forward SQLAlchemy's logging activity to PYPOMES_LOGGER
     if os.getenv("PYDB_LOG_SQLALCHEMY") == "1":
         logger: logging.Logger = logging.getLogger("sqlalchemy.engine")
@@ -664,8 +661,11 @@ def handle_exception(exc: Exception) -> Response:
         err_msg: str = exc_format(exc=exc,
                                   exc_info=sys.exc_info())
         PYPOMES_LOGGER.error(msg=err_msg)
-        reply: dict = {"errors": [err_msg]}
-        result = jsonify(reply)
+        reply: dict[str, Any] = {"errors": [err_msg]}
+        result = Response(json.dumps(obj=reply,
+                                     ensure_ascii=False,
+                                     indent=2))
+        result.mimetype = Mimetype.JSON
         result.status_code = HttpStatus.INTERNAL_SERVER_ERROR
 
     # log the response
@@ -684,11 +684,16 @@ def _build_response(reply: dict[str, Any] | None,
         reply_err: dict = {"errors": validate_format_errors(errors)}
         if isinstance(reply, dict):
             reply_err.update(reply)
-        result = jsonify(reply_err)
+        result = Response(json.dumps(obj=reply_err,
+                                     ensure_ascii=False,
+                                     indent=2))
         result.status_code = HttpStatus.BAD_REQUEST
     else:
         if reply:
-            result = jsonify(reply)
+            result = Response(json.dumps(obj=reply,
+                                         ensure_ascii=False,
+                                         indent=2))
+            result.mimetype = Mimetype.JSON
         else:
             result = Response(status=HttpStatus.NO_CONTENT)
     return result
@@ -698,7 +703,8 @@ def __log_init(request: Request,
                input_params: dict) -> str:
 
     params: str = json.dumps(obj=input_params,
-                             ensure_ascii=False)
+                             ensure_ascii=False,
+                             indent=2)
     return f"Request {request.method}:{request.path}, params {params}"
 
 

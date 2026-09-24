@@ -345,10 +345,9 @@ def _migrate_plain(session: Session,
                               errors=errors)
     with plaindata_lock:
         if errors:
-            for error in errors:
-                MigrationIssue.new_issue(id_migration=migration_work.id_migration,
-                                         cd_type=IssueType.ERROR,
-                                         ds_issue=error)
+            MigrationIssue.new_issues(id_migration=migration_work.id_migration,
+                                      cd_type=IssueType.ERROR,
+                                      ds_issues=errors)
             plaindata_registry[mother_thread][migration_work.nm_table]["errors"].extend(errors)
         else:
             plaindata_registry[mother_thread][migration_work.nm_table]["table-count"] += count
