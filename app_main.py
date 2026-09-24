@@ -432,66 +432,10 @@ def service_migration(migration_id: str = None) -> Response:
     return result
 
 
-@flask_app.route(rule="/migration_issue",
-                 methods=[HttpMethod.POST])
-@flask_app.route(rule="/migration_issue/<migration_id>/<table_id>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
-def service_migration_issue(migration_id: str = None,
-                            table_id: str = None) -> Response:
-    """
-    Entry point for handling migration issues.
-
-    The parameters are as follows:
-      - *badge*: identifies the migration instance
-      - *table*: identifies the migration table
-      - *issue*: the text of the issue
-
-    :param migration_id: the migration instance identification
-    :param table_id: the name of migration table
-    :return: the operation outcome
-    """
-    # initialize the errors list
-    errors: list[str] = []
-
-    # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
-    if migration_id:
-        input_params[InputParam.MIGRATION_ID] = migration_id
-    if table_id:
-        input_params[InputParam.TABLE_ID] = table_id
-
-    # log the request
-    msg: str = __log_init(request=request,
-                          input_params=input_params)
-    PYPOMES_LOGGER.info(msg=msg)
-
-    reply: dict[StrEnum | str, Any] | None = None
-    match request.method:
-        case HttpMethod.GET:
-            reply = retrieve_migration_issues(input_params=input_params,
-                                              errors=errors)
-        case HttpMethod.POST:
-            create_migration_issue(input_params=input_params,
-                                   errors=errors)
-        case HttpMethod.PATCH:
-            update_migration_issue(input_params=input_params,
-                                   errors=errors)
-        case HttpMethod.DELETE:
-            delete_migration_issue(input_params=input_params,
-                                   errors=errors)
-    # build the response
-    result: Response = _build_response(reply=reply,
-                                       errors=errors)
-    # log the response
-    PYPOMES_LOGGER.info(msg=f"Response {result}")
-
-    return result
-
-
-@flask_app.route(rule="/migration_table",
-                 methods=[HttpMethod.POST])
-@flask_app.route(rule="/migration_table/<migration_id>/<table_id>",
-                 methods=[HttpMethod.DELETE, HttpMethod.GET, HttpMethod.PATCH])
+@flask_app.route(rule="/migration-table",
+                 methods=[HttpMethod.GET, HttpMethod.POST])
+@flask_app.route(rule="/migration-table/<migration_id>/<table_id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
 def service_migration_table(migration_id: str = None,
                             table_id: str = None) -> Response:
     """
@@ -544,6 +488,118 @@ def service_migration_table(migration_id: str = None,
                                    errors=errors)
         case HttpMethod.DELETE:
             delete_migration_table(input_params=input_params,
+                                   errors=errors)
+    # build the response
+    result: Response = _build_response(reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
+@flask_app.route(rule="/migration-issue",
+                 methods=[HttpMethod.GET, HttpMethod.POST])
+@flask_app.route(rule="/migration-issue/<migration_id>/<table_id>",
+                 methods=[HttpMethod.DELETE, HttpMethod.PATCH])
+def service_migration_issue(migration_id: str = None,
+                            table_id: str = None) -> Response:
+    """
+    Entry point for handling migration issues.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *table*: identifies the migration table
+      - *issue*: the text of the issue
+
+    :param migration_id: the migration instance identification
+    :param table_id: the name of migration table
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
+    if table_id:
+        input_params[InputParam.TABLE_ID] = table_id
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] | None = None
+    match request.method:
+        case HttpMethod.GET:
+            reply = retrieve_migration_issues(input_params=input_params,
+                                              errors=errors)
+        case HttpMethod.POST:
+            create_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.PATCH:
+            update_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.DELETE:
+            delete_migration_issue(input_params=input_params,
+                                   errors=errors)
+    # build the response
+    result: Response = _build_response(reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
+@flask_app.route(rule="/migration-report",
+                 methods=[HttpMethod.GET, HttpMethod.POST])
+@flask_app.route(rule="/migration-report/<report_id>",
+                 methods=[HttpMethod.DELETE])
+def service_migration_report(migration_id: str = None,
+                             table_id: str = None) -> Response:
+    """
+    Entry point for handling migration issues.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *table*: identifies the migration table
+      - *issue*: the text of the issue
+
+    :param migration_id: the migration instance identification
+    :param table_id: the name of migration table
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = http_get_parameters(request=request)
+    if migration_id:
+        input_params[InputParam.MIGRATION_ID] = migration_id
+    if table_id:
+        input_params[InputParam.TABLE_ID] = table_id
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] | None = None
+    match request.method:
+        case HttpMethod.GET:
+            reply = retrieve_migration_issues(input_params=input_params,
+                                              errors=errors)
+        case HttpMethod.POST:
+            create_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.PATCH:
+            update_migration_issue(input_params=input_params,
+                                   errors=errors)
+        case HttpMethod.DELETE:
+            delete_migration_issue(input_params=input_params,
                                    errors=errors)
     # build the response
     result: Response = _build_response(reply=reply,
