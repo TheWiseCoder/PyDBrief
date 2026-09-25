@@ -10,9 +10,11 @@ from typing import Any
 
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
+from entities.migration_work import MigrationWork
 from entities.session import Session
 
-from app_constants import InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam
+from migration.pydb_common import get_migration_work
 from migration.pydb_database import column_set_nullable, view_get_ddl
 from migration.pydb_engine import build_engine
 from migration.pydb_types import is_lob_column
@@ -175,36 +177,44 @@ def migrate_metadata(migration: Migration,
                         if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
                             # migrate the tables, one at a time
                             for target_table in target_tables:
-                                try:
-                                    source_metadata.create_all(bind=target_engine,
-                                                               tables=[target_table],
-                                                               checkfirst=False)
-                                    if not session.id_target_s3:
-                                        # make sure LOB columns are nullable
-                                        # (SQLAlchemy fails at that, in certain sitations)
-                                        columns_props: dict = result.get(target_table.name).get("columns")
-                                        for name, props in columns_props.items():
-                                            if is_lob_column(col_type=props.get("source-type")) and \
-                                               "nullable" not in props.get("features", []):
-                                                props["features"] = props.get("features", [])
-                                                props["features"].append("nullable")
-                                                column_set_nullable(db_type=session.get_target_db().cd_type,
-                                                                    table=f"{session.nm_target_schema}."
-                                                                          f"{target_table.name}",
-                                                                    column=name,
-                                                                    errors=errors)
-                                except (Exception, SAWarning) as e:
-                                    # unable to fully compile the schema with a single table
-                                    exc_err: str = str_sanitize(exc_format(exc=e,
-                                                                           exc_info=sys.exc_info()))
-                                    logger.error(msg=exc_err)
-                                    MigrationIssue.new_issue(id_migration=migration.id,
-                                                             cd_type=IssueType.ERROR,
-                                                             ds_issue=exc_err)
-                                    # 104: The operation {} returned the error {}
-                                    errors.append(validate_format_error(104,
-                                                                        "schema-construction",
-                                                                        exc_err))
+                                migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                                                   table=target_table.name,
+                                                                                   errors=errors)
+                                if not errors and not migration_work.is_created:
+                                    try:
+                                        source_metadata.create_all(bind=target_engine,
+                                                                   tables=[target_table],
+                                                                   checkfirst=False)
+                                        if not session.id_target_s3:
+                                            # make sure LOB columns are nullable
+                                            # (SQLAlchemy fails at that, in certain sitations)
+                                            columns_props: dict = result.get(target_table.name).get("columns")
+                                            for name, props in columns_props.items():
+                                                if is_lob_column(col_type=props.get("source-type")) and \
+                                                   "nullable" not in props.get("features", []):
+                                                    props["features"] = props.get("features", [])
+                                                    props["features"].append("nullable")
+                                                    column_set_nullable(db_type=session.get_target_db().cd_type,
+                                                                        table=f"{session.nm_target_schema}."
+                                                                              f"{target_table.name}",
+                                                                        column=name,
+                                                                        errors=errors)
+                                        # table was successfully created
+                                        migration_work.is_created = True
+                                        migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                                              errors=errors)
+                                    except (Exception, SAWarning) as e:
+                                        # unable to fully compile the schema with a single table
+                                        exc_err: str = str_sanitize(exc_format(exc=e,
+                                                                               exc_info=sys.exc_info()))
+                                        logger.error(msg=exc_err)
+                                        MigrationIssue.new_issue(id_migration=migration.id,
+                                                                 cd_type=IssueType.ERROR,
+                                                                 ds_issue=exc_err)
+                                        # 104: The operation {} returned the error {}
+                                        errors.append(validate_format_error(104,
+                                                                            "schema-construction",
+                                                                            exc_err))
                             # migrate the views, one at a time
                             for target_view in target_views:
                                 curr_errors: list[str] = []

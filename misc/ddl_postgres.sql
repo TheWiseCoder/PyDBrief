@@ -238,6 +238,7 @@ CREATE TABLE migration_work (
 	id int8 DEFAULT nextval('sq_migration_work'::regclass) NOT NULL,
 	id_migration int8 NOT NULL,
 	nm_table varchar(64) NOT NULL,
+    is_created bool,
 	ts_start timestamp,
 	ts_finish timestamp,
     CONSTRAINT fk_migration_work_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
