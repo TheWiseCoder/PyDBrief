@@ -108,7 +108,6 @@ class Migration(PySob):
         # nullables in DB
         self.ds_exclude_relations: str | None = None
         self.ds_include_relations: str | None = None
-        self.ds_omit_defaults: str | None = None
         self.is_flatten_storage: bool = False
         self.is_optimize_pks: bool = False
         self.is_process_indexes: bool = False
