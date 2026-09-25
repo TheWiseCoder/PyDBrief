@@ -202,7 +202,7 @@ def service_database(engine_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if engine_id:
         input_params[InputParam.ENGINE_ID] = engine_id
 
@@ -262,7 +262,7 @@ def service_s3(engine_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if engine_id:
         input_params[InputParam.ENGINE_ID] = engine_id
 
@@ -320,7 +320,7 @@ def service_session(session_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if session_id:
         input_params[InputParam.SESSION_ID] = session_id
 
@@ -396,7 +396,7 @@ def service_migration(migration_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
 
@@ -464,7 +464,7 @@ def service_migration_table(migration_id: str = None,
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
     if table_id:
@@ -520,7 +520,7 @@ def service_migration_issue(migration_id: str = None,
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
     if table_id:
@@ -576,7 +576,7 @@ def service_migration_report(migration_id: str = None,
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
     if table_id:
@@ -622,7 +622,7 @@ def service_migrate(migration_id: str = None) -> Response:
     errors: list[str] = []
 
     # retrieve and validate the input parameters
-    input_params: dict[str, Any] = http_get_parameters(request=request)
+    input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
 
@@ -762,6 +762,18 @@ def __log_init(request: Request,
                              ensure_ascii=False,
                              indent=2)
     return f"Request {request.method}:{request.path}, params {params}"
+
+
+def __get_parameters(request: Request,
+                     sources: tuple | None = None) -> dict[str, Any]:
+
+    result: dict[str, Any] = http_get_parameters(request=request,
+                                                 sources=sources)
+    for k, _v in result.copy().items():
+        if k.startswith("_"):
+            result.pop(k)
+
+    return result
 
 
 if __name__ == "__main__":

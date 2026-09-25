@@ -255,7 +255,7 @@ def __validate_input(input_params: dict[str, Any],
     nr_batch_size_in: int = validate_int(source=input_params,
                                          attr=InputParam.BATCH_SIZE_IN,
                                          min_val=SPAN_BATCH_SIZE_IN[0],
-                                         max_val=SPAN_BATCH_SIZE_IN[2],
+                                         max_val=SPAN_BATCH_SIZE_IN[1],
                                          errors=errors)
     if nr_batch_size_in:
         result[MigrationTable.Db.NR_BATCH_SIZE_IN] = nr_batch_size_in
@@ -263,7 +263,7 @@ def __validate_input(input_params: dict[str, Any],
     nr_batch_size_out: int = validate_int(source=input_params,
                                           attr=InputParam.BATCH_SIZE_OUT,
                                           min_val=SPAN_BATCH_SIZE_OUT[0],
-                                          max_val=SPAN_BATCH_SIZE_OUT[2],
+                                          max_val=SPAN_BATCH_SIZE_OUT[1],
                                           errors=errors)
     if nr_batch_size_out:
         result[MigrationTable.Db.NR_BATCH_SIZE_OUT] = nr_batch_size_out
@@ -271,7 +271,7 @@ def __validate_input(input_params: dict[str, Any],
     nr_chunk_size: int = validate_int(source=input_params,
                                       attr=InputParam.CHUNK_SIZE,
                                       min_val=SPAN_CHUNK_SIZE[0],
-                                      max_val=SPAN_CHUNK_SIZE[2],
+                                      max_val=SPAN_CHUNK_SIZE[1],
                                       errors=errors)
     if nr_chunk_size:
         result[MigrationTable.Db.NR_CHUNK_SIZE] = nr_chunk_size
