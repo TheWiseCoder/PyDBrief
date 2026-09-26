@@ -3,18 +3,20 @@ FROM python:3.14-alpine
 WORKDIR .
 COPY requirements.txt requirements.txt
 
-# install access to SQLServer
+# install basic tools
 RUN apk update
 RUN apk add curl
 RUN apk add make
 RUN apk add gcc
 RUN apk add g++
-RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/msodbcsql18_18.2.2.1-1_amd64.apk
-RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/mssql-tools18_18.2.1.1-1_amd64.apk
-RUN apk add --allow-untrusted msodbcsql18_18.2.2.1-1_amd64.apk
-RUN apk add --allow-untrusted mssql-tools18_18.2.1.1-1_amd64.apk
-RUN apk add unixodbc-dev
-ENV PATH="$PATH:/opt/mssql-tools/bin"
+
+# install access to SQLServer
+# RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/msodbcsql18_18.2.2.1-1_amd64.apk
+# RUN curl -k -O https://download.microsoft.com/download/1/f/f/1fffb537-26ab-4947-a46a-7a45c27f6f77/mssql-tools18_18.2.1.1-1_amd64.apk
+# RUN apk add --allow-untrusted msodbcsql18_18.2.2.1-1_amd64.apk
+# RUN apk add --allow-untrusted mssql-tools18_18.2.1.1-1_amd64.apk
+# RUN apk add unixodbc-dev
+# ENV PATH="$PATH:/opt/mssql-tools/bin"
 
 # install Oracle client
 RUN apk --no-cache add libaio libnsl libc6-compat curl

@@ -164,35 +164,6 @@ def retrieve_migrations(input_params: dict[str, Any],
                         break
                     mig_data[InputParam.SESSION] = values[0]
 
-                    if migration.ds_exclude_relations is not None:
-                        mig_data[InputParam.EXCLUDE_RELATIONS] = migration.ds_exclude_relations
-                    if migration.is_flatten_storage is not None:
-                        mig_data[InputParam.FLATTEN_STORAGE] = migration.is_flatten_storage
-                    if migration.ds_include_relations is not None:
-                        mig_data[InputParam.INCLUDE_RELATIONS] = migration.ds_include_relations
-                    if migration.nr_lobdata_channel_size is not None:
-                        mig_data[InputParam.LOBDATA_CHANNEL_SIZE] = migration.nr_lobdata_channel_size
-                    if migration.nr_lobdata_channels is not None:
-                        mig_data[InputParam.LOBDATA_CHANNELS] = migration.nr_lobdata_channels
-                    if migration.ds_omit_defaults is not None:
-                        mig_data[InputParam.OMIT_DEFAULTS] = migration.ds_omit_defaults
-                    if migration.is_optimize_pks is not None:
-                        mig_data[InputParam.OPTIMIZE_PKS] = migration.is_optimize_pks
-                    if migration.nr_plaindata_channel_size is not None:
-                        mig_data[InputParam.PLAINDATA_CHANNEL_SIZE] = migration.nr_plaindata_channel_size
-                    if migration.nr_plaindata_channels is not None:
-                        mig_data[InputParam.PLAINDATA_CHANNELS] = migration.nr_plaindata_channels
-                    if migration.is_process_indexes is not None:
-                        mig_data[InputParam.PROCESS_INDEXES] = migration.is_process_indexes
-                    if migration.is_process_views is not None:
-                        mig_data[InputParam.PROCESS_VIEWS] = migration.is_process_views
-                    if migration.is_reflect_filetype is not None:
-                        mig_data[InputParam.REFLECT_FILETYPE] = migration.is_reflect_filetype
-                    if migration.is_relax_reflection is not None:
-                        mig_data[InputParam.RELAX_REFLECTION] = migration.is_relax_reflection
-                    if migration.is_skip_nonempty is not None:
-                        mig_data[InputParam.SKIP_NONEMPTY] = migration.is_skip_nonempty
-
                     mig_issues: list[dict[str, Any]] = []
                     migration_issues: list[MigrationIssue] = \
                         migration.get_migration_issues(db_engine=PYDB_DB_ENGINE,
@@ -226,27 +197,9 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     for migration_table in migration_tables:
-                        mig_table: dict[str, Any] = {InputParam.NAME: migration_table.nm_table}
-                        if migration_table.nr_batch_size_in is not None:
-                            mig_table[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
-                        if migration_table.nr_batch_size_out is not None:
-                            mig_table[InputParam.BATCH_SIZE_OUT] = migration_table.nr_batch_size_out
-                        if migration_table.nr_chunk_size is not None:
-                            mig_table[InputParam.CHUNK_SIZE] = migration_table.nr_chunk_size
-                        if migration_table.nr_incremental_count is not None:
-                            mig_table[InputParam.INCREMENTAL_COUNT] = migration_table.nr_incremental_count
-                        if migration_table.nr_incremental_offset is not None:
-                            mig_table[InputParam.INCREMENTAL_OFFSET] = migration_table.nr_incremental_offset
-                        if migration_table.ds_exclude_columns is not None:
-                            mig_table[InputParam.EXCLUDE_COLUMNS] = migration_table.ds_exclude_columns
-                        if migration_table.ds_exclude_constraints is not None:
-                            mig_table[InputParam.EXCLUDE_CONSTRAINTS] = migration_table.ds_exclude_constraints
-                        if migration_table.ds_omit_defaults is not None:
-                            mig_table[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
-                        if migration_table.ds_override_columns is not None:
-                            mig_table[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
-
+                        mig_table: dict[str, Any] = migration_table.get_inputs()
                         mig_tables.append(mig_table)
+
                     if errors:
                         break
                     mig_data[InputParam.CUSTOM_TABLES] = mig_tables
@@ -260,9 +213,11 @@ def retrieve_migrations(input_params: dict[str, Any],
                     for migration_work in migration_works:
                         mig_work: dict[str, Any] = {InputParam.NAME: migration_work.nm_table}
                         if migration_work.ts_start:
-                            mig_work[InputParam.START] = migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
+                            mig_work[InputParam.START] = \
+                                migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
                         if migration_work.ts_finish:
-                            mig_work[InputParam.FINISH] = migration_work.ts_finish.strftime(format=DatetimeFormat.LATIN)
+                            mig_work[InputParam.FINISH] = \
+                                migration_work.ts_finish.strftime(format=DatetimeFormat.LATIN)
 
                         mig_spans: list[dict[str, Any]] = []
                         migration_spans: list[MigrationSpan] = \
