@@ -65,7 +65,7 @@ class MigrationTable(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.id_session: int | None = None
+        self.id_migration: int | None = None
         self.nm_table: str | None = None
 
         # nullables in DB

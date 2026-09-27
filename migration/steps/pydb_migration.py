@@ -27,12 +27,10 @@ from entities.session import Session
 def prune_metadata(migration: Migration,
                    session: Session,
                    source_metadata: MetaData,
-                   schema_views: list[str],
                    logger: Logger) -> None:
 
     # build list of prunable tables
     migration_tables: list[MigrationTable] = migration.get_migration_tables() or []
-    prunable_tables: list[MigrationTable] = [t for t in migration_tables if t.ds_exclude_columns]
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
@@ -41,22 +39,16 @@ def prune_metadata(migration: Migration,
     for source_table in source_tables:
         table_name: str = source_table.name
 
-        # verify whether relation 'source_table' complies with these conditions for migration:
-        #   - relation is not listed in 'schema_views' AND
-        #   - schemas agree AND
-        #   - relation is asserted in 'assert_relation()'
-        if (table_name not in schema_views and
-            source_table.schema == session.nm_source_schema and
-            assert_relation(migration=migration,
-                            relation=table_name)):
+        if source_table.schema == session.nm_source_schema:
             # prune table
-            prunable_table: MigrationTable = next((t for t in prunable_tables if t.nm_table == table_name), None)
-            if prunable_table:
+            migration_table: MigrationTable = next((t for t in migration_tables if t.nm_table == table_name), None)
+            target_columns: list[str] = str_as_list(migration_table.ds_exclude_columns) if migration_table else None
+            if target_columns:
                 # look for columns to exclude
                 # noinspection PyProtectedMember
                 # ruff: noqa: SLF001 (checks for accesses on "private" class members)
                 excluded_columns: list[Column] = [column for column in source_table._columns
-                                                  if column.name in (prunable_table.ds_exclude_columns or "")]
+                                                  if column.name in target_columns]
                 # traverse the list of columns to exclude
                 for excluded_column in excluded_columns:
                     # remove the column from table's metadata and log the event
@@ -65,6 +57,7 @@ def prune_metadata(migration: Migration,
                     source_table._columns.remove(excluded_column)
                     logger.info(msg=f"Column '{excluded_column.name}' "
                                     f"removed from table '{source_table.name}'")
+
             if migration.cd_step != MigStep.MIGRATE_METADATA:
                 # nothing else to do here for 'table_name', as metadata are not being migrated
                 continue
@@ -86,47 +79,47 @@ def prune_metadata(migration: Migration,
             else:
                 source_table.indexes.clear()
 
-            if prunable_table:
-                # mark these constraints as tainted:
-                #   - duplicate CK constraints in table
-                #     (prevent error 'check constraint already exists')
-                #   - constraints listed in 'exclude_constraints'
-                table_cks: list[str] = []
-                tainted_constraints: list[Constraint] = []
-                for constraint in source_table.constraints:
-                    if constraint.name in table_cks or \
-                       constraint.name in (prunable_table.ds_exclude_constraints or ""):
-                        if constraint not in tainted_constraints:
-                            tainted_constraints.append(constraint)
-                    elif isinstance(constraint, CheckConstraint):
-                        table_cks.append(constraint.name)
+            # mark these constraints as tainted:
+            #   - duplicate CK constraints in table
+            #     (prevent error 'check constraint already exists')
+            #   - constraints listed in 'exclude_constraints'
+            target_constraints: list[str] = str_as_list(migration_table.ds_exclude_constraints) \
+                if migration_table else []
+            table_cks: list[str] = []
+            tainted_constraints: list[Constraint] = []
+            for constraint in source_table.constraints:
+                if constraint.name in table_cks or constraint.name in target_constraints:
+                    if constraint not in tainted_constraints:
+                        tainted_constraints.append(constraint)
+                elif isinstance(constraint, CheckConstraint):
+                    table_cks.append(constraint.name)
 
-                # drop the tainted constraints
-                for tainted_constraint in tainted_constraints:
-                    source_table.constraints.remove(tainted_constraint)
-                    # FK constraints require special handling
-                    if isinstance(tainted_constraint, ForeignKeyConstraint):
-                        # directly removing a foreign key is not available in SqlAlchemy:
-                        #   - after being removed from 'source_table.constraints', it reappears
-                        #   - nullifying its 'constraint' attribute has the desired effect
-                        #   - removing it from 'column.foreign_keys' prevents 'column'
-                        #     from being flagged later as having a 'foreign-key' feature
-                        foreign_key: ForeignKey | None = None
-                        # noinspection PyProtectedMember
-                        # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-                        for column in source_table._columns:
-                            for fk in column.foreign_keys:
-                                if fk.name == tainted_constraint.name:
-                                    foreign_key = fk
-                                    break
-                            if foreign_key:
-                                foreign_key.constraint = None
-                                column.foreign_keys.remove(foreign_key)
+            # drop the tainted constraints
+            for tainted_constraint in tainted_constraints:
+                source_table.constraints.remove(tainted_constraint)
+                # FK constraints require special handling
+                if isinstance(tainted_constraint, ForeignKeyConstraint):
+                    # directly removing a foreign key is not available in SqlAlchemy:
+                    #   - after being removed from 'source_table.constraints', it reappears
+                    #   - nullifying its 'constraint' attribute has the desired effect
+                    #   - removing it from 'column.foreign_keys' prevents 'column'
+                    #     from being flagged later as having a 'foreign-key' feature
+                    foreign_key: ForeignKey | None = None
+                    # noinspection PyProtectedMember
+                    # ruff: noqa: SLF001 (checks for accesses on "private" class members)
+                    for column in source_table._columns:
+                        for fk in column.foreign_keys:
+                            if fk.name == tainted_constraint.name:
+                                foreign_key = fk
                                 break
+                        if foreign_key:
+                            foreign_key.constraint = None
+                            column.foreign_keys.remove(foreign_key)
+                            break
 
-                    # log the constraint removal
-                    logger.info(msg=f"Constraint '{tainted_constraint.name}' "
-                                    f"removed from table '{source_table.name}'")
+                # log the constraint removal
+                logger.info(msg=f"Constraint '{tainted_constraint.name}' "
+                                f"removed from table '{source_table.name}'")
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
