@@ -99,27 +99,27 @@ class Database(PySob):
              committable: bool = None,
              errors: list[str] = None) -> bool:
 
-        result: bool = False
-
-        if super().load(__references,
-                        omit_nulls=omit_nulls,
-                        db_engine=db_engine,
-                        db_conn=db_conn,
-                        committable=committable,
-                        errors=errors):
+        result: bool = super().load(__references,
+                                    omit_nulls=omit_nulls,
+                                    db_engine=db_engine,
+                                    db_conn=db_conn,
+                                    committable=committable,
+                                    errors=errors)
+        if result:
             # postgres 'bytea' requires explicit conversion to Python 'bytes'
             db_type: DbEngine = db_get_param(key=DbParam.TYPE,
                                              engine=db_engine)
             if db_type == DbEngine.POSTGRES:
                 self.bn_pwd = bytes(self.bn_pwd)
+            # decrypt password for all engines
             plaintext: bytes = crypto_decrypt(ciphertext=self.bn_pwd,
                                               key=ENCRYPTION_KEY,
                                               errors=errors)
             if plaintext:
                 try:
                     self._nm_pwd = plaintext.decode(encoding="utf-8")
-                    result = True
                 except UnicodeDecodeError as e:
+                    result = False
                     if isinstance(errors, list):
                         exc_error: str = exc_format(exc=e,
                                                     exc_info=sys.exc_info())

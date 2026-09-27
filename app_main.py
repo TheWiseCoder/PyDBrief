@@ -33,8 +33,7 @@ from app_constants import PYDB_DB_ENGINE, InputParam
 from app_init import init_app
 from entities.migration import Migration
 from entities.migration_table import MigrationTable
-from entities.session import Session, SessionState
-from entities.s3 import S3
+from entities.session import Session
 from migration.pydb_migrator import migrate
 from storage.database_actions import (
     create_database, update_database, delete_database, retrieve_databases
@@ -389,7 +388,7 @@ def service_migration(migration_id: str = None) -> Response:
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
-    :param migration_id: he identification of the migration instance
+    :param migration_id: the identification of the migration instance
     :return: the operation outcome
     """
     # initialize the errors list
@@ -643,43 +642,36 @@ def service_migrate(migration_id: str = None) -> Response:
                                          nm_badge=migration_id,
                                          db_engine=PYDB_DB_ENGINE,
                                          errors=errors)
-        if not errors and migration.ts_finish:
-            errors.append(validate_format_error(100,
-                                                f"Migration '{migration_id}' has finished"))
         if not errors:
-            # obtain session instance
-            session: Session = Session(migration.id_session,
-                                       S3,
-                                       db_engine=PYDB_DB_ENGINE,
-                                       errors=errors)
-            if not errors:
-                # make sure database instancess are available
-                _source_db = session.get_source_db(db_engine=PYDB_DB_ENGINE,
-                                                   errors=errors)
+            if migration.ts_finish:
+                errors.append(validate_format_error(100,
+                                                    f"Migration '{migration_id}' has finished"))
+            else:
+                session: Session = Session(migration.id_session,
+                                           db_engine=PYDB_DB_ENGINE,
+                                           errors=errors)
                 if not errors:
-                    _target_db = session.get_target_db(db_engine=PYDB_DB_ENGINE,
-                                                       errors=errors)
-                    if not errors and session.cd_state != SessionState.STARTED:
-                        session.cd_state = SessionState.STARTED
-                        session.update(db_engine=PYDB_DB_ENGINE,
-                                       errors=errors)
-            # launch the migration
-            if not errors:
-                try:
-                    mig_thread: Thread = Thread(target=migrate,
-                                                kwargs={"migration": migration,
-                                                        "session": session,
-                                                        "app_name": APP_NAME,
-                                                        "app_version": APP_VERSION,
-                                                        "base_url": f"{request.scheme}://{request.host}",
-                                                        "logger": PYPOMES_LOGGER})
-                    mig_thread.start()
-                except Exception as e:
-                    # 100: {}
-                    exc_err: str = exc_format(exc=e,
-                                              exc_info=sys.exc_info())
-                    errors.append(validate_format_error(100,
-                                                        f"Error launching migration '{migration_id}': '{exc_err}'"))
+                    # make sure database migration is possible
+                    verify_migration(input_params=input_params,
+                                     errors=errors)
+                    if not errors:
+                        # launch the migration
+                        try:
+                            mig_thread: Thread = Thread(target=migrate,
+                                                        kwargs={"migration": migration,
+                                                                "session": session,
+                                                                "app_name": APP_NAME,
+                                                                "app_version": APP_VERSION,
+                                                                "base_url": f"{request.scheme}://{request.host}",
+                                                                "logger": PYPOMES_LOGGER})
+                            mig_thread.start()
+                        except Exception as e:
+                            # 100: {}
+                            exc_err: str = exc_format(exc=e,
+                                                      exc_info=sys.exc_info())
+                            errors.append(validate_format_error(100,
+                                                                f"Error launching migration "
+                                                                f"'{migration_id}': '{exc_err}'"))
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)

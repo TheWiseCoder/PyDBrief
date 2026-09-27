@@ -3,7 +3,11 @@ from pypomes_core import (
     DatetimeFormat, validate_format_error,
     validate_bool, validate_int, validate_enum, validate_str, validate_strs
 )
-from pypomes_db import db_connect, db_commit, db_rollback, db_close
+from pypomes_db import (
+    db_get_engines, db_setup, db_startup,
+    db_connect, db_commit, db_rollback, db_close
+)
+from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
@@ -264,42 +268,82 @@ def verify_migration(input_params: dict[str, Any],
     if db_conn:
         # validate the input data
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.CD_BADGE],
+                                                            valid_params=[InputParam.MIGRATION_ID],
                                                             op=OpType.VERIFY,
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
-            migration: Migration = Migration(nm_badge=migration_params.get(Migration.Db.NM_BADGE),
-                                             db_engine=PYDB_DB_ENGINE,
-                                             db_conn=db_conn,
-                                             errors=errors)
+            db_engines: list[str] = db_get_engines()
+            migration: Migration = migration_params[InputParam.MIGRATION]
+            session: Session = Session(migration.id_session,
+                                       db_engine=PYDB_DB_ENGINE,
+                                       db_conn=db_conn,
+                                       errors=errors)
             if not errors:
-                session: Session = Session(migration.id_session,
-                                           db_engine=PYDB_DB_ENGINE,
-                                           db_conn=db_conn,
-                                           errors=errors)
-                if not errors:
-                    database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
-                                                               db_conn=db_conn,
-                                                               errors=errors)
-                    if not errors:
-                        conn: Any = db_connect(engine=database.cd_engine,
+                database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                                                           db_conn=db_conn,
+                                                           errors=errors)
+                if database:
+                    __validate_db_engine(database=database,
+                                         db_engines=db_engines,
+                                         errors=errors)
+                # validate target db regardless of source db validation
+                database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+                                                 db_conn=db_conn,
+                                                 errors=errors)
+                if database:
+                    __validate_db_engine(database=database,
+                                         db_engines=db_engines,
+                                         errors=errors)
+            if not errors:
+                s3_engines: list[str] = s3_get_engines()
+                s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
+                                               db_conn=db_conn,
                                                errors=errors)
-                        if not errors:
-                            db_close(conn,
-                                     engine=PYDB_DB_ENGINE)
-                            database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
-                                                             db_conn=db_conn,
-                                                             errors=errors)
-                            if not errors:
-                                conn: Any = db_connect(engine=database.cd_engine,
-                                                       errors=errors)
-                                if not errors:
-                                    db_close(conn,
-                                             engine=PYDB_DB_ENGINE)
-                                _s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
-                                                                db_conn=db_conn,
-                                                                errors=errors)
+                if s3:
+                    if s3 in s3_engines:
+                        s3_startup(engine=s3.cd_engine,
+                                   errors=errors)
+                    else:
+                        # noinspection PyProtectedMember
+                        s3_setup(engine=s3.cd_engine,
+                                 endpoint_url=s3.ds_endpoint_url,
+                                 bucket_name=s3.nm_bucket,
+                                 access_key=s3.nm_access_key,
+                                 secret_key=s3._nm_secret_key,
+                                 region_name=s3.nm_region,
+                                 secure_access=s3.is_secure_access) and s3_startup(engine=s3.cd_engine,
+                                                                                   errors=errors)
+
+        # conclude the operation
+        if errors:
+            db_rollback(connection=db_conn,
+                        engine=PYDB_DB_ENGINE)
+        else:
+            db_commit(connection=db_conn,
+                      engine=PYDB_DB_ENGINE,
+                      errors=errors)
+        db_close(connection=db_conn,
+                 engine=PYDB_DB_ENGINE)
+
+
+def __validate_db_engine(database: Database,
+                         db_engines: list[str],
+                         errors: list[str]) -> None:
+
+    if database.cd_engine in db_engines:
+        db_startup(engine=database.cd_engine,
+                   errors=errors)
+    else:
+        # noinspection PyProtectedMember
+        db_setup(engine=database.cd_engine,
+                 db_name=database.cd_name,
+                 db_user=database.nm_user,
+                 db_pwd=database._nm_pwd,
+                 db_host=database.nm_host,
+                 db_port=database.nr_port,
+                 db_type=database.cd_type) and db_startup(engine=database.cd_engine,
+                                                          errors=errors)
 
 
 def __validate_input(input_params: dict[str, Any],

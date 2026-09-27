@@ -24,6 +24,7 @@ def create_database(input_params: dict[str, Any],
         if not errors:
             # create and persist the database
             database: Database = Database()
+            # attribute 'bn_pwd' to be assigned an encrypted values at INSERT time
             database._nm_pwd = database_params.pop(InputParam.DB_PWD)
             database.set(database_params)
             database.insert(db_engine=PYDB_DB_ENGINE,
@@ -59,6 +60,7 @@ def update_database(input_params: dict[str, Any],
         if not errors:
             database: Database = database_params.pop(InputParam.DATABASE)
             if InputParam.DB_PWD in database_params:
+                # attribute 'bn_pwd' to be assigned an encrypted values at UPDATE time
                 database._nm_pwd = database_params.pop(InputParam.DB_PWD)
             database.set(data=database_params)
             database.update(db_conn=db_conn,
