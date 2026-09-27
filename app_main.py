@@ -652,7 +652,7 @@ def service_migrate(migration_id: str = None) -> Response:
                                            errors=errors)
                 if not errors:
                     # make sure database migration is possible
-                    verify_migration(input_params=input_params,
+                    verify_migration(input_params=session,
                                      errors=errors)
                     if not errors:
                         # launch the migration

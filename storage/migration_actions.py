@@ -259,61 +259,65 @@ def retrieve_migrations(input_params: dict[str, Any],
     return result
 
 
-def verify_migration(input_params: dict[str, Any],
+def verify_migration(input_params: dict[str, Any] | Session,
                      errors: list[str]) -> None:
 
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                               errors=errors)
     if db_conn:
-        # validate the input data
-        migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                            valid_params=[InputParam.MIGRATION_ID],
-                                                            op=OpType.VERIFY,
-                                                            db_conn=db_conn,
-                                                            errors=errors)
+        session: Session | None = None
+        if isinstance(input_params, dict):
+            # validate the input data
+            migration_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                                valid_params=[InputParam.MIGRATION_ID],
+                                                                op=OpType.VERIFY,
+                                                                db_conn=db_conn,
+                                                                errors=errors)
+            if not errors:
+                session = Session(migration_params[InputParam.MIGRATION].id_session,
+                                  db_engine=PYDB_DB_ENGINE,
+                                  db_conn=db_conn,
+                                  errors=errors)
+        else:
+            session = input_params
+
         if not errors:
             db_engines: list[str] = db_get_engines()
-            migration: Migration = migration_params[InputParam.MIGRATION]
-            session: Session = Session(migration.id_session,
-                                       db_engine=PYDB_DB_ENGINE,
-                                       db_conn=db_conn,
-                                       errors=errors)
-            if not errors:
-                database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
-                                                           db_conn=db_conn,
-                                                           errors=errors)
-                if database:
-                    __validate_db_engine(database=database,
-                                         db_engines=db_engines,
-                                         errors=errors)
-                # validate target db regardless of source db validation
-                database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
-                                                 db_conn=db_conn,
-                                                 errors=errors)
-                if database:
-                    __validate_db_engine(database=database,
-                                         db_engines=db_engines,
-                                         errors=errors)
-            if not errors:
-                s3_engines: list[str] = s3_get_engines()
-                s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
-                                               db_conn=db_conn,
-                                               errors=errors)
-                if s3:
-                    if s3 in s3_engines:
-                        s3_startup(engine=s3.cd_engine,
-                                   errors=errors)
-                    else:
-                        # noinspection PyProtectedMember
-                        s3_setup(engine=s3.cd_engine,
-                                 endpoint_url=s3.ds_endpoint_url,
-                                 bucket_name=s3.nm_bucket,
-                                 access_key=s3.nm_access_key,
-                                 secret_key=s3._nm_secret_key,
-                                 region_name=s3.nm_region,
-                                 secure_access=s3.is_secure_access) and s3_startup(engine=s3.cd_engine,
-                                                                                   errors=errors)
+            database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                                                       db_conn=db_conn,
+                                                       errors=errors)
+            if database:
+                __validate_db_engine(database=database,
+                                     db_engines=db_engines,
+                                     errors=errors)
+            # validate target db regardless of source db validation
+            database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+                                             db_conn=db_conn,
+                                             errors=errors)
+            if database:
+                __validate_db_engine(database=database,
+                                     db_engines=db_engines,
+                                     errors=errors)
+        if not errors:
+            s3_engines: list[str] = s3_get_engines()
+            s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
+                                           db_conn=db_conn,
+                                           errors=errors)
+            if s3:
+                if s3 in s3_engines:
+                    s3_startup(engine=s3.cd_engine,
+                               errors=errors)
+                else:
+                    # noinspection PyProtectedMember
+                    s3_setup(engine=s3.cd_engine,
+                             endpoint_url=s3.ds_endpoint_url,
+                             bucket_name=s3.nm_bucket,
+                             access_key=s3.nm_access_key,
+                             secret_key=s3._nm_secret_key,
+                             region_name=s3.nm_region,
+                             secure_access=s3.is_secure_access) and s3_startup(engine=s3.cd_engine,
+                                                                               errors=errors)
 
         # conclude the operation
         if errors:
