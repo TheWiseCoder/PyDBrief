@@ -386,19 +386,31 @@ def setup_columns(migration: Migration,
 
 def assert_relation(migration: Migration,
                     relation: str) -> bool:
+    """
+        Determine whether *relation* is flagged in *migration*'s include/exclude lists.
 
+        The following regular expression marks in *relation* are considered:
+        - starts with ^: search for leading text
+        - finish with ^: search for trailing text
+        _ stsrts with *: search for text at any position
+    """
     # initialize the return variable
     result: bool = True
 
     # process list of excludes
-    excludes: list[str] = str_as_list(migration.ds_exclude_relations)
-    if excludes and relation not in excludes:
+    excludes: list[str] = str_as_list(migration.ds_exclude_relations) or []
+    if relation in excludes:
+        result = False
+    else:
         for exclude in excludes:
-            if (str_find_char(exclude, ".^*+?[]()|\\{}") >= 0 and
-                re.search(pattern=exclude.replace("$", "\\$"),
-                          string=relation)):
-                result = False
-                break
+            if str_find_char(exclude, "^*") >= 0:
+                exclude = exclude.replace("$", "\\$").replace("*", "")
+                if exclude.endswith("^"):
+                    exclude = exclude.removesuffix("^") + "$"
+                if re.search(pattern=exclude,
+                             string=relation):
+                    result = False
+                    break
 
     # process list of includes
     includes: list[str] = str_as_list(migration.ds_include_relations)
@@ -407,9 +419,12 @@ def assert_relation(migration: Migration,
         result = relation in includes
         if not result:
             for include in includes:
-                if (str_find_char(include, ".^*+?[]()|\\{}") >= 0 and
-                    re.search(pattern=include.replace("$", "\\$"),
-                              string=relation)):
-                    result = True
-                    break
+                if str_find_char(include, "^*") >= 0:
+                    include = include.replace("$", "\\$").replace("*", "")
+                    if include.endswith("^"):
+                        include = include.removesuffix("^") + "$"
+                    if re.search(pattern=include,
+                                 string=relation):
+                        result = True
+                        break
     return result

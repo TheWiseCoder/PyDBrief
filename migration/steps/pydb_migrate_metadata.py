@@ -59,15 +59,16 @@ def migrate_metadata(migration: Migration,
                                     source_inspector.get_materialized_view_names(schema=from_schema)]
             schema_views: list[str] = plain_views + mat_views
 
-            # determine if relation 'rel' is to be reflected in 'source_metadata'
-            def assert_reflection(rel: str,
-                                  _md: MetaData) -> bool:
-                rel = rel.lower()
-                result = (rel not in schema_views and
-                          assert_relation(migration=migration,
-                                          relation=rel))
-                logger.debug(msg=f"Relation '{rel}' asserted '{result}' on reflection")
-                return result
+            # determine the relations to be processed
+            only_tables: list[str] = []
+            all_tables: list[str] = source_inspector.get_table_names(schema=from_schema)
+            for table_name in all_tables:
+                ok: bool = table_name.lower() not in schema_views and \
+                           assert_relation(migration=migration,
+                                           relation=table_name.lower())
+                if ok:
+                    only_tables.append(table_name)
+                logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
             # obtain the source schema metadata
             source_metadata: MetaData = MetaData(schema=from_schema)
@@ -87,7 +88,7 @@ def migrate_metadata(migration: Migration,
                 source_metadata.reflect(bind=source_engine,
                                         schema=from_schema,
                                         views=False,
-                                        only=assert_reflection,
+                                        only=only_tables,
                                         resolve_fks=not migration.is_relax_reflection)
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema
