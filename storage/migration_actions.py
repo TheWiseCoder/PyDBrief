@@ -1,3 +1,4 @@
+from logging import Logger
 from typing import Any
 from pypomes_core import (
     DatetimeFormat, validate_format_error,
@@ -260,7 +261,8 @@ def retrieve_migrations(input_params: dict[str, Any],
 
 
 def verify_migration(input_params: dict[str, Any] | Session,
-                     errors: list[str]) -> None:
+                     errors: list[str],
+                     logger: Logger) -> None:
 
     # obtain DB connection
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
@@ -290,7 +292,8 @@ def verify_migration(input_params: dict[str, Any] | Session,
             if database:
                 __validate_db_engine(database=database,
                                      db_engines=db_engines,
-                                     errors=errors)
+                                     errors=errors,
+                                     logger=logger)
             # validate target db regardless of source db validation
             database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
@@ -298,7 +301,8 @@ def verify_migration(input_params: dict[str, Any] | Session,
             if database:
                 __validate_db_engine(database=database,
                                      db_engines=db_engines,
-                                     errors=errors)
+                                     errors=errors,
+                                     logger=logger)
         if not errors:
             s3_engines: list[str] = s3_get_engines()
             s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
@@ -316,9 +320,9 @@ def verify_migration(input_params: dict[str, Any] | Session,
                              access_key=s3.nm_access_key,
                              secret_key=s3._nm_secret_key,
                              region_name=s3.nm_region,
-                             secure_access=s3.is_secure_access) and s3_startup(engine=s3.cd_engine,
-                                                                               errors=errors)
-
+                             secure_access=s3.is_secure_access,
+                             logger=logger) and s3_startup(engine=s3.cd_engine,
+                                                           errors=errors)
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,
@@ -333,7 +337,8 @@ def verify_migration(input_params: dict[str, Any] | Session,
 
 def __validate_db_engine(database: Database,
                          db_engines: list[str],
-                         errors: list[str]) -> None:
+                         errors: list[str],
+                         logger: Logger) -> None:
 
     if database.cd_engine in db_engines:
         db_startup(engine=database.cd_engine,
@@ -346,8 +351,11 @@ def __validate_db_engine(database: Database,
                  db_pwd=database._nm_pwd,
                  db_host=database.nm_host,
                  db_port=database.nr_port,
-                 db_type=database.cd_type) and db_startup(engine=database.cd_engine,
-                                                          errors=errors)
+                 db_type=database.cd_type,
+                 db_client=database.nm_client,
+                 db_driver=database.ds_driver,
+                 logger=logger) and db_startup(engine=database.cd_engine,
+                                               errors=errors)
 
 
 def __validate_input(input_params: dict[str, Any],

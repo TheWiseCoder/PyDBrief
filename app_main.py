@@ -407,7 +407,8 @@ def service_migration(migration_id: str = None) -> Response:
     reply: dict[StrEnum | str, Any] | None = None
     if request.path.startswith("/migration:verify"):
         verify_migration(input_params=input_params,
-                         errors=errors)
+                         errors=errors,
+                         logger=PYPOMES_LOGGER)
     else:
         match request.method:
             case HttpMethod.GET:
@@ -653,7 +654,8 @@ def service_migrate(migration_id: str = None) -> Response:
                 if not errors:
                     # make sure database migration is possible
                     verify_migration(input_params=session,
-                                     errors=errors)
+                                     errors=errors,
+                                     logger=PYPOMES_LOGGER)
                     if not errors:
                         # launch the migration
                         try:
