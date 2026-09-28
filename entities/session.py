@@ -189,7 +189,7 @@ class Session(PySob):
                     if not self.id_target_db:
                         self.__target_db = None
                     elif not (self.__target_db and
-                              self.__target_db == self.id_target_db):
+                              self.__target_db.id == self.id_target_db):
                         self.__target_db = Database(self.id_target_db,
                                                     db_engine=db_engine,
                                                     db_conn=db_conn,
