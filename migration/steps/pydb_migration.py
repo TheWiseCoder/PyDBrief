@@ -17,10 +17,12 @@ from sqlalchemy.sql.elements import Type
 from sys import exc_info
 from typing import Any
 
+from migration.pydb_common import get_migration_work
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column, name_to_type
 from entities.migration import Migration, MigStep
 from entities.migration_table import MigrationTable
+from entities.migration_work import MigrationWork
 from entities.session import Session
 
 
@@ -132,7 +134,8 @@ def prune_metadata(migration: Migration,
             source_metadata.remove(table=source_table)
 
 
-def setup_schema(target_db: DbEngine | str,
+def setup_schema(migration: Migration,
+                 target_db: DbEngine | str,
                  target_schema: str,
                  target_engine: Engine,
                  target_tables: list[Table],
@@ -156,9 +159,8 @@ def setup_schema(target_db: DbEngine | str,
             result = schema_name
             break
 
-    # does the target schema already exist ?
+    # drop existing tables and views
     if result:
-        # yes, drop existing tables and views
         for target_view in target_views:
             table_name: str = f"{target_schema}.{target_view}"
             db_drop_view(view_name=table_name,
@@ -169,9 +171,16 @@ def setup_schema(target_db: DbEngine | str,
         # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
             table_name: str = f"{target_schema}.{target_table.name}"
-            db_drop_table(table_name=table_name,
-                          engine=target_db,
-                          errors=errors)
+            migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                               table=table_name,
+                                                               errors=errors)
+            # do not drop table if it was created in a previous migration
+            if not errors and not migration_work.is_created:
+                db_drop_table(table_name=table_name,
+                              engine=target_db,
+                              errors=errors)
+            if errors:
+                break
     else:
         # no, create the target schema
         curr_errors: list[str] = []

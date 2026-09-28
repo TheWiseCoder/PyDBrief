@@ -124,7 +124,7 @@ def migrate_metadata(migration: Migration,
                 target_tables: list[Table] = []
                 try:
                     # 'target_tables' will contain no views (as per 'prune_metadata()')
-                    target_tables: list[Table] = source_metadata.sorted_tables
+                    target_tables = source_metadata.sorted_tables
                 except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence, probably caused by:
                     #   - cross-dependencies between tables, resulted from mutually dependent FKs, or
@@ -144,7 +144,8 @@ def migrate_metadata(migration: Migration,
                 if not errors:
                     if migration.cd_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
-                        to_schema: str = setup_schema(target_db=session.get_target_db().cd_engine,
+                        to_schema: str = setup_schema(migration=migration,
+                                                      target_db=session.get_target_db().cd_engine,
                                                       target_schema=session.nm_target_schema,
                                                       target_engine=target_engine,
                                                       target_tables=target_tables,
