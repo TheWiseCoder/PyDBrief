@@ -15,12 +15,14 @@ from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import s3_get_client, s3_file_store
 from pathlib import Path
 from typing import Any
+from urlobject import URLObject
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_PATH, InputParam
+    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam
 )
 from app_ident import get_env_keys
+from entities.database import Database
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
@@ -249,6 +251,7 @@ def migrate(migration: Migration,
 
     try:
         __log_migration(migration=migration,
+                        session=session,
                         threads=migration_threads,
                         log_json=op_report,
                         errors=errors)
@@ -266,6 +269,7 @@ def migrate(migration: Migration,
 
 # 'errors' contains the errors incident upon the migration activity, if any
 def __log_migration(migration: Migration,
+                    session: Session,
                     threads: list[int],
                     log_json: dict[str, Any],
                     errors: list[str]) -> None:
@@ -304,12 +308,17 @@ def __log_migration(migration: Migration,
         f.write(json_data)
 
     # send the files to the S3 storage, if configured
-    if PYDB_S3_ENGINE and PYDB_S3_BASE_PATH:
+    if PYDB_S3_ENGINE and PYDB_S3_BASE_FOLDER:
         errors = []
         s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
                                   errors=errors)
         if s3_client:
-            s3_prefix: Path = Path(PYDB_S3_BASE_PATH,
+            database: Database = session.get_target_db()
+            url: URLObject = URLObject(database.nm_host)
+            # 'url.hostname' returns 'None' for 'localhost'
+            host: str = f"{database.cd_type}@{url.hostname or str(url)}"
+            s3_prefix: Path = Path(host,
+                                   PYDB_S3_BASE_FOLDER,
                                    badge_path)
             s3_file_store(identifier=log_file.name,
                           filepath=log_file,

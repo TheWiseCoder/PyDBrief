@@ -54,7 +54,7 @@ def build_lob_prefix(session: Session,
     database: Database = session.get_target_db()
     url: URLObject = URLObject(database.nm_host)
     # 'url.hostname' returns 'None' for 'localhost'
-    host: str = f"{database.cd_name}@{url.hostname or str(url)}"
+    host: str = f"{database.cd_type}@{url.hostname or str(url)}"
     target_schema, table_name = target_table.split(sep=".")
     return Path(host,
                 database.cd_name,
