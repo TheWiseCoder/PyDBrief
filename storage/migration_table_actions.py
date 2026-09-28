@@ -9,7 +9,6 @@ from entities.migration import Migration
 from entities.migration_table import (
     MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT, SPAN_CHUNK_SIZE
 )
-from entities.session import Session
 
 
 def create_migration_table(input_params: dict[str, Any],
@@ -135,9 +134,8 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                                                                   db_conn=db_conn,
                                                                   errors=errors)
         if not errors:
-            values: list[tuple[int, str]] = Migration.get_values(
-                attrs=(Migration.Db.ID, Session.Db.CD_SESSION),
-                joins=[(Session, (Session.Db.ID, Migration.Db.ID_SESSION))],
+            values: list[int] = Migration.get_values(
+                attrs=Migration.Db.ID,
                 where_data={Migration.Db.NM_BADGE: migration_table_params.get(InputParam.BADGE)},
                 db_engine=PYDB_DB_ENGINE,
                 db_conn=db_conn,
@@ -145,7 +143,6 @@ def retrieve_migration_tables(input_params: dict[str, Any],
             )
             if values:
                 id_migration: int = values[0][0]
-                cd_session: str = values[0][1]
                 where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: id_migration}
                 if InputParam.TABLE in migration_table_params:
                     where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
@@ -156,7 +153,6 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                                                                                       errors=errors)
                 for migration_table in migration_tables or []:
                     mig_table_data: dict[str, Any] = migration_table.get_inputs()
-                    mig_table_data[InputParam.SESSION] = cd_session
                     mig_table_data.pop(InputParam.TABLE, None)
 
                     result[migration_table.nm_table] = mig_table_data
@@ -191,7 +187,7 @@ def __validate_input(input_params: dict[str, Any],
     # identify the migration table instance (UPDATE and DELETE operations)
     migration_id: str = validate_str(source=input_params,
                                      attr=InputParam.MIGRATION_ID,
-                                     required=op in [OpType.UPDATE, OpType.DELETE],
+                                     required=op in [OpType.UPDATE, OpType.DELETE, OpType.RETRIEVE],
                                      errors=errors)
     table_id: str = validate_str(source=input_params,
                                  attr=InputParam.TABLE_ID,
@@ -200,12 +196,10 @@ def __validate_input(input_params: dict[str, Any],
                                  errors=errors)
     if table_id:
         if InputParam.MIGRATION in result:
-            where_data: dict[str, Any] = \
-                {f"{Migration.get_alias()}.{Migration.Db.NM_BADGE}": migration_id,
-                 f"{MigrationTable.get_alias()}.{MigrationTable.Db.NM_TABLE}": table_id.lower()}
             migration_table: MigrationTable = \
                 MigrationTable.get_instance(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
-                                            where_data=where_data,
+                                            where_data={Migration.Db.NM_BADGE: migration_id,
+                                                        MigrationTable.Db.NM_TABLE: table_id.lower()},
                                             db_engine=PYDB_DB_ENGINE,
                                             db_conn=db_conn,
                                             errors=errors)
