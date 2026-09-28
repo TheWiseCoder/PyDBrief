@@ -60,7 +60,7 @@ def migrate(migration: Migration,
             "environment": {key: value for key, value in os.environ.items()
                             if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
         },
-        InputParam.SESSION: session.cd_session,
+        InputParam.SESSION: session.get_inputs(),
         InputParam.SOURCE_DB: session.get_source_db().get_inputs(),
         InputParam.TARGET_DB: session.get_target_db().get_inputs(),
         InputParam.SPECS: migration.get_inputs(),
