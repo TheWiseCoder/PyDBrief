@@ -352,9 +352,8 @@ def __validate_db_engine(database: Database,
                  db_port=database.nr_port,
                  db_type=database.cd_type,
                  db_client=database.nm_client,
-                 db_driver=database.ds_driver,
-                 logger=logger) and db_startup(engine=database.cd_engine,
-                                               errors=errors)
+                 db_driver=database.ds_driver) and db_startup(engine=database.cd_engine,
+                                                              errors=errors)
 
 
 def __validate_input(input_params: dict[str, Any],
