@@ -320,9 +320,8 @@ def verify_migration(input_params: dict[str, Any] | Session,
                              access_key=s3.nm_access_key,
                              secret_key=s3._nm_secret_key,
                              region_name=s3.nm_region,
-                             secure_access=s3.is_secure_access,
-                             logger=logger) and s3_startup(engine=s3.cd_engine,
-                                                           errors=errors)
+                             secure_access=s3.is_secure_access) and s3_startup(engine=s3.cd_engine,
+                                                                               errors=errors)
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,

@@ -170,13 +170,12 @@ def setup_schema(migration: Migration,
 
         # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
-            table_name: str = f"{target_schema}.{target_table.name}"
             migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                               table=table_name,
+                                                               table=target_table.name,
                                                                errors=errors)
             # do not drop table if it was created in a previous migration
             if not errors and not migration_work.is_created:
-                db_drop_table(table_name=table_name,
+                db_drop_table(table_name=f"{target_schema}.{target_table.name}",
                               engine=target_db,
                               errors=errors)
             if errors:
