@@ -659,25 +659,25 @@ def service_migrate(migration_id: str = None) -> Response:
                     if not errors:
                         # launch the migration
                         try:
-                            migrate(migration=migration,
-                                    session=session,
-                                    app_name=APP_NAME,
-                                    app_version=APP_VERSION,
-                                    base_url=f"{request.scheme}://{request.host}",
-                                    requester=request.headers.get(key="X-Forwarded-For",
-                                                                  default=request.remote_addr),
-                                    logger=PYPOMES_LOGGER)
-                            # mig_thread: Thread = Thread(
-                            #     target=migrate,
-                            #     kwargs={"migration": migration,
-                            #             "session": session,
-                            #             "app_name": APP_NAME,
-                            #             "app_version": APP_VERSION,
-                            #             "base_url": f"{request.scheme}://{request.host}",
-                            #             "requester": request.headers.get(key="X-Forwarded-For",
-                            #                                              default=request.remote_addr),
-                            #             "logger": PYPOMES_LOGGER})
-                            # mig_thread.start()
+                            # migrate(migration=migration,
+                            #         session=session,
+                            #         app_name=APP_NAME,
+                            #         app_version=APP_VERSION,
+                            #         base_url=f"{request.scheme}://{request.host}",
+                            #         requester=request.headers.get(key="X-Forwarded-For",
+                            #                                       default=request.remote_addr),
+                            #         logger=PYPOMES_LOGGER)
+                            mig_thread: Thread = Thread(
+                                target=migrate,
+                                kwargs={"migration": migration,
+                                        "session": session,
+                                        "app_name": APP_NAME,
+                                        "app_version": APP_VERSION,
+                                        "base_url": f"{request.scheme}://{request.host}",
+                                        "requester": request.headers.get(key="X-Forwarded-For",
+                                                                         default=request.remote_addr),
+                                        "logger": PYPOMES_LOGGER})
+                            mig_thread.start()
                         except Exception as e:
                             # 100: {}
                             exc_err: str = exc_format(exc=e,
