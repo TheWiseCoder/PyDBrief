@@ -115,7 +115,14 @@ def prune_metadata(migration: Migration,
                         if foreign_key:
                             foreign_key.constraint = None
                             column.foreign_keys.remove(foreign_key)
+                            foreign_key = None
                             break
+                    for fk in source_table.foreign_keys:
+                        if fk.name == tainted_constraint.name:
+                            foreign_key = fk
+                            break
+                    if foreign_key:
+                        source_table.foreign_keys.remove(foreign_key)
 
                 # log the constraint removal
                 logger.info(msg=f"Constraint '{tainted_constraint.name}' "
@@ -301,7 +308,7 @@ def setup_columns(migration: Migration,
                   logger: Logger) -> None:
 
     # set the target columns
-    override_columns: list[str] = str_as_list(migration_table.ds_override_columns)
+    override_columns: list[str] = str_as_list(migration_table.ds_override_columns) if migration_table else []
     for target_column in target_columns:
         try:
             # convert the type
@@ -336,7 +343,8 @@ def setup_columns(migration: Migration,
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
-                if column_name in migration_table.ds_omit_defaults:
+                omit_defaults: list[str] = str_as_list(migration_table.ds_omit_defaults) if migration_table else []
+                if column_name in omit_defaults:
                     target_column.server_default = None
                 elif isinstance(target_column.server_default, DefaultClause):
                     def_orig: Any = target_column.server_default.arg

@@ -12,7 +12,7 @@ from pypomes_core import (
     dict_jsonify, str_sanitize, validate_format_error, exc_format
 )
 from pypomes_logging import logging_get_entries, logging_get_params
-from pypomes_s3 import s3_get_client, s3_data_store, s3_file_store
+from pypomes_s3 import s3_get_client, s3_file_store
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +81,10 @@ def migrate(migration: Migration,
 
     # initialize the local warnings list
     migration_warnings: list[str] = []
+
+    if not migration.ts_start:
+        migration.ts_start = migration_started
+        migration.update(db_engine=PYDB_DB_ENGINE)
 
     # log the migration start
     logger.info(msg=json.dumps(obj=dict_jsonify(source=op_report),
@@ -267,14 +271,15 @@ def __log_migration(migration: Migration,
                     errors: list[str]) -> None:
 
     # define the base path
-    base_path: str = REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST
-    # SANITY CHECK: remove volume indicator
-    pos: int = base_path.find(":")
-    if pos > 0:
-        base_path = base_path[pos+1:]
+    nm_badge: str = migration.nm_badge.replace("-", "/")
+    pos: int = nm_badge.rfind("/")
+    badge_path: Path = Path(nm_badge[:pos])
+    badge_name: str = nm_badge[pos+1:]
+    base_path: Path = Path(REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST,
+                           badge_path)
 
     log_file: Path = Path(base_path,
-                          f"{migration.nm_badge}.log")
+                          badge_name + ".log")
     # create intermediate missing folders
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
@@ -294,7 +299,7 @@ def __log_migration(migration: Migration,
                                 ensure_ascii=False,
                                 indent=2)
     json_file: Path = Path(base_path,
-                           f"{migration.nm_badge}.json")
+                           badge_name + ".json")
     with json_file.open("w") as f:
         f.write(json_data)
 
@@ -304,12 +309,12 @@ def __log_migration(migration: Migration,
         s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
                                   errors=errors)
         if s3_client:
-            log_file = Path(PYDB_S3_BASE_PATH,
-                            f"{migration.nm_badge}.log")
+            s3_prefix: Path = Path(PYDB_S3_BASE_PATH,
+                                   badge_path)
             s3_file_store(identifier=log_file.name,
                           filepath=log_file,
                           mimetype=Mimetype.TEXT,
-                          prefix=log_file.parent,
+                          prefix=s3_prefix,
                           engine=PYDB_S3_ENGINE,
                           client=s3_client,
                           errors=errors)
@@ -318,13 +323,10 @@ def __log_migration(migration: Migration,
                                           cd_type=IssueType.ERROR,
                                           ds_issues=errors)
             else:
-                json_file = Path(PYDB_S3_BASE_PATH,
-                                 f"{migration.nm_badge}.json")
-                s3_data_store(identifier=json_file.name,
-                              data=json_data,
-                              length=len(json_data.encode("utf-8")),
-                              prefix=json_file.parent,
+                s3_file_store(identifier=json_file.name,
+                              filepath=json_file,
                               mimetype=Mimetype.JSON,
+                              prefix=s3_prefix,
                               engine=PYDB_S3_ENGINE,
                               client=s3_client,
                               errors=errors)
