@@ -247,8 +247,19 @@ def migrate(migration: Migration,
         "duration": timestamp_duration(start=migration_started,
                                        finish=migration_finished)
     })
-    if migration.cd_step == MigStep.MIGRATE_METADATA:
-        op_report["migrated-tables"] = migrated_tables
+    for k, v in migrated_tables.items():
+        if migration.cd_step != MigStep.MIGRATE_METADATA:
+            v.pop("columns")
+        if migration.cd_step not in [MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_LOBDATA]:
+            v.pop("lob-count", None)
+            v.pop("lob-count", None)
+            v.pop("lob-bytes", None)
+            v.pop("lob-status", None)
+        if migration.cd_step not in [MigStep.MIGRATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
+            v.pop("plain-count", None)
+            v.pop("plain-duration", None)
+            v.pop("plain-status", None)
+    op_report["migrated-tables"] = migrated_tables
 
     try:
         __log_migration(migration=migration,
