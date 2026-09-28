@@ -156,28 +156,8 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                                                                                       errors=errors)
                 for migration_table in migration_tables or []:
                     mig_table_data: dict[str, Any] = migration_table.get_inputs()
-                    if errors:
-                        break
                     mig_table_data[InputParam.SESSION] = cd_session
-
-                    if migration_table.nr_batch_size_in is not None:
-                        mig_table_data[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
-                    if migration_table.nr_batch_size_out is not None:
-                        mig_table_data[InputParam.BATCH_SIZE_OUT] = migration_table.nr_batch_size_out
-                    if migration_table.nr_chunk_size is not None:
-                        mig_table_data[InputParam.CHUNK_SIZE] = migration_table.nr_chunk_size
-                    if migration_table.ds_exclude_columns is not None:
-                        mig_table_data[InputParam.EXCLUDE_COLUMNS] = migration_table.ds_exclude_columns
-                    if migration_table.ds_exclude_constraints is not None:
-                        mig_table_data[InputParam.EXCLUDE_CONSTRAINTS] = migration_table.ds_exclude_constraints
-                    if migration_table.ds_named_lobdata is not None:
-                        mig_table_data[InputParam.NAMED_LOBDATA] = migration_table.ds_named_lobdata
-                    if migration_table.ds_omit_defaults is not None:
-                        mig_table_data[InputParam.OMIT_DEFAULTS] = migration_table.ds_omit_defaults
-                    if migration_table.ds_override_columns is not None:
-                        mig_table_data[InputParam.OVERRIDE_COLUMNS] = migration_table.ds_override_columns
-                    if migration_table.is_remove_ctrlchars is not None:
-                        mig_table_data[InputParam.REMOVE_CTRLCHARS] = migration_table.is_remove_ctrlchars
+                    mig_table_data.pop(InputParam.TABLE, None)
 
                     result[migration_table.nm_table] = mig_table_data
         # conclude the operation
