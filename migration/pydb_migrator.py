@@ -9,7 +9,7 @@ from logging import Logger
 from pypomes_core import (
     TZ_LOCAL, DatetimeFormat, Mimetype,
     timestamp_duration, env_is_docker, pypomes_versions,
-    dict_jsonify, str_sanitize, validate_format_error, exc_format
+    dict_jsonify, str_sanitize, exc_format
 )
 from pypomes_logging import logging_get_entries, logging_get_params
 from pypomes_s3 import s3_get_client, s3_file_store
@@ -274,9 +274,6 @@ def migrate(migration: Migration,
         MigrationIssue.new_issue(id_migration=migration.id,
                                  cd_type=IssueType.ERROR,
                                  ds_issue=exc_err)
-        # 101: {}
-        errors.append(validate_format_error(101,
-                                            exc_err))
 
 
 # 'errors' contains the errors incident upon the migration activity, if any
