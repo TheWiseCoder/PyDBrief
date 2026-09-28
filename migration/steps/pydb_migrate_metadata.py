@@ -1,6 +1,7 @@
 import sys
+from datetime import datetime
 from logging import Logger
-from pypomes_core import str_sanitize, exc_format, validate_format_error
+from pypomes_core import TZ_LOCAL, str_sanitize, exc_format, validate_format_error
 from pypomes_db import db_execute
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
@@ -200,6 +201,7 @@ def migrate_metadata(migration: Migration,
                                                                         errors=errors)
                                         # table was successfully created
                                         migration_work.is_created = True
+                                        migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
                                         migration_work.update(db_engine=PYDB_DB_ENGINE,
                                                               errors=errors)
                                     except (Exception, SAWarning) as e:

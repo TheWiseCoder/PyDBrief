@@ -38,7 +38,7 @@ class MigrationSpan(PySob):
 
         # non-nullables in DB
         self.id_migration_work: int | None = None
-        self.is_done: bool = False
+        self.is_done: bool | None = None
         self.nr_first_row: int | None = None
         self.nr_last_row: int | None = None
 

@@ -108,13 +108,13 @@ class Migration(PySob):
         # nullables in DB
         self.ds_exclude_relations: str | None = None
         self.ds_include_relations: str | None = None
-        self.is_flatten_storage: bool = False
-        self.is_optimize_pks: bool = False
-        self.is_process_indexes: bool = False
-        self.is_process_views: bool = False
-        self.is_reflect_filetype: bool = False
-        self.is_relax_reflection: bool = False
-        self.is_skip_nonempty: bool = False
+        self.is_flatten_storage: bool | None = None
+        self.is_optimize_pks: bool | None = None
+        self.is_process_indexes: bool | None = None
+        self.is_process_views: bool | None = None
+        self.is_reflect_filetype: bool | None = None
+        self.is_relax_reflection: bool | None = None
+        self.is_skip_nonempty: bool | None = None
         self.nr_lobdata_channels: int | None = None
         self.nr_lobdata_channel_size: int | None = None
         self.nr_plaindata_channels: int | None = None
