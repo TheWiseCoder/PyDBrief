@@ -29,7 +29,7 @@ from pypomes_logging import (
     logging_get_params, logging_log_forward, service_logging
 )
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, PYDB_SYNC_LOCAL, InputParam
 from app_init import init_app
 from entities.migration import Migration
 from entities.migration_table import MigrationTable
@@ -659,25 +659,27 @@ def service_migrate(migration_id: str = None) -> Response:
                     if not errors:
                         # launch the migration
                         try:
-                            # migrate(migration=migration,
-                            #         session=session,
-                            #         app_name=APP_NAME,
-                            #         app_version=APP_VERSION,
-                            #         base_url=f"{request.scheme}://{request.host}",
-                            #         requester=request.headers.get(key="X-Forwarded-For",
-                            #                                       default=request.remote_addr),
-                            #         logger=PYPOMES_LOGGER)
-                            mig_thread: Thread = Thread(
-                                target=migrate,
-                                kwargs={"migration": migration,
-                                        "session": session,
-                                        "app_name": APP_NAME,
-                                        "app_version": APP_VERSION,
-                                        "base_url": f"{request.scheme}://{request.host}",
-                                        "requester": request.headers.get(key="X-Forwarded-For",
-                                                                         default=request.remote_addr),
-                                        "logger": PYPOMES_LOGGER})
-                            mig_thread.start()
+                            if PYDB_SYNC_LOCAL:
+                                migrate(migration=migration,
+                                        session=session,
+                                        app_name=APP_NAME,
+                                        app_version=APP_VERSION,
+                                        base_url=f"{request.scheme}://{request.host}",
+                                        requester=request.headers.get(key="X-Forwarded-For",
+                                                                      default=request.remote_addr),
+                                        logger=PYPOMES_LOGGER)
+                            else:
+                                mig_thread: Thread = Thread(
+                                    target=migrate,
+                                    kwargs={"migration": migration,
+                                            "session": session,
+                                            "app_name": APP_NAME,
+                                            "app_version": APP_VERSION,
+                                            "base_url": f"{request.scheme}://{request.host}",
+                                            "requester": request.headers.get(key="X-Forwarded-For",
+                                                                             default=request.remote_addr),
+                                            "logger": PYPOMES_LOGGER})
+                                mig_thread.start()
                         except Exception as e:
                             # 100: {}
                             exc_err: str = exc_format(exc=e,

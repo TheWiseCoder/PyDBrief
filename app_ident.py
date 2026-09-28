@@ -10,7 +10,7 @@ APP_VERSION: Final[str] = "2.3.6"
 
 # load environment variables for local execution
 # (this must precede importing 'pypomes-core')
-if os.getenv("APP_LOCAL_DEPLOYMENT") == "1":
+if os.getenv("PYDB_DEPLOY_LOCAL") == "1":
     load_dotenv(dotenv_path=Path.cwd() / ".env_local",
                 override=True)
 
