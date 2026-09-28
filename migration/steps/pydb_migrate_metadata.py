@@ -11,6 +11,7 @@ from typing import Any
 
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
+from entities.migration_table import MigrationTable
 from entities.migration_work import MigrationWork
 from entities.session import Session
 
@@ -61,67 +62,78 @@ def migrate_metadata(migration: Migration,
             schema_views: list[str] = plain_views + mat_views
 
             # determine the relations to be processed
+            source_metadata: MetaData | None = None
             only_tables: list[str] = []
-            for table_name in source_inspector.get_table_names(schema=from_schema):
-                ok: bool = table_name.lower() not in schema_views and \
-                           assert_relation(migration=migration,
-                                           relation=table_name.lower())
-                if ok:
-                    only_tables.append(table_name)
-                logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
+            mm_migration: Migration = migration if migration.cd_step == MigStep.MIGRATE_METADATA else \
+                Migration(None,
+                          list[MigrationTable],
+                          id_session=migration.id_session,
+                          cd_step=MigStep.MIGRATE_METADATA,
+                          db_engine=PYDB_DB_ENGINE,
+                          errors=errors)
+            if not errors:
+                for table_name in source_inspector.get_table_names(schema=from_schema):
+                    ok: bool = table_name.lower() not in schema_views and \
+                               assert_relation(migration=mm_migration,
+                                               relation=table_name.lower())
+                    if ok:
+                        only_tables.append(table_name)
+                    logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
-            # obtain the source schema metadata
-            source_metadata: MetaData = MetaData(schema=from_schema)
-            try:
-                # HAZARD:
-                # - if the parameter 'resolve_fks' is set to 'True' (the default value),
-                #   then relations referenced in FK columns of included tables
-                #   will also be included, regardless of parameters 'only' or 'views'
-                #   (this is remedied at 'prune_metadata()')
-                # - if 'resolve_fks' is ommited, not finding referenced tables will not
-                #   prevent migration to continue, although SQLAlchemy will nonetheless raise
-                #   a 'NoReferencedTableError' exception upon 'source_metadata.sorted_tables'
-                #   retrieval, if a FK-referenced table is missing from the source schema
-                # - the parameter 'views' should not be set to 'True', as no reflection is
-                #   necessary for views - a view is migrated by retrieving its DDL script
-                #   and executing it at the target schema
-                source_metadata.reflect(bind=source_engine,
-                                        schema=from_schema,
-                                        views=False,
-                                        only=only_tables,
-                                        resolve_fks=not migration.is_relax_reflection)
-            except (Exception, SAWarning) as e:
-                # - unable to fully reflect the source schema
-                # - this error will cause the migration to be aborted,
-                #   as SQLAlchemy will not be able to find the schema tables
-                exc_err: str = str_sanitize(exc_format(exc=e,
-                                                       exc_info=sys.exc_info()))
-                logger.error(msg=exc_err)
-                MigrationIssue.new_issue(id_migration=migration.id,
-                                         cd_type=IssueType.ERROR,
-                                         ds_issue=exc_err)
-                # 104: The operation {} returned the error {}
-                errors.append(validate_format_error(104,
-                                                    "schema-reflection",
-                                                    exc_err))
+                # obtain the source schema metadata
+                source_metadata = MetaData(schema=from_schema)
+                try:
+                    # HAZARD:
+                    # - if the parameter 'resolve_fks' is set to 'True' (the default value),
+                    #   then relations referenced in FK columns of included tables
+                    #   will also be included, regardless of parameters 'only' or 'views'
+                    #   (this is remedied at 'prune_metadata()')
+                    # - if 'resolve_fks' is ommited, not finding referenced tables will not
+                    #   prevent migration to continue, although SQLAlchemy will nonetheless raise
+                    #   a 'NoReferencedTableError' exception upon 'source_metadata.sorted_tables'
+                    #   retrieval, if a FK-referenced table is missing from the source schema
+                    # - the parameter 'views' should not be set to 'True', as no reflection is
+                    #   necessary for views - a view is migrated by retrieving its DDL script
+                    #   and executing it at the target schema
+                    source_metadata.reflect(bind=source_engine,
+                                            schema=from_schema,
+                                            views=False,
+                                            only=only_tables,
+                                            resolve_fks=not mm_migration.is_relax_reflection)
+                except (Exception, SAWarning) as e:
+                    # - unable to fully reflect the source schema
+                    # - this error will cause the migration to be aborted,
+                    #   as SQLAlchemy will not be able to find the schema tables
+                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                           exc_info=sys.exc_info()))
+                    logger.error(msg=exc_err)
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_type=IssueType.ERROR,
+                                             ds_issue=exc_err)
+                    # 104: The operation {} returned the error {}
+                    errors.append(validate_format_error(104,
+                                                        "schema-reflection",
+                                                        exc_err))
             if not errors:
                 # build list of views to migrate
                 target_views: list[str] = []
                 if migration.is_process_views:
-                    if migration.ds_include_relations or migration.ds_exclude_relations:
-                        target_views.extend([v for v in schema_views if assert_relation(migration=migration,
+                    if migration.ds_include_relations or mm_migration.ds_exclude_relations:
+                        target_views.extend([v for v in schema_views if assert_relation(migration=mm_migration,
                                                                                         relation=v)])
                     else:
                         target_views = schema_views
 
                 # prepare the source metadata for migration
+                target_tables: list[Table] = []
+                migration_tables: list[MigrationTable] = mm_migration.get_migration_tables()
                 prune_metadata(migration=migration,
                                session=session,
+                               migration_tables=migration_tables,
                                source_metadata=source_metadata,
                                logger=logger)
 
                 # proceed with the appropriate tables
-                target_tables: list[Table] = []
                 try:
                     # 'target_tables' will contain no views (as per 'prune_metadata()')
                     target_tables = source_metadata.sorted_tables
@@ -141,20 +153,22 @@ def migrate_metadata(migration: Migration,
                     errors.append(validate_format_error(104,
                                                         "schema-migration",
                                                         exc_err))
+                to_schema: str | None = None
                 if not errors:
                     if migration.cd_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
-                        to_schema: str = setup_schema(migration=migration,
-                                                      target_db=session.get_target_db().cd_engine,
-                                                      target_schema=session.nm_target_schema,
-                                                      target_engine=target_engine,
-                                                      target_tables=target_tables,
-                                                      target_views=target_views,
-                                                      mat_views=mat_views,
-                                                      errors=errors,
-                                                      logger=logger)
+                        to_schema = setup_schema(migration=migration,
+                                                 target_db=session.get_target_db().cd_engine,
+                                                 target_schema=session.nm_target_schema,
+                                                 target_engine=target_engine,
+                                                 target_tables=target_tables,
+                                                 target_views=target_views,
+                                                 mat_views=mat_views,
+                                                 errors=errors,
+                                                 logger=logger)
                         if not to_schema:
-                            err_msg: str = f"Unable to migrate schema to RDBMS '{session.get_source_db().cd_engine}'"
+                            err_msg: str = ("Unable to migrate schema to RDBMS "
+                                            f"'{session.get_source_db().cd_engine}'")
                             logger.error(msg=err_msg)
                             MigrationIssue.new_issue(id_migration=migration.id,
                                                      cd_type=IssueType.ERROR,
@@ -165,89 +179,90 @@ def migrate_metadata(migration: Migration,
                     else:
                         to_schema = session.nm_target_schema
 
-                    if not errors:
-                        # migrate tables' metadata (not applicable for views)
-                        result = setup_tables(migration=migration,
-                                              session=session,
-                                              target_tables=target_tables,
-                                              migration_warnings=migration_warnings,
-                                              errors=errors,
-                                              logger=logger)
+                if not errors:
+                    # migrate tables' metadata (not applicable for views)
+                    result = setup_tables(migration=migration,
+                                          session=session,
+                                          migration_tables=migration_tables,
+                                          target_tables=target_tables,
+                                          migration_warnings=migration_warnings,
+                                          errors=errors,
+                                          logger=logger)
 
-                        # proceed, if migrating the metadata was indicated
-                        if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                            # migrate the tables, one at a time
-                            for target_table in target_tables:
-                                migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                                                   table=target_table.name,
-                                                                                   errors=errors)
-                                if not errors and not migration_work.is_created:
-                                    try:
-                                        source_metadata.create_all(bind=target_engine,
-                                                                   tables=[target_table],
-                                                                   checkfirst=False)
-                                        if not session.id_target_s3:
-                                            # make sure LOB columns are nullable
-                                            # (SQLAlchemy fails at that, in certain sitations)
-                                            columns_props: dict = result.get(target_table.name).get("columns")
-                                            for name, props in columns_props.items():
-                                                if is_lob_column(col_type=props.get("source-type")) and \
-                                                   "nullable" not in props.get("features", []):
-                                                    props["features"] = props.get("features", [])
-                                                    props["features"].append("nullable")
-                                                    column_set_nullable(db_type=session.get_target_db().cd_type,
-                                                                        table=f"{session.nm_target_schema}."
-                                                                              f"{target_table.name}",
-                                                                        column=name,
-                                                                        errors=errors)
-                                        # table was successfully created
-                                        migration_work.is_created = True
-                                        migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
-                                        migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                                              errors=errors)
-                                    except (Exception, SAWarning) as e:
-                                        # unable to fully compile the schema with a single table
-                                        exc_err: str = str_sanitize(exc_format(exc=e,
-                                                                               exc_info=sys.exc_info()))
-                                        logger.error(msg=exc_err)
-                                        MigrationIssue.new_issue(id_migration=migration.id,
-                                                                 cd_type=IssueType.ERROR,
-                                                                 ds_issue=exc_err)
-                                        # 104: The operation {} returned the error {}
-                                        errors.append(validate_format_error(104,
-                                                                            "schema-construction",
-                                                                            exc_err))
-                            # migrate the views, one at a time
-                            for target_view in target_views:
-                                curr_errors: list[str] = []
-                                view_ddl: str = view_get_ddl(view_name=target_view,
-                                                             view_type="M" if target_view in mat_views else "P",
-                                                             source_db=session.get_source_db().cd_engine,
-                                                             source_schema=from_schema,
-                                                             target_schema=to_schema,
-                                                             errors=errors,
-                                                             logger=logger)
-                                if view_ddl:
-                                    db_execute(exc_stmt=view_ddl,
-                                               engine=session.get_source_db().cd_engine,
-                                               errors=curr_errors)
-                                # errors ?
-                                if curr_errors:
-                                    # yes, report them
-                                    errors.extend(curr_errors)
-                                    MigrationIssue.new_issues(id_migration=migration.id,
-                                                              cd_type=IssueType.ERROR,
-                                                              ds_issues=curr_errors)
-                                    err_msg: str = ("Unable to create view "
-                                                    f"{session.nm_target_schema}.{target_view}")
-                                    logger.error(msg=err_msg)
+                    # proceed, if migrating the metadata was indicated
+                    if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
+                        # migrate the tables, one at a time
+                        for target_table in target_tables:
+                            migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                                               table=target_table.name,
+                                                                               errors=errors)
+                            if not errors and not migration_work.is_created:
+                                try:
+                                    source_metadata.create_all(bind=target_engine,
+                                                               tables=[target_table],
+                                                               checkfirst=False)
+                                    if not session.id_target_s3:
+                                        # make sure LOB columns are nullable
+                                        # (SQLAlchemy fails at that, in certain sitations)
+                                        columns_props: dict = result.get(target_table.name).get("columns")
+                                        for name, props in columns_props.items():
+                                            if is_lob_column(col_type=props.get("source-type")) and \
+                                               "nullable" not in props.get("features", []):
+                                                props["features"] = props.get("features", [])
+                                                props["features"].append("nullable")
+                                                column_set_nullable(db_type=session.get_target_db().cd_type,
+                                                                    table=f"{session.nm_target_schema}."
+                                                                          f"{target_table.name}",
+                                                                    column=name,
+                                                                    errors=errors)
+                                    # table was successfully created
+                                    migration_work.is_created = True
+                                    migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
+                                    migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                                          errors=errors)
+                                except (Exception, SAWarning) as e:
+                                    # unable to fully compile the schema with a single table
+                                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                                           exc_info=sys.exc_info()))
+                                    logger.error(msg=exc_err)
                                     MigrationIssue.new_issue(id_migration=migration.id,
                                                              cd_type=IssueType.ERROR,
-                                                             ds_issue=err_msg)
+                                                             ds_issue=exc_err)
                                     # 104: The operation {} returned the error {}
                                     errors.append(validate_format_error(104,
                                                                         "schema-construction",
-                                                                        err_msg))
+                                                                        exc_err))
+                        # migrate the views, one at a time
+                        for target_view in target_views:
+                            curr_errors: list[str] = []
+                            view_ddl: str = view_get_ddl(view_name=target_view,
+                                                         view_type="M" if target_view in mat_views else "P",
+                                                         source_db=session.get_source_db().cd_engine,
+                                                         source_schema=from_schema,
+                                                         target_schema=to_schema,
+                                                         errors=errors,
+                                                         logger=logger)
+                            if view_ddl:
+                                db_execute(exc_stmt=view_ddl,
+                                           engine=session.get_source_db().cd_engine,
+                                           errors=curr_errors)
+                            # errors ?
+                            if curr_errors:
+                                # yes, report them
+                                errors.extend(curr_errors)
+                                MigrationIssue.new_issues(id_migration=migration.id,
+                                                          cd_type=IssueType.ERROR,
+                                                          ds_issues=curr_errors)
+                                err_msg: str = ("Unable to create view "
+                                                f"{session.nm_target_schema}.{target_view}")
+                                logger.error(msg=err_msg)
+                                MigrationIssue.new_issue(id_migration=migration.id,
+                                                         cd_type=IssueType.ERROR,
+                                                         ds_issue=err_msg)
+                                # 104: The operation {} returned the error {}
+                                errors.append(validate_format_error(104,
+                                                                    "schema-construction",
+                                                                    err_msg))
         else:
             err_msg: str = f"schema not found in RDBMS '{session.get_source_db().cd_engine}'"
             logger.error(msg=err_msg)

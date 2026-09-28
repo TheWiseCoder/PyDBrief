@@ -218,8 +218,8 @@ def migrate_lob_columns(migration: Migration,
                         logger: Logger) -> None:
 
     # retrieve needed specs
-    channel_count: int = migration.nr_lobdata_channels
-    channel_size: int = migration.nr_lobdata_channel_size
+    channel_count: int = migration.nr_channel_count
+    channel_size: int = migration.nr_channel_size
     source_db: str = session.get_source_db().cd_engine
     target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None
 

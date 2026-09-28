@@ -639,7 +639,7 @@ def service_migrate(migration_id: str = None) -> Response:
     if migration_id:
         # obtain migration instance
         migration: Migration = Migration(None,
-                                         [MigrationTable],
+                                         list[MigrationTable],
                                          nm_badge=migration_id,
                                          db_engine=PYDB_DB_ENGINE,
                                          errors=errors)

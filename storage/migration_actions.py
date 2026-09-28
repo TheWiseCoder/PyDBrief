@@ -13,8 +13,7 @@ from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import (
     Migration, MigStep,
-    SPAN_LOBDATA_CHANNELS, SPAN_LOBDATA_CHANNEL_SIZE,
-    SPAN_PLAINDATA_CHANNELS, SPAN_PLAINDATA_CHANNEL_SIZE
+    SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE
 )
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
@@ -453,37 +452,21 @@ def __validate_input(input_params: dict[str, Any],
     if isinstance(is_skip_nonempty, bool):
         result[Migration.Db.IS_SKIP_NONEMPTY] = is_skip_nonempty
 
-    nr_lobdata_channels: int = validate_int(source=input_params,
-                                            attr=InputParam.LOBDATA_CHANNELS,
-                                            min_val=SPAN_LOBDATA_CHANNELS[0],
-                                            max_val=SPAN_LOBDATA_CHANNELS[1],
-                                            errors=errors)
-    if nr_lobdata_channels:
-        result[Migration.Db.NR_LOBDATA_CHANNELS] = nr_lobdata_channels
+    nr_channel_count: int = validate_int(source=input_params,
+                                         attr=InputParam.CHANNEL_COUNT,
+                                         min_val=SPAN_CHANNEL_COUNT[0],
+                                         max_val=SPAN_CHANNEL_COUNT[1],
+                                         errors=errors)
+    if nr_channel_count:
+        result[Migration.Db.NR_CHANNEL_COUNT] = nr_channel_count
 
-    nr_lobdata_channel_size: int = validate_int(source=input_params,
-                                                attr=InputParam.LOBDATA_CHANNEL_SIZE,
-                                                min_val=SPAN_LOBDATA_CHANNEL_SIZE[0],
-                                                max_val=SPAN_LOBDATA_CHANNEL_SIZE[1],
-                                                errors=errors)
-    if nr_lobdata_channel_size:
-        result[Migration.Db.NR_LOBDATA_CHANNEL_SIZE] = nr_lobdata_channel_size
-
-    nr_plaindata_channels: int = validate_int(source=input_params,
-                                              attr=InputParam.PLAINDATA_CHANNELS,
-                                              min_val=SPAN_PLAINDATA_CHANNELS[0],
-                                              max_val=SPAN_PLAINDATA_CHANNELS[1],
-                                              errors=errors)
-    if nr_plaindata_channels:
-        result[Migration.Db.NR_PLAINDATA_CHANNELS] = nr_plaindata_channels
-
-    nr_plaindata_channel_size: int = validate_int(source=input_params,
-                                                  attr=InputParam.PLAINDATA_CHANNEL_SIZE,
-                                                  min_val=SPAN_PLAINDATA_CHANNEL_SIZE[0],
-                                                  max_val=SPAN_PLAINDATA_CHANNEL_SIZE[1],
-                                                  errors=errors)
-    if nr_plaindata_channel_size:
-        result[Migration.Db.NR_PLAINDATA_CHANNEL_SIZE] = nr_plaindata_channel_size
+    nr_channel_size: int = validate_int(source=input_params,
+                                        attr=InputParam.CHANNEL_SIZE,
+                                        min_val=SPAN_CHANNEL_SIZE[0],
+                                        max_val=SPAN_CHANNEL_SIZE[1],
+                                        errors=errors)
+    if nr_channel_size:
+        result[Migration.Db.NR_CHANNEL_SIZE] = nr_channel_size
 
     exclude_relations: list[str] = validate_strs(source=input_params,
                                                  attr=InputParam.EXCLUDE_RELATIONS,

@@ -28,11 +28,9 @@ from entities.session import Session
 
 def prune_metadata(migration: Migration,
                    session: Session,
+                   migration_tables: list[MigrationTable],
                    source_metadata: MetaData,
                    logger: Logger) -> None:
-
-    # build list of prunable tables
-    migration_tables: list[MigrationTable] = migration.get_migration_tables() or []
 
     # build list of migration candidates
     source_tables: list[Table] = list(source_metadata.tables.values())
@@ -64,7 +62,7 @@ def prune_metadata(migration: Migration,
                 # nothing else to do here for 'table_name', as metadata are not being migrated
                 continue
 
-            # handle indexes for 'source_table'
+            # handle indexes for 'source_table' (migration step is 'MIGRATE_METADATA')
             if migration.is_process_indexes:
                 # build list of tainted indexes - 'index' is tainted if not asserted
                 #   - 'index' is listed in 'exclude_relations' OR
@@ -212,6 +210,7 @@ def setup_schema(migration: Migration,
 
 def setup_tables(migration: Migration,
                  session: Session,
+                 migration_tables: list[MigrationTable],
                  target_tables: list[Table],
                  migration_warnings: list[str],
                  errors: list[str],
@@ -229,7 +228,7 @@ def setup_tables(migration: Migration,
     for target_table in target_tables:
         # obtain the corresponding MigrationTable instance
         migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == target_table.name), None)
+            next((t for t in migration_tables if t.nm_table == target_table.name), None)
         # initialize the local errors list
         curr_errors: list[str] = []
         # build the list of migrated columns for this table

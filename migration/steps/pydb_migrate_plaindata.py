@@ -200,7 +200,7 @@ def __migrate_plaindata(session: Session,
 
         if not orderby_columns:
             warn_msg: str = ""
-            if migration.nr_plaindata_channels > 1:
+            if migration.nr_channel_count > 1:
                 warn_msg = "Multi-channel migration"
             elif limit_count:
                 warn_msg = "Incremental migration"
@@ -218,11 +218,11 @@ def __migrate_plaindata(session: Session,
 
         # build migration channel data ([(offset, limit),...])
         channel_data: list[tuple[int, int]] = \
-            build_channel_data(channel_size=migration.nr_plaindata_channel_size,
+            build_channel_data(channel_size=migration.nr_channel_size,
                                table_count=table_count,
                                offset_count=offset_count,
                                limit_count=limit_count)
-        max_workers: int = min(migration.nr_plaindata_channels, len(channel_data))
+        max_workers: int = min(migration.nr_channel_count, len(channel_data))
         tot_count: int = sum(i[1] for i in channel_data)
         logger.debug(msg=f"Started migrating {tot_count} tuples from "
                          f"{source_db}.{source_table} to {target_db}.{target_table}, "

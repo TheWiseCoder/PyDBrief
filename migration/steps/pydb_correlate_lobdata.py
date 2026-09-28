@@ -74,7 +74,7 @@ def correlate_lobdata(migration: Migration,
     target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None
 
     # retrieve the channel count
-    channel_count: int = migration.nr_lobdata_channels
+    channel_count: int = migration.nr_channel_count
 
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
@@ -162,7 +162,7 @@ def correlate_lobdata(migration: Migration,
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(channel_size=migration.nr_lobdata_channel_size,
+                        build_channel_data(channel_size=migration.nr_channel_size,
                                            table_count=table_count,
                                            offset_count=0,
                                            limit_count=0)
