@@ -252,9 +252,9 @@ def migrate(migration: Migration,
             v.pop("columns")
         if migration.cd_step not in [MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_LOBDATA]:
             v.pop("lob-count", None)
-            v.pop("lob-count", None)
-            v.pop("lob-bytes", None)
+            v.pop("lob-duration", None)
             v.pop("lob-status", None)
+            v.pop("lob-bytes", None)
         if migration.cd_step not in [MigStep.MIGRATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
             v.pop("plain-count", None)
             v.pop("plain-duration", None)
