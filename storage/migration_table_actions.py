@@ -142,7 +142,7 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                 errors=errors
             )
             if values:
-                id_migration: int = values[0][0]
+                id_migration: int = values[0]
                 where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: id_migration}
                 if InputParam.TABLE in migration_table_params:
                     where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
