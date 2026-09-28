@@ -85,6 +85,7 @@ def prune_metadata(migration: Migration,
             #   - duplicate CK constraints in table
             #     (prevent error 'check constraint already exists')
             #   - constraints listed in 'exclude_constraints'
+            #   - fKs pointing to elements in other schemas
             target_constraints: list[str] = str_as_list(migration_table.ds_exclude_constraints) \
                 if migration_table else []
             table_cks: list[str] = []
@@ -95,6 +96,12 @@ def prune_metadata(migration: Migration,
                         tainted_constraints.append(constraint)
                 elif isinstance(constraint, CheckConstraint):
                     table_cks.append(constraint.name)
+                elif isinstance(constraint, ForeignKeyConstraint):
+                    for elem in constraint.elements or []:
+                        if isinstance(elem, ForeignKey) and hasattr(elem, "target_fullname"):
+                            fk_schema: str = elem.target_fullname[:elem.target_fullname.find(".")]
+                            if fk_schema != session.nm_source_schema:
+                                tainted_constraints.append(constraint)
 
             # drop the tainted constraints
             for tainted_constraint in tainted_constraints:
