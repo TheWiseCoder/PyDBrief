@@ -94,7 +94,7 @@ def prune_metadata(migration: Migration,
                         tainted_constraints.append(constraint)
                 elif isinstance(constraint, CheckConstraint):
                     table_cks.append(constraint.name)
-                elif isinstance(constraint, ForeignKeyConstraint):
+                elif isinstance(constraint, ForeignKeyConstraint) and constraint not in tainted_constraints:
                     for elem in constraint.elements or []:
                         if isinstance(elem, ForeignKey) and hasattr(elem, "target_fullname"):
                             fk_schema: str = elem.target_fullname[:elem.target_fullname.find(".")]
