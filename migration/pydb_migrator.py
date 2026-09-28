@@ -282,18 +282,25 @@ def __log_migration(migration: Migration,
     base_path: Path = Path(REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST,
                            badge_path)
 
+    seq: int = 1
     log_file: Path = Path(base_path,
-                          badge_name + ".log")
+                          f"{badge_name}_{seq}.log")
     # create intermediate missing folders
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
-    # write the log file
+    # write the log file (previous log is preserved)
+    while log_file.exists():
+        seq += 1
+        log_file = Path(base_path,
+                        f"{badge_name}_{seq}.log")
+    log_content: bytes = b""
     log_entries: BytesIO = logging_get_entries(log_threads=list(map(str, set(threads))),
                                                errors=errors)
     if log_entries:
         log_entries.seek(0)
-        with log_file.open("wb") as f:
-            f.write(log_entries.getvalue())
+        log_content = log_entries.getvalue()
+    with log_file.open("wb") as f:
+        f.write(log_content)
 
     # write the JSON file
     if errors:
@@ -303,7 +310,7 @@ def __log_migration(migration: Migration,
                                 ensure_ascii=False,
                                 indent=2)
     json_file: Path = Path(base_path,
-                           badge_name + ".json")
+                           f"{badge_name}_{seq}.json")
     with json_file.open("w") as f:
         f.write(json_data)
 
