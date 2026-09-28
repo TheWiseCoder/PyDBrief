@@ -135,15 +135,18 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                                                                   db_conn=db_conn,
                                                                   errors=errors)
         if not errors:
-            values: list[int] = Migration.get_values(
-                attrs=Migration.Db.ID,
+            values: list[tuple[int, str]] = Migration.get_values(
+                attrs=(Migration.Db.ID, Session.Db.CD_SESSION),
+                joins=[(Session, (Session.Db.ID, Migration.Db.ID_SESSION))],
                 where_data={Migration.Db.NM_BADGE: migration_table_params.get(InputParam.BADGE)},
                 db_engine=PYDB_DB_ENGINE,
                 db_conn=db_conn,
                 errors=errors
             )
             if values:
-                where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: values[0]}
+                id_migration: int = values[0][0]
+                cd_session: str = values[0][1]
+                where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: id_migration}
                 if InputParam.TABLE in migration_table_params:
                     where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
 
@@ -153,16 +156,9 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                                                                                       errors=errors)
                 for migration_table in migration_tables or []:
                     mig_table_data: dict[str, Any] = migration_table.get_inputs()
-                    values: list[int] = Session.get_values(attrs=Session.Db.CD_SESSION,
-                                                           where_data={Session.Db.ID: migration_table.id_session},
-                                                           max_count=1,
-                                                           min_count=1,
-                                                           db_engine=PYDB_DB_ENGINE,
-                                                           db_conn=db_conn,
-                                                           errors=errors)
                     if errors:
                         break
-                    mig_table_data[InputParam.SESSION] = values[0]
+                    mig_table_data[InputParam.SESSION] = cd_session
 
                     if migration_table.nr_batch_size_in is not None:
                         mig_table_data[InputParam.BATCH_SIZE_IN] = migration_table.nr_batch_size_in
