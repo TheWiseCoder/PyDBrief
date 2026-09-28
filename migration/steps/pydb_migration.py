@@ -94,7 +94,7 @@ def prune_metadata(migration: Migration,
                         tainted_constraints.append(constraint)
                 elif isinstance(constraint, CheckConstraint):
                     table_cks.append(constraint.name)
-                elif isinstance(constraint, ForeignKeyConstraint) and constraint not in tainted_constraints:
+                elif isinstance(constraint, ForeignKeyConstraint):
                     for elem in constraint.elements or []:
                         if isinstance(elem, ForeignKey) and hasattr(elem, "target_fullname"):
                             fk_schema: str = elem.target_fullname[:elem.target_fullname.find(".")]
@@ -103,7 +103,8 @@ def prune_metadata(migration: Migration,
 
             # drop the tainted constraints
             for tainted_constraint in tainted_constraints:
-                source_table.constraints.remove(tainted_constraint)
+                if tainted_constraint in source_table.constraints:
+                    source_table.constraints.remove(tainted_constraint)
                 # FK constraints require special handling
                 if isinstance(tainted_constraint, ForeignKeyConstraint):
                     # directly removing a foreign key is not available in SqlAlchemy:
