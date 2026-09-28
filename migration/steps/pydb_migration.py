@@ -403,12 +403,15 @@ def setup_columns(migration: Migration,
 def assert_relation(migration: Migration,
                     relation: str) -> bool:
     """
-        Determine whether *relation* is flagged in *migration*'s include/exclude lists.
+    Determine whether *relation* is flagged in *migration*'s include/exclude lists.
 
-        The following regular expression marks in *relation* are considered:
-        - starts with ^: search for leading text
-        - finish with ^: search for trailing text
-        _ stsrts with *: search for text at any position
+    The following regular expression marks in *relation* are considered:
+    - starts with ^: search for leading text
+    - finish with ^: search for trailing text
+    _ starts with *: search for text at any position
+
+    :param migration: the reference migration (must be step *MIGRATE_METADATA*)
+    :param relation: the relation to inspect
     """
     # initialize the return variable
     result: bool = True
