@@ -187,24 +187,24 @@ def __validate_input(input_params: dict[str, Any],
     # identify the migration table instance (UPDATE and DELETE operations)
     migration_id: str = validate_str(source=input_params,
                                      attr=InputParam.MIGRATION_ID,
-                                     required=op in [OpType.UPDATE, OpType.DELETE, OpType.RETRIEVE],
+                                     required=op in [OpType.UPDATE, OpType.DELETE],
                                      errors=errors)
     table_id: str = validate_str(source=input_params,
                                  attr=InputParam.TABLE_ID,
                                  max_length=64,
                                  required=op in [OpType.UPDATE, OpType.DELETE],
                                  errors=errors)
-    if table_id:
-        if InputParam.MIGRATION in result:
-            migration_table: MigrationTable = \
-                MigrationTable.get_instance(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
-                                            where_data={Migration.Db.NM_BADGE: migration_id,
-                                                        MigrationTable.Db.NM_TABLE: table_id.lower()},
-                                            db_engine=PYDB_DB_ENGINE,
-                                            db_conn=db_conn,
-                                            errors=errors)
-            if not errors:
-                result[InputParam.MIGRATION_TABLE] = migration_table
+    if migration_id and table_id:
+        migration_table: MigrationTable = \
+            MigrationTable.get_instance(joins=[(Migration, (Migration.Db.ID, MigrationTable.Db.ID_MIGRATION))],
+                                        where_data={Migration.Db.NM_BADGE: migration_id,
+                                                    MigrationTable.Db.NM_TABLE: table_id.lower()},
+                                        must_exist=True,
+                                        db_engine=PYDB_DB_ENGINE,
+                                        db_conn=db_conn,
+                                        errors=errors)
+        if not errors:
+            result[InputParam.MIGRATION_TABLE] = migration_table
 
     badge: str = validate_str(source=input_params,
                               attr=InputParam.BADGE,
