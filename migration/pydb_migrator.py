@@ -242,12 +242,13 @@ def migrate(migration: Migration,
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({
         "total-tables": len(migrated_tables),
-        "migrated-tables": migrated_tables,
         "started": migration_started.strftime(format=DatetimeFormat.INV),
         "finished": migration_finished.strftime(format=DatetimeFormat.INV),
         "duration": timestamp_duration(start=migration_started,
                                        finish=migration_finished)
     })
+    if migration.cd_step == MigStep.MIGRATE_METADATA:
+        op_report["migrated-tables"] = migrated_tables
 
     try:
         __log_migration(migration=migration,
