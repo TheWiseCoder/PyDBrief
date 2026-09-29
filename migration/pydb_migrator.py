@@ -248,8 +248,8 @@ def migrate(migration: Migration,
     })
 
     # prune the tables list
-    effected_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items()
-                                       if k in op_report.get("created-tables") or []} \
+    created_tables: list[str] = op_report.pop("created-tables", [])
+    effected_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items() if k in created_tables} \
         if migration.cd_step == MigStep.MIGRATE_METADATA else migrated_tables
     op_report["total-tables"] = len(effected_tables)
 
