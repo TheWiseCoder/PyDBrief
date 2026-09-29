@@ -241,13 +241,20 @@ def migrate(migration: Migration,
 
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({
-        "total-tables": len(migrated_tables),
         "started": migration_started.strftime(format=DatetimeFormat.INV),
         "finished": migration_finished.strftime(format=DatetimeFormat.INV),
         "duration": timestamp_duration(start=migration_started,
                                        finish=migration_finished)
     })
-    for k, v in migrated_tables.items():
+
+    # prune the tables list
+    effected_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items()
+                                       if k in op_report["created_tables"]} \
+        if migration.cd_step == MigStep.MIGRATE_METADATA else migrated_tables
+    op_report["total-tables"] = len(effected_tables)
+
+    # prune the display
+    for k, v in effected_tables.items():
         if migration.cd_step != MigStep.MIGRATE_METADATA:
             v.pop("columns")
         if migration.cd_step not in [MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_LOBDATA]:
@@ -259,7 +266,7 @@ def migrate(migration: Migration,
             v.pop("plain-count", None)
             v.pop("plain-duration", None)
             v.pop("plain-status", None)
-    op_report["migrated-tables"] = migrated_tables
+    op_report["migrated-tables"] = effected_tables
 
     try:
         __log_migration(migration=migration,

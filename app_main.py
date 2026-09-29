@@ -21,6 +21,7 @@ from pypomes_core import (
     dict_clone, dict_jsonify, validate_str,
     exc_format, validate_format_error, validate_format_errors
 )
+from pypomes_db import db_get_params
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
 )
@@ -28,8 +29,9 @@ from pypomes_logging import (
     PYPOMES_LOGGER,
     logging_get_params, logging_log_forward, service_logging
 )
+from pypomes_s3 import s3_get_params
 
-from app_constants import PYDB_DB_ENGINE, PYDB_SYNC_LOCAL, InputParam
+from app_constants import PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam
 from app_init import init_app
 from entities.migration import Migration
 from entities.migration_table import MigrationTable
@@ -153,8 +155,14 @@ def service_version() -> Response:
         "foundations": pypomes_versions(),
         "environment": {key: value for key, value in os.environ.items()
                         if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
-        "logging": dict_jsonify(source=logging_get_params())
+        "logging": dict_jsonify(source=logging_get_params()),
+        "persistence": [
+            {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "_PWD" not in k}
+        ]
     }
+    if PYDB_S3_ENGINE:
+        versions["persistence"].append({k: v for k, v in s3_get_params(engine=PYDB_S3_ENGINE).items()
+                                        if "_SECRET" not in k})
     # assign to the return variable
     result: Response = jsonify(versions)
 

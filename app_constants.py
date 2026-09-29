@@ -2,10 +2,8 @@ from enum import StrEnum, auto
 from pypomes_core import APP_PREFIX, env_get_bool, env_get_str
 from typing import Final
 
-PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE",
-                                         def_value="pydbrief")
-PYDB_S3_ENGINE: Final[str] = env_get_str(key="PYDB_S3_ENGINE",
-                                         def_value="pydbrief")
+PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE")
+PYDB_S3_ENGINE: Final[str] = env_get_str(key="PYDB_S3_ENGINE")
 PYDB_S3_BASE_FOLDER: Final[str] = env_get_str(key="PYDB_S3_BASE_FOLDER")
 PYDB_SYNC_LOCAL: Final[bool] = env_get_bool(key="PYDB_SYNC_LOCAL")
 REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")

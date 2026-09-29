@@ -34,6 +34,9 @@ def migrate_metadata(migration: Migration,
     # initialize the return variable
     result: dict[str, Any] | None = None
 
+    # initialize the list of tables created in the current migration run
+    result["created_tables"] = []
+
     # create engines
     source_engine: Engine = build_engine(db_engine=session.get_source_db().cd_engine,
                                          errors=errors,
@@ -216,6 +219,7 @@ def migrate_metadata(migration: Migration,
                                                                     column=name,
                                                                     errors=errors)
                                     # table was successfully created
+                                    result["created_tables"].append(target_table),
                                     migration_work.is_created = True
                                     migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
                                     migration_work.update(db_engine=PYDB_DB_ENGINE,
