@@ -189,7 +189,7 @@ def migrate_metadata(migration: Migration,
                                           errors=errors,
                                           logger=logger)
                     # initialize the list of tables created in the current migration run
-                    result["created_tables"]: []
+                    result["created-tables"]: []
 
                     # proceed, if migrating the metadata was indicated
                     if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
@@ -218,6 +218,7 @@ def migrate_metadata(migration: Migration,
                                                                     column=name,
                                                                     errors=errors)
                                     # table was successfully created
+                                    result["created-tables"].append(target_table.name)
                                     migration_work.is_created = True
                                     migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
                                     migration_work.update(db_engine=PYDB_DB_ENGINE,
