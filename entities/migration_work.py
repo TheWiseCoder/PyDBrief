@@ -21,6 +21,7 @@ class MigrationWork(PySob):
         ID_MIGRATION = auto()
         IS_CREATED = auto()
         NM_TABLE = auto()
+        NR_COUNT = auto()
         TS_START = auto()
         TS_FINISH = auto()
 
@@ -46,6 +47,7 @@ class MigrationWork(PySob):
 
         # nullables in DB
         self.is_created: bool | None = None
+        self.nr_count: int | None = None
         self.ts_start: datetime | None = None
         self.ts_finish: datetime | None = None
 

@@ -315,6 +315,7 @@ def _migrate_plain(session: Session,
     count: int = 0
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
                                                        first_row=offset_count,
+                                                       last_row=offset_count + limit_count - 1,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
 
@@ -340,7 +341,7 @@ def _migrate_plain(session: Session,
         # assert the migration
         assert_migration_span(migration_work=migration_work,
                               first_row=offset_count,
-                              last_row=offset_count + limit_count - 1,
+                              last_row=offset_count + count - 1,
                               is_done=True,
                               errors=errors)
     with plaindata_lock:

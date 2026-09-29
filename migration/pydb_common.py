@@ -67,6 +67,17 @@ def get_migration_work(migration: Migration,
                        table: str,
                        db_conn: Any = None,
                        errors: list[str] = None) -> MigrationWork | None:
+    """
+    Retrieve anr return the *MigrationWork* instance corresponding to the given *migration* and *table*
+
+    If no instance is found, a new one is created and persisted in the DB state store.
+
+    :param migration: the reference *Migration* instance
+    :param table: simple name of the reference table
+    :param db_conn: the optional database connection
+    :param errors: incidental errors list
+    :return: the *migrationWork* instance requested, or *None* on DB access error
+    """
 
     # make sure to have an errors list
     if not isinstance(errors, list):
@@ -122,6 +133,7 @@ def assert_migration_work(migration: Migration,
 
 def get_migration_span(migration_work: MigrationWork,
                        first_row: int,
+                       last_row: int,
                        db_conn: Any = None,
                        errors: list[str] = None) -> MigrationSpan | None:
 
@@ -129,17 +141,23 @@ def get_migration_span(migration_work: MigrationWork,
     if not isinstance(errors, list):
         errors = []
 
-    migration_span: MigrationSpan = MigrationSpan.get_instance(
+    result: MigrationSpan = MigrationSpan.get_instance(
         where_data={MigrationSpan.Db.ID_MIGRATION_WORK: migration_work.id,
                     MigrationSpan.Db.NR_FIRST_ROW: first_row},
         db_engine=PYDB_DB_ENGINE,
         db_conn=db_conn,
         errors=errors)
 
-    if not errors and not migration_span:
-        migration_span = MigrationSpan()
-        migration_span.id_migration_work = migration_work.id
-        migration_span.nr_first_row = first_row
+    if not errors and not result:
+        result = MigrationSpan()
+        result.id_migration_work = migration_work.id
+        result.nr_first_row = first_row
+        result.nr_last_row = last_row
+        result.insert(db_engine=PYDB_DB_ENGINE,
+                      db_conn=db_conn,
+                      errors=errors)
+
+    return result if not errors else None
 
 
 def assert_migration_span(migration_work: MigrationWork,
@@ -155,16 +173,12 @@ def assert_migration_span(migration_work: MigrationWork,
 
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
                                                        first_row=first_row,
+                                                       last_row=last_row,
                                                        db_conn=db_conn,
                                                        errors=errors)
     if not errors:
         migration_span.nr_last_row = last_row
         migration_span.is_done = is_done
-        if migration_span.id:
-            migration_span.update(db_engine=PYDB_DB_ENGINE,
-                                  db_conn=db_conn,
-                                  errors=errors)
-        else:
-            migration_span.insert(db_engine=PYDB_DB_ENGINE,
-                                  db_conn=db_conn,
-                                  errors=errors)
+        migration_span.update(db_engine=PYDB_DB_ENGINE,
+                              db_conn=db_conn,
+                              errors=errors)

@@ -235,8 +235,10 @@ CREATE TABLE migration_work (
 	id_migration int8 NOT NULL,
 	nm_table varchar(64) NOT NULL,
     is_created bool,
+    nr_count int8,
 	ts_start timestamp,
 	ts_finish timestamp,
+    CONSTRAINT ck_migration_work_count CHECK (nr_count >= 0),
     CONSTRAINT fk_migration_work_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_work PRIMARY KEY (id),
 	CONSTRAINT uk_migration_work UNIQUE (id_migration, nm_table)

@@ -247,7 +247,7 @@ def migrate(migration: Migration,
                                        finish=migration_finished)
     })
 
-    # prune the tables list
+    # prune the migrated tables list
     effected_tables: list[str] = migrated_tables.pop("effected-tables", [])
     display_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items() if k in effected_tables} \
         if migration.cd_step == MigStep.MIGRATE_METADATA else migrated_tables
