@@ -210,34 +210,25 @@ def migrate(migration: Migration,
             })
             logger.info(msg=f"Finished {op} the plain data")
 
-    # update the migration and session instances
-    if not errors:
-        migration_works: list[MigrationWork] = migration.get_migration_works(refresh=True,
-                                                                             db_engine=PYDB_DB_ENGINE,
-                                                                             errors=errors)
-        if not errors:
-            is_finished: bool = True
-            for migration_work in migration_works:
-                if migration_work.ts_finish is None:
-                    is_finished = False
-                    break
-            if is_finished:
-                migration.ts_finish = datetime.now(tz=TZ_LOCAL)
-                migration.update(db_engine=PYDB_DB_ENGINE,
-                                 errors=errors)
-                if not errors:
-                    session: Session = Session.get_instance([Migration],
-                                                            where_data={Session.Db.ID: migration.id_session},
-                                                            db_engine=PYDB_DB_ENGINE,
-                                                            errors=errors)
-                    if not errors:
-                        migrations: list[Migration] = session.get_migrations(db_engine=PYDB_DB_ENGINE)
-                        for mig in migrations or []:
-                            if mig.ts_finish is None:
-                                is_finished = False
-                                break
-                    if is_finished:
-                        session.cd_session = SessionState.FINISHED
+    # update the 'Migration' and 'Session' instances
+    curr_errors: list[str] = []
+    if not errors and not MigrationWork.exists(where_data={MigrationWork.Db.ID_MIGRATION: migration.id,
+                                               MigrationWork.Db.TS_FINISH: None},
+                                               errors=curr_errors) and not curr_errors:
+        migration.ts_finish = datetime.now(tz=TZ_LOCAL)
+        migration.update(db_engine=PYDB_DB_ENGINE,
+                         errors=curr_errors)
+        errors.extend(curr_errors)
+    if not errors and not Migration.exists(where_data={Migration.Db.ID_SESSION: session.id,
+                                           Migration.Db.TS_FINISH: None},
+                                           errors=curr_errors) and not curr_errors:
+        session.cd_session = SessionState.FINISHED
+        session.update(db_engine=PYDB_DB_ENGINE,
+                       errors=curr_errors)
+        errors.extend(curr_errors)
+    MigrationIssue.new_issues(id_migration=migration.id,
+                              cd_type=IssueType.ERROR,
+                              ds_issues=errors)
 
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({
@@ -350,11 +341,7 @@ def __log_migration(migration: Migration,
                           engine=PYDB_S3_ENGINE,
                           client=s3_client,
                           errors=errors)
-            if errors:
-                MigrationIssue.new_issues(id_migration=migration.id,
-                                          cd_type=IssueType.ERROR,
-                                          ds_issues=errors)
-            else:
+            if not errors:
                 s3_file_store(identifier=json_file.name,
                               filepath=json_file,
                               mimetype=Mimetype.JSON,
@@ -362,7 +349,6 @@ def __log_migration(migration: Migration,
                               engine=PYDB_S3_ENGINE,
                               client=s3_client,
                               errors=errors)
-                if errors:
-                    MigrationIssue.new_issues(id_migration=migration.id,
-                                              cd_type=IssueType.ERROR,
-                                              ds_issues=errors)
+            MigrationIssue.new_issues(id_migration=migration.id,
+                                      cd_type=IssueType.ERROR,
+                                      ds_issues=errors)

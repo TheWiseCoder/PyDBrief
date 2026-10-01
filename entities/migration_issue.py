@@ -76,15 +76,16 @@ class MigrationIssue(PySob):
                   committable: bool = None,
                   errors: list[str] = None) -> None:
 
-        migration_issue: MigrationIssue = MigrationIssue()
-        migration_issue.id_migration = id_migration
-        migration_issue.cd_type = cd_type
-        migration_issue.ds_issue = ds_issue
-        migration_issue.ts_onset = datetime.now(tz=TZ_LOCAL)
-        migration_issue.insert(db_engine=db_engine,
-                               db_conn=db_conn,
-                               committable=committable,
-                               errors=errors)
+        if ds_issue:
+            migration_issue: MigrationIssue = MigrationIssue()
+            migration_issue.id_migration = id_migration
+            migration_issue.cd_type = cd_type
+            migration_issue.ds_issue = ds_issue
+            migration_issue.ts_onset = datetime.now(tz=TZ_LOCAL)
+            migration_issue.insert(db_engine=db_engine,
+                                   db_conn=db_conn,
+                                   committable=committable,
+                                   errors=errors)
 
     @classmethod
     def new_issues(cls,

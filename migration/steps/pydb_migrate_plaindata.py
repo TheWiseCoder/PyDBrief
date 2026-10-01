@@ -11,15 +11,15 @@ from pypomes_db import (
 )
 from typing import Any
 
-from entities.migration import Migration
+from app_constants import PYDB_DB_ENGINE
+from entities.migration import Migration, SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT
 from entities.migration_work import MigrationWork
 from entities.session import Session, sessions_aborting
 from migration.pydb_common import (
-    build_channel_data,
-    assert_migration_span, get_migration_span,
+    build_channel_data, get_migration_span,
     assert_migration_work, get_migration_work
 )
 from migration.pydb_database import table_embedded_nulls
@@ -102,8 +102,8 @@ def migrate_plaindata(session: Session,
                 migration_table: MigrationTable = \
                     next((t for t in (migration.get_migration_tables() or [])
                           if t.nm_table == table_name), MigrationTable())
-                batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[1]
-                batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[1]
+                batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[2]
+                batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[2]
                 limit_count: int = migration_table.nr_incremental_count or 0
                 offset_count: int = migration_table.nr_incremental_offset or 0
 
@@ -177,6 +177,8 @@ def __migrate_plaindata(session: Session,
                                  engine=source_db,
                                  errors=errors) or 0) - offset_count
     if table_count > 0:
+        channel_count: int = migration.nr_channel_count or SPAN_CHANNEL_COUNT[2]
+        channel_size: int = migration.nr_channel_size or SPAN_CHANNEL_SIZE[2]
         identity_column: str | None = None
         orderby_columns: list[str] = []
         source_columns: list[str] = []
@@ -200,7 +202,7 @@ def __migrate_plaindata(session: Session,
 
         if not orderby_columns:
             warn_msg: str = ""
-            if migration.nr_channel_count > 1:
+            if channel_count > 1:
                 warn_msg = "Multi-channel migration"
             elif limit_count:
                 warn_msg = "Incremental migration"
@@ -218,11 +220,11 @@ def __migrate_plaindata(session: Session,
 
         # build migration channel data ([(offset, limit),...])
         channel_data: list[tuple[int, int]] = \
-            build_channel_data(channel_size=migration.nr_channel_size,
+            build_channel_data(channel_size=channel_size,
                                table_count=table_count,
                                offset_count=offset_count,
                                limit_count=limit_count)
-        max_workers: int = min(migration.nr_channel_count, len(channel_data))
+        max_workers: int = min(channel_count, len(channel_data))
         tot_count: int = sum(i[1] for i in channel_data)
         logger.debug(msg=f"Started migrating {tot_count} tuples from "
                          f"{source_db}.{source_table} to {target_db}.{target_table}, "
@@ -338,11 +340,13 @@ def _migrate_plain(session: Session,
                                 batch_size_out=batch_size_out,
                                 has_ctrlchars=has_ctrlchars,
                                 errors=errors)
-        # assert the migration
-        assert_migration_span(migration_work=migration_work,
-                              first_row=offset_count,
-                              last_row=offset_count + count - 1,
-                              is_done=True,
+        # acknowledge the migration
+        migration_span.nr_last_row = offset_count + count - 1
+        migration_span.is_done = True
+        migration_span.update(db_engine=PYDB_DB_ENGINE,
+                              errors=errors)
+        migration_work.nr_count += count
+        migration_work.update(db_engine=PYDB_DB_ENGINE,
                               errors=errors)
     with plaindata_lock:
         if errors:

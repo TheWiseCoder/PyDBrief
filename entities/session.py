@@ -148,11 +148,14 @@ class Session(PySob):
         return self.__target_s3
 
     def get_migrations(self,
+                       refresh: bool = False,
                        db_engine: DbEngine | str = PYDB_DB_ENGINE,
                        db_conn: Any = None,
                        committable: bool = None,
                        errors: list[str] = None):
 
+        if refresh:
+            self.__migrations = None
         self.load_references(list[Migration],
                              db_engine=db_engine,
                              db_conn=db_conn,
