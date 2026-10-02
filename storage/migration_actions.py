@@ -5,8 +5,9 @@ from pypomes_core import (
     validate_bool, validate_int, validate_enum, validate_str, validate_strs
 )
 from pypomes_db import (
-    db_get_engines, db_setup, db_startup,
-    db_connect, db_commit, db_rollback, db_close
+    DbEngine, DbConnectionPool, DbPoolEvent,
+    db_get_pool, db_get_engines, db_get_type,
+    db_setup, db_startup, db_connect, db_commit, db_rollback, db_close
 )
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
@@ -334,29 +335,6 @@ def verify_migration(input_params: dict[str, Any] | Session,
                  engine=PYDB_DB_ENGINE)
 
 
-def __validate_db_engine(database: Database,
-                         db_engines: list[str],
-                         errors: list[str],
-                         logger: Logger) -> None:
-
-    if database.cd_engine in db_engines:
-        db_startup(engine=database.cd_engine,
-                   errors=errors)
-    else:
-        # noinspection PyProtectedMember
-        db_setup(engine=database.cd_engine,
-                 db_name=database.cd_name,
-                 db_user=database.nm_user,
-                 db_pwd=database._nm_pwd,
-                 db_host=database.nm_host,
-                 db_port=database.nr_port,
-                 db_type=database.cd_type,
-                 db_client=database.nm_client,
-                 db_driver=database.ds_driver,
-                 logger=logger) and db_startup(engine=database.cd_engine,
-                                               errors=errors)
-
-
 def __validate_input(input_params: dict[str, Any],
                      valid_params: list[str],
                      op: OpType,
@@ -481,3 +459,58 @@ def __validate_input(input_params: dict[str, Any],
         result[Migration.Db.DS_INCLUDE_RELATIONS] = (",".join([i for i in include_relations])).lower()
 
     return result
+
+
+def __validate_db_engine(database: Database,
+                         db_engines: list[str],
+                         errors: list[str],
+                         logger: Logger) -> None:
+
+    if database.cd_engine in db_engines:
+        db_startup(engine=database.cd_engine,
+                   errors=errors)
+    else:
+        # noinspection PyProtectedMember
+        if db_setup(engine=database.cd_engine,
+                    db_name=database.cd_name,
+                    db_user=database.nm_user,
+                    db_pwd=database._nm_pwd,
+                    db_host=database.nm_host,
+                    db_port=database.nr_port,
+                    db_type=database.cd_type,
+                    db_client=database.nm_client,
+                    db_driver=database.ds_driver,
+                    logger=logger):
+            __pool_setup(db_engine=database.cd_engine,
+                         errors=errors)
+            if not errors:
+                db_startup(engine=database.cd_engine,
+                           errors=errors)
+
+
+def __pool_setup(db_engine: str,
+                 errors: list[str]) -> None:
+
+    curr_errors: list[str] = []
+    pool: DbConnectionPool = (db_get_pool(engine=db_engine) or
+                              DbConnectionPool(db_engine,
+                                               pool_size=20,
+                                               errors=curr_errors))
+    if not curr_errors:
+        stmts: list[str] = []
+        db_type: DbEngine = db_get_type(engine=db_engine)
+        # fine-tune all database sessions, as needed
+        # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
+        match db_type:
+            case DbEngine.MYSQL:
+                stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
+            case DbEngine.ORACLE:
+                stmts.extend(["ALTER SESSION SET NLS_SORT = BINARY",
+                              "ALTER SESSION SET NLS_COMP = BINARY"])
+            case DbEngine.POSTGRES:
+                stmts.append("set session_replication_role = replica")
+        if stmts:
+            pool.on_event_actions(event=DbPoolEvent.CREATE,
+                                  stmts=stmts)
+    elif isinstance(errors, list):
+        errors.extend(curr_errors)

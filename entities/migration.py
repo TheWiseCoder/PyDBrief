@@ -42,6 +42,7 @@ class Migration(PySob):
         CD_STEP = auto()
         DS_EXCLUDE_RELATIONS = auto()
         DS_INCLUDE_RELATIONS = auto()
+        DS_PRE_SQL = auto()
         ID_SESSION = auto()
         IS_FLATTEN_STORAGE = auto()
         IS_OPTIMIZE_PKS = auto()
@@ -72,6 +73,7 @@ class Migration(PySob):
         (InputParam.FLATTEN_STORAGE, Db.IS_FLATTEN_STORAGE),
         (InputParam.INCLUDE_RELATIONS, Db.DS_INCLUDE_RELATIONS),
         (InputParam.OPTIMIZE_PKS, Db.IS_OPTIMIZE_PKS),
+        (InputParam.PRE_SQL, Db.DS_PRE_SQL),
         (InputParam.PROCESS_INDEXES, Db.IS_PROCESS_INDEXES),
         (InputParam.PROCESS_VIEWS, Db.IS_PROCESS_VIEWS),
         (InputParam.REFLECT_FILETYPE, Db.IS_REFLECT_FILETYPE),
@@ -102,6 +104,7 @@ class Migration(PySob):
         # nullables in DB
         self.ds_exclude_relations: str | None = None
         self.ds_include_relations: str | None = None
+        self.ds_pre_sql: str | None = None
         self.is_flatten_storage: bool | None = None
         self.is_optimize_pks: bool | None = None
         self.is_process_indexes: bool | None = None

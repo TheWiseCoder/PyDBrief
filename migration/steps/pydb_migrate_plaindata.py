@@ -19,8 +19,8 @@ from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BA
 from entities.migration_work import MigrationWork
 from entities.session import Session, sessions_aborting
 from migration.pydb_common import (
-    build_channel_data, get_migration_span,
-    assert_migration_work, get_migration_work
+    build_channel_data, execute_sql,
+    get_migration_span, assert_migration_work, get_migration_work
 )
 from migration.pydb_database import table_embedded_nulls
 from migration.pydb_types import is_lob_column
@@ -98,10 +98,17 @@ def migrate_plaindata(session: Session,
             elif db_table_exists(table_name=target_table,
                                  engine=target_db,
                                  errors=errors):
+
                 # obtain migration table data
-                migration_table: MigrationTable = \
-                    next((t for t in (migration.get_migration_tables() or [])
-                          if t.nm_table == table_name), MigrationTable())
+                migration_table: MigrationTable = MigrationTable.for_table(
+                    table=table_name,
+                    migration_tables=migration.get_migration_tables() or []
+                ) or MigrationTable()
+                if migration_table.ds_pre_sql:
+                    execute_sql(migration=migration,
+                                db_engine=session.get_source_db().cd_engine,
+                                sql_text=migration_table.ds_pre_sql)
+
                 batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[2]
                 batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[2]
                 limit_count: int = migration_table.nr_incremental_count or 0

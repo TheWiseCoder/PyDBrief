@@ -83,6 +83,7 @@ class InputParam(StrEnum):
     OPTIMIZE_PKS = "optimize-pks"
     OVERRIDE_COLUMNS = "override-columns"
     PATH = "path"
+    PRE_SQL = "pre-sql"
     PROCESS_INDEXES = "process-indexes"
     PROCESS_VIEWS = "process-views"
     REFLECT_FILETYPE = "reflect-filetype"

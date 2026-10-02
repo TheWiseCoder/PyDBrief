@@ -411,7 +411,7 @@ def assert_relation(migration: Migration,
     - finish with ^: search for trailing text
     _ starts with *: search for text at any position
 
-    :param migration: the reference migration (must be step *MIGRATE_METADATA*)
+    :param migration: the reference migration
     :param relation: the relation to inspect
     """
     # initialize the return variable

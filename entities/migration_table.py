@@ -28,6 +28,7 @@ class MigrationTable(PySob):
         DS_NAMED_LOBDATA = auto()
         DS_OMIT_DEFAULTS = auto()
         DS_OVERRIDE_COLUMNS = auto()
+        DS_PRE_SQL = auto()
         IS_REMOVE_CTRLCHARS = auto()
         NM_TABLE = auto()
         NR_BATCH_SIZE_IN = auto()
@@ -48,6 +49,7 @@ class MigrationTable(PySob):
         (InputParam.NAMED_LOBDATA, Db.DS_NAMED_LOBDATA),
         (InputParam.OMIT_DEFAULTS, Db.DS_OMIT_DEFAULTS),
         (InputParam.OVERRIDE_COLUMNS, Db.DS_OVERRIDE_COLUMNS),
+        (InputParam.PRE_SQL, Db.DS_PRE_SQL),
         (InputParam.REMOVE_CTRLCHARS, Db.IS_REMOVE_CTRLCHARS),
         (InputParam.TABLE, Db.NM_TABLE),
         (InputParam.BADGE, None)
@@ -74,6 +76,7 @@ class MigrationTable(PySob):
         self.ds_named_lobdata: str | None = None
         self.ds_omit_defaults: str | None = None
         self.ds_override_columns: str | None = None
+        self.ds_pre_sql: str | None = None
         self.is_remove_ctrlchars: bool | None = None
         self.nr_batch_size_in: int | None = None
         self.nr_batch_size_out: int | None = None
@@ -93,6 +96,22 @@ class MigrationTable(PySob):
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
+
+    @classmethod
+    def for_table(cls,
+                  table: str,
+                  migration_tables: list[MigrationTable]) -> MigrationTable | None:
+
+        # initialize the return variable
+        result: MigrationTable | None = None
+
+        # traverse the migration table list
+        for migration_table in migration_tables:
+            if migration_table.nm_table == table:
+                result = migration_table
+                break
+
+        return result
 
 
 MigrationTable.initialize(db_specs=(MigrationTable.Db, int),

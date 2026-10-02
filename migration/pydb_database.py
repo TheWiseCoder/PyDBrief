@@ -1,37 +1,37 @@
+import sys
 from logging import Logger
-from pypomes_core import validate_format_error
+from pypomes_core import validate_format_error, str_sanitize, exc_format
 from pypomes_db import (
-    DbEngine, DbParam, DbConnectionPool, DbPoolEvent,
-    db_get_pool, db_get_param, db_get_type, db_get_view_ddl, db_execute
+    DbEngine, DbParam,
+    db_get_param, db_get_type, db_get_view_ddl, db_execute, db_get_connection_string
 )
+from sqlalchemy import Engine, create_engine
 from typing import Literal
 
 
-def db_pool_setup(db_engine: str,
-                  errors: list[str]) -> None:
+def build_engine(db_engine: DbEngine | str,
+                 errors: list[str],
+                 logger: Logger) -> Engine:
 
-    pool: DbConnectionPool = db_get_pool(engine=db_engine)
-    if not pool:
-        pool = DbConnectionPool(db_engine,
-                                errors=errors)
-        if not errors:
-            stmts: list[str] = []
-            db_type: DbEngine = db_get_type(engine=db_engine)
-            # fine-tune all database sessions, as needed
-            # (Oracle and SQLServer do not have session-scope commands for disabling triggers and/or rules)
-            match db_type:
-                case DbEngine.MYSQL:
-                    stmts.append("SET @@SESSION.DISABLE_TRIGGERS = 1")
-                case DbEngine.ORACLE:
-                    stmts.append("ALTER SESSION SET NLS_SORT = BINARY")
-                    stmts.append("ALTER SESSION SET NLS_COMP = BINARY")
-                case DbEngine.POSTGRES:
-                    stmts.append("set session_replication_role = replica")
-                case DbEngine.SQLSERVER:
-                    pass
-            if stmts:
-                pool.on_event_actions(event=DbPoolEvent.CREATE,
-                                      stmts=stmts)
+    # initialize the return variable
+    result: Engine | None = None
+
+    # obtain the connection string
+    conn_str: str = db_get_connection_string(engine=db_engine)
+
+    # build the engine
+    try:
+        # 'echo' set to False prevent default stdout logging
+        result = create_engine(url=conn_str)
+        logger.debug(msg=f"RDBMS '{db_engine}', created migration engine")
+    except Exception as e:
+        exc_err = str_sanitize(exc_format(exc=e,
+                                          exc_info=sys.exc_info()))
+        logger.error(msg=exc_err)
+        # 102: Unexpected error: {}
+        errors.append(validate_format_error(102,
+                                            exc_err))
+    return result
 
 
 def schema_create(schema: str,

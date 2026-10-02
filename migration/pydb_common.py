@@ -1,12 +1,14 @@
 from datetime import datetime
 from pathlib import Path
 from pypomes_core import TZ_LOCAL
+from pypomes_db import db_execute
 from urlobject import URLObject
 from typing import Any
 
 from app_constants import PYDB_DB_ENGINE
 from entities.database import Database
 from entities.migration import Migration
+from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
 from entities.migration_work import MigrationWork
 from entities.session import Session
@@ -63,6 +65,25 @@ def build_lob_prefix(session: Session,
                 column_name)
 
 
+def execute_sql(migration: Migration,
+                db_engine: str,
+                sql_text: str,
+                db_conn: Any = None) -> None:
+
+    sql_stmts: list[str] = sql_text.split(sep="//")
+    for sql_stmt in sql_stmts:
+        curr_errors: list[str] = []
+        db_execute(exc_stmt=sql_stmt,
+                   engine=db_engine,
+                   connection=db_conn,
+                   errors=curr_errors)
+        for curr_error in curr_errors:
+            MigrationIssue.new_issue(id_migration=migration.id,
+                                     cd_type=IssueType.ERROR,
+                                     ds_issue=f"SQL: {sql_stmt}; Error: {curr_error}",
+                                     db_engine=PYDB_DB_ENGINE)
+
+
 def get_migration_work(migration: Migration,
                        table: str,
                        db_conn: Any = None,
@@ -78,7 +99,6 @@ def get_migration_work(migration: Migration,
     :param errors: incidental errors list
     :return: the *migrationWork* instance requested, or *None* on DB access error
     """
-
     # make sure to have an errors list
     if not isinstance(errors, list):
         errors = []

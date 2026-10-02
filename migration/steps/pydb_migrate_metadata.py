@@ -16,9 +16,8 @@ from entities.migration_work import MigrationWork
 from entities.session import Session
 
 from app_constants import PYDB_DB_ENGINE, InputParam
-from migration.pydb_common import get_migration_work
-from migration.pydb_database import column_set_nullable, view_get_ddl
-from migration.pydb_engine import build_engine
+from migration.pydb_common import get_migration_work, execute_sql
+from migration.pydb_database import column_set_nullable, view_get_ddl, build_engine
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_migration import (
     assert_relation, prune_metadata, setup_schema, setup_tables
@@ -34,13 +33,32 @@ def migrate_metadata(migration: Migration,
     # initialize the return variable
     result: dict[str, Any] | None = None
 
+    migration_tables: list[MigrationTable] | None = None
+    mm_migration: Migration = migration if migration.cd_step == MigStep.MIGRATE_METADATA else \
+        Migration(None,
+                  list[MigrationTable],
+                  id_session=migration.id_session,
+                  cd_step=MigStep.MIGRATE_METADATA,
+                  db_engine=PYDB_DB_ENGINE,
+                  errors=errors)
+    if not errors:
+        migration_tables = mm_migration.get_migration_tables() or []
+        if mm_migration.ds_pre_sql:
+            execute_sql(migration=migration,
+                        db_engine=session.get_source_db().cd_engine,
+                        sql_text=mm_migration.ds_pre_sql)
+
     # create engines
-    source_engine: Engine = build_engine(db_engine=session.get_source_db().cd_engine,
-                                         errors=errors,
-                                         logger=logger)
-    target_engine: Engine = build_engine(db_engine=session.get_target_db().cd_engine,
-                                         errors=errors,
-                                         logger=logger)
+    source_engine: Engine | None = None
+    target_engine: Engine | None = None
+    if not errors:
+        source_engine = build_engine(db_engine=session.get_source_db().cd_engine,
+                                     errors=errors,
+                                     logger=logger)
+        target_engine = build_engine(db_engine=session.get_target_db().cd_engine,
+                                     errors=errors,
+                                     logger=logger)
+
     if source_engine and target_engine:
         from_schema: str | None = None
 
@@ -64,13 +82,6 @@ def migrate_metadata(migration: Migration,
             # determine the relations to be processed
             source_metadata: MetaData | None = None
             only_tables: list[str] = []
-            mm_migration: Migration = migration if migration.cd_step == MigStep.MIGRATE_METADATA else \
-                Migration(None,
-                          list[MigrationTable],
-                          id_session=migration.id_session,
-                          cd_step=MigStep.MIGRATE_METADATA,
-                          db_engine=PYDB_DB_ENGINE,
-                          errors=errors)
             if not errors:
                 for table_name in source_inspector.get_table_names(schema=from_schema):
                     ok: bool = table_name.lower() not in schema_views and \
@@ -78,6 +89,14 @@ def migrate_metadata(migration: Migration,
                                                relation=table_name.lower())
                     if ok:
                         only_tables.append(table_name)
+                        migration_table: MigrationTable = MigrationTable.for_table(
+                            table=table_name.lower(),
+                            migration_tables=migration_tables
+                        )
+                        if migration_table and migration_table.ds_pre_sql:
+                            execute_sql(migration=migration,
+                                        db_engine=session.get_source_db().cd_engine,
+                                        sql_text=migration_table.ds_pre_sql)
                     logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
                 # obtain the source schema metadata
@@ -118,7 +137,7 @@ def migrate_metadata(migration: Migration,
                 # build list of views to migrate
                 target_views: list[str] = []
                 if migration.is_process_views:
-                    if migration.ds_include_relations or mm_migration.ds_exclude_relations:
+                    if mm_migration.ds_include_relations or mm_migration.ds_exclude_relations:
                         target_views.extend([v for v in schema_views if assert_relation(migration=mm_migration,
                                                                                         relation=v)])
                     else:
@@ -126,7 +145,6 @@ def migrate_metadata(migration: Migration,
 
                 # prepare the source metadata for migration
                 target_tables: list[Table] = []
-                migration_tables: list[MigrationTable] = mm_migration.get_migration_tables()
                 prune_metadata(migration=migration,
                                session=session,
                                migration_tables=migration_tables,
