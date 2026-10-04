@@ -83,59 +83,57 @@ def migrate_metadata(migration: Migration,
             schema_views: list[str] = plain_views + mat_views
 
             # determine the relations to be processed
-            source_metadata: MetaData | None = None
             only_tables: list[str] = []
-            if not errors:
-                for table_name in source_inspector.get_table_names(schema=from_schema):
-                    ok: bool = table_name.lower() not in schema_views and \
-                               assert_relation(migration=mm_migration,
-                                               relation=table_name.lower())
-                    if ok:
-                        only_tables.append(table_name)
-                        migration_table: MigrationTable = MigrationTable.for_table(
-                            table=table_name.lower(),
-                            migration_tables=migration_tables
-                        )
-                        if migration_table and migration_table.ds_pre_sql:
-                            execute_sql(migration=migration,
-                                        db_engine=source_db.cd_engine,
-                                        sql_text=migration_table.ds_pre_sql)
-                    logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
+            for table_name in source_inspector.get_table_names(schema=from_schema):
+                ok: bool = table_name.lower() not in schema_views and \
+                           assert_relation(migration=mm_migration,
+                                           relation=table_name.lower())
+                if ok:
+                    only_tables.append(table_name)
+                    migration_table: MigrationTable = MigrationTable.for_table(
+                        table=table_name.lower(),
+                        migration_tables=migration_tables
+                    )
+                    if migration_table and migration_table.ds_pre_sql:
+                        execute_sql(migration=migration,
+                                    db_engine=source_db.cd_engine,
+                                    sql_text=migration_table.ds_pre_sql)
+                logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
-                # obtain the source schema metadata
-                source_metadata = MetaData(schema=from_schema)
-                try:
-                    # HAZARD:
-                    # - if the parameter 'resolve_fks' is set to 'True' (the default value),
-                    #   then relations referenced in FK columns of included tables
-                    #   will also be included, regardless of parameters 'only' or 'views'
-                    #   (this is remedied at 'prune_metadata()')
-                    # - if 'resolve_fks' is ommited, not finding referenced tables will not
-                    #   prevent migration to continue, although SQLAlchemy will nonetheless raise
-                    #   a 'NoReferencedTableError' exception upon 'source_metadata.sorted_tables'
-                    #   retrieval, if a FK-referenced table is missing from the source schema
-                    # - the parameter 'views' should not be set to 'True', as no reflection is
-                    #   necessary for views - a view is migrated by retrieving its DDL script
-                    #   and executing it at the target schema
-                    source_metadata.reflect(bind=sa_source_engine,
-                                            schema=from_schema,
-                                            views=False,
-                                            only=only_tables,
-                                            resolve_fks=not mm_migration.is_relax_reflection)
-                except (Exception, SAWarning) as e:
-                    # - unable to fully reflect the source schema
-                    # - this error will cause the migration to be aborted,
-                    #   as SQLAlchemy will not be able to find the schema tables
-                    exc_err: str = str_sanitize(exc_format(exc=e,
-                                                           exc_info=sys.exc_info()))
-                    logger.error(msg=exc_err)
-                    MigrationIssue.new_issue(id_migration=migration.id,
-                                             cd_type=IssueType.ERROR,
-                                             ds_issue=exc_err)
-                    # 104: The operation {} returned the error {}
-                    errors.append(validate_format_error(104,
-                                                        "schema-reflection",
-                                                        exc_err))
+            # obtain the source schema metadata
+            source_metadata: MetaData = MetaData(schema=from_schema)
+            try:
+                # HAZARD:
+                # - if the parameter 'resolve_fks' is set to 'True' (the default value),
+                #   then relations referenced in FK columns of included tables
+                #   will also be included, regardless of parameters 'only' or 'views'
+                #   (this is remedied at 'prune_metadata()')
+                # - if 'resolve_fks' is ommited, not finding referenced tables will not
+                #   prevent migration to continue, although SQLAlchemy will nonetheless raise
+                #   a 'NoReferencedTableError' exception upon 'source_metadata.sorted_tables'
+                #   retrieval, if a FK-referenced table is missing from the source schema
+                # - the parameter 'views' should not be set to 'True', as no reflection is
+                #   necessary for views - a view is migrated by retrieving its DDL script
+                #   and executing it at the target schema
+                source_metadata.reflect(bind=sa_source_engine,
+                                        schema=from_schema,
+                                        views=False,
+                                        only=only_tables,
+                                        resolve_fks=not mm_migration.is_relax_reflection)
+            except (Exception, SAWarning) as e:
+                # - unable to fully reflect the source schema
+                # - this error will cause the migration to be aborted,
+                #   as SQLAlchemy will not be able to find the schema tables
+                exc_err: str = str_sanitize(exc_format(exc=e,
+                                                       exc_info=sys.exc_info()))
+                logger.error(msg=exc_err)
+                MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_type=IssueType.ERROR,
+                                         ds_issue=exc_err)
+                # 104: The operation {} returned the error {}
+                errors.append(validate_format_error(104,
+                                                    "schema-reflection",
+                                                    exc_err))
             if not errors:
                 # build list of views to migrate
                 target_views: list[str] = []
