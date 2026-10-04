@@ -95,7 +95,7 @@ def migrate_metadata(migration: Migration,
                         type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
                                                                    db_source_type=source_db.cd_type,
                                                                    db_target_type=target_db.cd_type)
-                        target_cols_metadata.append((col_metadata[0].lower(), type_equivalent, col_metadata[2:]))
+                        target_cols_metadata.append((col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
                     # noinspection PyTypeChecker
                     db_create_table(table_name=view_name,
                                     column_data=target_cols_metadata,
