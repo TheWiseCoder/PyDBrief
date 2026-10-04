@@ -221,7 +221,13 @@ from entities.session import Session
 
 # MySQL types
 MSQL_TYPES: Final[dict[str, Type]] = {
+    # preferred to 'int8'
     "bigint": MSQL_BIGINT,
+    # preferred to 'int4'
+    "integer": MSQL_INTEGER,
+    # preferred to 'int2'
+    "smallint": MSQL_SMALLINT,
+
     "binary": REF_BINARY,
     "bit": MSQL_BIT,
     "blob": REF_BLOB,
@@ -236,7 +242,6 @@ MSQL_TYPES: Final[dict[str, Type]] = {
     "int2": MSQL_SMALLINT,
     "int4": MSQL_INTEGER,
     "int8": MSQL_BIGINT,
-    "integer": MSQL_INTEGER,
     "json": MSQL_JSON,
     "longblob": MSQL_LONGBLOB,
     "longtext": MSQL_LONGTEXT,
@@ -248,7 +253,6 @@ MSQL_TYPES: Final[dict[str, Type]] = {
     "nvarchar": MSQL_NVARCHAR,
     "real": MSQL_REAL,
     "set": MSQL_SET,
-    "smallint": MSQL_SMALLINT,
     "text": MSQL_TEXT,
     "time": MSQL_TIME,
     "timestamp": MSQL_TIMESTAMP,
@@ -288,8 +292,16 @@ ORCL_TYPES: Final[dict[str, Type]] = {
 
 # Postgres types (include types in column information_schema.columns.udt_name)
 PG_TYPES: Final[dict[str, Type]] = {
-    "array": PG_ARRAY,
+    # preferred to 'int8'
     "bigint": REF_BIGINT,
+    # preferred to 'int4'
+    "integer": REF_INTEGER,
+    # preferred to 'number'
+    "numeric": REF_NUMERIC,
+    # preferred to 'int2'
+    "smallint": REF_SMALLINT,
+
+    "array": PG_ARRAY,
     "bit": PG_BIT,
     "boolean": REF_BOOLEAN,
     "bytea": PG_BYTEA,
@@ -312,7 +324,6 @@ PG_TYPES: Final[dict[str, Type]] = {
     "int4range": PG_INT4RANGE,
     "int8multirange": PG_INT8MULTIRANGE,
     "int8range": PG_INT8RANGE,
-    "integer": REF_INTEGER,
     "interval": PG_INTERVAL,
     "json": PG_JSON,
     "jsonb": PG_JSONB,
@@ -321,14 +332,12 @@ PG_TYPES: Final[dict[str, Type]] = {
     "macaddr8": PG_MACADDR8,
     "money": PG_MONEY,
     "number": REF_NUMERIC,
-    "numeric": REF_NUMERIC,
     "nummultirange": PG_NUMMULTIRANGE,
     "numrange": PG_NUMRANGE,
     "oid": PG_OID,
     "real": REF_REAL,
     "regclass": PG_REGCLASS,
     "regconfig": PG_REGCONFIG,
-    "smallint": REF_SMALLINT,
     "text": REF_TEXT,
     "time": PG_TIME,
     "timestamp": PG_TIMESTAMP,
