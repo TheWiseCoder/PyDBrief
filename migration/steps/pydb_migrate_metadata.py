@@ -2,7 +2,7 @@ import sys
 from datetime import datetime
 from logging import Logger
 from pypomes_core import TZ_LOCAL, str_as_list, str_sanitize, exc_format, validate_format_error
-from pypomes_db import db_create_table, db_execute, db_get_columns_metadata
+from pypomes_db import db_create_table, db_table_exists, db_execute, db_get_columns_metadata
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
 )
@@ -84,23 +84,27 @@ def migrate_metadata(migration: Migration,
 
             # build tables from views
             views_to_tables: list[str] = str_as_list(migration.ds_views_to_tables)
-            for view_name in views_to_tables:
-                source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
-                    db_get_columns_metadata(table_name=f"{from_schema}.{view_name}",
-                                            engine=source_db.cd_engine,
-                                            errors=errors)
-                if not errors:
-                    target_cols_metadata: list[tuple] = []
-                    for col_metadata in source_cols_metadata:
-                        type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
-                                                                   db_source_type=source_db.cd_type,
-                                                                   db_target_type=target_db.cd_type)
-                        target_cols_metadata.append((col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
-                    # noinspection PyTypeChecker
-                    db_create_table(table_name=f"{from_schema}.{view_name}",
-                                    column_data=target_cols_metadata,
-                                    engine=target_db.cd_engine,
-                                    errors=errors)
+            for view_to_table in views_to_tables:
+                table_name: str = f"{from_schema}.{view_to_table}"
+                if not db_table_exists(table_name=table_name,
+                                       engine=target_db.cd_engine,
+                                       errors=errors) and not errors:
+                    source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
+                        db_get_columns_metadata(table_name=table_name,
+                                                engine=source_db.cd_engine,
+                                                errors=errors)
+                    if not errors:
+                        target_cols_metadata: list[tuple] = []
+                        for col_metadata in source_cols_metadata:
+                            type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
+                                                                       db_source_type=source_db.cd_type,
+                                                                       db_target_type=target_db.cd_type)
+                            target_cols_metadata.append((col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
+                        # noinspection PyTypeChecker
+                        db_create_table(table_name=table_name,
+                                        column_data=target_cols_metadata,
+                                        engine=target_db.cd_engine,
+                                        errors=errors)
                 if errors:
                     MigrationIssue.new_issues(id_migration=migration.id,
                                               cd_type=IssueType.ERROR,
