@@ -9,6 +9,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SAWarning
 from typing import Any
 
+from entities.database import Database
 from entities.migration import Migration, MigStep
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
@@ -33,6 +34,8 @@ def migrate_metadata(migration: Migration,
     # initialize the return variable
     result: dict[str, Any] | None = None
 
+    source_db: Database = session.get_source_db()
+    target_db: Database = session.get_target_db()
     migration_tables: list[MigrationTable] | None = None
     mm_migration: Migration = migration if migration.cd_step == MigStep.MIGRATE_METADATA else \
         Migration(None,
@@ -45,25 +48,25 @@ def migrate_metadata(migration: Migration,
         migration_tables = mm_migration.get_migration_tables() or []
         if mm_migration.ds_pre_sql:
             execute_sql(migration=migration,
-                        db_engine=session.get_source_db().cd_engine,
+                        db_engine=source_db.cd_engine,
                         sql_text=mm_migration.ds_pre_sql)
 
     # create engines
-    source_engine: Engine | None = None
-    target_engine: Engine | None = None
+    sa_source_engine: Engine | None = None
+    sa_target_engine: Engine | None = None
     if not errors:
-        source_engine = build_engine(db_engine=session.get_source_db().cd_engine,
-                                     errors=errors,
-                                     logger=logger)
-        target_engine = build_engine(db_engine=session.get_target_db().cd_engine,
-                                     errors=errors,
-                                     logger=logger)
+        sa_source_engine = build_engine(db_engine=source_db.cd_engine,
+                                        errors=errors,
+                                        logger=logger)
+        sa_target_engine = build_engine(db_engine=target_db.cd_engine,
+                                        errors=errors,
+                                        logger=logger)
 
-    if source_engine and target_engine:
+    if sa_source_engine and sa_target_engine:
         from_schema: str | None = None
 
         # obtain the source schema's internal name
-        source_inspector: Inspector = inspect(subject=source_engine,
+        source_inspector: Inspector = inspect(subject=sa_source_engine,
                                               raiseerr=True)
         for schema_name in source_inspector.get_schema_names():
             if session.nm_source_schema == schema_name.lower():
@@ -84,19 +87,19 @@ def migrate_metadata(migration: Migration,
             for view_name in views_to_tables:
                 source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
                     db_get_columns_metadata(table_name=f"{from_schema}.{view_name}",
-                                            engine=session.get_source_db().cd_engine,
+                                            engine=source_db.cd_engine,
                                             errors=errors)
                 if not errors:
                     target_cols_metadata: list[tuple] = []
                     for col_metadata in source_cols_metadata:
-                        type_equivalent: str = convert_column_type(col_type=col_metadata[1],
-                                                                   db_source_type=session.get_source_db().cd_type,
-                                                                   db_target_type=session.get_target_db().cd_type)
-                        target_cols_metadata.append((col_metadata[0], type_equivalent, col_metadata[2:]))
+                        type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
+                                                                   db_source_type=source_db.cd_type,
+                                                                   db_target_type=target_db.cd_type)
+                        target_cols_metadata.append((col_metadata[0].lower(), type_equivalent, col_metadata[2:]))
                     # noinspection PyTypeChecker
                     db_create_table(table_name=view_name,
                                     column_data=target_cols_metadata,
-                                    engine=session.get_target_db().cd_engine,
+                                    engine=target_db.cd_engine,
                                     errors=errors)
                 if errors:
                     MigrationIssue.new_issues(id_migration=migration.id,
@@ -120,7 +123,7 @@ def migrate_metadata(migration: Migration,
                         )
                         if migration_table and migration_table.ds_pre_sql:
                             execute_sql(migration=migration,
-                                        db_engine=session.get_source_db().cd_engine,
+                                        db_engine=source_db.cd_engine,
                                         sql_text=migration_table.ds_pre_sql)
                     logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
@@ -139,7 +142,7 @@ def migrate_metadata(migration: Migration,
                     # - the parameter 'views' should not be set to 'True', as no reflection is
                     #   necessary for views - a view is migrated by retrieving its DDL script
                     #   and executing it at the target schema
-                    source_metadata.reflect(bind=source_engine,
+                    source_metadata.reflect(bind=sa_source_engine,
                                             schema=from_schema,
                                             views=False,
                                             only=only_tables,
@@ -203,15 +206,14 @@ def migrate_metadata(migration: Migration,
                         to_schema = setup_schema(migration=migration,
                                                  target_db=session.get_target_db().cd_engine,
                                                  target_schema=session.nm_target_schema,
-                                                 target_engine=target_engine,
+                                                 target_engine=sa_target_engine,
                                                  target_tables=target_tables,
                                                  target_views=target_views,
                                                  mat_views=mat_views,
                                                  errors=errors,
                                                  logger=logger)
                         if not to_schema:
-                            err_msg: str = ("Unable to migrate schema to RDBMS "
-                                            f"'{session.get_source_db().cd_engine}'")
+                            err_msg: str = f"Unable to migrate schema to RDBMS '{source_db.cd_engine}'"
                             logger.error(msg=err_msg)
                             MigrationIssue.new_issue(id_migration=migration.id,
                                                      cd_type=IssueType.ERROR,
@@ -243,7 +245,7 @@ def migrate_metadata(migration: Migration,
                                                                                errors=errors)
                             if not errors and not migration_work.is_created:
                                 try:
-                                    source_metadata.create_all(bind=target_engine,
+                                    source_metadata.create_all(bind=sa_target_engine,
                                                                tables=[target_table],
                                                                checkfirst=False)
                                     if not session.id_target_s3:
@@ -283,14 +285,14 @@ def migrate_metadata(migration: Migration,
                             curr_errors: list[str] = []
                             view_ddl: str = view_get_ddl(view_name=target_view,
                                                          view_type="M" if target_view in mat_views else "P",
-                                                         source_db=session.get_source_db().cd_engine,
+                                                         source_db=source_db.cd_engine,
                                                          source_schema=from_schema,
                                                          target_schema=to_schema,
                                                          errors=errors,
                                                          logger=logger)
                             if view_ddl:
                                 db_execute(exc_stmt=view_ddl,
-                                           engine=session.get_source_db().cd_engine,
+                                           engine=source_db.cd_engine,
                                            errors=curr_errors)
                             # errors ?
                             if curr_errors:
@@ -310,7 +312,7 @@ def migrate_metadata(migration: Migration,
                                                                     "schema-construction",
                                                                     err_msg))
         else:
-            err_msg: str = f"schema not found in RDBMS '{session.get_source_db().cd_engine}'"
+            err_msg: str = f"schema not found in RDBMS '{source_db.cd_engine}'"
             logger.error(msg=err_msg)
             # 142: Invalid value {}: {}
             errors.append(validate_format_error(142,
