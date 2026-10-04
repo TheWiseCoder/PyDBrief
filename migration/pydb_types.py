@@ -561,7 +561,7 @@ def convert_column_type(col_type: str,
                                          db_type=db_source_type)
     col_target_type: Type = get_type_equivalent(db_source_type=db_source_type,
                                                 db_target_type=db_target_type,
-                                                type_original=col_source_type)
+                                                type_original=col_source_type())
     return str(col_target_type)
 
 
