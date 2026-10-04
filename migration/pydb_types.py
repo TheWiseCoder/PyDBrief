@@ -554,15 +554,13 @@ def convert_column_type(col_type: str,
     :param db_target_type: the target database engine type
     :return: the column type equivalent for the target database type
     """
-    # initialize the return variable
-    result: str
-
     col_source_type: Type = name_to_type(type_name=col_type,
                                          db_type=db_source_type)
     col_target_type: Type = get_type_equivalent(db_source_type=db_source_type,
                                                 db_target_type=db_target_type,
                                                 type_original=col_source_type())
-    return str(col_target_type)
+    return type_to_name(col_type=col_target_type,
+                        db_type=db_target_type)
 
 
 def migrate_column(migration: Migration,
