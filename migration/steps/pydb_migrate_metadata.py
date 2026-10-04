@@ -82,35 +82,6 @@ def migrate_metadata(migration: Migration,
                                     source_inspector.get_materialized_view_names(schema=from_schema)]
             schema_views: list[str] = plain_views + mat_views
 
-            # build tables from views
-            views_to_tables: list[str] = str_as_list(migration.ds_views_to_tables)
-            for view_to_table in views_to_tables:
-                table_name: str = f"{from_schema}.{view_to_table}"
-                if not db_table_exists(table_name=table_name,
-                                       engine=target_db.cd_engine,
-                                       errors=errors) and not errors:
-                    source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
-                        db_get_columns_metadata(table_name=table_name,
-                                                engine=source_db.cd_engine,
-                                                errors=errors)
-                    if not errors:
-                        target_cols_metadata: list[tuple] = []
-                        for col_metadata in source_cols_metadata:
-                            type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
-                                                                       db_source_type=source_db.cd_type,
-                                                                       db_target_type=target_db.cd_type)
-                            target_cols_metadata.append((col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
-                        # noinspection PyTypeChecker
-                        db_create_table(table_name=table_name,
-                                        column_data=target_cols_metadata,
-                                        engine=target_db.cd_engine,
-                                        errors=errors)
-                if errors:
-                    MigrationIssue.new_issues(id_migration=migration.id,
-                                              cd_type=IssueType.ERROR,
-                                              ds_issues=errors)
-                    break
-
             # determine the relations to be processed
             source_metadata: MetaData | None = None
             only_tables: list[str] = []
@@ -240,9 +211,39 @@ def migrate_metadata(migration: Migration,
                     # initialize the list of tables created in the current migration run
                     result["effected-tables"] = []
 
-                    # proceed, if migrating the metadata was indicated
+                    # build tables from views
                     if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                        # migrate the tables, one at a time
+                        views_to_tables: list[str] = str_as_list(migration.ds_views_to_tables)
+                        for view_to_table in views_to_tables:
+                            table_name: str = f"{from_schema}.{view_to_table}"
+                            if not db_table_exists(table_name=table_name,
+                                                   engine=target_db.cd_engine,
+                                                   errors=errors) and not errors:
+                                source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
+                                    db_get_columns_metadata(table_name=table_name,
+                                                            engine=source_db.cd_engine,
+                                                            errors=errors)
+                                if not errors:
+                                    target_cols_metadata: list[tuple] = []
+                                    for col_metadata in source_cols_metadata:
+                                        type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
+                                                                                   db_source_type=source_db.cd_type,
+                                                                                   db_target_type=target_db.cd_type)
+                                        target_cols_metadata.append(
+                                            (col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
+                                    # noinspection PyTypeChecker
+                                    db_create_table(table_name=table_name,
+                                                    column_data=target_cols_metadata,
+                                                    engine=target_db.cd_engine,
+                                                    errors=errors)
+                            if errors:
+                                MigrationIssue.new_issues(id_migration=migration.id,
+                                                          cd_type=IssueType.ERROR,
+                                                          ds_issues=errors)
+                                break
+
+                    # migrate the tables
+                    if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
                         for target_table in target_tables:
                             migration_work: MigrationWork = get_migration_work(migration=migration,
                                                                                table=target_table.name,
