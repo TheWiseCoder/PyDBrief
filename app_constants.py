@@ -94,6 +94,7 @@ class InputParam(StrEnum):
     SOURCE_SCHEMA = "source-schema"
     STEP = "step"
     TARGET_SCHEMA = "target-schema"
+    VIEWS_TO_TABLES = "views-to-tables"
 
     CUSTOM_TABLES = "custom-tables"
     DESCRIPTION = "description"

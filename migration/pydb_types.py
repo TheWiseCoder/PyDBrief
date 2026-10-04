@@ -543,6 +543,28 @@ LOB_TYPES: Final[list[str]] = [
 ]
 
 
+def convert_column_type(col_type: str,
+                        db_source_type: DbEngine,
+                        db_target_type: DbEngine) -> str:
+    """
+    Given *col_type*, a column type from *db_source_type*, retrieve its equivalent for *db_target_type*.
+
+    :param col_type: the reference column type
+    :param db_source_type: the source database engine type
+    :param db_target_type: the target database engine type
+    :return: the column type equivalent for the target database type
+    """
+    # initialize the return variable
+    result: str
+
+    col_source_type: Type = name_to_type(type_name=col_type,
+                                         db_type=db_source_type)
+    col_target_type: Type = get_type_equivalent(db_source_type=db_source_type,
+                                                db_target_type=db_target_type,
+                                                type_original=col_source_type)
+    return str(col_target_type)
+
+
 def migrate_column(migration: Migration,
                    session: Session,
                    ref_column: Column,
@@ -555,8 +577,8 @@ def migrate_column(migration: Migration,
     # initialize the return variable
     result: Any = None
 
-    source_type: DbEngine = session.get_source_db().cd_type
-    target_type: DbEngine = session.get_target_db().cd_type
+    db_source_type: DbEngine = session.get_source_db().cd_type
+    db_target_type: DbEngine = session.get_target_db().cd_type
 
     # retrieve needed properties and define specific features
     type_original: Any = ref_column.type
@@ -574,12 +596,12 @@ def migrate_column(migration: Migration,
     numeric_precision: int = (type_original.precision
                               if is_numeric and hasattr(type_original, "precision") else None)
     # base message
-    msg: str = (f"Rdbms {target_type}, type {type_original} in "
+    msg: str = (f"Rdbms {db_target_type}, type {type_original} in "
                 f"{ref_column.table.fullname}.{ref_column.name}")
 
     # PostgreSQL does not accept value other than '1' in 'CACHE' clause, at table creation time
     # (cannot just remove the attribute, as SQLAlchemy requires it to exist in identity columns)
-    if target_type == DbEngine.POSTGRES and \
+    if db_target_type == DbEngine.POSTGRES and \
        is_identity and hasattr(ref_column.identity, "cache"):
         ref_column.identity.cache = 1
 
@@ -611,24 +633,11 @@ def migrate_column(migration: Migration,
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
 
-    # finally, inspect the migration equivalences
+    # inspect the migration equivalences
     if not type_equiv:
-        (native_ordinal, reference_ordinal, nat_equivalences) = \
-            establish_equivalences(source_type=source_type,
-                                   target_type=target_type)
-
-        # inspect the native equivalences first
-        for nat_equivalence in nat_equivalences:
-            if isinstance(type_original, nat_equivalence[0]):
-                type_equiv = nat_equivalence[native_ordinal]
-                break
-
-        # inspect the reference equivalences next
-        if not type_equiv:
-            for ref_equivalence in REF_EQUIVALENCES:
-                if isinstance(type_original, ref_equivalence[0]):
-                    type_equiv = ref_equivalence[reference_ordinal]
-                    break
+        type_equiv = get_type_equivalent(db_source_type=db_source_type,
+                                         db_target_type=db_target_type,
+                                         type_original=type_original)
 
         # fine-tune the integral numeric type equivalence
         if is_numeric_int and type_equiv in NUMERIC_TYPES:
@@ -640,7 +649,7 @@ def migrate_column(migration: Migration,
                         type_equiv = REF_INTEGER
                     elif ref_column.identity.maxvalue <= DbRange.BIGINT_MAX:
                         type_equiv = REF_BIGINT
-                    elif target_type == DbEngine.POSTGRES:
+                    elif db_target_type == DbEngine.POSTGRES:
                         # PostgreSQL will not accept a REF_NUMERIC column as identity
                         type_equiv = REF_BIGINT
                         ref_column.identity.maxvalue = DbRange.BIGINT_MAX
@@ -649,7 +658,7 @@ def migrate_column(migration: Migration,
                            ref_column.identity.minvalue < DbRange.BIGINT_MIN:
                             ref_column.identity.minvalue = DbRange.BIGINT_MIN
                         warn_msg: str = (f"{msg} - forced to type INT8, as "
-                                         f"{target_type} does not accept type NUMERIC for IDENTITY columns")
+                                         f"{db_target_type} does not accept type NUMERIC for IDENTITY columns")
                         migration_warnings.append(warn_msg)
                         logger.warning(msg=warn_msg)
                 elif not numeric_precision or numeric_precision > 9:
@@ -692,12 +701,12 @@ def migrate_column(migration: Migration,
     return result
 
 
-def establish_equivalences(source_type: DbEngine,
-                           target_type: DbEngine) -> tuple[int, int, list[tuple]]:
+def establish_equivalences(db_source_type: DbEngine,
+                           db_target_type: DbEngine) -> tuple[int, int, list[tuple]]:
 
     # make 'nat_equivalences' point to the appropriate list
     nat_equivalences: list[tuple] | None = None
-    match source_type:
+    match db_source_type:
         case DbEngine.MYSQL:
             nat_equivalences = MSQL_EQUIVALENCES
         case DbEngine.ORACLE:
@@ -710,10 +719,10 @@ def establish_equivalences(source_type: DbEngine,
     # establish the ordinals
     nat_ordinal: int | None = None
     ref_ordinal: int | None = None
-    match target_type:
+    match db_target_type:
         case DbEngine.MYSQL:
             ref_ordinal = 1
-            match source_type:
+            match db_source_type:
                 case DbEngine.ORACLE:
                     nat_ordinal = 1
                 case DbEngine.POSTGRES:
@@ -722,7 +731,7 @@ def establish_equivalences(source_type: DbEngine,
                     nat_ordinal = 3
         case DbEngine.ORACLE:
             ref_ordinal = 2
-            match source_type:
+            match db_source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.POSTGRES:
@@ -731,7 +740,7 @@ def establish_equivalences(source_type: DbEngine,
                     nat_ordinal = 3
         case DbEngine.POSTGRES:
             ref_ordinal = 3
-            match source_type:
+            match db_source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.ORACLE:
@@ -740,7 +749,7 @@ def establish_equivalences(source_type: DbEngine,
                     nat_ordinal = 3
         case DbEngine.SQLSERVER:
             ref_ordinal = 4
-            match source_type:
+            match db_source_type:
                 case DbEngine.MYSQL:
                     nat_ordinal = 1
                 case DbEngine.ORACLE:
@@ -749,6 +758,33 @@ def establish_equivalences(source_type: DbEngine,
                     nat_ordinal = 3
 
     return nat_ordinal, ref_ordinal, nat_equivalences
+
+
+def get_type_equivalent(db_source_type: DbEngine,
+                        db_target_type: DbEngine,
+                        type_original: Type) -> Type:
+
+    # initialize the return variable
+    result: Type | None = None
+
+    (native_ordinal, reference_ordinal, nat_equivalences) = \
+        establish_equivalences(db_source_type=db_source_type,
+                               db_target_type=db_target_type)
+
+    # inspect the native equivalences first
+    for nat_equivalence in nat_equivalences:
+        if isinstance(type_original, nat_equivalence[0]):
+            result = nat_equivalence[native_ordinal]
+            break
+
+    # inspect the reference equivalences next
+    if not result:
+        for ref_equivalence in REF_EQUIVALENCES:
+            if isinstance(type_original, ref_equivalence[0]):
+                result = ref_equivalence[reference_ordinal]
+                break
+
+    return result
 
 
 def is_lob_column(col_type: str) -> bool:

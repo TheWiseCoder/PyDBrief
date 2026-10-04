@@ -1,8 +1,8 @@
 import sys
 from datetime import datetime
 from logging import Logger
-from pypomes_core import TZ_LOCAL, str_sanitize, exc_format, validate_format_error
-from pypomes_db import db_execute
+from pypomes_core import TZ_LOCAL, str_as_list, str_sanitize, exc_format, validate_format_error
+from pypomes_db import db_create_table, db_execute, db_get_columns_metadata
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
 )
@@ -18,7 +18,7 @@ from entities.session import Session
 from app_constants import PYDB_DB_ENGINE, InputParam
 from migration.pydb_common import get_migration_work, execute_sql
 from migration.pydb_database import column_set_nullable, view_get_ddl, build_engine
-from migration.pydb_types import is_lob_column
+from migration.pydb_types import convert_column_type, is_lob_column
 from migration.steps.pydb_migration import (
     assert_relation, prune_metadata, setup_schema, setup_tables
 )
@@ -78,6 +78,31 @@ def migrate_metadata(migration: Migration,
             mat_views: list[str] = [v.lower() for v in
                                     source_inspector.get_materialized_view_names(schema=from_schema)]
             schema_views: list[str] = plain_views + mat_views
+
+            # build tables from views
+            views_to_tables: list[str] = str_as_list(migration.ds_views_to_tables)
+            for view_name in views_to_tables:
+                source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
+                    db_get_columns_metadata(table_name=f"{from_schema}.{view_name}",
+                                            engine=session.get_source_db().cd_engine,
+                                            errors=errors)
+                if not errors:
+                    target_cols_metadata: list[tuple] = []
+                    for col_metadata in source_cols_metadata:
+                        type_equivalent: str = convert_column_type(col_type=col_metadata[1],
+                                                                   db_source_type=session.get_source_db().cd_type,
+                                                                   db_target_type=session.get_target_db().cd_type)
+                        target_cols_metadata.append((col_metadata[0], type_equivalent, col_metadata[2:]))
+                    # noinspection PyTypeChecker
+                    db_create_table(table_name=view_name,
+                                    column_data=target_cols_metadata,
+                                    engine=session.get_target_db().cd_engine,
+                                    errors=errors)
+                if errors:
+                    MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_type=IssueType.ERROR,
+                                              ds_issues=errors)
+                    break
 
             # determine the relations to be processed
             source_metadata: MetaData | None = None
