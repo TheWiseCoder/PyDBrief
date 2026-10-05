@@ -74,11 +74,11 @@ class Migration(PySob):
         (InputParam.FLATTEN_STORAGE, Db.IS_FLATTEN_STORAGE),
         (InputParam.INCLUDE_RELATIONS, Db.DS_INCLUDE_RELATIONS),
         (InputParam.OPTIMIZE_PKS, Db.IS_OPTIMIZE_PKS),
-        (InputParam.REIFY_MVIEWS, Db.DS_REIFY_MVIEWS),
         (InputParam.PRE_SQL, Db.DS_PRE_SQL),
         (InputParam.PROCESS_INDEXES, Db.IS_PROCESS_INDEXES),
         (InputParam.PROCESS_VIEWS, Db.IS_PROCESS_VIEWS),
         (InputParam.REFLECT_FILETYPE, Db.IS_REFLECT_FILETYPE),
+        (InputParam.REIFY_MVIEWS, Db.DS_REIFY_MVIEWS),
         (InputParam.RELAX_REFLECTION, Db.IS_RELAX_REFLECTION),
         (InputParam.SKIP_NONEMPTY, Db.IS_SKIP_NONEMPTY),
         (InputParam.SESSION, None)

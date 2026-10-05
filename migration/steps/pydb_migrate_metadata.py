@@ -212,11 +212,11 @@ def migrate_metadata(migration: Migration,
                     # initialize the list of tables created in the current migration run
                     result["effected-tables"] = []
 
-                    # build tables from views
+                    # reify materialized views
                     if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                        views_to_tables: list[str] = str_as_list(migration.ds_reify_mviews)
-                        for view_to_table in views_to_tables:
-                            table_name: str = f"{from_schema}.{view_to_table}"
+                        reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
+                        for reify_mview in reify_mviews:
+                            table_name: str = f"{from_schema}.{reify_mview}"
                             if not db_table_exists(table_name=table_name,
                                                    engine=target_db.cd_engine,
                                                    errors=errors) and not errors:
@@ -246,20 +246,22 @@ def migrate_metadata(migration: Migration,
                                         if not errors:
                                             columns: dict[str, Any] = {}
                                             for i in range(0, len(target_cols_metadata)):
-                                                source_data: list[str] = db_build_column_clause(
+                                                source_clause: list[str] = db_build_column_clause(
                                                     col_name=target_cols_metadata[i][0],
                                                     col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
-                                                target_data: list[str] = db_build_column_clause(
+                                                target_clause: list[str] = db_build_column_clause(
                                                     col_name=target_cols_metadata[i][0],
                                                     col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
 
-                                                columns[target_data[0]] = {
-                                                    "source-type": source_data[1],
-                                                    "target-type": target_data[1]
+                                                columns[target_clause[0]] = {
+                                                    "source-type": source_clause[1],
+                                                    "target-type": target_clause[1]
                                                 }
-                                                if table_pk and target_data[0] in str_as_list(table_pk[1].lower()):
-                                                    columns[target_data[0]]["features"] = "primary-key"
-                                            result[view_to_table] = {"columns": columns}
+                                                if target_clause[0] in str_as_list(table_pk[1].lower()):
+                                                    columns[target_clause[0]]["features"] = "primary-key"
+                                            result[reify_mview] = {"columns": columns}
+                                            result["effected-tables"].append(reify_mview)
+
                             if errors:
                                 MigrationIssue.new_issues(id_migration=migration.id,
                                                           cd_type=IssueType.ERROR,
