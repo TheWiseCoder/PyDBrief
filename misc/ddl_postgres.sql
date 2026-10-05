@@ -123,7 +123,7 @@ CREATE TABLE migration (
     ds_exclude_relations varchar(4000),
     ds_include_relations varchar(4000),
     ds_pre_sql varchar(4000),
-    ds_views_to_tables varchar(4000),
+    ds_reify_mviews varchar(4000),
     is_flatten_storage bool,
     is_optimize_pks bool,
     is_process_indexes bool,

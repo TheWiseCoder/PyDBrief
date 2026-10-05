@@ -87,6 +87,7 @@ class InputParam(StrEnum):
     PROCESS_INDEXES = "process-indexes"
     PROCESS_VIEWS = "process-views"
     REFLECT_FILETYPE = "reflect-filetype"
+    REIFY_MVIEWS = "reify-mviews"
     RELAX_REFLECTION = "relax-reflection"
     REMOVE_CTRLCHARS = "remove-ctrlchars"
     REPORTS = "reports"
@@ -94,7 +95,6 @@ class InputParam(StrEnum):
     SOURCE_SCHEMA = "source-schema"
     STEP = "step"
     TARGET_SCHEMA = "target-schema"
-    VIEWS_TO_TABLES = "views-to-tables"
 
     CUSTOM_TABLES = "custom-tables"
     DESCRIPTION = "description"

@@ -214,7 +214,7 @@ def migrate_metadata(migration: Migration,
 
                     # build tables from views
                     if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                        views_to_tables: list[str] = str_as_list(migration.ds_views_to_tables)
+                        views_to_tables: list[str] = str_as_list(migration.ds_reify_mviews)
                         for view_to_table in views_to_tables:
                             table_name: str = f"{from_schema}.{view_to_table}"
                             if not db_table_exists(table_name=table_name,
