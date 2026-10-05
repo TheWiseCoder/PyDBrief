@@ -248,10 +248,10 @@ def migrate_metadata(migration: Migration,
                                             for i in range(0, len(target_cols_metadata)):
                                                 source_data: list[str] = db_build_column_clause(
                                                     col_name=target_cols_metadata[i][0],
-                                                    col_metadata=source_cols_metadata[i][1:]).split(maxsplit=2)
+                                                    col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
                                                 target_data: list[str] = db_build_column_clause(
                                                     col_name=target_cols_metadata[i][0],
-                                                    col_metadata=target_cols_metadata[i][1:]).split(maxsplit=2)
+                                                    col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
 
                                                 columns[target_data[0]] = {
                                                     "source-type": source_data[1],
