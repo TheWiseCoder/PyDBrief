@@ -3,7 +3,8 @@ from datetime import datetime
 from logging import Logger
 from pypomes_core import TZ_LOCAL, str_as_list, str_sanitize, exc_format, validate_format_error
 from pypomes_db import (
-    db_create_table, db_table_exists, db_execute, db_get_columns_metadata, db_get_table_pk
+    db_create_table, db_table_exists, db_execute,
+    db_get_columns_metadata, db_get_table_pk, db_build_column_clause
 )
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, inspect
@@ -219,10 +220,9 @@ def migrate_metadata(migration: Migration,
                             if not db_table_exists(table_name=table_name,
                                                    engine=target_db.cd_engine,
                                                    errors=errors) and not errors:
-                                source_cols_metadata: list[tuple[str, str, int, int, int, bool, str]] = \
-                                    db_get_columns_metadata(table_name=table_name,
-                                                            engine=source_db.cd_engine,
-                                                            errors=errors)
+                                source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
+                                                                                            engine=source_db.cd_engine,
+                                                                                            errors=errors)
                                 if not errors:
                                     table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
                                                                                 engine=source_db.cd_engine,
@@ -243,6 +243,24 @@ def migrate_metadata(migration: Migration,
                                                         constraints=pk_constraint,
                                                         engine=target_db.cd_engine,
                                                         errors=errors)
+                                        if not errors:
+                                            columns: dict[str, Any] = {}
+                                            for i in range(0, len(target_cols_metadata)):
+                                                source_data: list[str] = db_build_column_clause(
+                                                    col_name=target_cols_metadata[i][0],
+                                                    col_metadata=source_cols_metadata[i][1:]).split(maxsplit=2)
+                                                target_data: list[str] = db_build_column_clause(
+                                                    col_name=target_cols_metadata[i][0],
+                                                    col_metadata=target_cols_metadata[i][1:]).split(maxsplit=2)
+
+                                                columns[target_data[0]] = {
+                                                    "source-type": source_data[1],
+                                                    "target-type": target_data[1]
+                                                }
+                                                if target_data[0] in str_as_list(table_pk[1]):
+                                                    columns[target_data[0]]["features"] = "primary-key"
+                                            result[view_to_table] = {"columns": columns}
+
                             if errors:
                                 MigrationIssue.new_issues(id_migration=migration.id,
                                                           cd_type=IssueType.ERROR,
