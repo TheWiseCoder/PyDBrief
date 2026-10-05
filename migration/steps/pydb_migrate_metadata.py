@@ -257,10 +257,9 @@ def migrate_metadata(migration: Migration,
                                                     "source-type": source_data[1],
                                                     "target-type": target_data[1]
                                                 }
-                                                if target_data[0] in str_as_list(table_pk[1]):
+                                                if table_pk and target_data[0] in str_as_list(table_pk[1].lower()):
                                                     columns[target_data[0]]["features"] = "primary-key"
                                             result[view_to_table] = {"columns": columns}
-
                             if errors:
                                 MigrationIssue.new_issues(id_migration=migration.id,
                                                           cd_type=IssueType.ERROR,

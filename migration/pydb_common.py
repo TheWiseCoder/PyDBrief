@@ -72,15 +72,15 @@ def execute_sql(migration: Migration,
 
     sql_stmts: list[str] = sql_text.split(sep="//")
     for sql_stmt in sql_stmts:
-        curr_errors: list[str] = []
+        errors: list[str] = []
         db_execute(exc_stmt=sql_stmt,
                    engine=db_engine,
                    connection=db_conn,
-                   errors=curr_errors)
-        for curr_error in curr_errors:
+                   errors=errors)
+        for error in errors:
             MigrationIssue.new_issue(id_migration=migration.id,
                                      cd_type=IssueType.ERROR,
-                                     ds_issue=f"SQL: {sql_stmt}; Error: {curr_error}",
+                                     ds_issue=f"SQL: {sql_stmt}; Error: {error}",
                                      db_engine=PYDB_DB_ENGINE)
 
 
