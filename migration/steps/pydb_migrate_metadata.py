@@ -214,52 +214,55 @@ def migrate_metadata(migration: Migration,
 
                     # reify materialized views
                     if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                        reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
+                        reify_mviews: list[str] = str_as_list(mm_migration.ds_reify_mviews)
                         for reify_mview in reify_mviews:
                             table_name: str = f"{from_schema}.{reify_mview}"
-                            if not db_table_exists(table_name=table_name,
-                                                   engine=target_db.cd_engine,
-                                                   errors=errors) and not errors:
-                                source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
-                                                                                            engine=source_db.cd_engine,
-                                                                                            errors=errors)
+                            source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
+                                                                                        engine=source_db.cd_engine,
+                                                                                        errors=errors)
+                            if not errors:
+                                table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
+                                                                            engine=source_db.cd_engine,
+                                                                            errors=errors)
                                 if not errors:
-                                    table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
-                                                                                engine=source_db.cd_engine,
-                                                                                errors=errors)
-                                    if not errors:
-                                        pk_constraint: list[str] = [f"{table_pk[0]} PRIMARY KEY ({table_pk[1]})"] \
-                                            if table_pk else None
-                                        target_cols_metadata: list[tuple] = []
-                                        for col_metadata in source_cols_metadata:
-                                            type_equivalent: str = convert_column_type(col_type=col_metadata[1].lower(),
-                                                                                       db_source_type=source_db.cd_type,
-                                                                                       db_target_type=target_db.cd_type)
-                                            target_cols_metadata.append(
-                                                (col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
+                                    pk_constraint: list[str] = [f"{table_pk[0]} PRIMARY KEY ({table_pk[1]})"] \
+                                        if table_pk else None
+                                    target_cols_metadata: list[tuple] = []
+                                    for col_metadata in source_cols_metadata:
+                                        type_equivalent: str = \
+                                            convert_column_type(col_type=col_metadata[1].lower(),
+                                                                db_source_type=source_db.cd_type,
+                                                                db_target_type=target_db.cd_type)
+                                        target_cols_metadata.append(
+                                            (col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
+                                    create_table: bool = not db_table_exists(table_name=table_name,
+                                                                             engine=target_db.cd_engine,
+                                                                             errors=errors) and not errors
+                                    if create_table:
                                         # noinspection PyTypeChecker
                                         db_create_table(table_name=table_name,
                                                         column_data=target_cols_metadata,
                                                         constraints=pk_constraint,
                                                         engine=target_db.cd_engine,
                                                         errors=errors)
-                                        if not errors:
-                                            columns: dict[str, Any] = {}
-                                            for i in range(0, len(target_cols_metadata)):
-                                                source_clause: list[str] = db_build_column_clause(
-                                                    col_name=target_cols_metadata[i][0],
-                                                    col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
-                                                target_clause: list[str] = db_build_column_clause(
-                                                    col_name=target_cols_metadata[i][0],
-                                                    col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
+                                    if not errors:
+                                        columns: dict[str, Any] = {}
+                                        for i in range(0, len(target_cols_metadata)):
+                                            source_clause: list[str] = db_build_column_clause(
+                                                col_name=target_cols_metadata[i][0],
+                                                col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
+                                            target_clause: list[str] = db_build_column_clause(
+                                                col_name=target_cols_metadata[i][0],
+                                                col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
 
-                                                columns[target_clause[0]] = {
-                                                    "source-type": source_clause[1],
-                                                    "target-type": target_clause[1]
-                                                }
-                                                if target_clause[0] in str_as_list(table_pk[1].lower()):
-                                                    columns[target_clause[0]]["features"] = "primary-key"
-                                            result[reify_mview] = {"columns": columns}
+                                            columns[target_clause[0]] = {
+                                                "source-type": source_clause[1],
+                                                "target-type": target_clause[1]
+                                            }
+                                            if target_clause[0] in str_as_list(table_pk[1].lower()):
+                                                columns[target_clause[0]]["features"] = "primary-key"
+                                        result[reify_mview] = {"columns": columns}
+                                        if create_table:
                                             result["effected-tables"].append(reify_mview)
 
                             if errors:
