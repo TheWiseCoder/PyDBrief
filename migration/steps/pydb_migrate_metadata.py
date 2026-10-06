@@ -215,6 +215,13 @@ def migrate_metadata(migration: Migration,
                     # reify materialized views
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
                         reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
+                        # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
+                        for target_table in target_tables:
+                            if target_table.name in reify_mviews:
+                                reify_mviews.remove(target_table.name)
+                                warn_msg: str = f"Materialized view {target_table.name} listed in target tables"
+                                migration_warnings.append(warn_msg)
+                                logger.warning(msg=warn_msg)
                         for reify_mview in reify_mviews:
                             table_name: str = f"{from_schema}.{reify_mview}"
                             source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
