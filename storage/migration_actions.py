@@ -456,7 +456,7 @@ def __validate_input(input_params: dict[str, Any],
     reify_mviews: list[str] = validate_strs(source=input_params,
                                             attr=InputParam.REIFY_MVIEWS,
                                             errors=errors)
-    if pre_sql:
+    if reify_mviews:
         result[Migration.Db.DS_REIFY_MVIEWS] = (",".join([i for i in reify_mviews])).lower()
 
     return result
