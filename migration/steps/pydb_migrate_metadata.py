@@ -258,7 +258,7 @@ def migrate_metadata(migration: Migration,
                                                 "source-type": source_clause[1],
                                                 "target-type": target_clause[1]
                                             }
-                                            if target_clause[0] in str_as_list(table_pk[1].lower()):
+                                            if table_pk and target_clause[0] in str_as_list(table_pk[1].lower()):
                                                 columns[target_clause[0]]["features"] = "primary-key"
                                         result[reify_mview] = {"columns": columns}
                                         if create_table:
