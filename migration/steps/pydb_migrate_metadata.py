@@ -238,12 +238,26 @@ def migrate_metadata(migration: Migration,
                                                                              engine=target_db.cd_engine,
                                                                              errors=errors) and not errors
                                     if create_table:
-                                        # noinspection PyTypeChecker
-                                        db_create_table(table_name=table_name,
-                                                        column_data=target_cols_metadata,
-                                                        constraints=pk_constraint,
-                                                        engine=target_db.cd_engine,
-                                                        errors=errors)
+                                        try:
+                                            # noinspection PyTypeChecker
+                                            db_create_table(table_name=table_name,
+                                                            column_data=target_cols_metadata,
+                                                            constraints=pk_constraint,
+                                                            engine=target_db.cd_engine,
+                                                            errors=errors)
+                                        except (Exception, SAWarning) as e:
+                                            # unable to create table
+                                            exc_err: str = str_sanitize(exc_format(exc=e,
+                                                                                   exc_info=sys.exc_info()))
+                                            logger.error(msg=exc_err)
+                                            MigrationIssue.new_issue(id_migration=migration.id,
+                                                                     cd_step=mig_step,
+                                                                     cd_type=IssueType.ERROR,
+                                                                     ds_issue=exc_err)
+                                            # 104: The operation {} returned the error {}
+                                            errors.append(validate_format_error(104,
+                                                                                "schema-construction",
+                                                                                exc_err))
                                     if not errors:
                                         columns: dict[str, Any] = {}
                                         for i in range(0, len(target_cols_metadata)):
