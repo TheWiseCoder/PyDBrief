@@ -440,7 +440,7 @@ def assert_relation(migration: Migration,
 
     # process list of includes
     includes: list[str] = str_as_list(migration.ds_include_relations)
-    if not result and includes:
+    if includes:
         # relation was not excluded, so process list of includes
         result = relation in includes
         if not result:
