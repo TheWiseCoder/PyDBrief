@@ -298,7 +298,6 @@ def __log_migration(migration: Migration,
     badge_name: str = nm_badge[pos+1:]
     base_path: Path = Path(REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST,
                            badge_path)
-
     seq: int = 1
     log_file: Path = Path(base_path,
                           f"{badge_name}_{seq}.log")

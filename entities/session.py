@@ -228,5 +228,5 @@ class Session(PySob):
 Session.initialize(db_specs=(Session.Db, int),
                    attrs_enum=Session.ATTRS_ENUM,
                    attrs_unique=Session.ATTRS_UNIQUE,
-                   attrs_input=Database.ATTRS_INPUT,
+                   attrs_input=Session.ATTRS_INPUT,
                    logger=Session.LOGGER)
