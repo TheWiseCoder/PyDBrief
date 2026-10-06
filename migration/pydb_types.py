@@ -266,6 +266,11 @@ MSQL_TYPES: Final[dict[str, Type]] = {
 
 # Oracle types
 ORCL_TYPES: Final[dict[str, Type]] = {
+    "nvarchar2": REF_NVARCHAR,
+    "nvarchar": REF_NVARCHAR,
+    "timestamp": ORCL_TIMESTAMP,
+    "timestamp(6)": ORCL_TIMESTAMP,
+
     "bfile": ORCL_BFILE,
     "binary_double": ORCL_BINARY_DOUBLE,
     "binary_float": ORCL_BINARY_FLOAT,
@@ -280,13 +285,9 @@ ORCL_TYPES: Final[dict[str, Type]] = {
     "nchar": REF_NCHAR,
     "nclob": ORCL_NCLOB,
     "number": ORCL_NUMBER,
-    "nvarchar": REF_NVARCHAR,
-    "nvarchar2": REF_NVARCHAR,
     "raw": ORCL_RAW,
     "real": REF_REAL,
     "rowid": ORCL_ROWID,
-    "timestamp": ORCL_TIMESTAMP,
-    "timestamp(6)": ORCL_TIMESTAMP,
     "varchar": REF_VARCHAR,
     "varchar2": ORCL_VARCHAR2
 }
