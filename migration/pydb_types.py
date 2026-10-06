@@ -286,6 +286,7 @@ ORCL_TYPES: Final[dict[str, Type]] = {
     "real": REF_REAL,
     "rowid": ORCL_ROWID,
     "timestamp": ORCL_TIMESTAMP,
+    "timestamp(6)": ORCL_TIMESTAMP,
     "varchar": REF_VARCHAR,
     "varchar2": ORCL_VARCHAR2
 }
