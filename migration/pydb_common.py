@@ -74,7 +74,7 @@ def execute_sql(migration: Migration,
     sql_stmts: list[str] = sql_text.split(sep="//")
     for sql_stmt in sql_stmts:
         errors: list[str] = []
-        db_execute(exc_stmt=sql_stmt,
+        db_execute(exc_stmt=sql_stmt.strip(),
                    engine=db_engine,
                    connection=db_conn,
                    errors=errors)
