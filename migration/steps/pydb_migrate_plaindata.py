@@ -11,7 +11,7 @@ from pypomes_db import (
 )
 from typing import Any
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE, MigStep
 from entities.migration import Migration, SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
@@ -47,6 +47,7 @@ plaindata_lock: threading.Lock = threading.Lock()
 
 
 def migrate_plaindata(session: Session,
+                      mig_step: MigStep,
                       migration: Migration,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
@@ -106,6 +107,7 @@ def migrate_plaindata(session: Session,
                 ) or MigrationTable()
                 if migration_table.ds_pre_sql:
                     execute_sql(migration=migration,
+                                mig_step=mig_step,
                                 db_engine=session.get_source_db().cd_engine,
                                 sql_text=migration_table.ds_pre_sql)
 
@@ -124,6 +126,7 @@ def migrate_plaindata(session: Session,
 
                 elif not errors:
                     result += __migrate_plaindata(session=session,
+                                                  mig_step=mig_step,
                                                   migration=migration,
                                                   migration_work=migration_work,
                                                   mother_thread=mother_thread,
@@ -142,6 +145,7 @@ def migrate_plaindata(session: Session,
                                 f"table {target_db}.{target_table} was not found")
                 logger.error(msg=err_msg)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.ERROR,
                                          ds_issue=err_msg)
                 # 101: {}
@@ -159,6 +163,7 @@ def migrate_plaindata(session: Session,
 
 
 def __migrate_plaindata(session: Session,
+                        mig_step: MigStep,
                         migration: Migration,
                         migration_work: MigrationWork,
                         mother_thread: int,
@@ -222,6 +227,7 @@ def __migrate_plaindata(session: Session,
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.WARNING,
                                          ds_issue=warn_msg)
 
@@ -239,6 +245,7 @@ def __migrate_plaindata(session: Session,
         if max_workers == 1:
             # execute single task in current thread
             _migrate_plain(session=session,
+                           mig_step=mig_step,
                            migration_work=migration_work,
                            mother_thread=mother_thread,
                            source_columns=source_columns,
@@ -257,6 +264,7 @@ def __migrate_plaindata(session: Session,
                 for channel_datum in channel_data:
                     future: Future = executor.submit(_migrate_plain,
                                                      session=session,
+                                                     mig_step=mig_step,
                                                      migration_work=migration_work,
                                                      mother_thread=mother_thread,
                                                      source_columns=source_columns,
@@ -302,6 +310,7 @@ def __migrate_plaindata(session: Session,
 
 
 def _migrate_plain(session: Session,
+                   mig_step: MigStep,
                    migration_work: MigrationWork,
                    mother_thread: int,
                    source_columns: list[str],
@@ -358,6 +367,7 @@ def _migrate_plain(session: Session,
     with plaindata_lock:
         if errors:
             MigrationIssue.new_issues(id_migration=migration_work.id_migration,
+                                      cd_step=mig_step,
                                       cd_type=IssueType.ERROR,
                                       ds_issues=errors)
             plaindata_registry[mother_thread][migration_work.nm_table]["errors"].extend(errors)

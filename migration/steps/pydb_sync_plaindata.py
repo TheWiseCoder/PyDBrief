@@ -3,7 +3,8 @@ from logging import Logger
 from typing import Any
 from pypomes_db import db_connect, db_commit, db_sync_data
 
-from entities.migration import Migration, MigStep
+from entities.migration import Migration
+from app_constants import MigStep
 from entities.migration_table import MigrationTable
 from entities.session import Session, sessions_aborting
 from migration.pydb_database import table_embedded_nulls
@@ -12,6 +13,7 @@ from migration.pydb_types import is_lob_column
 
 def synchronize_plaindata(migration: Migration,
                           session: Session,
+                          mig_step: MigStep,
                           migration_threads: list[int],
                           migrated_tables: dict[str, Any],
                           # migration_warnings: list[str],
@@ -29,7 +31,7 @@ def synchronize_plaindata(migration: Migration,
     # retrieve the source and target RDBMS engines
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
-    correlate_only: bool = migration.cd_step == MigStep.CORRELATE_PLAINDATA
+    correlate_only: bool = mig_step == MigStep.CORRELATE_PLAINDATA
 
     # traverse list of migrated tables to synchronize their plain data
     for table_name, table_data in migrated_tables.items():

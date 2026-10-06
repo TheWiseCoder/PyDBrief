@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import validate_format_error, validate_int, validate_str, validate_enum
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, MigStep, OpType
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 
@@ -191,6 +191,14 @@ def __validate_input(input_params: dict[str, Any],
                               errors=errors)
     if badge:
         result[InputParam.BADGE] = badge
+
+    cd_step: MigStep = validate_enum(source=input_params,
+                                     attr=InputParam.STEP,
+                                     enum_class=MigStep,
+                                     required=op == OpType.CREATE,
+                                     errors=errors)
+    if cd_step:
+        result[MigrationIssue.Db.CD_STEP] = cd_step
 
     # HAZARD: 'type' is a builtin name
     cd_type: IssueType = validate_enum(source=input_params,

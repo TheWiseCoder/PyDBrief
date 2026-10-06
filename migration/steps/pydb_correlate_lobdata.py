@@ -14,6 +14,7 @@ from pypomes_s3 import (
 )
 from typing import Any
 
+from app_constants import MigStep
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
@@ -49,6 +50,7 @@ from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 
 def correlate_lobdata(migration: Migration,
                       session: Session,
+                      mig_step: MigStep,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       migration_warnings: list[str],
@@ -145,6 +147,7 @@ def correlate_lobdata(migration: Migration,
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
                     MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
                                              cd_type=IssueType.WARNING,
                                              ds_issue=warn_msg)
 
@@ -216,6 +219,7 @@ def correlate_lobdata(migration: Migration,
                             status = "error"
                             errors.extend(curr_errors)
                             MigrationIssue.new_issues(id_migration=migration.id,
+                                                      cd_step=mig_step,
                                                       cd_type=IssueType.ERROR,
                                                       ds_issues=curr_errors)
                         else:
@@ -275,6 +279,7 @@ def correlate_lobdata(migration: Migration,
             if lob_columns:
                 migrate_lob_columns(migration=migration,
                                     session=session,
+                                    mig_step=mig_step,
                                     mother_thread=mother_thread,
                                     source_table=source_table,
                                     target_table=target_table,

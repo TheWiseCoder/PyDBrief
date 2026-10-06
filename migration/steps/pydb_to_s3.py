@@ -8,6 +8,7 @@ from pypomes_s3 import s3_data_store
 from pathlib import Path
 from typing import Any
 
+from app_constants import MigStep
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.session import Session, sessions_aborting
@@ -15,6 +16,7 @@ from entities.session import Session, sessions_aborting
 
 def s3_migrate_lobs(migration: Migration,
                     session: Session,
+                    mig_step: MigStep,
                     db_conn: Any,
                     s3_client: Any,
                     source_table: str,
@@ -55,6 +57,7 @@ def s3_migrate_lobs(migration: Migration,
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.WARNING,
                                          ds_issue=warn_msg)
 
@@ -167,6 +170,7 @@ def s3_migrate_lobs(migration: Migration,
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
                     MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
                                              cd_type=IssueType.WARNING,
                                              ds_issue=warn_msg)
                 lob_data = None

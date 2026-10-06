@@ -5,7 +5,7 @@ from pypomes_db import db_execute
 from urlobject import URLObject
 from typing import Any
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE, MigStep
 from entities.database import Database
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
@@ -66,6 +66,7 @@ def build_lob_prefix(session: Session,
 
 
 def execute_sql(migration: Migration,
+                mig_step: MigStep,
                 db_engine: str,
                 sql_text: str,
                 db_conn: Any = None) -> None:
@@ -79,6 +80,7 @@ def execute_sql(migration: Migration,
                    errors=errors)
         for error in errors:
             MigrationIssue.new_issue(id_migration=migration.id,
+                                     cd_step=mig_step,
                                      cd_type=IssueType.ERROR,
                                      ds_issue=f"SQL: {sql_stmt}; Error: {error}",
                                      db_engine=PYDB_DB_ENGINE)
@@ -178,27 +180,3 @@ def get_migration_span(migration_work: MigrationWork,
                       errors=errors)
 
     return result if not errors else None
-
-
-def assert_migration_span(migration_work: MigrationWork,
-                          first_row: int,
-                          last_row: int,
-                          is_done: bool,
-                          db_conn: Any = None,
-                          errors: list[str] = None) -> None:
-
-    # make sure to have an errors list
-    if not isinstance(errors, list):
-        errors = []
-
-    migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
-                                                       first_row=first_row,
-                                                       last_row=last_row,
-                                                       db_conn=db_conn,
-                                                       errors=errors)
-    if not errors:
-        migration_span.nr_last_row = last_row
-        migration_span.is_done = is_done
-        migration_span.update(db_engine=PYDB_DB_ENGINE,
-                              db_conn=db_conn,
-                              errors=errors)

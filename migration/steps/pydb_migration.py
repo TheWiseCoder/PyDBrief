@@ -20,7 +20,8 @@ from typing import Any
 from migration.pydb_common import get_migration_work
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column, name_to_type
-from entities.migration import Migration, MigStep
+from entities.migration import Migration
+from app_constants import MigStep
 from entities.migration_table import MigrationTable
 from entities.migration_work import MigrationWork
 from entities.session import Session
@@ -28,6 +29,7 @@ from entities.session import Session
 
 def prune_metadata(migration: Migration,
                    session: Session,
+                   mig_step: MigStep,
                    migration_tables: list[MigrationTable],
                    source_metadata: MetaData,
                    logger: Logger) -> None:
@@ -58,7 +60,7 @@ def prune_metadata(migration: Migration,
                     logger.info(msg=f"Column '{excluded_column.name}' "
                                     f"removed from table '{source_table.name}'")
 
-            if migration.cd_step != MigStep.MIGRATE_METADATA:
+            if mig_step != MigStep.MIGRATE_METADATA:
                 # nothing else to do here for 'table_name', as metadata are not being migrated
                 continue
 
@@ -211,6 +213,7 @@ def setup_schema(migration: Migration,
 
 def setup_tables(migration: Migration,
                  session: Session,
+                 mig_step: MigStep,
                  migration_tables: list[MigrationTable],
                  target_tables: list[Table],
                  migration_warnings: list[str],
@@ -257,7 +260,7 @@ def setup_tables(migration: Migration,
             target_table._columns.remove(s3_column)
 
         # migrate the columns
-        if migration.cd_step == MigStep.MIGRATE_METADATA:
+        if mig_step == MigStep.MIGRATE_METADATA:
             setup_columns(migration=migration,
                           session=session,
                           target_columns=columns,
@@ -405,6 +408,9 @@ def assert_relation(migration: Migration,
                     relation: str) -> bool:
     """
     Determine whether *relation* is flagged in *migration*'s include/exclude lists.
+
+    Excludes are handled first. If *relation* is deemed as excluded, then includes are processed,
+    which may eventuallly revert it to accepted.
 
     The following regular expression marks in *relation* are considered:
     - starts with ^: search for leading text

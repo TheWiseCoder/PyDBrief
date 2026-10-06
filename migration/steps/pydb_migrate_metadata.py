@@ -13,13 +13,13 @@ from sqlalchemy.exc import SAWarning
 from typing import Any
 
 from entities.database import Database
-from entities.migration import Migration, MigStep
+from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
 from entities.migration_work import MigrationWork
 from entities.session import Session
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
 from migration.pydb_common import get_migration_work, execute_sql
 from migration.pydb_database import column_set_nullable, view_get_ddl, build_engine
 from migration.pydb_types import convert_column_type, is_lob_column
@@ -30,6 +30,7 @@ from migration.steps.pydb_migration import (
 
 def migrate_metadata(migration: Migration,
                      session: Session,
+                     mig_step: MigStep,
                      migration_warnings: list[str],
                      errors: list[str],
                      logger: Logger) -> dict[str, Any]:
@@ -39,20 +40,12 @@ def migrate_metadata(migration: Migration,
 
     source_db: Database = session.get_source_db()
     target_db: Database = session.get_target_db()
-    migration_tables: list[MigrationTable] | None = None
-    mm_migration: Migration = migration if migration.cd_step == MigStep.MIGRATE_METADATA else \
-        Migration(None,
-                  list[MigrationTable],
-                  id_session=migration.id_session,
-                  cd_step=MigStep.MIGRATE_METADATA,
-                  db_engine=PYDB_DB_ENGINE,
-                  errors=errors)
-    if not errors:
-        migration_tables = mm_migration.get_migration_tables() or []
-        if mm_migration.ds_pre_sql:
-            execute_sql(migration=migration,
-                        db_engine=source_db.cd_engine,
-                        sql_text=mm_migration.ds_pre_sql)
+    migration_tables: list[MigrationTable] | None = migration.get_migration_tables() or []
+    if migration.ds_pre_sql:
+        execute_sql(migration=migration,
+                    mig_step=mig_step,
+                    db_engine=source_db.cd_engine,
+                    sql_text=migration.ds_pre_sql)
 
     # create engines
     sa_source_engine: Engine | None = None
@@ -89,7 +82,7 @@ def migrate_metadata(migration: Migration,
             only_tables: list[str] = []
             for table_name in source_inspector.get_table_names(schema=from_schema):
                 ok: bool = table_name.lower() not in schema_views and \
-                           assert_relation(migration=mm_migration,
+                           assert_relation(migration=migration,
                                            relation=table_name.lower())
                 if ok:
                     only_tables.append(table_name)
@@ -99,6 +92,7 @@ def migrate_metadata(migration: Migration,
                     )
                     if migration_table and migration_table.ds_pre_sql:
                         execute_sql(migration=migration,
+                                    mig_step=mig_step,
                                     db_engine=source_db.cd_engine,
                                     sql_text=migration_table.ds_pre_sql)
                 logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
@@ -122,7 +116,7 @@ def migrate_metadata(migration: Migration,
                                         schema=from_schema,
                                         views=False,
                                         only=only_tables,
-                                        resolve_fks=not mm_migration.is_relax_reflection)
+                                        resolve_fks=not migration.is_relax_reflection)
             except (Exception, SAWarning) as e:
                 # - unable to fully reflect the source schema
                 # - this error will cause the migration to be aborted,
@@ -131,6 +125,7 @@ def migrate_metadata(migration: Migration,
                                                        exc_info=sys.exc_info()))
                 logger.error(msg=exc_err)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.ERROR,
                                          ds_issue=exc_err)
                 # 104: The operation {} returned the error {}
@@ -141,8 +136,8 @@ def migrate_metadata(migration: Migration,
                 # build list of views to migrate
                 target_views: list[str] = []
                 if migration.is_process_views:
-                    if mm_migration.ds_include_relations or mm_migration.ds_exclude_relations:
-                        target_views.extend([v for v in schema_views if assert_relation(migration=mm_migration,
+                    if migration.ds_include_relations or migration.ds_exclude_relations:
+                        target_views.extend([v for v in schema_views if assert_relation(migration=migration,
                                                                                         relation=v)])
                     else:
                         target_views = schema_views
@@ -151,6 +146,7 @@ def migrate_metadata(migration: Migration,
                 target_tables: list[Table] = []
                 prune_metadata(migration=migration,
                                session=session,
+                               mig_step=mig_step,
                                migration_tables=migration_tables,
                                source_metadata=source_metadata,
                                logger=logger)
@@ -170,6 +166,7 @@ def migrate_metadata(migration: Migration,
                     logger.error(msg=exc_err)
                     # 104: The operation {} returned the error {}
                     MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
                                              cd_type=IssueType.ERROR,
                                              ds_issue=exc_err)
                     errors.append(validate_format_error(104,
@@ -177,7 +174,7 @@ def migrate_metadata(migration: Migration,
                                                         exc_err))
                 to_schema: str | None = None
                 if not errors:
-                    if migration.cd_step == MigStep.MIGRATE_METADATA:
+                    if mig_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
                         to_schema = setup_schema(migration=migration,
                                                  target_db=session.get_target_db().cd_engine,
@@ -192,6 +189,7 @@ def migrate_metadata(migration: Migration,
                             err_msg: str = f"Unable to migrate schema to RDBMS '{source_db.cd_engine}'"
                             logger.error(msg=err_msg)
                             MigrationIssue.new_issue(id_migration=migration.id,
+                                                     cd_step=mig_step,
                                                      cd_type=IssueType.ERROR,
                                                      ds_issue=err_msg)
                             # 102: Unexpected error: {}
@@ -201,9 +199,10 @@ def migrate_metadata(migration: Migration,
                         to_schema = session.nm_target_schema
 
                 if not errors:
-                    # migrate tables' metadata (not applicable for views)
+                    # migrated tables' metadata (not applicable for views)
                     result = setup_tables(migration=migration,
                                           session=session,
+                                          mig_step=mig_step,
                                           migration_tables=migration_tables,
                                           target_tables=target_tables,
                                           migration_warnings=migration_warnings,
@@ -213,8 +212,8 @@ def migrate_metadata(migration: Migration,
                     result["effected-tables"] = []
 
                     # reify materialized views
-                    if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
-                        reify_mviews: list[str] = str_as_list(mm_migration.ds_reify_mviews)
+                    if not errors and mig_step == MigStep.MIGRATE_METADATA:
+                        reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
                         for reify_mview in reify_mviews:
                             table_name: str = f"{from_schema}.{reify_mview}"
                             source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
@@ -267,12 +266,13 @@ def migrate_metadata(migration: Migration,
 
                             if errors:
                                 MigrationIssue.new_issues(id_migration=migration.id,
+                                                          cd_step=mig_step,
                                                           cd_type=IssueType.ERROR,
                                                           ds_issues=errors)
                                 break
 
                     # migrate the tables
-                    if not errors and migration.cd_step == MigStep.MIGRATE_METADATA:
+                    if not errors and mig_step == MigStep.MIGRATE_METADATA:
                         for target_table in target_tables:
                             migration_work: MigrationWork = get_migration_work(migration=migration,
                                                                                table=target_table.name,
@@ -308,6 +308,7 @@ def migrate_metadata(migration: Migration,
                                                                            exc_info=sys.exc_info()))
                                     logger.error(msg=exc_err)
                                     MigrationIssue.new_issue(id_migration=migration.id,
+                                                             cd_step=mig_step,
                                                              cd_type=IssueType.ERROR,
                                                              ds_issue=exc_err)
                                     # 104: The operation {} returned the error {}
@@ -333,12 +334,14 @@ def migrate_metadata(migration: Migration,
                                 # yes, report them
                                 errors.extend(curr_errors)
                                 MigrationIssue.new_issues(id_migration=migration.id,
+                                                          cd_step=mig_step,
                                                           cd_type=IssueType.ERROR,
                                                           ds_issues=curr_errors)
                                 err_msg: str = ("Unable to create view "
                                                 f"{session.nm_target_schema}.{target_view}")
                                 logger.error(msg=err_msg)
                                 MigrationIssue.new_issue(id_migration=migration.id,
+                                                         cd_step=mig_step,
                                                          cd_type=IssueType.ERROR,
                                                          ds_issue=err_msg)
                                 # 104: The operation {} returned the error {}

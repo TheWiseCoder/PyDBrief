@@ -18,7 +18,7 @@ from app_ident import APP_NAME, APP_VERSION, get_env_keys
 
 from pypomes_core import (
     Mimetype, pypomes_versions,
-    dict_clone, dict_jsonify, validate_str,
+    dict_clone, dict_jsonify, validate_str, validate_enum,
     exc_format, validate_format_error, validate_format_errors
 )
 from pypomes_db import db_get_params
@@ -31,7 +31,7 @@ from pypomes_logging import (
 )
 from pypomes_s3 import s3_get_params
 
-from app_constants import PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam
+from app_constants import PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigStep
 from app_init import init_app
 from entities.migration import Migration
 from entities.migration_table import MigrationTable
@@ -639,62 +639,69 @@ def service_migrate(migration_id: str = None) -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    # obtain the migration instance
-    migration_id: str = validate_str(source=input_params,
-                                     attr=InputParam.MIGRATION_ID,
-                                     max_length=64,
-                                     errors=errors)
-    if migration_id:
-        # obtain migration instance
-        migration: Migration = Migration(None,
-                                         list[MigrationTable],
-                                         nm_badge=migration_id,
-                                         db_engine=PYDB_DB_ENGINE,
+    mig_step: MigStep = validate_enum(source=input_params,
+                                      attr=InputParam.STEP,
+                                      enum_class=MigStep,
+                                      required=True,
+                                      errors=errors)
+    if mig_step:
+        # obtain the migration instance
+        migration_id: str = validate_str(source=input_params,
+                                         attr=InputParam.MIGRATION_ID,
+                                         max_length=64,
                                          errors=errors)
-        if not errors:
-            if migration.ts_finish:
-                errors.append(validate_format_error(100,
-                                                    f"Migration '{migration_id}' has finished"))
-            else:
-                session: Session = Session(migration.id_session,
-                                           db_engine=PYDB_DB_ENGINE,
-                                           errors=errors)
-                if not errors:
-                    # make sure database migration is possible
-                    verify_migration(input_params=session,
-                                     errors=errors,
-                                     logger=PYPOMES_LOGGER)
+        if migration_id:
+            # obtain migration instance
+            migration: Migration = Migration(None,
+                                             list[MigrationTable],
+                                             nm_badge=migration_id,
+                                             db_engine=PYDB_DB_ENGINE,
+                                             errors=errors)
+            if not errors:
+                if migration.ts_finish:
+                    errors.append(validate_format_error(100,
+                                                        f"Migration '{migration_id}' has finished"))
+                else:
+                    session: Session = Session(migration.id_session,
+                                               db_engine=PYDB_DB_ENGINE,
+                                               errors=errors)
                     if not errors:
-                        # launch the migration
-                        try:
-                            if PYDB_SYNC_LOCAL:
-                                migrate(migration=migration,
-                                        session=session,
-                                        app_name=APP_NAME,
-                                        app_version=APP_VERSION,
-                                        base_url=f"{request.scheme}://{request.host}",
-                                        requester=request.headers.get(key="X-Forwarded-For",
-                                                                      default=request.remote_addr),
-                                        logger=PYPOMES_LOGGER)
-                            else:
-                                mig_thread: Thread = Thread(
-                                    target=migrate,
-                                    kwargs={"migration": migration,
-                                            "session": session,
-                                            "app_name": APP_NAME,
-                                            "app_version": APP_VERSION,
-                                            "base_url": f"{request.scheme}://{request.host}",
-                                            "requester": request.headers.get(key="X-Forwarded-For",
-                                                                             default=request.remote_addr),
-                                            "logger": PYPOMES_LOGGER})
-                                mig_thread.start()
-                        except Exception as e:
-                            # 100: {}
-                            exc_err: str = exc_format(exc=e,
-                                                      exc_info=sys.exc_info())
-                            errors.append(validate_format_error(100,
-                                                                f"Error launching migration "
-                                                                f"'{migration_id}': '{exc_err}'"))
+                        # make sure database migration is possible
+                        verify_migration(input_params=session,
+                                         errors=errors,
+                                         logger=PYPOMES_LOGGER)
+                        if not errors:
+                            # launch the migration
+                            try:
+                                if PYDB_SYNC_LOCAL:
+                                    migrate(migration=migration,
+                                            session=session,
+                                            mig_step=mig_step,
+                                            app_name=APP_NAME,
+                                            app_version=APP_VERSION,
+                                            base_url=f"{request.scheme}://{request.host}",
+                                            requester=request.headers.get(key="X-Forwarded-For",
+                                                                          default=request.remote_addr),
+                                            logger=PYPOMES_LOGGER)
+                                else:
+                                    mig_thread: Thread = Thread(
+                                        target=migrate,
+                                        kwargs={"migration": migration,
+                                                "session": session,
+                                                "app_name": APP_NAME,
+                                                "app_version": APP_VERSION,
+                                                "base_url": f"{request.scheme}://{request.host}",
+                                                "requester": request.headers.get(key="X-Forwarded-For",
+                                                                                 default=request.remote_addr),
+                                                "logger": PYPOMES_LOGGER})
+                                    mig_thread.start()
+                            except Exception as e:
+                                # 100: {}
+                                exc_err: str = exc_format(exc=e,
+                                                          exc_info=sys.exc_info())
+                                errors.append(validate_format_error(100,
+                                                                    f"Error launching migration "
+                                                                    f"'{migration_id}': '{exc_err}'"))
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)

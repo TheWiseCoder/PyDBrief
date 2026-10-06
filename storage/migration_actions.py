@@ -2,7 +2,7 @@ from logging import Logger
 from typing import Any
 from pypomes_core import (
     DatetimeFormat, validate_format_error,
-    validate_bool, validate_int, validate_enum, validate_str, validate_strs
+    validate_bool, validate_int, validate_str, validate_strs
 )
 from pypomes_db import (
     DbEngine, DbConnectionPool, DbPoolEvent,
@@ -12,10 +12,7 @@ from pypomes_db import (
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
-from entities.migration import (
-    Migration, MigStep,
-    SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE
-)
+from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
 from entities.migration_report import MigrationReport
@@ -379,14 +376,6 @@ def __validate_input(input_params: dict[str, Any],
                                  errors=errors)
     if nm_badge:
         result[Migration.Db.NM_BADGE] = nm_badge
-
-    cd_step: MigStep = validate_enum(source=input_params,
-                                     attr=InputParam.STEP,
-                                     enum_class=MigStep,
-                                     required=op == OpType.CREATE,
-                                     errors=errors)
-    if cd_step:
-        result[Migration.Db.CD_STEP] = cd_step
 
     is_flatten_storage: bool = validate_bool(source=input_params,
                                              attr=InputParam.FLATTEN_STORAGE,

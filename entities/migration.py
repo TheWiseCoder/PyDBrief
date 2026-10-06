@@ -2,7 +2,6 @@ from __future__ import annotations  # allow forward references
 from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
-from pypomes_core import EnumUseAny, StrEnumAny
 from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
@@ -20,18 +19,6 @@ SPAN_CHANNEL_COUNT: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 100000, 10000)
 
 
-class MigStep(EnumUseAny, StrEnumAny):
-    """
-    Steps for migration.
-    """
-    CORRELATE_LOBDATA = ("CL", "correlate-lobdata")
-    CORRELATE_PLAINDATA = ("CP", "correlate-plaindata")
-    MIGRATE_LOBDATA = ("ML", "migrate-lobdata")
-    MIGRATE_METADATA = ("MM", "migrate-metadata")
-    MIGRATE_PLAINDATA = ("MP", "migrate-plaindata")
-    SYNCHRONIZE_PLAINDATA = ("SP", "synchronize-plaindata")
-
-
 class Migration(PySob):
     """
     Entity *Migration*.
@@ -39,7 +26,6 @@ class Migration(PySob):
     class Db(StrEnum):
         TABLE = "migration"
         ID = auto()
-        CD_STEP = auto()
         DS_EXCLUDE_RELATIONS = auto()
         DS_INCLUDE_RELATIONS = auto()
         DS_REIFY_MVIEWS = auto()
@@ -58,16 +44,11 @@ class Migration(PySob):
         TS_START = auto()
         TS_FINISH = auto()
 
-    ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
-        Db.CD_STEP: MigStep
-    }
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
-        (Db.NM_BADGE,),
-        (Db.ID_SESSION, Db.CD_STEP)
+        (Db.NM_BADGE,)
     ]
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
         (InputParam.BADGE, Db.NM_BADGE),
-        (InputParam.STEP, Db.CD_STEP),
         (InputParam.CHANNEL_COUNT, Db.NR_CHANNEL_COUNT),
         (InputParam.CHANNEL_SIZE, Db.NR_CHANNEL_SIZE),
         (InputParam.EXCLUDE_RELATIONS, Db.DS_EXCLUDE_RELATIONS),
@@ -91,15 +72,12 @@ class Migration(PySob):
                                     list[MigrationTable] | list[MigrationWork]] | list[type] = None,
                  /,
                  nm_badge: str = None,
-                 id_session: int = None,
-                 cd_step: MigStep = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.cd_step: MigStep | None = None
         self.id_session: int | None = None
         self.nm_badge: str | None = None
 
@@ -135,9 +113,6 @@ class Migration(PySob):
             where_data = {Migration.Db.ID: __id}
         elif nm_badge:
             where_data = {Migration.Db.NM_BADGE: nm_badge}
-        elif id_session and cd_step:
-            where_data = {Migration.Db.ID_SESSION: id_session,
-                          Migration.Db.CD_STEP: cd_step}
 
         super().__init__(__references,
                          db_engine=db_engine,
@@ -283,7 +258,6 @@ class Migration(PySob):
 
 
 Migration.initialize(db_specs=(Migration.Db, int),
-                     attrs_enum=Migration.ATTRS_ENUM,
                      attrs_input=Migration.ATTRS_INPUT,
                      attrs_unique=Migration.ATTRS_UNIQUE,
                      logger=Migration.LOGGER)

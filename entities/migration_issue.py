@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
 
 
 class IssueType(StrEnum):
@@ -27,6 +27,7 @@ class MigrationIssue(PySob):
     class Db(StrEnum):
         TABLE = "migration_issue"
         ID = auto()
+        CD_STEP = auto()
         CD_TYPE = auto()
         DS_ISSUE = auto()
         ID_MIGRATION = auto()
@@ -34,10 +35,12 @@ class MigrationIssue(PySob):
 
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
         (InputParam.ISSUE, Db.DS_ISSUE),
+        (InputParam.STEP, Db.CD_STEP),
         (InputParam.TYPE, Db.CD_TYPE),
         (InputParam.BADGE, None)
     ]
     ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
+        Db.CD_STEP: MigStep,
         Db.CD_TYPE: IssueType
     }
     LOGGER: Final[Logger] = PYPOMES_LOGGER
@@ -51,6 +54,7 @@ class MigrationIssue(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
+        self.cd_step: MigStep | None = None
         self.cd_type: IssueType | None = None
         self.ds_issue: str | None = None
         self.id_migration: int | None = None
@@ -69,6 +73,7 @@ class MigrationIssue(PySob):
     @classmethod
     def new_issue(cls,
                   id_migration: int,
+                  cd_step: MigStep,
                   cd_type: IssueType,
                   ds_issue: str,
                   db_engine: DbEngine | str = PYDB_DB_ENGINE,
@@ -79,6 +84,7 @@ class MigrationIssue(PySob):
         if ds_issue:
             migration_issue: MigrationIssue = MigrationIssue()
             migration_issue.id_migration = id_migration
+            migration_issue.cd_step = cd_step
             migration_issue.cd_type = cd_type
             migration_issue.ds_issue = ds_issue
             migration_issue.ts_onset = datetime.now(tz=TZ_LOCAL)
@@ -90,6 +96,7 @@ class MigrationIssue(PySob):
     @classmethod
     def new_issues(cls,
                    id_migration: int,
+                   cd_step: MigStep,
                    cd_type: IssueType,
                    ds_issues: list[str],
                    db_engine: DbEngine | str = PYDB_DB_ENGINE,
@@ -100,6 +107,7 @@ class MigrationIssue(PySob):
         curr_errors: list[str] = []
         for ds_issue in ds_issues:
             MigrationIssue.new_issue(id_migration=id_migration,
+                                     cd_step=cd_step,
                                      cd_type=cd_type,
                                      ds_issue=ds_issue,
                                      db_engine=db_engine,

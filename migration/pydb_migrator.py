@@ -19,11 +19,11 @@ from urlobject import URLObject
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam
+    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam, MigStep
 )
 from app_ident import get_env_keys
 from entities.database import Database
-from entities.migration import Migration, MigStep
+from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
 from entities.migration_work import MigrationWork
@@ -37,6 +37,7 @@ from migration.steps.pydb_sync_plaindata import synchronize_plaindata
 
 def migrate(migration: Migration,
             session: Session,
+            mig_step: MigStep,
             app_name: str,
             app_version: str,
             base_url: str,
@@ -94,6 +95,7 @@ def migrate(migration: Migration,
     logger.info(msg="Started discovering the metadata")
     migrated_tables: dict[str, Any] = migrate_metadata(migration=migration,
                                                        session=session,
+                                                       mig_step=mig_step,
                                                        migration_warnings=migration_warnings,
                                                        errors=errors,
                                                        logger=logger) or {}
@@ -103,14 +105,15 @@ def migrate(migration: Migration,
     migration_threads: list[int] = [threading.get_ident()]
 
     # proceed, if migration/synchronization/correlation has been indicated
-    if not errors and migrated_tables and migration.cd_step != MigStep.MIGRATE_METADATA:
+    if not errors and migrated_tables and mig_step != MigStep.MIGRATE_METADATA:
 
         # migrate the plain data
-        if migration.cd_step == MigStep.MIGRATE_PLAINDATA:
+        if mig_step == MigStep.MIGRATE_PLAINDATA:
             logger.info("Started migrating the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             count: int = migrate_plaindata(migration=migration,
                                            session=session,
+                                           mig_step=mig_step,
                                            migration_threads=migration_threads,
                                            migrated_tables=migrated_tables,
                                            migration_warnings=migration_warnings,
@@ -127,7 +130,7 @@ def migrate(migration: Migration,
             logger.info(msg="Finished migrating the plain data")
 
         # migrate the LOB data
-        if not errors and migration.cd_step == MigStep.MIGRATE_LOBDATA:
+        if not errors and mig_step == MigStep.MIGRATE_LOBDATA:
             logger.info("Started migrating the LOBs")
 
             # ignore warnings from 'boto3' and 'minio' packages
@@ -138,6 +141,7 @@ def migrate(migration: Migration,
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int] = migrate_lobdata(migration=migration,
                                                       session=session,
+                                                      mig_step=mig_step,
                                                       migration_threads=migration_threads,
                                                       migrated_tables=migrated_tables,
                                                       migration_warnings=migration_warnings,
@@ -161,7 +165,7 @@ def migrate(migration: Migration,
                              f"{lob_bytes} bytes, in {duration} ({performance})")
 
         # correlate the LOBs
-        if not errors and migration.cd_step == MigStep.CORRELATE_LOBDATA:
+        if not errors and mig_step == MigStep.CORRELATE_LOBDATA:
             logger.info(msg="Started correlating the LOBs")
 
             # ignore warnings from 'boto3' and 'minio' packages
@@ -171,6 +175,7 @@ def migrate(migration: Migration,
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = correlate_lobdata(migration=migration,
                                                              session=session,
+                                                             mig_step=mig_step,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              migration_warnings=migration_warnings,
@@ -188,12 +193,13 @@ def migrate(migration: Migration,
             logger.info(msg="Finished correlating the LOBs")
 
         # correlate/synchronize the plain data
-        if not errors and migration.cd_step in [MigStep.CORRELATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
-            op: str = "correlating" if migration.cd_step == MigStep.CORRELATE_PLAINDATA else "synchronizing"
+        if not errors and mig_step in [MigStep.CORRELATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
+            op: str = "correlating" if mig_step == MigStep.CORRELATE_PLAINDATA else "synchronizing"
             logger.info(msg=f"Started {op} the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             counts: tuple[int, int, int] = synchronize_plaindata(migration=migration,
                                                                  session=session,
+                                                                 mig_step=mig_step,
                                                                  migration_threads=migration_threads,
                                                                  migrated_tables=migrated_tables,
                                                                  # migration_warnings=migration_warnings,
@@ -227,6 +233,7 @@ def migrate(migration: Migration,
                        errors=curr_errors)
         errors.extend(curr_errors)
     MigrationIssue.new_issues(id_migration=migration.id,
+                              cd_step=mig_step,
                               cd_type=IssueType.ERROR,
                               ds_issues=errors)
 
@@ -241,19 +248,19 @@ def migrate(migration: Migration,
     # prune the migrated tables list
     effected_tables: list[str] = migrated_tables.pop("effected-tables", [])
     display_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items() if k in effected_tables} \
-        if migration.cd_step == MigStep.MIGRATE_METADATA else migrated_tables
+        if mig_step == MigStep.MIGRATE_METADATA else migrated_tables
     op_report["total-tables"] = len(display_tables)
 
     # prune the display
     for k, v in display_tables.items():
-        if migration.cd_step != MigStep.MIGRATE_METADATA:
+        if mig_step != MigStep.MIGRATE_METADATA:
             v.pop("columns")
-        if migration.cd_step not in [MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_LOBDATA]:
+        if mig_step not in [MigStep.MIGRATE_LOBDATA, MigStep.CORRELATE_LOBDATA]:
             v.pop("lob-count", None)
             v.pop("lob-duration", None)
             v.pop("lob-status", None)
             v.pop("lob-bytes", None)
-        if migration.cd_step not in [MigStep.MIGRATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
+        if mig_step not in [MigStep.MIGRATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
             v.pop("plain-count", None)
             v.pop("plain-duration", None)
             v.pop("plain-status", None)
@@ -262,6 +269,7 @@ def migrate(migration: Migration,
     try:
         __log_migration(migration=migration,
                         session=session,
+                        mig_step=mig_step,
                         threads=migration_threads,
                         log_json=op_report,
                         errors=errors)
@@ -270,6 +278,7 @@ def migrate(migration: Migration,
                                                exc_info=sys.exc_info()))
         logger.error(msg=exc_err)
         MigrationIssue.new_issue(id_migration=migration.id,
+                                 cd_step=mig_step,
                                  cd_type=IssueType.ERROR,
                                  ds_issue=exc_err)
 
@@ -277,6 +286,7 @@ def migrate(migration: Migration,
 # 'errors' contains the errors incident upon the migration activity, if any
 def __log_migration(migration: Migration,
                     session: Session,
+                    mig_step: MigStep,
                     threads: list[int],
                     log_json: dict[str, Any],
                     errors: list[str]) -> None:
@@ -350,5 +360,6 @@ def __log_migration(migration: Migration,
                               client=s3_client,
                               errors=errors)
             MigrationIssue.new_issues(id_migration=migration.id,
+                                      cd_step=mig_step,
                                       cd_type=IssueType.ERROR,
                                       ds_issues=errors)

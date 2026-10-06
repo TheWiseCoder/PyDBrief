@@ -117,7 +117,6 @@ CREATE SEQUENCE sq_migration
 
 CREATE TABLE migration (
 	id int8 DEFAULT nextval('sq_migration'::regclass) NOT NULL,
-	cd_step varchar(2) NOT NULL,
 	id_session int8 NOT NULL,
 	nm_badge varchar(256) NOT NULL,
     ds_exclude_relations varchar(4000),
@@ -135,16 +134,11 @@ CREATE TABLE migration (
     nr_channel_size int8,
 	ts_start timestamp,
 	ts_finish timestamp,
-	CONSTRAINT ck_migration_step CHECK (((cd_step)::text = ANY (ARRAY[
-      ('CL'::character varying)::text, ('CP'::character varying)::text,
-      ('ML'::character varying)::text, ('MM'::character varying)::text,
-      ('MP'::character varying)::text, ('SP'::character varying)::text]))),
     CONSTRAINT ck_migration_channel_count CHECK (nr_channel_count >= 0),
     CONSTRAINT ck_migration_channel_size CHECK (nr_channel_size >= 0),
     CONSTRAINT fk_migration_session FOREIGN KEY (id_session) REFERENCES session(id),
 	CONSTRAINT pk_migration PRIMARY KEY (id),
-	CONSTRAINT uk_migration_1 UNIQUE (nm_badge),
-	CONSTRAINT uk_migration_2 UNIQUE (id_session, cd_step)
+	CONSTRAINT uk_migration UNIQUE (nm_badge)
 );
 
 
@@ -159,10 +153,18 @@ CREATE SEQUENCE sq_migration_issue
 CREATE TABLE migration_issue (
 	id int8 DEFAULT nextval('sq_migration_issue'::regclass) NOT NULL,
 	id_migration int8 NOT NULL,
+    cd_step varchar(2) NOT NULL,
     cd_type varchar(1) NOT NULL,
 	ds_issue varchar(2048) NOT NULL,
 	ts_onset timestamp NOT NULL,
-	CONSTRAINT ck_migration_issue CHECK (((cd_type)::text = ANY (ARRAY[
+	CONSTRAINT ck_migration_issue_step CHECK (((cd_step)::text = ANY (ARRAY[
+      ('CL'::character varying)::text,
+	  ('CP'::character varying)::text,
+      ('ML'::character varying)::text,
+	  ('MM'::character varying)::text,
+      ('MP'::character varying)::text,
+	  ('SP'::character varying)::text]))),
+	CONSTRAINT ck_migration_issue_type CHECK (((cd_type)::text = ANY (ARRAY[
       ('C'::character varying)::text,
 	  ('E'::character varying)::text,
       ('W'::character varying)::text]))),

@@ -13,8 +13,8 @@ from pypomes_db import (
 from pypomes_s3 import s3_get_client, s3_item_exists
 from typing import Any
 
-from app_constants import InputParam
-from entities.migration import Migration, MigStep
+from app_constants import InputParam, MigStep
+from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
 from entities.session import Session, sessions_aborting
@@ -46,6 +46,7 @@ lobdata_lock: threading.Lock = threading.Lock()
 
 def migrate_lobdata(migration: Migration,
                     session: Session,
+                    mig_step: MigStep,
                     migration_threads: list[int],
                     migrated_tables: dict[str, Any],
                     migration_warnings: list[str],
@@ -125,6 +126,7 @@ def migrate_lobdata(migration: Migration,
                         migration_warnings.append(warn_msg)
                         logger.warning(msg=warn_msg)
                         MigrationIssue.new_issue(id_migration=migration.id,
+                                                 cd_step=mig_step,
                                                  cd_type=IssueType.WARNING,
                                                  ds_issue=warn_msg)
                 lob_columns.append((column_name, reference_column))
@@ -143,6 +145,7 @@ def migrate_lobdata(migration: Migration,
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.WARNING,
                                          ds_issue=warn_msg)
                 # skip table migration
@@ -153,6 +156,7 @@ def migrate_lobdata(migration: Migration,
             status: str = "ok"
             migrate_lob_columns(migration=migration,
                                 session=session,
+                                mig_step=mig_step,
                                 mother_thread=mother_thread,
                                 source_table=source_table,
                                 target_table=target_table,
@@ -173,6 +177,7 @@ def migrate_lobdata(migration: Migration,
                     status = "error"
                     errors.extend(curr_errors)
                     MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_step=mig_step,
                                               cd_type=IssueType.ERROR,
                                               ds_issues=curr_errors)
 
@@ -204,6 +209,7 @@ def migrate_lobdata(migration: Migration,
 
 def migrate_lob_columns(migration: Migration,
                         session: Session,
+                        mig_step: MigStep,
                         mother_thread: int,
                         source_table: str,
                         target_table: str,
@@ -245,6 +251,7 @@ def migrate_lob_columns(migration: Migration,
                 migration_warnings.append(warn_msg)
                 logger.warning(msg=warn_msg)
                 MigrationIssue.new_issue(id_migration=migration.id,
+                                         cd_step=mig_step,
                                          cd_type=IssueType.WARNING,
                                          ds_issue=warn_msg)
                 # skip current table migration
@@ -259,12 +266,12 @@ def migrate_lob_columns(migration: Migration,
                     reference_column = reference_column[:pos]
 
             # obtain an S3 prefix for storing the lobdata
-            if migration.cd_step == MigStep.CORRELATE_LOBDATA or not migration.is_flatten_storage:
+            if mig_step == MigStep.CORRELATE_LOBDATA or not migration.is_flatten_storage:
                 lob_prefix = build_lob_prefix(session=session,
                                               target_table=target_table,
                                               column_name=reference_column or lob_column)
                 # skip nonempty S3 prefixes
-                if (migration.cd_step != MigStep.CORRELATE_LOBDATA and
+                if (mig_step != MigStep.CORRELATE_LOBDATA and
                     migration.is_skip_nonempty and
                     s3_item_exists(identifier=lob_prefix.as_posix(),
                                    errors=errors)):
@@ -274,6 +281,7 @@ def migrate_lob_columns(migration: Migration,
                     migration_warnings.append(warn_msg)
                     logger.warning(msg=warn_msg)
                     MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
                                              cd_type=IssueType.WARNING,
                                              ds_issue=warn_msg)
                     # skip column migration
@@ -311,6 +319,7 @@ def migrate_lob_columns(migration: Migration,
                     # migration target is S3
                     _s3_migrate_lobs(migration=migration,
                                      session=session,
+                                     mig_step=mig_step,
                                      mother_thread=mother_thread,
                                      source_table=source_table,
                                      target_table=target_table,
@@ -347,6 +356,7 @@ def migrate_lob_columns(migration: Migration,
                             future: Future = executor.submit(_s3_migrate_lobs,
                                                              migration=migration,
                                                              session=session,
+                                                             mig_step=mig_step,
                                                              mother_thread=mother_thread,
                                                              source_table=source_table,
                                                              target_table=target_table,
@@ -425,6 +435,7 @@ def _db_migrate_lobs(session: Session,
 
 def _s3_migrate_lobs(migration: Migration,
                      session: Session,
+                     mig_step: MigStep,
                      mother_thread: int,
                      source_table: str,
                      target_table: str,
@@ -485,6 +496,7 @@ def _s3_migrate_lobs(migration: Migration,
             # 'target_table' is documentational, only
             totals: tuple[int, int] = s3_migrate_lobs(migration=migration,
                                                       session=session,
+                                                      mig_step=mig_step,
                                                       db_conn=db_conn,
                                                       s3_client=s3_client,
                                                       target_table=target_table,
@@ -504,6 +516,7 @@ def _s3_migrate_lobs(migration: Migration,
             with lobdata_lock:
                 if errors:
                     MigrationIssue.new_issues(id_migration=migration.id,
+                                              cd_step=mig_step,
                                               cd_type=IssueType.ERROR,
                                               ds_issues=errors)
                     lobdata_registry[mother_thread][source_table]["errors"].extend(errors)

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from enum import StrEnum, auto
-from pypomes_core import APP_PREFIX, env_get_bool, env_get_str
+from pypomes_core import APP_PREFIX, env_get_bool, env_get_str, EnumUseAny, StrEnumAny
 from typing import Final
 
 PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE")
@@ -124,3 +126,15 @@ class OpType(StrEnum):
     RETRIEVE = auto()
     UPDATE = auto()
     VERIFY = auto()
+
+
+class MigStep(EnumUseAny, StrEnumAny):
+    """
+    Steps for migration.
+    """
+    CORRELATE_LOBDATA = ("CL", "correlate-lobdata")
+    CORRELATE_PLAINDATA = ("CP", "correlate-plaindata")
+    MIGRATE_LOBDATA = ("ML", "migrate-lobdata")
+    MIGRATE_METADATA = ("MM", "migrate-metadata")
+    MIGRATE_PLAINDATA = ("MP", "migrate-plaindata")
+    SYNCHRONIZE_PLAINDATA = ("SP", "synchronize-plaindata")
