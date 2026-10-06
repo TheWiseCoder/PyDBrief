@@ -235,7 +235,7 @@ def migrate_metadata(migration: Migration,
                                                                 db_target_type=target_db.cd_type)
                                         # col_metadata[6] has the default value
                                         target_cols_metadata.append(
-                                            (col_metadata[0].lower(), type_equivalent +
+                                            (col_metadata[0].lower(), type_equivalent,
                                              col_metadata[2], col_metadata[3],
                                              col_metadata[4], col_metadata[5], None))
                                     create_table: bool = not db_table_exists(table_name=table_name,
