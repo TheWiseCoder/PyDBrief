@@ -80,7 +80,8 @@ def migrate_metadata(migration: Migration,
 
             # determine the relations to be processed
             only_tables: list[str] = []
-            for table_name in source_inspector.get_table_names(schema=from_schema):
+            all_tables: list[str] = source_inspector.get_table_names(schema=from_schema)
+            for table_name in all_tables:
                 ok: bool = table_name.lower() not in schema_views and \
                            assert_relation(migration=migration,
                                            relation=table_name.lower())
