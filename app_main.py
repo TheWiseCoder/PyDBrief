@@ -618,9 +618,9 @@ def service_migration_report(migration_id: str = None,
     return result
 
 
-@flask_app.route(rule="/migrate/<migration_id>",
+@flask_app.route(rule="/migrate",
                  methods=[HttpMethod.GET])
-def service_migrate(migration_id: str = None) -> Response:
+def service_migrate() -> Response:
     """
     Initiate or abort a migration operation.
 
@@ -631,8 +631,6 @@ def service_migrate(migration_id: str = None) -> Response:
 
     # retrieve and validate the input parameters
     input_params: dict[str, Any] = __get_parameters(request=request)
-    if migration_id:
-        input_params[InputParam.MIGRATION_ID] = migration_id
 
     # log the request
     msg: str = __log_init(request=request,
@@ -646,21 +644,21 @@ def service_migrate(migration_id: str = None) -> Response:
                                       errors=errors)
     if mig_step:
         # obtain the migration instance
-        migration_id: str = validate_str(source=input_params,
-                                         attr=InputParam.MIGRATION_ID,
-                                         max_length=64,
-                                         errors=errors)
-        if migration_id:
+        mig_badge: str = validate_str(source=input_params,
+                                      attr=InputParam.BADGE,
+                                      max_length=64,
+                                      errors=errors)
+        if mig_badge:
             # obtain migration instance
             migration: Migration = Migration(None,
                                              list[MigrationTable],
-                                             nm_badge=migration_id,
+                                             nm_badge=mig_badge,
                                              db_engine=PYDB_DB_ENGINE,
                                              errors=errors)
             if not errors:
                 if migration.ts_finish:
                     errors.append(validate_format_error(100,
-                                                        f"Migration '{migration_id}' has finished"))
+                                                        f"Migration '{mig_badge}' has finished"))
                 else:
                     session: Session = Session(migration.id_session,
                                                db_engine=PYDB_DB_ENGINE,
@@ -688,6 +686,7 @@ def service_migrate(migration_id: str = None) -> Response:
                                         target=migrate,
                                         kwargs={"migration": migration,
                                                 "session": session,
+                                                "mig_step": mig_step,
                                                 "app_name": APP_NAME,
                                                 "app_version": APP_VERSION,
                                                 "base_url": f"{request.scheme}://{request.host}",
@@ -701,7 +700,7 @@ def service_migrate(migration_id: str = None) -> Response:
                                                           exc_info=sys.exc_info())
                                 errors.append(validate_format_error(100,
                                                                     f"Error launching migration "
-                                                                    f"'{migration_id}': '{exc_err}'"))
+                                                                    f"'{mig_badge}': '{exc_err}'"))
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)
