@@ -447,6 +447,18 @@ def __validate_input(input_params: dict[str, Any],
     if include_relations:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = (",".join([i for i in include_relations])).lower()
 
+    pre_sql: list[str] = validate_strs(source=input_params,
+                                       attr=InputParam.PRE_SQL,
+                                       errors=errors)
+    if pre_sql:
+        result[Migration.Db.DS_PRE_SQL] = (",".join([i for i in pre_sql]))
+
+    reify_mviews: list[str] = validate_strs(source=input_params,
+                                            attr=InputParam.REIFY_MVIEWS,
+                                            errors=errors)
+    if pre_sql:
+        result[Migration.Db.DS_REIFY_MVIEWS] = (",".join([i for i in reify_mviews])).lower()
+
     return result
 
 

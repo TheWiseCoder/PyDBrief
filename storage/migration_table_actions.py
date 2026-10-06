@@ -258,6 +258,12 @@ def __validate_input(input_params: dict[str, Any],
     if exclude_constraints:
         result[MigrationTable.Db.DS_EXCLUDE_CONSTRAINTS] = (",".join([i for i in exclude_constraints])).lower()
 
+    pre_sql: list[str] = validate_strs(source=input_params,
+                                       attr=InputParam.PRE_SQL,
+                                       errors=errors)
+    if pre_sql:
+        result[MigrationTable.Db.DS_PRE_SQL] = (",".join([i for i in pre_sql]))
+
     incremental_count: int = validate_int(source=input_params,
                                           attr=InputParam.INCREMENTAL_COUNT,
                                           errors=errors)
