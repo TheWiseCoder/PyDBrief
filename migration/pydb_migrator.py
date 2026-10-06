@@ -228,7 +228,7 @@ def migrate(migration: Migration,
     if not errors and not Migration.exists(where_data={Migration.Db.ID_SESSION: session.id,
                                            Migration.Db.TS_FINISH: None},
                                            errors=curr_errors) and not curr_errors:
-        session.cd_session = SessionState.FINISHED
+        session.cd_state = SessionState.FINISHED
         session.update(db_engine=PYDB_DB_ENGINE,
                        errors=curr_errors)
         errors.extend(curr_errors)

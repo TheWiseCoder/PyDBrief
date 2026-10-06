@@ -68,7 +68,7 @@ class InputParam(StrEnum):
     CD_ISSUE = "cd-issue"
     CD_SESSION = "cd-session"
     CD_TABLE = "cd-table"
-    CHANNEL_COUNT = "channel-COUNT"
+    CHANNEL_COUNT = "channel-count"
     CHANNEL_SIZE = "channel-size"
     CHUNK_SIZE = "chunk-size"
     CREATION = "creation"
