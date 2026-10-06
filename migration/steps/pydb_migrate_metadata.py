@@ -178,7 +178,7 @@ def migrate_metadata(migration: Migration,
                     if mig_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
                         to_schema = setup_schema(migration=migration,
-                                                 target_db=session.get_target_db().cd_engine,
+                                                 target_db=target_db.cd_engine,
                                                  target_schema=session.nm_target_schema,
                                                  target_engine=sa_target_engine,
                                                  target_tables=target_tables,
@@ -233,8 +233,11 @@ def migrate_metadata(migration: Migration,
                                             convert_column_type(col_type=col_metadata[1].lower(),
                                                                 db_source_type=source_db.cd_type,
                                                                 db_target_type=target_db.cd_type)
+                                        # col_metadata[6] has the default value
                                         target_cols_metadata.append(
-                                            (col_metadata[0].lower(), type_equivalent) + col_metadata[2:])
+                                            (col_metadata[0].lower(), type_equivalent +
+                                             col_metadata[2], col_metadata[3],
+                                             col_metadata[4], col_metadata[5], None))
                                     create_table: bool = not db_table_exists(table_name=table_name,
                                                                              engine=target_db.cd_engine,
                                                                              errors=errors) and not errors
