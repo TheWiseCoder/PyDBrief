@@ -215,89 +215,27 @@ def migrate_metadata(migration: Migration,
                     # reify materialized views
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
                         reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
-                        # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
-                        for target_table in target_tables:
-                            if target_table.name in reify_mviews:
-                                reify_mviews.remove(target_table.name)
-                                warn_msg: str = f"Materialized view {target_table.name} listed in target tables"
-                                migration_warnings.append(warn_msg)
-                                logger.warning(msg=warn_msg)
-                        for reify_mview in reify_mviews:
-                            table_name: str = f"{from_schema}.{reify_mview}"
-                            source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
-                                                                                        engine=source_db.cd_engine,
-                                                                                        errors=errors)
-                            if not errors:
-                                table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
-                                                                            engine=source_db.cd_engine,
-                                                                            errors=errors)
-                                if not errors:
-                                    pk_constraint: list[str] = [f"{table_pk[0]} PRIMARY KEY ({table_pk[1]})"] \
-                                        if table_pk else None
-                                    target_cols_metadata: list[tuple] = []
-                                    for col_metadata in source_cols_metadata:
-                                        type_equivalent: str = \
-                                            convert_column_type(col_type=col_metadata[1].lower(),
-                                                                db_source_type=source_db.cd_type,
-                                                                db_target_type=target_db.cd_type)
-                                        # col_metadata[6] has the column's default value
-                                        def_value = db_convert_default(value=col_metadata[6],
-                                                                       source_engine=source_db.cd_engine,
-                                                                       target_engine=target_db.cd_engine)
-                                        target_cols_metadata.append(
-                                            (col_metadata[0].lower(), type_equivalent,
-                                             col_metadata[2], col_metadata[3],
-                                             col_metadata[4], col_metadata[5], def_value))
-                                    create_table: bool = not db_table_exists(table_name=table_name,
-                                                                             engine=target_db.cd_engine,
-                                                                             errors=errors) and not errors
-                                    if create_table:
-                                        try:
-                                            # noinspection PyTypeChecker
-                                            db_create_table(table_name=table_name,
-                                                            column_data=target_cols_metadata,
-                                                            constraints=pk_constraint,
-                                                            engine=target_db.cd_engine,
-                                                            errors=errors)
-                                        except (Exception, SAWarning) as e:
-                                            # unable to create table
-                                            exc_err: str = str_sanitize(exc_format(exc=e,
-                                                                                   exc_info=sys.exc_info()))
-                                            logger.error(msg=exc_err)
-                                            MigrationIssue.new_issue(id_migration=migration.id,
-                                                                     cd_step=mig_step,
-                                                                     cd_type=IssueType.ERROR,
-                                                                     ds_issue=exc_err)
-                                            # 104: The operation {} returned the error {}
-                                            errors.append(validate_format_error(104,
-                                                                                "schema-construction",
-                                                                                exc_err))
-                                    if not errors:
-                                        columns: dict[str, Any] = {}
-                                        for i in range(0, len(target_cols_metadata)):
-                                            source_clause: list[str] = db_build_column_clause(
-                                                col_name=target_cols_metadata[i][0],
-                                                col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
-                                            target_clause: list[str] = db_build_column_clause(
-                                                col_name=target_cols_metadata[i][0],
-                                                col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
-
-                                            columns[target_clause[0]] = {
-                                                "source-type": source_clause[1],
-                                                "target-type": target_clause[1]
-                                            }
-                                            if table_pk and target_clause[0] in str_as_list(table_pk[1].lower()):
-                                                columns[target_clause[0]]["features"] = "primary-key"
-                                        result[reify_mview] = {"columns": columns}
-                                        if create_table:
-                                            result["effected-tables"].append(reify_mview)
-
-                            if errors:
-                                MigrationIssue.new_issues(id_migration=migration.id,
-                                                          cd_step=mig_step,
-                                                          cd_type=IssueType.ERROR,
-                                                          ds_issues=errors)
-                                break
+                        if reify_mviews:
+                            # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
+                            target_names: list[str] = [t.name for t in target_tables]
+                            for reify_mview in reify_mviews:
+                                if reify_mview in target_names:
+                                    warn_msg: str = f"Materialized view '{reify_mview}' listed in target tables"
+                                    migration_warnings.append(warn_msg)
+                                    logger.warning(msg=warn_msg)
+                                else:
+                                    __reify_mview(migration=migration,
+                                                  mig_step=mig_step,
+                                                  source_db=source_db,
+                                                  target_db=target_db,
+                                                  from_schema=from_schema,
+                                                  mview=reify_mview,
+                                                  migrated_tables=result,
+                                                  migration_warnings=migration_warnings,
+                                                  errors=errors,
+                                                  logger=logger)
+                                if errors:
+                                    break
 
                     # migrate the tables
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
@@ -357,9 +295,7 @@ def migrate_metadata(migration: Migration,
                                 db_execute(exc_stmt=view_ddl,
                                            engine=source_db.cd_engine,
                                            errors=curr_errors)
-                            # errors ?
                             if curr_errors:
-                                # yes, report them
                                 errors.extend(curr_errors)
                                 MigrationIssue.new_issues(id_migration=migration.id,
                                                           cd_step=mig_step,
@@ -385,3 +321,97 @@ def migrate_metadata(migration: Migration,
                                                 f"@{InputParam.SOURCE_SCHEMA}",
                                                 err_msg))
     return result
+
+
+def __reify_mview(migration: Migration,
+                  mig_step: MigStep,
+                  source_db: Database,
+                  target_db: Database,
+                  from_schema: str,
+                  mview: str,
+                  migrated_tables: dict[str, Any],
+                  migration_warnings: list[str],
+                  errors: list[str],
+                  logger: Logger) -> None:
+
+    # make sure 'mview' exists in source database
+    if db_table_exists(table_name=f"{from_schema}.{mview}",
+                       engine=source_db.cd_engine,
+                       errors=errors):
+        table_name: str = f"{from_schema}.{mview}"
+        source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
+                                                                    engine=source_db.cd_engine,
+                                                                    errors=errors)
+        table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
+                                                    engine=source_db.cd_engine,
+                                                    errors=errors)
+        if not errors:
+            pk_constraint: list[str] = [f"{table_pk[0]} PRIMARY KEY ({table_pk[1]})"] \
+                if table_pk else None
+            target_cols_metadata: list[tuple] = []
+            for col_metadata in source_cols_metadata:
+                type_equivalent: str = \
+                    convert_column_type(col_type=col_metadata[1].lower(),
+                                        db_source_type=source_db.cd_type,
+                                        db_target_type=target_db.cd_type)
+                # col_metadata[6] has the column's default value
+                def_value = db_convert_default(value=col_metadata[6],
+                                               source_engine=source_db.cd_engine,
+                                               target_engine=target_db.cd_engine)
+                target_cols_metadata.append(
+                    (col_metadata[0].lower(), type_equivalent,
+                     col_metadata[2], col_metadata[3],
+                     col_metadata[4], col_metadata[5], def_value))
+            create_table: bool = not db_table_exists(table_name=table_name,
+                                                     engine=target_db.cd_engine,
+                                                     errors=errors) and not errors
+            if create_table:
+                try:
+                    # noinspection PyTypeChecker
+                    db_create_table(table_name=table_name,
+                                    column_data=target_cols_metadata,
+                                    constraints=pk_constraint,
+                                    engine=target_db.cd_engine,
+                                    errors=errors)
+                except (Exception, SAWarning) as e:
+                    # unable to create table
+                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                           exc_info=sys.exc_info()))
+                    logger.error(msg=exc_err)
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
+                                             cd_type=IssueType.ERROR,
+                                             ds_issue=exc_err)
+                    # 104: The operation {} returned the error {}
+                    errors.append(validate_format_error(104,
+                                                        "schema-construction",
+                                                        exc_err))
+            if not errors:
+                columns: dict[str, Any] = {}
+                for i in range(0, len(target_cols_metadata)):
+                    source_clause: list[str] = db_build_column_clause(
+                        col_name=target_cols_metadata[i][0],
+                        col_metadata=source_cols_metadata[i][1:]).split(maxsplit=1)
+                    target_clause: list[str] = db_build_column_clause(
+                        col_name=target_cols_metadata[i][0],
+                        col_metadata=target_cols_metadata[i][1:]).split(maxsplit=1)
+
+                    columns[target_clause[0]] = {
+                        "source-type": source_clause[1],
+                        "target-type": target_clause[1]
+                    }
+                    if table_pk and target_clause[0] in str_as_list(table_pk[1].lower()):
+                        columns[target_clause[0]]["features"] = "primary-key"
+                migrated_tables[mview] = {"columns": columns}
+                if create_table:
+                    migrated_tables["effected-tables"].append(mview)
+    elif not errors:
+        warn_msg: str = f"Materialized view '{mview}' not found in database '{source_db.cd_engine}'"
+        migration_warnings.append(warn_msg)
+        logger.warning(msg=warn_msg)
+
+    if errors:
+        MigrationIssue.new_issues(id_migration=migration.id,
+                                  cd_step=mig_step,
+                                  cd_type=IssueType.ERROR,
+                                  ds_issues=errors)
