@@ -107,6 +107,7 @@ class InputParam(StrEnum):
     LAST_ROW = "last-row"
     NAME = "name"
     ONSET = "onset"
+    ROW_COUNT = "row-count"
     SPANS = "spans"
     SPECS = "specs"
     START = "start"

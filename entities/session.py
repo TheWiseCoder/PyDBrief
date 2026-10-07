@@ -18,15 +18,6 @@ from app_constants import PYDB_DB_ENGINE, InputParam
 sessions_aborting: set[str] = set()
 
 
-class SessionState(StrEnum):
-    """
-    Possible states for a migration session.
-    """
-    CREATED = "C"
-    STARTED = "S"
-    FINISHED = "F"
-
-
 class Session(PySob):
     """
     Entity *Session*.
@@ -35,7 +26,6 @@ class Session(PySob):
         TABLE = "session"
         ID = auto()
         CD_SESSION = auto()
-        CD_STATE = auto()
         ID_SOURCE_DB = auto()
         ID_TARGET_DB = auto()
         ID_TARGET_S3 = auto()
@@ -43,9 +33,6 @@ class Session(PySob):
         NM_TARGET_SCHEMA = auto()
         TS_CREATION = auto()
 
-    ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
-        Db.CD_STATE: SessionState
-    }
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.CD_SESSION,)
     ]
@@ -71,7 +58,6 @@ class Session(PySob):
 
         # non-nullables in DB
         self.cd_session: str | None = None
-        self.cd_state: SessionState = SessionState.CREATED
         self.id_source_db: int | None = None
         self.id_target_db: int | None = None
         self.nm_source_schema: str | None = None
@@ -226,7 +212,6 @@ class Session(PySob):
 
 
 Session.initialize(db_specs=(Session.Db, int),
-                   attrs_enum=Session.ATTRS_ENUM,
                    attrs_unique=Session.ATTRS_UNIQUE,
                    attrs_input=Session.ATTRS_INPUT,
                    logger=Session.LOGGER)

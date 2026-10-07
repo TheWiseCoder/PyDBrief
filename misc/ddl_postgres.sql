@@ -88,17 +88,12 @@ CREATE SEQUENCE sq_session
 CREATE TABLE session (
 	id int8 DEFAULT nextval('sq_session'::regclass) NOT NULL,
 	cd_session varchar(64) NOT NULL,
-    cd_state varchar(1) NOT NULL,
 	id_source_db int4 NOT NULL,
 	id_target_db int4 NOT NULL,
 	id_target_s3 int4,
     nm_source_schema varchar(16) NOT NULL,
     nm_target_schema varchar(16) NOT NULL,
 	ts_creation timestamp NOT NULL,
-	CONSTRAINT ck_session_state CHECK (((cd_state)::text = ANY (ARRAY[
-      ('C'::character varying)::text,
-      ('S'::character varying)::text,
-      ('F'::character varying)::text]))),
     CONSTRAINT fk_session_source_db FOREIGN KEY (id_source_db) REFERENCES database(id),
     CONSTRAINT fk_session_target_db FOREIGN KEY (id_target_db) REFERENCES database(id),
     CONSTRAINT fk_session_target_s3 FOREIGN KEY (id_target_s3) REFERENCES s3(id),
@@ -184,8 +179,16 @@ CREATE SEQUENCE sq_migration_report
 CREATE TABLE migration_report (
 	id int8 DEFAULT nextval('sq_migration_report'::regclass) NOT NULL,
 	id_migration int8 NOT NULL,
+    cd_step varchar(2) NOT NULL,
 	ds_path varchar(1024) NOT NULL,
 	ts_creation timestamp NOT NULL,
+	CONSTRAINT ck_migration_report_step CHECK (((cd_step)::text = ANY (ARRAY[
+      ('CL'::character varying)::text,
+	  ('CP'::character varying)::text,
+      ('ML'::character varying)::text,
+	  ('MM'::character varying)::text,
+      ('MP'::character varying)::text,
+	  ('SP'::character varying)::text]))),
     CONSTRAINT fk_migration_report FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_report PRIMARY KEY (id),
 	CONSTRAINT uk_migration_report UNIQUE (ds_path)
@@ -238,15 +241,24 @@ CREATE SEQUENCE sq_migration_work
 CREATE TABLE migration_work (
 	id int8 DEFAULT nextval('sq_migration_work'::regclass) NOT NULL,
 	id_migration int8 NOT NULL,
+    cd_step varchar(2) NOT NULL,
 	nm_table varchar(64) NOT NULL,
-    is_created bool,
-    nr_count int8,
-	ts_start timestamp,
-	ts_finish timestamp,
-    CONSTRAINT ck_migration_work_count CHECK (nr_count >= 0),
+    nr_duration_millis int8 NOT NULL,
+    is_table_created bool,
+    nr_row_count int8 NOT NULL,
+	ts_start timestamp NOT NULL,,
+    CONSTRAINT ck_migration_work_count CHECK (nr_row_count >= 0),
+    CONSTRAINT ck_migration_work_duration CHECK (nr_duration_millis >= 0),
+	CONSTRAINT ck_migration_work_step CHECK (((cd_step)::text = ANY (ARRAY[
+      ('CL'::character varying)::text,
+	  ('CP'::character varying)::text,
+      ('ML'::character varying)::text,
+	  ('MM'::character varying)::text,
+      ('MP'::character varying)::text,
+	  ('SP'::character varying)::text]))),
     CONSTRAINT fk_migration_work_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
 	CONSTRAINT pk_migration_work PRIMARY KEY (id),
-	CONSTRAINT uk_migration_work UNIQUE (id_migration, nm_table)
+	CONSTRAINT uk_migration_work UNIQUE (id_migration, cd_step, nm_table)
 );
 
 

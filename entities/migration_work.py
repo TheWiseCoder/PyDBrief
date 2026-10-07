@@ -2,32 +2,43 @@ from __future__ import annotations  # allow forward references
 from datetime import datetime
 from enum import StrEnum, auto
 from logging import Logger
+from pypomes_core import TZ_LOCAL
 from pypomes_db import DbEngine
 from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
 from entities.migration_span import MigrationSpan
 
 
 class MigrationWork(PySob):
     """
-    Entity *MigrationTableWork*.
+    Entity *MigrationWork*.
     """
     class Db(StrEnum):
         TABLE = "migration_work"
         ID = auto()
+        CD_STEP = auto()
         ID_MIGRATION = auto()
-        IS_CREATED = auto()
+        IS_TABLE_CREATED = auto()
         NM_TABLE = auto()
-        NR_COUNT = auto()
+        NR_DURATION_MILLIS = auto()
+        NR_ROW_COUNT = auto()
         TS_START = auto()
-        TS_FINISH = auto()
 
-    ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
-        (Db.ID_MIGRATION, Db.NM_TABLE)
+    ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
+        (InputParam.ROW_COUNT, Db.NR_ROW_COUNT),
+        (InputParam.STEP, Db.CD_STEP),
+        (InputParam.TABLE, Db.NM_TABLE),
+        (InputParam.BADGE, None)
     ]
+    ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
+        (Db.ID_MIGRATION, Db.CD_STEP, Db.NM_TABLE)
+    ]
+    ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
+        Db.CD_STEP: MigStep
+    }
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
@@ -35,6 +46,7 @@ class MigrationWork(PySob):
                  __id: int = None,
                  /,
                  id_migration: int = None,
+                 cd_step: MigStep = None,
                  nm_table: str = None,
                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
                  db_conn: Any = None,
@@ -43,13 +55,14 @@ class MigrationWork(PySob):
 
         # non-nullables in DB
         self.id_migration: int | None = None
+        self.cd_step: MigStep | None = None
         self.nm_table: str | None = None
+        self.nr_duration_millis: int = 0
+        self.nr_row_count: int = 0
+        self.ts_start: datetime = datetime.now(tz=TZ_LOCAL)
 
         # nullables in DB
-        self.is_created: bool | None = None
-        self.nr_count: int | None = None
-        self.ts_start: datetime | None = None
-        self.ts_finish: datetime | None = None
+        self.is_table_created: bool | None = None
 
         # references (lists)
         self.__migration_spans: list[MigrationSpan] | None = None
@@ -58,8 +71,9 @@ class MigrationWork(PySob):
         where_data: dict[str, Any] | None = None
         if __id:
             where_data = {MigrationWork.Db.ID: __id}
-        elif id_migration and nm_table:
+        elif id_migration and cd_step and nm_table:
             where_data = {MigrationWork.Db.ID_MIGRATION: id_migration,
+                          MigrationWork.Db.CD_STEP: cd_step,
                           MigrationWork.Db.NM_TABLE: nm_table}
 
         super().__init__(__references,
@@ -114,5 +128,7 @@ class MigrationWork(PySob):
 
 
 MigrationWork.initialize(db_specs=(MigrationWork.Db, int),
+                         attrs_enum=MigrationWork.ATTRS_ENUM,
                          attrs_unique=MigrationWork.ATTRS_UNIQUE,
+                         attrs_input=MigrationWork.ATTRS_INPUT,
                          logger=MigrationWork.LOGGER)

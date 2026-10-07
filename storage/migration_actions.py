@@ -213,13 +213,10 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     for migration_work in migration_works:
-                        mig_work: dict[str, Any] = {InputParam.NAME: migration_work.nm_table}
-                        if migration_work.ts_start:
-                            mig_work[InputParam.START] = \
-                                migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
-                        if migration_work.ts_finish:
-                            mig_work[InputParam.FINISH] = \
-                                migration_work.ts_finish.strftime(format=DatetimeFormat.LATIN)
+                        mig_work: dict[str, Any] = {
+                            InputParam.NAME: migration_work.nm_table,
+                            InputParam.START: migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
+                        }
 
                         mig_spans: list[dict[str, Any]] = []
                         migration_spans: list[MigrationSpan] = \

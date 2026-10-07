@@ -19,8 +19,7 @@ from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BA
 from entities.migration_work import MigrationWork
 from entities.session import Session, sessions_aborting
 from migration.pydb_common import (
-    build_channel_data, execute_sql,
-    get_migration_span, assert_migration_work, get_migration_work
+    build_channel_data, execute_sql, get_migration_span, get_migration_work
 )
 from migration.pydb_database import table_embedded_nulls
 from migration.pydb_types import is_lob_column
@@ -88,72 +87,66 @@ def migrate_plaindata(session: Session,
                 "errors": []
             }
 
-        # determine whether migration for this table is warranted
+        # obtain the MigrationWork instance
         migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                           step=mig_step,
                                                            table=table_name,
                                                            errors=errors)
-        if not errors:
-            if migration_work.ts_finish is not None:
-                logger.debug("Plaindata migration not needed, "
-                             f"table {target_db}.{target_table} has been fully migrated")
-            elif db_table_exists(table_name=target_table,
-                                 engine=target_db,
-                                 errors=errors):
+        if not errors and db_table_exists(table_name=target_table,
+                                          engine=target_db,
+                                          errors=errors):
 
-                # obtain migration table data
-                migration_table: MigrationTable = MigrationTable.for_table(
-                    table=table_name,
-                    migration_tables=migration.get_migration_tables() or []
-                ) or MigrationTable()
-                if migration_table.ds_pre_sql:
-                    execute_sql(migration=migration,
-                                mig_step=mig_step,
-                                db_engine=session.get_source_db().cd_engine,
-                                sql_text=migration_table.ds_pre_sql)
+            # obtain migration table data
+            migration_table: MigrationTable = MigrationTable.for_table(
+                table=table_name,
+                migration_tables=migration.get_migration_tables() or []
+            ) or MigrationTable()
+            if migration_table.ds_pre_sql:
+                execute_sql(migration=migration,
+                            mig_step=mig_step,
+                            db_engine=session.get_source_db().cd_engine,
+                            sql_text=migration_table.ds_pre_sql)
 
-                batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[2]
-                batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[2]
-                limit_count: int = migration_table.nr_incremental_count or 0
-                offset_count: int = migration_table.nr_incremental_offset or 0
+            batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[2]
+            batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[2]
+            limit_count: int = migration_table.nr_incremental_count or 0
+            offset_count: int = migration_table.nr_incremental_offset or 0
 
-                if (migration.is_skip_nonempty and
-                        not limit_count and (db_count(table=target_table,
-                                                      engine=target_db,
-                                                      errors=errors) or 0) > 0):
-                    # yes, skip it
-                    logger.debug(msg=f"Skipped nonempty {target_db}.{target_table}")
-                    table_data["plain-status"] = "skipped"
+            if (migration.is_skip_nonempty and
+                    not limit_count and (db_count(table=target_table,
+                                                  engine=target_db,
+                                                  errors=errors) or 0) > 0):
+                # yes, skip it
+                logger.debug(msg=f"Skipped nonempty {target_db}.{target_table}")
+                table_data["plain-status"] = "skipped"
 
-                elif not errors:
-                    result += __migrate_plaindata(session=session,
-                                                  mig_step=mig_step,
-                                                  migration=migration,
-                                                  migration_work=migration_work,
-                                                  mother_thread=mother_thread,
-                                                  table_data=table_data,
-                                                  offset_count=offset_count,
-                                                  limit_count=limit_count,
-                                                  batch_size_in=batch_size_in,
-                                                  batch_size_out=batch_size_out,
-                                                  is_remove_ctrlchars=migration_table.is_remove_ctrlchars or False,
-                                                  migration_warnings=migration_warnings,
-                                                  logger=logger,
-                                                  errors=errors)
             elif not errors:
-                # target table does not exist
-                err_msg: str = ("Unable to migrate plaindata, "
-                                f"table {target_db}.{target_table} was not found")
-                logger.error(msg=err_msg)
-                MigrationIssue.new_issue(id_migration=migration.id,
-                                         cd_step=mig_step,
-                                         cd_type=IssueType.ERROR,
-                                         ds_issue=err_msg)
-                # 101: {}
-                errors.append(validate_format_error(101,
-                                                    err_msg))
-        assert_migration_work(migration=migration,
-                              table=table_name,
-                              errors=errors)
+                result += __migrate_plaindata(session=session,
+                                              mig_step=mig_step,
+                                              migration=migration,
+                                              migration_work=migration_work,
+                                              mother_thread=mother_thread,
+                                              table_data=table_data,
+                                              offset_count=offset_count,
+                                              limit_count=limit_count,
+                                              batch_size_in=batch_size_in,
+                                              batch_size_out=batch_size_out,
+                                              is_remove_ctrlchars=migration_table.is_remove_ctrlchars or False,
+                                              migration_warnings=migration_warnings,
+                                              logger=logger,
+                                              errors=errors)
+        elif not errors:
+            # target table does not exist
+            err_msg: str = ("Unable to migrate plaindata, "
+                            f"table {target_db}.{target_table} was not found")
+            logger.error(msg=err_msg)
+            MigrationIssue.new_issue(id_migration=migration.id,
+                                     cd_step=mig_step,
+                                     cd_type=IssueType.ERROR,
+                                     ds_issue=err_msg)
+            # 101: {}
+            errors.append(validate_format_error(101,
+                                                err_msg))
 
     with plaindata_lock:
         migration_threads.extend(plaindata_registry[mother_thread]["child-threads"])
@@ -361,7 +354,7 @@ def _migrate_plain(session: Session,
         migration_span.is_done = True
         migration_span.update(db_engine=PYDB_DB_ENGINE,
                               errors=errors)
-        migration_work.nr_count += count
+        migration_work.nr_row_count += count
         migration_work.update(db_engine=PYDB_DB_ENGINE,
                               errors=errors)
     with plaindata_lock:

@@ -87,6 +87,7 @@ def execute_sql(migration: Migration,
 
 
 def get_migration_work(migration: Migration,
+                       step: MigStep,
                        table: str,
                        db_conn: Any = None,
                        errors: list[str] = None) -> MigrationWork | None:
@@ -96,6 +97,7 @@ def get_migration_work(migration: Migration,
     If no instance is found, a new one is created and persisted in the DB state store.
 
     :param migration: the reference *Migration* instance
+    :param step: the reference migration step
     :param table: simple name of the reference table
     :param db_conn: the optional database connection
     :param errors: incidental errors list
@@ -107,6 +109,7 @@ def get_migration_work(migration: Migration,
 
     result: MigrationWork = MigrationWork.get_instance(
         where_data={MigrationWork.Db.ID_MIGRATION: migration.id,
+                    MigrationWork.Db.CD_STEP: step,
                     MigrationWork.Db.NM_TABLE: table},
         db_engine=PYDB_DB_ENGINE,
         db_conn=db_conn,
@@ -115,6 +118,7 @@ def get_migration_work(migration: Migration,
     if not errors and not result:
         result = MigrationWork()
         result.id_migration = migration.id
+        result.cd_step = step
         result.nm_table = table
         result.ts_start = datetime.now(tz=TZ_LOCAL)
         result.insert(db_engine=PYDB_DB_ENGINE,
@@ -122,35 +126,6 @@ def get_migration_work(migration: Migration,
                       errors=errors)
 
     return result if not errors else None
-
-
-def assert_migration_work(migration: Migration,
-                          table: str,
-                          db_conn: Any = None,
-                          errors: list[str] = None) -> None:
-
-    # make sure to have an errors list
-    if not isinstance(errors, list):
-        errors = []
-
-    migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                       table=table,
-                                                       db_conn=db_conn,
-                                                       errors=errors)
-    if not errors:
-        migration_spans: list[MigrationSpan] = migration_work.get_migration_spans(refresh=True,
-                                                                                  db_conn=db_conn,
-                                                                                  errors=errors)
-        is_finished: bool = True
-        for migration_span in migration_spans:
-            if not migration_span.is_done:
-                is_finished = False
-                break
-        if is_finished:
-            migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
-            migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                  db_conn=db_conn,
-                                  errors=errors)
 
 
 def get_migration_span(migration_work: MigrationWork,

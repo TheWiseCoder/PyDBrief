@@ -1,9 +1,8 @@
 import sys
-from datetime import datetime
 from logging import Logger
-from pypomes_core import TZ_LOCAL, str_as_list, str_sanitize, exc_format, validate_format_error
+from pypomes_core import str_as_list, str_sanitize, exc_format, validate_format_error
 from pypomes_db import (
-    db_create_table, db_table_exists, db_execute,
+    db_create_table, db_table_exists, db_execute, db_convert_default,
     db_get_columns_metadata, db_get_table_pk, db_build_column_clause
 )
 from sqlalchemy import (
@@ -178,6 +177,7 @@ def migrate_metadata(migration: Migration,
                     if mig_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
                         to_schema = setup_schema(migration=migration,
+                                                 mig_step=mig_step,
                                                  target_db=target_db.cd_engine,
                                                  target_schema=session.nm_target_schema,
                                                  target_engine=sa_target_engine,
@@ -240,11 +240,14 @@ def migrate_metadata(migration: Migration,
                                             convert_column_type(col_type=col_metadata[1].lower(),
                                                                 db_source_type=source_db.cd_type,
                                                                 db_target_type=target_db.cd_type)
-                                        # col_metadata[6] has the default value
+                                        # col_metadata[6] has the column's default value
+                                        def_value = db_convert_default(value=col_metadata[6],
+                                                                       source_engine=source_db.cd_engine,
+                                                                       target_engine=target_db.cd_engine)
                                         target_cols_metadata.append(
                                             (col_metadata[0].lower(), type_equivalent,
                                              col_metadata[2], col_metadata[3],
-                                             col_metadata[4], col_metadata[5], None))
+                                             col_metadata[4], col_metadata[5], def_value))
                                     create_table: bool = not db_table_exists(table_name=table_name,
                                                                              engine=target_db.cd_engine,
                                                                              errors=errors) and not errors
@@ -300,16 +303,17 @@ def migrate_metadata(migration: Migration,
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
                         for target_table in target_tables:
                             migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                                               step=mig_step,
                                                                                table=target_table.name,
                                                                                errors=errors)
-                            if not errors and not migration_work.is_created:
+                            if not errors and not migration_work.is_table_created:
                                 try:
                                     source_metadata.create_all(bind=sa_target_engine,
                                                                tables=[target_table],
                                                                checkfirst=False)
                                     if not session.id_target_s3:
                                         # make sure LOB columns are nullable
-                                        # (SQLAlchemy fails at that, in certain sitations)
+                                        # (SQLAlchemy fails at that, in certain situations)
                                         columns_props: dict = result.get(target_table.name).get("columns")
                                         for name, props in columns_props.items():
                                             if is_lob_column(col_type=props.get("source-type")) and \
@@ -323,8 +327,7 @@ def migrate_metadata(migration: Migration,
                                                                     errors=errors)
                                     # table was successfully created
                                     result["effected-tables"].append(target_table.name)
-                                    migration_work.is_created = True
-                                    migration_work.ts_finish = datetime.now(tz=TZ_LOCAL)
+                                    migration_work.is_table_created = True
                                     migration_work.update(db_engine=PYDB_DB_ENGINE,
                                                           errors=errors)
                                 except (Exception, SAWarning) as e:

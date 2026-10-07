@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
 
 
 class MigrationReport(PySob):
@@ -18,14 +18,19 @@ class MigrationReport(PySob):
     class Db(StrEnum):
         TABLE = "migration_report"
         ID = auto()
+        CD_STEP = auto()
         DS_PATH = auto()
         ID_MIGRATION = auto()
         TS_CREATION = auto()
 
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
         (InputParam.PATH, Db.DS_PATH),
+        (InputParam.STEP, Db.CD_STEP),
         (InputParam.BADGE, None)
     ]
+    ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
+        Db.CD_STEP: MigStep
+    }
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
     def __init__(self,
@@ -37,6 +42,7 @@ class MigrationReport(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
+        self.cd_step: str | None = None
         self.ds_path: str | None = None
         self.id_migration: int | None = None
         self.ts_creation: datetime = datetime.now(tz=TZ_LOCAL)
@@ -53,5 +59,6 @@ class MigrationReport(PySob):
 
 
 MigrationReport.initialize(db_specs=(MigrationReport.Db, int),
+                           attrs_enum=MigrationReport.ATTRS_ENUM,
                            attrs_input=MigrationReport.ATTRS_INPUT,
                            logger=MigrationReport.LOGGER)

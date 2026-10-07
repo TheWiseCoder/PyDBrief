@@ -143,6 +143,7 @@ def prune_metadata(migration: Migration,
 
 
 def setup_schema(migration: Migration,
+                 mig_step: MigStep,
                  target_db: DbEngine | str,
                  target_schema: str,
                  target_engine: Engine,
@@ -179,10 +180,11 @@ def setup_schema(migration: Migration,
         # tables must be dropped in reverse order
         for target_table in reversed(target_tables):
             migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                               step=mig_step,
                                                                table=target_table.name,
                                                                errors=errors)
             # do not drop table if it was created in a previous migration
-            if not errors and not migration_work.is_created:
+            if not errors and not migration_work.is_table_created:
                 db_drop_table(table_name=f"{target_schema}.{target_table.name}",
                               engine=target_db,
                               errors=errors)
@@ -367,8 +369,7 @@ def setup_columns(migration: Migration,
                     target_column.server_default = None
                 elif isinstance(target_column.server_default, DefaultClause):
                     def_orig: Any = target_column.server_default.arg
-                    def_save: str = def_orig.text \
-                        if isinstance(def_orig, TextClause) else str(def_orig)
+                    def_save: str = def_orig.text if isinstance(def_orig, TextClause) else str(def_orig)
                     def_val: str = def_save.strip()
                     if def_val.lower() == "null":
                         # default 'null' must be set as column property

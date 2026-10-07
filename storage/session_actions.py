@@ -1,11 +1,11 @@
 from typing import Any
-from pypomes_core import validate_str, validate_format_error, validate_enum
+from pypomes_core import DatetimeFormat, validate_str, validate_format_error
 from pypomes_db import db_connect, db_commit, db_rollback, db_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.database import Database
 from entities.s3 import S3
-from entities.session import Session, SessionState
+from entities.session import Session
 
 
 def create_session(input_params: dict[str, Any],
@@ -135,20 +135,16 @@ def retrieve_sessions(input_params: dict[str, Any],
                                                           db_conn=db_conn,
                                                           errors=errors)
         if not errors:
-            where_data: dict[str, Any]
+            where_data: dict[str, Any] | None = None
             if Session.Db.CD_SESSION in session_params:
                 where_data = {Session.Db.CD_SESSION: session_params.get(Session.Db.CD_SESSION)}
-            elif InputParam.STATE in session_params:
-                where_data = {Session.Db.CD_STATE: session_params.get(InputParam.STATE)}
-            else:
-                where_data = {Session.Db.CD_STATE: [SessionState.CREATED, SessionState.STARTED]}
             sessions: list[Session] = Session.get_instances(where_data=where_data,
                                                             db_engine=PYDB_DB_ENGINE,
                                                             db_conn=db_conn,
                                                             errors=errors)
             for session in sessions or []:
                 session_data: dict[str, Any] = session.get_inputs()
-                session_data[InputParam.STATE] = session.cd_state.name
+                session_data[InputParam.CREATION] = session.ts_creation.strftime(format=DatetimeFormat.LATIN)
 
                 source_db: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
                                                             db_conn=db_conn,
@@ -221,14 +217,6 @@ def __validate_input(input_params: dict[str, Any],
                                    errors=errors)
     if cd_session:
         result[Session.Db.CD_SESSION] = cd_session
-
-    # retrieve operation, only
-    cd_state: SessionState = validate_enum(source=input_params,
-                                           attr=InputParam.STATE,
-                                           enum_class=SessionState,
-                                           errors=errors)
-    if cd_state:
-        result[InputParam.STATE] = cd_state
 
     # identify the source database instance (CREATE and UPDATE operations)
     source_db: str = validate_str(source=input_params,

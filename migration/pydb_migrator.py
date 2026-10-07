@@ -25,9 +25,9 @@ from app_ident import get_env_keys
 from entities.database import Database
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
+from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
-from entities.migration_work import MigrationWork
-from entities.session import Session, SessionState
+from entities.session import Session
 from migration.steps.pydb_correlate_lobdata import correlate_lobdata
 from migration.steps.pydb_migrate_lobdata import migrate_lobdata
 from migration.steps.pydb_migrate_metadata import migrate_metadata
@@ -218,17 +218,12 @@ def migrate(migration: Migration,
 
     # update the 'Migration' and 'Session' instances
     curr_errors: list[str] = []
-    if not errors and not MigrationWork.exists(where_data={MigrationWork.Db.ID_MIGRATION: migration.id,
-                                               MigrationWork.Db.TS_FINISH: None},
-                                               errors=curr_errors) and not curr_errors:
+    if not errors:
         migration.ts_finish = datetime.now(tz=TZ_LOCAL)
         migration.update(db_engine=PYDB_DB_ENGINE,
                          errors=curr_errors)
         errors.extend(curr_errors)
-    if not errors and not Migration.exists(where_data={Migration.Db.ID_SESSION: session.id,
-                                           Migration.Db.TS_FINISH: None},
-                                           errors=curr_errors) and not curr_errors:
-        session.cd_state = SessionState.FINISHED
+    if not errors:
         session.update(db_engine=PYDB_DB_ENGINE,
                        errors=curr_errors)
         errors.extend(curr_errors)
@@ -351,13 +346,30 @@ def __log_migration(migration: Migration,
                           client=s3_client,
                           errors=errors)
             if not errors:
-                s3_file_store(identifier=json_file.name,
-                              filepath=json_file,
-                              mimetype=Mimetype.JSON,
-                              prefix=s3_prefix,
-                              engine=PYDB_S3_ENGINE,
-                              client=s3_client,
-                              errors=errors)
+                mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
+                mig_report.id_migration = migration.id
+                mig_report.cd_step = mig_step
+                mig_report.ds_path = Path(s3_prefix,
+                                          log_file.name).as_posix()
+                mig_report.insert(db_engine=PYDB_DB_ENGINE,
+                                  errors=errors)
+                if not errors:
+                    s3_file_store(identifier=json_file.name,
+                                  filepath=json_file,
+                                  mimetype=Mimetype.JSON,
+                                  prefix=s3_prefix,
+                                  engine=PYDB_S3_ENGINE,
+                                  client=s3_client,
+                                  errors=errors)
+                    if not errors:
+                        mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
+                        mig_report.id_migration = migration.id
+                        mig_report.cd_step = mig_step
+                        mig_report.ds_path = Path(s3_prefix,
+                                                  json_file.name).as_posix()
+                        mig_report.insert(db_engine=PYDB_DB_ENGINE,
+                                          errors=errors)
+
             MigrationIssue.new_issues(id_migration=migration.id,
                                       cd_step=mig_step,
                                       cd_type=IssueType.ERROR,

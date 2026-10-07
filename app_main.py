@@ -656,51 +656,47 @@ def service_migrate() -> Response:
                                              db_engine=PYDB_DB_ENGINE,
                                              errors=errors)
             if not errors:
-                if migration.ts_finish:
-                    errors.append(validate_format_error(100,
-                                                        f"Migration '{mig_badge}' has finished"))
-                else:
-                    session: Session = Session(migration.id_session,
-                                               db_engine=PYDB_DB_ENGINE,
-                                               errors=errors)
+                session: Session = Session(migration.id_session,
+                                           db_engine=PYDB_DB_ENGINE,
+                                           errors=errors)
+                if not errors:
+                    # make sure database migration is possible
+                    verify_migration(input_params=session,
+                                     errors=errors,
+                                     logger=PYPOMES_LOGGER)
                     if not errors:
-                        # make sure database migration is possible
-                        verify_migration(input_params=session,
-                                         errors=errors,
-                                         logger=PYPOMES_LOGGER)
-                        if not errors:
-                            # launch the migration
-                            try:
-                                if PYDB_SYNC_LOCAL:
-                                    migrate(migration=migration,
-                                            session=session,
-                                            mig_step=mig_step,
-                                            app_name=APP_NAME,
-                                            app_version=APP_VERSION,
-                                            base_url=f"{request.scheme}://{request.host}",
-                                            requester=request.headers.get(key="X-Forwarded-For",
-                                                                          default=request.remote_addr),
-                                            logger=PYPOMES_LOGGER)
-                                else:
-                                    mig_thread: Thread = Thread(
-                                        target=migrate,
-                                        kwargs={"migration": migration,
-                                                "session": session,
-                                                "mig_step": mig_step,
-                                                "app_name": APP_NAME,
-                                                "app_version": APP_VERSION,
-                                                "base_url": f"{request.scheme}://{request.host}",
-                                                "requester": request.headers.get(key="X-Forwarded-For",
-                                                                                 default=request.remote_addr),
-                                                "logger": PYPOMES_LOGGER})
-                                    mig_thread.start()
-                            except Exception as e:
-                                # 100: {}
-                                exc_err: str = exc_format(exc=e,
-                                                          exc_info=sys.exc_info())
-                                errors.append(validate_format_error(100,
-                                                                    f"Error launching migration "
-                                                                    f"'{mig_badge}': '{exc_err}'"))
+                        # launch the migration
+                        try:
+                            if PYDB_SYNC_LOCAL:
+                                migrate(migration=migration,
+                                        session=session,
+                                        mig_step=mig_step,
+                                        app_name=APP_NAME,
+                                        app_version=APP_VERSION,
+                                        base_url=f"{request.scheme}://{request.host}",
+                                        requester=request.headers.get(key="X-Forwarded-For",
+                                                                      default=request.remote_addr),
+                                        logger=PYPOMES_LOGGER)
+                            else:
+                                mig_thread: Thread = Thread(
+                                    target=migrate,
+                                    kwargs={"migration": migration,
+                                            "session": session,
+                                            "mig_step": mig_step,
+                                            "app_name": APP_NAME,
+                                            "app_version": APP_VERSION,
+                                            "base_url": f"{request.scheme}://{request.host}",
+                                            "requester": request.headers.get(key="X-Forwarded-For",
+                                                                             default=request.remote_addr),
+                                            "logger": PYPOMES_LOGGER})
+                                mig_thread.start()
+                        except Exception as e:
+                            # 100: {}
+                            exc_err: str = exc_format(exc=e,
+                                                      exc_info=sys.exc_info())
+                            errors.append(validate_format_error(100,
+                                                                f"Error launching migration "
+                                                                f"'{mig_badge}': '{exc_err}'"))
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)
