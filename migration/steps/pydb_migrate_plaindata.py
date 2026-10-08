@@ -95,7 +95,6 @@ def migrate_plaindata(session: Session,
         if not errors and db_table_exists(table_name=target_table,
                                           engine=target_db,
                                           errors=errors):
-
             # obtain migration table data
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
