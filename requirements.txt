@@ -9,7 +9,7 @@ psycopg2-binary==2.9.13
 # pyodbc==5.3.0
 pypomes-core==3.3.0
 pypomes-crypto==0.8.7
-pypomes-db==3.2.1
+pypomes-db==3.2.2
 pypomes-http==0.9.3
 pypomes-logging==0.8.0
 pypomes-s3==1.2.6
