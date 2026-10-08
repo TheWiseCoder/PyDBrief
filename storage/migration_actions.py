@@ -386,7 +386,7 @@ def __validate_input(input_params: dict[str, Any],
                                                  errors=errors)
     if exclude_relations:
         result[Migration.Db.DS_EXCLUDE_RELATIONS] = (",".join([i for i in exclude_relations])).lower()
-    elif exclude_relations is None:
+    elif InputParam.EXCLUDE_RELATIONS in input_params and exclude_relations is None:
         result[Migration.Db.DS_EXCLUDE_RELATIONS] = None
 
     include_relations: list[str] = validate_strs(source=input_params,

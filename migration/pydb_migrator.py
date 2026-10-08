@@ -279,7 +279,8 @@ def migrate(migration: Migration,
                         mig_step=mig_step,
                         threads=migration_threads,
                         log_json=op_report,
-                        errors=errors)
+                        errors=errors,
+                        logger=logger)
     except Exception as e:
         exc_err: str = str_sanitize(exc_format(exc=e,
                                                exc_info=sys.exc_info()))
@@ -296,7 +297,8 @@ def __log_migration(migration: Migration,
                     mig_step: MigStep,
                     threads: list[int],
                     log_json: dict[str, Any],
-                    errors: list[str]) -> None:
+                    errors: list[str],
+                    logger: Logger) -> None:
 
     # define the base path
     nm_badge: str = migration.nm_badge.replace("-", "/")
@@ -338,8 +340,8 @@ def __log_migration(migration: Migration,
         f.write(json_data)
 
     # send the files to the S3 storage, if configured
+    errors.clear()
     if PYDB_S3_ENGINE and PYDB_S3_BASE_FOLDER:
-        errors = []
         s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
                                   errors=errors)
         if s3_client:
@@ -358,11 +360,16 @@ def __log_migration(migration: Migration,
                           client=s3_client,
                           errors=errors)
             if not errors:
+                # HAZARD: 'ds_path' is a UNIQUE attribute
+                ds_path: str = Path(s3_prefix,
+                                    log_file.name).as_posix()
+                # uncondionally delete entry, ignoring errors
+                MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
+                                      db_engine=PYDB_DB_ENGINE)
                 mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
                 mig_report.id_migration = migration.id
                 mig_report.cd_step = mig_step
-                mig_report.ds_path = Path(s3_prefix,
-                                          log_file.name).as_posix()
+                mig_report.ds_path = ds_path
                 mig_report.insert(db_engine=PYDB_DB_ENGINE,
                                   errors=errors)
                 if not errors:
@@ -374,15 +381,21 @@ def __log_migration(migration: Migration,
                                   client=s3_client,
                                   errors=errors)
                     if not errors:
+                        # HAZARD: 'ds_path' is a UNIQUE attribute
+                        ds_path: str = Path(s3_prefix,
+                                            json_file.name).as_posix()
+                        # uncondionally delete entry, ignoring errors
+                        MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
+                                              db_engine=PYDB_DB_ENGINE)
                         mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
                         mig_report.id_migration = migration.id
                         mig_report.cd_step = mig_step
-                        mig_report.ds_path = Path(s3_prefix,
-                                                  json_file.name).as_posix()
+                        mig_report.ds_path = ds_path
                         mig_report.insert(db_engine=PYDB_DB_ENGINE,
                                           errors=errors)
-
-            MigrationIssue.new_issues(id_migration=migration.id,
-                                      cd_step=mig_step,
-                                      cd_type=IssueType.ERROR,
-                                      ds_issues=errors)
+        for error in errors:
+            MigrationIssue.new_issue(id_migration=migration.id,
+                                     cd_step=mig_step,
+                                     cd_type=IssueType.ERROR,
+                                     ds_issue=error)
+            logger.error(errors)

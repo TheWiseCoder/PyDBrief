@@ -54,6 +54,7 @@ from storage.migration_table_actions import (
     create_migration_table, update_migration_table,
     delete_migration_table, retrieve_migration_tables
 )
+from storage.migration_work_actions import retrieve_migration_works
 from storage.s3_actions import (
     create_s3, update_s3, delete_s3, retrieve_s3s
 )
@@ -622,6 +623,41 @@ def service_migration_report(migration_id: str = None,
         case HttpMethod.DELETE:
             delete_migration_issue(input_params=input_params,
                                    errors=errors)
+    # build the response
+    result: Response = _build_response(reply=reply,
+                                       errors=errors)
+    # log the response
+    PYPOMES_LOGGER.info(msg=f"Response {result}")
+
+    return result
+
+
+@flask_app.route(rule="/migration-work",
+                 methods=[HttpMethod.GET])
+def service_migration_works() -> Response:
+    """
+    Entry point for handling migration issues.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *step*: the migration step
+      - *table*: identifies the migration table (optional)
+
+    :return: the operation outcome
+    """
+    # initialize the errors list
+    errors: list[str] = []
+
+    # retrieve and validate the input parameters
+    input_params: dict[str, Any] = __get_parameters(request=request)
+
+    # log the request
+    msg: str = __log_init(request=request,
+                          input_params=input_params)
+    PYPOMES_LOGGER.info(msg=msg)
+
+    reply: dict[StrEnum | str, Any] = retrieve_migration_works(input_params=input_params,
+                                                               errors=errors)
     # build the response
     result: Response = _build_response(reply=reply,
                                        errors=errors)
