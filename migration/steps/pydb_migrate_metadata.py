@@ -375,6 +375,16 @@ def __reify_mview(migration: Migration,
                                     constraints=pk_constraint,
                                     engine=target_db.cd_engine,
                                     errors=errors)
+                    if not errors:
+                        migrated_tables["effected-tables"].append(mview)
+                        migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                                           step=mig_step,
+                                                                           table=mview,
+                                                                           errors=errors)
+                        if migration_work:
+                            migration_work.is_table_created = True
+                            migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                                  errors=errors)
                 except (Exception, SAWarning) as e:
                     # unable to create table
                     exc_err: str = str_sanitize(exc_format(exc=e,
@@ -405,8 +415,6 @@ def __reify_mview(migration: Migration,
                     if table_pk and target_clause[0] in str_as_list(table_pk[1].lower()):
                         columns[target_clause[0]]["features"] = "primary-key"
                 migrated_tables[mview] = {"columns": columns}
-                if create_table:
-                    migrated_tables["effected-tables"].append(mview)
     elif not errors:
         warn_msg: str = f"Materialized view '{mview}' not found in database '{source_db.cd_engine}'"
         migration_warnings.append(warn_msg)
