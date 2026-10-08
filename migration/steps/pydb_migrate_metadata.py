@@ -363,41 +363,38 @@ def __reify_mview(migration: Migration,
                     (col_metadata[0].lower(), type_equivalent,
                      col_metadata[2], col_metadata[3],
                      col_metadata[4], col_metadata[5], def_value))
-            create_table: bool = (mig_step == MigStep.MIGRATE_METADATA and
-                                  not db_table_exists(table_name=table_name,
-                                                      engine=target_db.cd_engine,
-                                                      errors=errors) and not errors)
-            if create_table:
-                try:
-                    # noinspection PyTypeChecker
-                    db_create_table(table_name=table_name,
-                                    column_data=target_cols_metadata,
-                                    constraints=pk_constraint,
-                                    engine=target_db.cd_engine,
-                                    errors=errors)
-                    if not errors:
-                        migrated_tables["effected-tables"].append(mview)
-                        migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                                           step=mig_step,
-                                                                           table=mview,
-                                                                           errors=errors)
-                        if migration_work:
+
+            if mig_step == MigStep.MIGRATE_METADATA:
+                migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                                   step=mig_step,
+                                                                   table=mview,
+                                                                   errors=errors)
+                if not errors and migration_work.is_table_created:
+                    try:
+                        # noinspection PyTypeChecker
+                        db_create_table(table_name=table_name,
+                                        column_data=target_cols_metadata,
+                                        constraints=pk_constraint,
+                                        engine=target_db.cd_engine,
+                                        errors=errors)
+                        if not errors:
+                            migrated_tables["effected-tables"].append(mview)
                             migration_work.is_table_created = True
                             migration_work.update(db_engine=PYDB_DB_ENGINE,
                                                   errors=errors)
-                except (Exception, SAWarning) as e:
-                    # unable to create table
-                    exc_err: str = str_sanitize(exc_format(exc=e,
-                                                           exc_info=sys.exc_info()))
-                    logger.error(msg=exc_err)
-                    MigrationIssue.new_issue(id_migration=migration.id,
-                                             cd_step=mig_step,
-                                             cd_type=IssueType.ERROR,
-                                             ds_issue=exc_err)
-                    # 104: The operation {} returned the error {}
-                    errors.append(validate_format_error(104,
-                                                        "schema-construction",
-                                                        exc_err))
+                    except (Exception, SAWarning) as e:
+                        # unable to create table
+                        exc_err: str = str_sanitize(exc_format(exc=e,
+                                                               exc_info=sys.exc_info()))
+                        logger.error(msg=exc_err)
+                        MigrationIssue.new_issue(id_migration=migration.id,
+                                                 cd_step=mig_step,
+                                                 cd_type=IssueType.ERROR,
+                                                 ds_issue=exc_err)
+                        # 104: The operation {} returned the error {}
+                        errors.append(validate_format_error(104,
+                                                            "schema-construction",
+                                                            exc_err))
             if not errors:
                 columns: dict[str, Any] = {}
                 for i in range(0, len(target_cols_metadata)):
