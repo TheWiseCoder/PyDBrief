@@ -100,6 +100,7 @@ class InputParam(StrEnum):
 
     CUSTOM_TABLES = "custom-tables"
     DESCRIPTION = "description"
+    DURATION = "duration"
     DONE = "done"
     FINISH = "finish"
     FIRST_ROW = "first-row"

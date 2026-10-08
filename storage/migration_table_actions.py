@@ -227,7 +227,8 @@ def __validate_input(input_params: dict[str, Any],
                                          min_val=SPAN_BATCH_SIZE_IN[0],
                                          max_val=SPAN_BATCH_SIZE_IN[1],
                                          errors=errors)
-    if nr_batch_size_in or nr_batch_size_in is None:
+    if nr_batch_size_in or \
+            (InputParam.BATCH_SIZE_IN in input_params and nr_batch_size_in is None):
         result[MigrationTable.Db.NR_BATCH_SIZE_IN] = nr_batch_size_in
 
     nr_batch_size_out: int = validate_int(source=input_params,
@@ -235,7 +236,8 @@ def __validate_input(input_params: dict[str, Any],
                                           min_val=SPAN_BATCH_SIZE_OUT[0],
                                           max_val=SPAN_BATCH_SIZE_OUT[1],
                                           errors=errors)
-    if nr_batch_size_out or nr_batch_size_out is None:
+    if nr_batch_size_out or \
+            (InputParam.BATCH_SIZE_OUT in input_params and nr_batch_size_out is None):
         result[MigrationTable.Db.NR_BATCH_SIZE_OUT] = nr_batch_size_out
 
     nr_chunk_size: int = validate_int(source=input_params,
@@ -243,7 +245,8 @@ def __validate_input(input_params: dict[str, Any],
                                       min_val=SPAN_CHUNK_SIZE[0],
                                       max_val=SPAN_CHUNK_SIZE[1],
                                       errors=errors)
-    if nr_chunk_size or nr_chunk_size is None:
+    if nr_chunk_size or \
+            (InputParam.CHUNK_SIZE in input_params and nr_chunk_size is None):
         result[MigrationTable.Db.NR_CHUNK_SIZE] = nr_chunk_size
 
     exclude_columns: list[str] = validate_strs(source=input_params,
@@ -251,7 +254,7 @@ def __validate_input(input_params: dict[str, Any],
                                                errors=errors)
     if exclude_columns:
         result[MigrationTable.Db.DS_EXCLUDE_COLUMNS] = (",".join([i for i in exclude_columns])).lower()
-    elif exclude_columns is None:
+    elif InputParam.EXCLUDE_COLUMNS in input_params and exclude_columns is None:
         result[MigrationTable.Db.DS_EXCLUDE_COLUMNS] = None
 
     exclude_constraints: list[str] = validate_strs(source=input_params,
@@ -259,7 +262,7 @@ def __validate_input(input_params: dict[str, Any],
                                                    errors=errors)
     if exclude_constraints:
         result[MigrationTable.Db.DS_EXCLUDE_CONSTRAINTS] = (",".join([i for i in exclude_constraints])).lower()
-    elif exclude_constraints is None:
+    elif InputParam.EXCLUDE_CONSTRAINTS in input_params and exclude_constraints is None:
         result[MigrationTable.Db.DS_EXCLUDE_CONSTRAINTS] = None
 
     pre_sql: list[str] = validate_strs(source=input_params,
@@ -267,19 +270,21 @@ def __validate_input(input_params: dict[str, Any],
                                        errors=errors)
     if pre_sql:
         result[MigrationTable.Db.DS_PRE_SQL] = (",".join([i for i in pre_sql]))
-    elif pre_sql is None:
+    elif InputParam.PRE_SQL in input_params and pre_sql is None:
         result[MigrationTable.Db.DS_PRE_SQL] = None
 
     incremental_count: int = validate_int(source=input_params,
                                           attr=InputParam.INCREMENTAL_COUNT,
                                           errors=errors)
-    if incremental_count or incremental_count is None:
+    if incremental_count or \
+            (InputParam.INCREMENTAL_COUNT in input_params and incremental_count is None):
         result[MigrationTable.Db.NR_INCREMENTAL_COUNT] = incremental_count
 
     incremental_offset: int = validate_int(source=input_params,
                                            attr=InputParam.INCREMENTAL_OFFSET,
                                            errors=errors)
-    if incremental_offset or incremental_offset is None:
+    if incremental_offset or \
+            (InputParam.INCREMENTAL_OFFSET in input_params and incremental_offset is None):
         result[MigrationTable.Db.NR_INCREMENTAL_OFFSET] = incremental_offset
 
     named_lobdata: list[str] = validate_strs(source=input_params,
@@ -287,7 +292,7 @@ def __validate_input(input_params: dict[str, Any],
                                              errors=errors)
     if named_lobdata:
         result[MigrationTable.Db.DS_NAMED_LOBDATA] = ",".join([i for i in named_lobdata])
-    elif named_lobdata is None:
+    elif InputParam.NAMED_LOBDATA in input_params and named_lobdata is None:
         result[MigrationTable.Db.DS_NAMED_LOBDATA] = None
 
     omit_defaults: list[str] = validate_strs(source=input_params,
@@ -295,20 +300,21 @@ def __validate_input(input_params: dict[str, Any],
                                              errors=errors)
     if omit_defaults:
         result[MigrationTable.Db.DS_OMIT_DEFAULTS] = (",".join([i for i in omit_defaults])).lower()
-    elif omit_defaults is None:
+    elif InputParam.OMIT_DEFAULTS in input_params and omit_defaults is None:
         result[MigrationTable.Db.DS_OMIT_DEFAULTS] = None
 
     override_columns: list[str] = __validate_override_columns(input_params=input_params,
                                                               errors=errors)
     if override_columns:
         result[MigrationTable.Db.DS_OVERRIDE_COLUMNS] = (",".join([i for i in override_columns])).lower()
-    elif override_columns is None:
+    elif InputParam.OVERRIDE_COLUMNS and override_columns is None:
         result[MigrationTable.Db.DS_OVERRIDE_COLUMNS] = None
 
     remove_ctrlchars: bool = validate_bool(source=input_params,
                                            attr=InputParam.REMOVE_CTRLCHARS,
                                            errors=errors)
-    if isinstance(remove_ctrlchars, bool) or remove_ctrlchars is None:
+    if isinstance(remove_ctrlchars, bool) or \
+            (InputParam.REMOVE_CTRLCHARS in input_params and remove_ctrlchars is None):
         result[MigrationTable.Db.IS_REMOVE_CTRLCHARS] = remove_ctrlchars
 
     return result

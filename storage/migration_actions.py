@@ -1,8 +1,7 @@
 from logging import Logger
 from typing import Any
 from pypomes_core import (
-    DatetimeFormat, validate_format_error,
-    validate_bool, validate_int, validate_str, validate_strs
+    validate_format_error, validate_bool, validate_int, validate_str, validate_strs
 )
 from pypomes_db import (
     DbEngine, DbConnectionPool, DbPoolEvent,
@@ -14,11 +13,7 @@ from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 from app_constants import PYDB_DB_ENGINE, InputParam, MigState, OpType
 from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.database import Database
-from entities.migration_issue import MigrationIssue
-from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
-from entities.migration_span import MigrationSpan
-from entities.migration_work import MigrationWork
 from entities.s3 import S3
 from entities.session import Session
 
@@ -34,7 +29,7 @@ def create_migration(input_params: dict[str, Any],
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                             valid_params=[i[0] for i in Migration.ATTRS_INPUT],
                                                             op=OpType.CREATE,
-                                                            db_conn=None,
+                                                            db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             # create and persist the migration
@@ -69,7 +64,7 @@ def update_migration(input_params: dict[str, Any],
         migration_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                             valid_params=valid_params,
                                                             op=OpType.UPDATE,
-                                                            db_conn=None,
+                                                            db_conn=db_conn,
                                                             errors=errors)
         if not errors:
             migration: Migration = migration_params.pop(InputParam.MIGRATION)
@@ -167,32 +162,6 @@ def retrieve_migrations(input_params: dict[str, Any],
                     mig_data[InputParam.SESSION] = values[0]
                     mig_data[InputParam.STATE] = minded_migrations.get(migration.nm_badge, MigState.IDLE)
 
-                    mig_issues: list[dict[str, Any]] = []
-                    migration_issues: list[MigrationIssue] = \
-                        migration.get_migration_issues(db_engine=PYDB_DB_ENGINE,
-                                                       db_conn=db_conn,
-                                                       errors=errors)
-                    if errors:
-                        break
-                    for migration_issue in migration_issues:
-                        mig_issues.append({InputParam.TYPE: migration_issue.cd_type,
-                                           InputParam.DESCRIPTION: migration_issue.ds_issue,
-                                           InputParam.ONSET: migration_issue.ts_onset.strftime(DatetimeFormat.LATIN)})
-                    mig_data[InputParam.ISSUES] = mig_issues
-
-                    mig_reports: list[dict[str, Any]] = []
-                    migration_reports: list[MigrationReport] = \
-                        migration.get_migration_reports(db_engine=PYDB_DB_ENGINE,
-                                                        db_conn=db_conn,
-                                                        errors=errors)
-                    if errors:
-                        break
-                    for migration_report in migration_reports:
-                        mig_reports.append(
-                            {InputParam.PATH: migration_report.ds_path,
-                             InputParam.CREATION: migration_report.ts_creation.strftime(DatetimeFormat.LATIN)})
-                    mig_data[InputParam.REPORTS] = mig_reports
-
                     mig_tables: list[dict[str, Any]] = []
                     migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
                                                                                             db_conn=db_conn,
@@ -206,36 +175,6 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     mig_data[InputParam.CUSTOM_TABLES] = mig_tables
-
-                    mig_works: list[dict[str, Any]] = []
-                    migration_works: list[MigrationWork] = migration.get_migration_works(db_engine=PYDB_DB_ENGINE,
-                                                                                         db_conn=db_conn,
-                                                                                         errors=errors)
-                    if errors:
-                        break
-                    for migration_work in migration_works:
-                        mig_work: dict[str, Any] = {
-                            InputParam.NAME: migration_work.nm_table,
-                            InputParam.START: migration_work.ts_start.strftime(format=DatetimeFormat.LATIN)
-                        }
-
-                        mig_spans: list[dict[str, Any]] = []
-                        migration_spans: list[MigrationSpan] = \
-                            migration_work.get_migration_spans(db_engine=PYDB_DB_ENGINE,
-                                                               db_conn=db_conn,
-                                                               errors=errors)
-                        if errors:
-                            break
-                        for migration_span in migration_spans:
-                            mig_spans.append({InputParam.FIRST_ROW: migration_span.nr_first_row,
-                                              InputParam.ROW_COUNT: migration_span.nr_row_count,
-                                              InputParam.DONE: migration_span.is_done})
-                        mig_work[InputParam.SPANS] = mig_spans
-                        mig_tables.append(mig_work)
-                    if errors:
-                        break
-                    mig_data[InputParam.WORK_TABLES] = mig_works
-
                     result[migration.nm_badge] = mig_data
             else:
                 # 100: {} (omits the attribute "code")
@@ -378,43 +317,50 @@ def __validate_input(input_params: dict[str, Any],
     is_flatten_storage: bool = validate_bool(source=input_params,
                                              attr=InputParam.FLATTEN_STORAGE,
                                              errors=errors)
-    if isinstance(is_flatten_storage, bool) or is_flatten_storage is None:
+    if isinstance(is_flatten_storage, bool) or \
+            (InputParam.FLATTEN_STORAGE in input_params and is_flatten_storage is None):
         result[Migration.Db.IS_FLATTEN_STORAGE] = is_flatten_storage
 
     is_optimize_pks: bool = validate_bool(source=input_params,
                                           attr=InputParam.OPTIMIZE_PKS,
                                           errors=errors)
-    if isinstance(is_optimize_pks, bool) or is_optimize_pks is None:
+    if isinstance(is_optimize_pks, bool) or \
+            (InputParam.OPTIMIZE_PKS in input_params and is_optimize_pks is None):
         result[Migration.Db.IS_OPTIMIZE_PKS] = is_optimize_pks
 
     is_process_indexes: bool = validate_bool(source=input_params,
                                              attr=InputParam.PROCESS_INDEXES,
                                              errors=errors)
-    if isinstance(is_process_indexes, bool) or is_process_indexes is None:
+    if isinstance(is_process_indexes, bool) or \
+            (InputParam.PROCESS_INDEXES in input_params and is_process_indexes is None):
         result[Migration.Db.IS_PROCESS_INDEXES] = is_process_indexes
 
     is_process_views: bool = validate_bool(source=input_params,
                                            attr=InputParam.PROCESS_VIEWS,
                                            errors=errors)
-    if isinstance(is_process_views, bool) or is_process_views is None:
+    if isinstance(is_process_views, bool) or \
+            (InputParam.PROCESS_VIEWS in input_params and is_process_views is None):
         result[Migration.Db.IS_PROCESS_VIEWS] = is_process_views
 
     is_reflect_filetype: bool = validate_bool(source=input_params,
                                               attr=InputParam.REFLECT_FILETYPE,
                                               errors=errors)
-    if isinstance(is_reflect_filetype, bool) or is_reflect_filetype is None:
+    if isinstance(is_reflect_filetype, bool) or \
+            (InputParam.REFLECT_FILETYPE in input_params and is_reflect_filetype is None):
         result[Migration.Db.IS_REFLECT_FILETYPE] = is_reflect_filetype
 
     is_relax_reflection: bool = validate_bool(source=input_params,
                                               attr=InputParam.RELAX_REFLECTION,
                                               errors=errors)
-    if isinstance(is_relax_reflection, bool) or is_relax_reflection is None:
+    if isinstance(is_relax_reflection, bool) or \
+            (InputParam.RELAX_REFLECTION in input_params and is_relax_reflection is None):
         result[Migration.Db.IS_RELAX_REFLECTION] = is_relax_reflection
 
     is_skip_nonempty: bool = validate_bool(source=input_params,
                                            attr=InputParam.SKIP_NONEMPTY,
                                            errors=errors)
-    if isinstance(is_skip_nonempty, bool) or is_skip_nonempty is None:
+    if isinstance(is_skip_nonempty, bool) or \
+            (InputParam.SKIP_NONEMPTY in input_params and is_skip_nonempty is None):
         result[Migration.Db.IS_SKIP_NONEMPTY] = is_skip_nonempty
 
     nr_channel_count: int = validate_int(source=input_params,
@@ -422,7 +368,8 @@ def __validate_input(input_params: dict[str, Any],
                                          min_val=SPAN_CHANNEL_COUNT[0],
                                          max_val=SPAN_CHANNEL_COUNT[1],
                                          errors=errors)
-    if nr_channel_count or nr_channel_count is None:
+    if nr_channel_count or \
+            (InputParam.CHANNEL_COUNT in input_params and nr_channel_count is None):
         result[Migration.Db.NR_CHANNEL_COUNT] = nr_channel_count
 
     nr_channel_size: int = validate_int(source=input_params,
@@ -430,7 +377,8 @@ def __validate_input(input_params: dict[str, Any],
                                         min_val=SPAN_CHANNEL_SIZE[0],
                                         max_val=SPAN_CHANNEL_SIZE[1],
                                         errors=errors)
-    if nr_channel_size or nr_channel_size is None:
+    if nr_channel_size or \
+            (InputParam.CHANNEL_SIZE in input_params and nr_channel_size is None):
         result[Migration.Db.NR_CHANNEL_SIZE] = nr_channel_size
 
     exclude_relations: list[str] = validate_strs(source=input_params,
@@ -446,7 +394,7 @@ def __validate_input(input_params: dict[str, Any],
                                                  errors=errors)
     if include_relations:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = (",".join([i for i in include_relations])).lower()
-    elif include_relations is None:
+    elif InputParam.INCLUDE_RELATIONS in input_params and include_relations is None:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = None
 
     pre_sql: list[str] = validate_strs(source=input_params,
@@ -454,7 +402,7 @@ def __validate_input(input_params: dict[str, Any],
                                        errors=errors)
     if pre_sql:
         result[Migration.Db.DS_PRE_SQL] = (",".join([i for i in pre_sql]))
-    elif pre_sql is None:
+    elif InputParam.PRE_SQL in input_params and pre_sql is None:
         result[Migration.Db.DS_PRE_SQL] = None
 
     reify_mviews: list[str] = validate_strs(source=input_params,
@@ -462,7 +410,7 @@ def __validate_input(input_params: dict[str, Any],
                                             errors=errors)
     if reify_mviews:
         result[Migration.Db.DS_REIFY_MVIEWS] = (",".join([i for i in reify_mviews])).lower()
-    elif reify_mviews is None:
+    elif InputParam.REIFY_MVIEWS in input_params and reify_mviews is None:
         result[Migration.Db.DS_REIFY_MVIEWS] = None
 
     return result
