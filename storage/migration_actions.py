@@ -377,43 +377,43 @@ def __validate_input(input_params: dict[str, Any],
     is_flatten_storage: bool = validate_bool(source=input_params,
                                              attr=InputParam.FLATTEN_STORAGE,
                                              errors=errors)
-    if isinstance(is_flatten_storage, bool):
+    if isinstance(is_flatten_storage, bool) or is_flatten_storage is None:
         result[Migration.Db.IS_FLATTEN_STORAGE] = is_flatten_storage
 
     is_optimize_pks: bool = validate_bool(source=input_params,
                                           attr=InputParam.OPTIMIZE_PKS,
                                           errors=errors)
-    if isinstance(is_optimize_pks, bool):
+    if isinstance(is_optimize_pks, bool) or is_optimize_pks is None:
         result[Migration.Db.IS_OPTIMIZE_PKS] = is_optimize_pks
 
     is_process_indexes: bool = validate_bool(source=input_params,
                                              attr=InputParam.PROCESS_INDEXES,
                                              errors=errors)
-    if isinstance(is_process_indexes, bool):
+    if isinstance(is_process_indexes, bool) or is_process_indexes is None:
         result[Migration.Db.IS_PROCESS_INDEXES] = is_process_indexes
 
     is_process_views: bool = validate_bool(source=input_params,
                                            attr=InputParam.PROCESS_VIEWS,
                                            errors=errors)
-    if isinstance(is_process_views, bool):
+    if isinstance(is_process_views, bool) or is_process_views is None:
         result[Migration.Db.IS_PROCESS_VIEWS] = is_process_views
 
     is_reflect_filetype: bool = validate_bool(source=input_params,
                                               attr=InputParam.REFLECT_FILETYPE,
                                               errors=errors)
-    if isinstance(is_reflect_filetype, bool):
+    if isinstance(is_reflect_filetype, bool) or is_reflect_filetype is None:
         result[Migration.Db.IS_REFLECT_FILETYPE] = is_reflect_filetype
 
     is_relax_reflection: bool = validate_bool(source=input_params,
                                               attr=InputParam.RELAX_REFLECTION,
                                               errors=errors)
-    if isinstance(is_relax_reflection, bool):
+    if isinstance(is_relax_reflection, bool) or is_relax_reflection is None:
         result[Migration.Db.IS_RELAX_REFLECTION] = is_relax_reflection
 
     is_skip_nonempty: bool = validate_bool(source=input_params,
                                            attr=InputParam.SKIP_NONEMPTY,
                                            errors=errors)
-    if isinstance(is_skip_nonempty, bool):
+    if isinstance(is_skip_nonempty, bool) or is_skip_nonempty is None:
         result[Migration.Db.IS_SKIP_NONEMPTY] = is_skip_nonempty
 
     nr_channel_count: int = validate_int(source=input_params,
@@ -421,7 +421,7 @@ def __validate_input(input_params: dict[str, Any],
                                          min_val=SPAN_CHANNEL_COUNT[0],
                                          max_val=SPAN_CHANNEL_COUNT[1],
                                          errors=errors)
-    if nr_channel_count:
+    if nr_channel_count or nr_channel_count is None:
         result[Migration.Db.NR_CHANNEL_COUNT] = nr_channel_count
 
     nr_channel_size: int = validate_int(source=input_params,
@@ -429,7 +429,7 @@ def __validate_input(input_params: dict[str, Any],
                                         min_val=SPAN_CHANNEL_SIZE[0],
                                         max_val=SPAN_CHANNEL_SIZE[1],
                                         errors=errors)
-    if nr_channel_size:
+    if nr_channel_size or nr_channel_size is None:
         result[Migration.Db.NR_CHANNEL_SIZE] = nr_channel_size
 
     exclude_relations: list[str] = validate_strs(source=input_params,
@@ -437,24 +437,32 @@ def __validate_input(input_params: dict[str, Any],
                                                  errors=errors)
     if exclude_relations:
         result[Migration.Db.DS_EXCLUDE_RELATIONS] = (",".join([i for i in exclude_relations])).lower()
+    elif exclude_relations is None:
+        result[Migration.Db.DS_EXCLUDE_RELATIONS] = None
 
     include_relations: list[str] = validate_strs(source=input_params,
                                                  attr=InputParam.INCLUDE_RELATIONS,
                                                  errors=errors)
     if include_relations:
         result[Migration.Db.DS_INCLUDE_RELATIONS] = (",".join([i for i in include_relations])).lower()
+    elif include_relations is None:
+        result[Migration.Db.DS_INCLUDE_RELATIONS] = None
 
     pre_sql: list[str] = validate_strs(source=input_params,
                                        attr=InputParam.PRE_SQL,
                                        errors=errors)
     if pre_sql:
         result[Migration.Db.DS_PRE_SQL] = (",".join([i for i in pre_sql]))
+    elif pre_sql is None:
+        result[Migration.Db.DS_PRE_SQL] = None
 
     reify_mviews: list[str] = validate_strs(source=input_params,
                                             attr=InputParam.REIFY_MVIEWS,
                                             errors=errors)
     if reify_mviews:
         result[Migration.Db.DS_REIFY_MVIEWS] = (",".join([i for i in reify_mviews])).lower()
+    elif reify_mviews is None:
+        result[Migration.Db.DS_REIFY_MVIEWS] = None
 
     return result
 
