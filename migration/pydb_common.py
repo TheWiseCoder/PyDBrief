@@ -130,7 +130,6 @@ def get_migration_work(migration: Migration,
 
 def get_migration_span(migration_work: MigrationWork,
                        first_row: int,
-                       last_row: int,
                        db_conn: Any = None,
                        errors: list[str] = None) -> MigrationSpan | None:
 
@@ -149,7 +148,6 @@ def get_migration_span(migration_work: MigrationWork,
         result = MigrationSpan()
         result.id_migration_work = migration_work.id
         result.nr_first_row = first_row
-        result.nr_last_row = last_row
         result.insert(db_engine=PYDB_DB_ENGINE,
                       db_conn=db_conn,
                       errors=errors)

@@ -227,7 +227,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                             break
                         for migration_span in migration_spans:
                             mig_spans.append({InputParam.FIRST_ROW: migration_span.nr_first_row,
-                                              InputParam.LAST_ROW: migration_span.nr_last_row,
+                                              InputParam.ROW_COUNT: migration_span.nr_row_count,
                                               InputParam.DONE: migration_span.is_done})
                         mig_work[InputParam.SPANS] = mig_spans
                         mig_tables.append(mig_work)

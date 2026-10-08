@@ -274,8 +274,8 @@ CREATE TABLE migration_span (
 	id_migration_work int8 NOT NULL,
     is_done bool DEFAULT false NOT NULL,
     nr_first_row int8 NOT NULL,
-    nr_last_row int8 NOT NULL,
-    CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_last_row >= 0 AND nr_last_row >= nr_first_row),
+    nr_row_count int8 NOT NULL,
+    CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_row_count >= 0),
     CONSTRAINT fk_migration_span_table FOREIGN KEY (id_migration_work) REFERENCES migration_work(id),
 	CONSTRAINT pk_migration_span PRIMARY KEY (id),
 	CONSTRAINT uk_migration_span UNIQUE (id_migration_work, nr_first_row)

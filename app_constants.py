@@ -104,7 +104,6 @@ class InputParam(StrEnum):
     FINISH = "finish"
     FIRST_ROW = "first-row"
     ISSUES = "issues"
-    LAST_ROW = "last-row"
     NAME = "name"
     ONSET = "onset"
     ROW_COUNT = "row-count"

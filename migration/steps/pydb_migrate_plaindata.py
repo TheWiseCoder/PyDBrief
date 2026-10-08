@@ -79,10 +79,9 @@ def migrate_plaindata(session: Session,
             break
 
         target_db: str = session.get_target_db().cd_engine
-        source_table: str = f"{session.nm_source_schema}.{table_name}"
         target_table: str = f"{session.nm_target_schema}.{table_name}"
         with plaindata_lock:
-            plaindata_registry[mother_thread][source_table] = {
+            plaindata_registry[mother_thread][table_name] = {
                 "table-count": 0,
                 "errors": []
             }
@@ -276,8 +275,8 @@ def __migrate_plaindata(session: Session,
                 executor.shutdown(wait=False)
 
         with plaindata_lock:
-            result = plaindata_registry[mother_thread][source_table]["table-count"]
-            curr_errors: list[str] = plaindata_registry[mother_thread][source_table]["errors"]
+            result = plaindata_registry[mother_thread][migration_work.nm_table]["table-count"]
+            curr_errors: list[str] = plaindata_registry[mother_thread][migration_work.nm_table]["errors"]
             if curr_errors:
                 status = "error"
                 errors.extend(curr_errors)
@@ -326,7 +325,6 @@ def _migrate_plain(session: Session,
     count: int = 0
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
                                                        first_row=offset_count,
-                                                       last_row=offset_count + limit_count - 1,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
 
@@ -350,7 +348,7 @@ def _migrate_plain(session: Session,
                                 has_ctrlchars=has_ctrlchars,
                                 errors=errors)
         # acknowledge the migration
-        migration_span.nr_last_row = offset_count + count - 1
+        migration_span.nr_row_count = count
         migration_span.is_done = True
         migration_span.update(db_engine=PYDB_DB_ENGINE,
                               errors=errors)

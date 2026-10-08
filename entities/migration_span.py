@@ -19,7 +19,7 @@ class MigrationSpan(PySob):
         ID_MIGRATION_WORK = auto()
         IS_DONE = auto()
         NR_FIRST_ROW = auto()
-        NR_LAST_ROW = auto()
+        NR_ROW_COUNT = auto()
 
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.ID_MIGRATION_WORK, Db.NR_FIRST_ROW)
@@ -40,7 +40,7 @@ class MigrationSpan(PySob):
         self.id_migration_work: int | None = None
         self.is_done: bool | None = None
         self.nr_first_row: int | None = None
-        self.nr_last_row: int | None = None
+        self.nr_row_count: int = 0
 
         where_data: dict[str, Any] | None = None
         if __id:
