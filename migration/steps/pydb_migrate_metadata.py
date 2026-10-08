@@ -213,7 +213,7 @@ def migrate_metadata(migration: Migration,
                     result["effected-tables"] = []
 
                     # reify materialized views
-                    if not errors and mig_step == MigStep.MIGRATE_METADATA:
+                    if not errors:
                         reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
                         if reify_mviews:
                             # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
@@ -362,9 +362,10 @@ def __reify_mview(migration: Migration,
                     (col_metadata[0].lower(), type_equivalent,
                      col_metadata[2], col_metadata[3],
                      col_metadata[4], col_metadata[5], def_value))
-            create_table: bool = not db_table_exists(table_name=table_name,
-                                                     engine=target_db.cd_engine,
-                                                     errors=errors) and not errors
+            create_table: bool = (mig_step == MigStep.MIGRATE_METADATA and
+                                  not db_table_exists(table_name=table_name,
+                                                      engine=target_db.cd_engine,
+                                                      errors=errors) and not errors)
             if create_table:
                 try:
                     # noinspection PyTypeChecker
