@@ -235,20 +235,21 @@ def __migrate_plaindata(session: Session,
                          f"{source_db}.{source_table} to {target_db}.{target_table}, "
                          f"in {len(channel_data)} steps, using {max_workers} channels")
         if max_workers == 1:
-            # execute single task in current thread
-            _migrate_plain(session=session,
-                           mig_step=mig_step,
-                           migration_work=migration_work,
-                           mother_thread=mother_thread,
-                           source_columns=source_columns,
-                           target_columns=target_columns,
-                           orderby_clause=", ".join(orderby_columns),
-                           offset_count=channel_data[0][0],
-                           limit_count=tot_count,
-                           identity_column=identity_column,
-                           batch_size_in=batch_size_in,
-                           batch_size_out=batch_size_out,
-                           has_ctrlchars=is_remove_ctrlchars)
+            for channel_datum in channel_data:
+                # execute single task in current thread
+                _migrate_plain(session=session,
+                               mig_step=mig_step,
+                               migration_work=migration_work,
+                               mother_thread=mother_thread,
+                               source_columns=source_columns,
+                               target_columns=target_columns,
+                               orderby_clause=", ".join(orderby_columns),
+                               offset_count=channel_datum[0],
+                               limit_count=channel_datum[1],
+                               identity_column=identity_column,
+                               batch_size_in=batch_size_in,
+                               batch_size_out=batch_size_out,
+                               has_ctrlchars=is_remove_ctrlchars)
         else:
             # execute tasks concurrently
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
