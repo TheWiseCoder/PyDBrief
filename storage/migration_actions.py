@@ -11,8 +11,8 @@ from pypomes_db import (
 )
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
-from app_constants import PYDB_DB_ENGINE, InputParam, OpType
-from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration
+from app_constants import PYDB_DB_ENGINE, InputParam, MigState, OpType
+from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.database import Database
 from entities.migration_issue import MigrationIssue
 from entities.migration_report import MigrationReport
@@ -165,6 +165,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                     if errors:
                         break
                     mig_data[InputParam.SESSION] = values[0]
+                    mig_data[InputParam.STATE] = minded_migrations.get(migration.nm_badge, MigState.IDLE)
 
                     mig_issues: list[dict[str, Any]] = []
                     migration_issues: list[MigrationIssue] = \

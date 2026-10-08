@@ -13,11 +13,11 @@ from pypomes_db import (
 from pypomes_s3 import s3_get_client, s3_item_exists
 from typing import Any
 
-from app_constants import InputParam, MigStep
-from entities.migration import Migration
+from app_constants import InputParam, MigState, MigStep
+from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
-from entities.session import Session, sessions_aborting
+from entities.session import Session
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_to_s3 import s3_migrate_lobs
@@ -74,8 +74,7 @@ def migrate_lobdata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         source_schema: str = session.nm_source_schema
@@ -233,8 +232,7 @@ def migrate_lob_columns(migration: Migration,
     for lob_column, reference_column in lob_columns:
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         where_clause: str | list[str]

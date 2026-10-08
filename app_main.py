@@ -31,9 +31,11 @@ from pypomes_logging import (
 )
 from pypomes_s3 import s3_get_params
 
-from app_constants import PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigStep
+from app_constants import (
+    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
+)
 from app_init import init_app
-from entities.migration import Migration
+from entities.migration import Migration, minded_migrations
 from entities.migration_table import MigrationTable
 from entities.session import Session
 from migration.pydb_migrator import migrate
@@ -364,33 +366,35 @@ def service_session(session_id: str = None) -> Response:
                  methods=[HttpMethod.GET, HttpMethod.POST])
 @flask_app.route(rule="/migration/<migration_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.PATCH])
+@flask_app.route(rule="/migration:abort/<migration_id>",
+                 methods=[HttpMethod.GET])
 @flask_app.route(rule="/migration:verify/<migration_id>",
                  methods=[HttpMethod.GET])
 def service_migration(migration_id: str = None) -> Response:
     """
     Entry point for handling migrations.
 
-    The parameters are as follows:
+    The parameters for migration creation and update are as follows:
       - *badge*: identifies the migration instance
       - *session*: the session the migration belongs to
       - *step*: the migration step (one from the list below)
       - *exclude-relations*: optional list of relations (tables, views, and indexes) not to migrate
       - *flatten-storage*: whether to omit path on LOB migration to S3 storage
       - *include-relations*: optional list of relations (tables, views, and indexes) to migrate
-      - *lobdata-channels*: number of simultaneous channels to use in lobdata migration
-      - *lobdata-channel-size*: size of channels used in lobdata migration
+      - *channel-count*: number of simultaneous channels to use in migration
+      - *channel-size*: size of channels used in migration
       - *optimize-pks*: optimizes the type donversion for primary keys which are not foreign keys
-      - *plaindata-channels*: number of simultaneous channels to use in plaindata migration
-      - *plaindata-channel-size*: size of channels used in plaindata migration
+      - *pre-sql*: *//*-separated SQL commands to execute before migration start
       - *process-indexes*: whether to migrate indexes (defaults to *False*)
       - *process-views*: whether to migrate views (defaults to *False*)
+      - *reify-mviews*: optional list of materialized views to migrate as real tables
       - *reflect-filetype*: attempts to reflect extensions for LOBs, on migration to S3 storage
       - *relax-reflection*: relaxes finding referenced tables at reflection (defaults to *False*)
       - *skip-nonempty*: prevents data migration for nonempty tables in the destination schema
 
     Steps of migration:
       - *migrate-metadata*: migrate the schema's metadata
-      - *migrate-plaindata*: migrate non-LOB data
+      - *migrate-plaindata*: migrate scalar data
       - *migrate-lobdata*: migrate LOBs (large binary objects)
       - *correlate-plaindata*: make sure tables in target and source databases have the same PK content
       - *correlate-lobdata*: make sure folders in target S3 have the same entries as in in source database
@@ -413,7 +417,15 @@ def service_migration(migration_id: str = None) -> Response:
     PYPOMES_LOGGER.info(msg=msg)
 
     reply: dict[StrEnum | str, Any] | None = None
-    if request.path.startswith("/migration:verify"):
+    if request.path.startswith("/migration:abort"):
+        if minded_migrations.get(migration_id) == MigState.MIGRATING:
+            minded_migrations[migration_id] = MigState.ABORTING
+        else:
+            # 141: Invalid value {}: {}
+            errors.append(validate_format_error(141,
+                                                migration_id,
+                                                "not a running migration"))
+    elif request.path.startswith("/migration:verify"):
         verify_migration(input_params=input_params,
                          errors=errors,
                          logger=PYPOMES_LOGGER)
@@ -462,6 +474,7 @@ def service_migration_table(migration_id: str = None,
       - *named-lobdata*: optional list of LOB columns and their associated names and extensions
       - *omit_defaults*: optional list of columns whose default values are to be omitted
       - *override-columns*: optional list of columns with forced migration types
+      - *pre-sql*: *//*-separated SQL commands to execute before metadata inspection
       - *remove-ctrlchars*: optional list of columns with embedded control characters in its data
 
     :param migration_id: the migration instance identification
@@ -622,7 +635,11 @@ def service_migration_report(migration_id: str = None,
                  methods=[HttpMethod.GET])
 def service_migrate() -> Response:
     """
-    Initiate or abort a migration operation.
+    Initiate a migration operation.
+
+    The parameters are as follows:
+      - *badge*: identifies the migration instance
+      - *step*: identifies the migration step
 
     :return: *Response* with the operation outcome
     """
@@ -697,6 +714,7 @@ def service_migrate() -> Response:
                             errors.append(validate_format_error(100,
                                                                 f"Error launching migration "
                                                                 f"'{mig_badge}': '{exc_err}'"))
+                            minded_migrations[migration.id] = MigState.ERROR
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)

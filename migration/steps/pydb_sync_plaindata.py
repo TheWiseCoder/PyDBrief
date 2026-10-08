@@ -3,10 +3,10 @@ from logging import Logger
 from typing import Any
 from pypomes_db import db_connect, db_commit, db_sync_data
 
-from entities.migration import Migration
-from app_constants import MigStep
+from entities.migration import Migration, minded_migrations
+from app_constants import MigState, MigStep
 from entities.migration_table import MigrationTable
-from entities.session import Session, sessions_aborting
+from entities.session import Session
 from migration.pydb_database import table_embedded_nulls
 from migration.pydb_types import is_lob_column
 
@@ -37,8 +37,7 @@ def synchronize_plaindata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         # obtain the corresponding MigrationTable instance

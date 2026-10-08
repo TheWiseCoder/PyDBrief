@@ -8,10 +8,10 @@ from pypomes_s3 import s3_data_store
 from pathlib import Path
 from typing import Any
 
-from app_constants import MigStep
-from entities.migration import Migration
+from app_constants import MigState, MigStep
+from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
-from entities.session import Session, sessions_aborting
+from entities.session import Session
 
 
 def s3_migrate_lobs(migration: Migration,
@@ -89,8 +89,7 @@ def s3_migrate_lobs(migration: Migration,
                                    errors=errors):
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         # LOB identification

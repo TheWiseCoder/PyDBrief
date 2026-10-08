@@ -19,11 +19,11 @@ from urlobject import URLObject
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam, MigStep
+    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam, MigState, MigStep
 )
 from app_ident import get_env_keys
 from entities.database import Database
-from entities.migration import Migration
+from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
@@ -50,6 +50,9 @@ def migrate(migration: Migration,
     # initialize the errors list
     errors: list[str] = []
 
+    # establish the migration state
+    minded_migrations[migration.nm_badge] = MigState.MIGRATING
+
     # initialize the operation report
     env_keys: list[str] = get_env_keys()
     op_report: dict[str, Any] = {
@@ -63,6 +66,7 @@ def migrate(migration: Migration,
             "environment": {key: value for key, value in os.environ.items()
                             if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
         },
+        InputParam.STEP: mig_step.anyval,
         InputParam.SESSION: session.get_inputs(),
         InputParam.SOURCE_DB: session.get_source_db().get_inputs(),
         InputParam.TARGET_DB: session.get_target_db().get_inputs(),
@@ -233,6 +237,14 @@ def migrate(migration: Migration,
                               cd_type=IssueType.ERROR,
                               ds_issues=errors)
 
+    # establish the migration state
+    if errors:
+        minded_migrations[migration.nm_badge] = MigState.ERROR
+    elif minded_migrations.get(migration.nm_badge) != MigState.ABORTING:
+        minded_migrations[migration.nm_badge] = MigState.MIGRATED
+    else:
+        minded_migrations[migration.nm_badge] = MigState.ABORTED
+
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({
         "started": migration_started.strftime(format=DatetimeFormat.INV),
@@ -290,7 +302,7 @@ def __log_migration(migration: Migration,
     nm_badge: str = migration.nm_badge.replace("-", "/")
     pos: int = nm_badge.rfind("/")
     badge_path: Path = Path(nm_badge[:pos])
-    badge_name: str = nm_badge[pos+1:]
+    badge_name: str = f"{nm_badge[pos+1:]}_{mig_step.lower()}"
     base_path: Path = Path(REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST,
                            badge_path)
     seq: int = 1

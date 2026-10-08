@@ -11,13 +11,13 @@ from pypomes_db import (
 )
 from typing import Any
 
-from app_constants import PYDB_DB_ENGINE, MigStep
-from entities.migration import Migration, SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE
+from app_constants import PYDB_DB_ENGINE, MigState, MigStep
+from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT
 from entities.migration_work import MigrationWork
-from entities.session import Session, sessions_aborting
+from entities.session import Session
 from migration.pydb_common import (
     build_channel_data, execute_sql, get_migration_span, get_migration_work
 )
@@ -74,8 +74,7 @@ def migrate_plaindata(session: Session,
             break
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         target_db: str = session.get_target_db().cd_engine

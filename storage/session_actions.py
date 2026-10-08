@@ -128,7 +128,7 @@ def retrieve_sessions(input_params: dict[str, Any],
                               errors=errors)
     if db_conn:
         # validate the input data
-        valid_params: list[str] = [InputParam.SESSION, InputParam.STATE]
+        valid_params: list[str] = [InputParam.SESSION]
         session_params: dict[str, Any] = __validate_input(input_params=input_params,
                                                           valid_params=valid_params,
                                                           op=OpType.RETRIEVE,

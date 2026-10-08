@@ -15,9 +15,6 @@ from entities.s3 import S3
 from app_constants import PYDB_DB_ENGINE, InputParam
 
 
-sessions_aborting: set[str] = set()
-
-
 class Session(PySob):
     """
     Entity *Session*.

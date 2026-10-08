@@ -14,11 +14,11 @@ from pypomes_s3 import (
 )
 from typing import Any
 
-from app_constants import MigStep
-from entities.migration import Migration
+from app_constants import MigState, MigStep
+from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
-from entities.session import Session, sessions_aborting
+from entities.session import Session
 import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
 from migration.pydb_common import build_channel_data, build_lob_prefix
 from migration.pydb_types import is_lob_column
@@ -82,8 +82,7 @@ def correlate_lobdata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if session.cd_session in sessions_aborting:
-            sessions_aborting.remove(session.cd_session)
+        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
             break
 
         source_table: str = f"{session.nm_source_schema}.{table_name}"

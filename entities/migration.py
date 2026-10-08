@@ -7,7 +7,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DB_ENGINE, InputParam, MigState
 from entities.migration_issue import MigrationIssue
 from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
@@ -17,6 +17,9 @@ from entities.migration_work import MigrationWork
 # values are (min, max, default)
 SPAN_CHANNEL_COUNT: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 1000000, 100000)
+
+
+minded_migrations: dict[str, MigState] = {}
 
 
 class Migration(PySob):

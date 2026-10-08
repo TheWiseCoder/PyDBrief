@@ -138,3 +138,15 @@ class MigStep(EnumUseAny, StrEnumAny):
     MIGRATE_METADATA = ("MM", "migrate-metadata")
     MIGRATE_PLAINDATA = ("MP", "migrate-plaindata")
     SYNCHRONIZE_PLAINDATA = ("SP", "synchronize-plaindata")
+
+
+class MigState(StrEnum):
+    """
+    Status of migrations.
+    """
+    ABORTED = auto()
+    ABORTING = auto()
+    ERROR = auto()
+    IDLE = auto()
+    MIGRATED = auto()
+    MIGRATING = auto()
