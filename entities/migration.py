@@ -16,7 +16,7 @@ from entities.migration_work import MigrationWork
 
 # values are (min, max, default)
 SPAN_CHANNEL_COUNT: Final[tuple[int, int, int]] = (1, 127, 1)
-SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 100000, 10000)
+SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 1000000, 100000)
 
 
 class Migration(PySob):

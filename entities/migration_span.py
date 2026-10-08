@@ -11,10 +11,10 @@ from app_constants import PYDB_DB_ENGINE
 
 class MigrationSpan(PySob):
     """
-    Entity *MigrationTableSpan*.
+    Entity *MigrationSpan*.
     """
     class Db(StrEnum):
-        TABLE = "migration_table_span"
+        TABLE = "migration_span"
         ID = auto()
         ID_MIGRATION_WORK = auto()
         IS_DONE = auto()
