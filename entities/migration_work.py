@@ -21,7 +21,6 @@ class MigrationWork(PySob):
         ID = auto()
         CD_STEP = auto()
         ID_MIGRATION = auto()
-        IS_TABLE_CREATED = auto()
         NM_TABLE = auto()
         NR_DURATION_MILLIS = auto()
         NR_ROW_COUNT = auto()
@@ -60,9 +59,6 @@ class MigrationWork(PySob):
         self.nr_duration_millis: int = 0
         self.nr_row_count: int = 0
         self.ts_start: datetime = datetime.now(tz=TZ_LOCAL)
-
-        # nullables in DB
-        self.is_table_created: bool | None = None
 
         # references (lists)
         self.__migration_spans: list[MigrationSpan] | None = None

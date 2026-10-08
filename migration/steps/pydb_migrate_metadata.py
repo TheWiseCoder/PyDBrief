@@ -15,11 +15,10 @@ from entities.database import Database
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable
-from entities.migration_work import MigrationWork
 from entities.session import Session
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
-from migration.pydb_common import get_migration_work, execute_sql
+from app_constants import InputParam, MigStep
+from migration.pydb_common import execute_sql
 from migration.pydb_database import column_set_nullable, view_get_ddl, build_engine
 from migration.pydb_types import convert_column_type, is_lob_column
 from migration.steps.pydb_migration import (
@@ -176,14 +175,9 @@ def migrate_metadata(migration: Migration,
                 if not errors:
                     if mig_step == MigStep.MIGRATE_METADATA:
                         # migrate the schema
-                        to_schema = setup_schema(migration=migration,
-                                                 mig_step=mig_step,
-                                                 target_db=target_db.cd_engine,
+                        to_schema = setup_schema(target_db=target_db.cd_engine,
                                                  target_schema=session.nm_target_schema,
                                                  target_engine=sa_target_engine,
-                                                 target_tables=target_tables,
-                                                 target_views=target_views,
-                                                 mat_views=mat_views,
                                                  errors=errors,
                                                  logger=logger)
                         if not to_schema:
@@ -230,6 +224,7 @@ def migrate_metadata(migration: Migration,
                                                   source_db=source_db,
                                                   target_db=target_db,
                                                   from_schema=from_schema,
+                                                  to_schema=to_schema,
                                                   mview=reify_mview,
                                                   migrated_tables=result,
                                                   migration_warnings=migration_warnings,
@@ -238,14 +233,12 @@ def migrate_metadata(migration: Migration,
                                 if errors:
                                     break
 
-                    # migrate the tables
+                    # create the tables
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
                         for target_table in target_tables:
-                            migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                                               step=mig_step,
-                                                                               table=target_table.name,
-                                                                               errors=errors)
-                            if not errors and not migration_work.is_table_created:
+                            if not db_table_exists(table_name=f"{to_schema}.{target_table.name}",
+                                                   engine=target_db.cd_engine,
+                                                   errors=errors) and not errors:
                                 try:
                                     source_metadata.create_all(bind=sa_target_engine,
                                                                tables=[target_table],
@@ -266,9 +259,6 @@ def migrate_metadata(migration: Migration,
                                                                     errors=errors)
                                     # table was successfully created
                                     result["effected-tables"].append(target_table.name)
-                                    migration_work.is_table_created = True
-                                    migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                                          errors=errors)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err: str = str_sanitize(exc_format(exc=e,
@@ -329,6 +319,7 @@ def __reify_mview(migration: Migration,
                   source_db: Database,
                   target_db: Database,
                   from_schema: str,
+                  to_schema: str,
                   mview: str,
                   migrated_tables: dict[str, Any],
                   migration_warnings: list[str],
@@ -364,37 +355,32 @@ def __reify_mview(migration: Migration,
                      col_metadata[2], col_metadata[3],
                      col_metadata[4], col_metadata[5], def_value))
 
-            if mig_step == MigStep.MIGRATE_METADATA:
-                migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                                   step=mig_step,
-                                                                   table=mview,
-                                                                   errors=errors)
-                if not errors and migration_work.is_table_created:
-                    try:
-                        # noinspection PyTypeChecker
-                        db_create_table(table_name=table_name,
-                                        column_data=target_cols_metadata,
-                                        constraints=pk_constraint,
-                                        engine=target_db.cd_engine,
-                                        errors=errors)
-                        if not errors:
-                            migrated_tables["effected-tables"].append(mview)
-                            migration_work.is_table_created = True
-                            migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                                  errors=errors)
-                    except (Exception, SAWarning) as e:
-                        # unable to create table
-                        exc_err: str = str_sanitize(exc_format(exc=e,
-                                                               exc_info=sys.exc_info()))
-                        logger.error(msg=exc_err)
-                        MigrationIssue.new_issue(id_migration=migration.id,
-                                                 cd_step=mig_step,
-                                                 cd_type=IssueType.ERROR,
-                                                 ds_issue=exc_err)
-                        # 104: The operation {} returned the error {}
-                        errors.append(validate_format_error(104,
-                                                            "schema-construction",
-                                                            exc_err))
+            if (mig_step == MigStep.MIGRATE_METADATA and
+                not db_table_exists(table_name=f"{to_schema}.{mview}",
+                                    engine=target_db.cd_engine,
+                                    errors=errors) and not errors):
+                try:
+                    # noinspection PyTypeChecker
+                    db_create_table(table_name=table_name,
+                                    column_data=target_cols_metadata,
+                                    constraints=pk_constraint,
+                                    engine=target_db.cd_engine,
+                                    errors=errors)
+                    if not errors:
+                        migrated_tables["effected-tables"].append(mview)
+                except (Exception, SAWarning) as e:
+                    # unable to create table
+                    exc_err: str = str_sanitize(exc_format(exc=e,
+                                                           exc_info=sys.exc_info()))
+                    logger.error(msg=exc_err)
+                    MigrationIssue.new_issue(id_migration=migration.id,
+                                             cd_step=mig_step,
+                                             cd_type=IssueType.ERROR,
+                                             ds_issue=exc_err)
+                    # 104: The operation {} returned the error {}
+                    errors.append(validate_format_error(104,
+                                                        "schema-construction",
+                                                        exc_err))
             if not errors:
                 columns: dict[str, Any] = {}
                 for i in range(0, len(target_cols_metadata)):

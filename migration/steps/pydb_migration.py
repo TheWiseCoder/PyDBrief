@@ -5,9 +5,7 @@ from pypomes_core import (
     str_as_list, str_find_char, str_is_int, str_is_float,
     exc_format, str_sanitize, validate_format_error
 )
-from pypomes_db import (
-    DbEngine, db_drop_table, db_drop_view, db_convert_default
-)
+from pypomes_db import DbEngine, db_convert_default
 from sqlalchemy import (
     Engine, Inspector, MetaData, Table, Column, Index, Constraint,
     CheckConstraint, ForeignKey, ForeignKeyConstraint, DefaultClause, TextClause,
@@ -17,13 +15,11 @@ from sqlalchemy.sql.elements import Type
 from sys import exc_info
 from typing import Any
 
-from migration.pydb_common import get_migration_work
 from migration.pydb_database import schema_create
 from migration.pydb_types import is_lob_column, migrate_column, name_to_type
 from entities.migration import Migration
 from app_constants import MigStep
 from entities.migration_table import MigrationTable
-from entities.migration_work import MigrationWork
 from entities.session import Session
 
 
@@ -142,14 +138,9 @@ def prune_metadata(migration: Migration,
             source_metadata.remove(table=source_table)
 
 
-def setup_schema(migration: Migration,
-                 mig_step: MigStep,
-                 target_db: DbEngine | str,
+def setup_schema(target_db: DbEngine | str,
                  target_schema: str,
                  target_engine: Engine,
-                 target_tables: list[Table],
-                 target_views: list[str],
-                 mat_views: list[str],
                  errors: list[str],
                  logger: Logger) -> str:
 
@@ -168,30 +159,8 @@ def setup_schema(migration: Migration,
             result = schema_name
             break
 
-    # drop existing tables and views
-    if result:
-        for target_view in target_views:
-            table_name: str = f"{target_schema}.{target_view}"
-            db_drop_view(view_name=table_name,
-                         view_type="M" if target_view in mat_views else "P",
-                         engine=target_db,
-                         errors=errors)
-
-        # tables must be dropped in reverse order
-        for target_table in reversed(target_tables):
-            migration_work: MigrationWork = get_migration_work(migration=migration,
-                                                               step=mig_step,
-                                                               table=target_table.name,
-                                                               errors=errors)
-            # do not drop table if it was created in a previous migration
-            if not errors and not migration_work.is_table_created:
-                db_drop_table(table_name=f"{target_schema}.{target_table.name}",
-                              engine=target_db,
-                              errors=errors)
-            if errors:
-                break
-    else:
-        # no, create the target schema
+    # create the target schema
+    if not result:
         curr_errors: list[str] = []
         schema_create(schema=target_schema,
                       db_engine=target_db,

@@ -244,7 +244,6 @@ CREATE TABLE migration_work (
     cd_step varchar(2) NOT NULL,
 	nm_table varchar(64) NOT NULL,
     nr_duration_millis int8 NOT NULL,
-    is_table_created bool,
     nr_row_count int8 NOT NULL,
 	ts_start timestamp NOT NULL,,
     CONSTRAINT ck_migration_work_count CHECK (nr_row_count >= 0),
