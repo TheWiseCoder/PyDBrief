@@ -100,6 +100,7 @@ def migrate(migration: Migration,
                                                        errors=errors,
                                                        logger=logger) or {}
     logger.info(msg="Finished discovering the metadata")
+    effected_tables: list[str] = migrated_tables.pop("effected-tables", [])
 
     # initialize the thread registration
     migration_threads: list[int] = [threading.get_ident()]
@@ -241,7 +242,6 @@ def migrate(migration: Migration,
     })
 
     # prune the migrated tables list
-    effected_tables: list[str] = migrated_tables.pop("effected-tables", [])
     display_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items() if k in effected_tables} \
         if mig_step == MigStep.MIGRATE_METADATA else migrated_tables
     op_report["total-tables"] = len(display_tables)
