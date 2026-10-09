@@ -162,7 +162,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                     # display the known states
                     mig_data[InputParam.SESSION] = values[0]
                     mig_states: dict[str, MigState] = {}
-                    for k, v in minded_migrations:
+                    for k, v in minded_migrations.items():
                         if k[3:] == str(migration.id):
                             mig_states[k[:2]] = v
                     if mig_states:
