@@ -90,8 +90,8 @@ def migrate_lobdata(migration: Migration,
             }
 
         # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
+        migration_tables: list[MigrationTable] = migration.get_migration_tables() or []
+        migration_table: MigrationTable = next((t for t in migration_tables if t.nm_table == table_name), None)
 
         # obtain limit and offset
         limit_count: int = (migration_table.nr_incremental_count if migration_table else 0) or 0
