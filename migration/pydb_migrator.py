@@ -330,6 +330,8 @@ def __log_migration(migration: Migration,
                                    errors=errors)
 
     # write the log file to the host filesystem
+    log_file: Path = Path(base_path,
+                          f"{badge_name}_{seq}.log")
     log_content: bytes = b""
     log_entries: BytesIO = logging_get_entries(log_threads=list(map(str, set(threads))),
                                                errors=errors)
