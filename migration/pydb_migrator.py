@@ -365,14 +365,14 @@ def __log_migration(migration: Migration,
                                     log_file.name).as_posix()
                 # uncondionally delete entry, ignoring errors
                 MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
-                                      db_engine=PYDB_DB_ENGINE)
+                                      db_engine=PYDB_DB_ENGINE,
+                                      errors=errors)
                 mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
                 mig_report.id_migration = migration.id
                 mig_report.cd_step = mig_step
                 mig_report.ds_path = ds_path
-                mig_report.insert(db_engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-                if not errors:
+                if mig_report.insert(db_engine=PYDB_DB_ENGINE,
+                                     errors=errors):
                     s3_file_store(identifier=json_file.name,
                                   filepath=json_file,
                                   mimetype=Mimetype.JSON,
@@ -384,9 +384,10 @@ def __log_migration(migration: Migration,
                         # HAZARD: 'ds_path' is a UNIQUE attribute
                         ds_path: str = Path(s3_prefix,
                                             json_file.name).as_posix()
-                        # uncondionally delete entry, ignoring errors
+                        # uncondionally delete entry, disregarding errors
                         MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
-                                              db_engine=PYDB_DB_ENGINE)
+                                              db_engine=PYDB_DB_ENGINE,
+                                              errors=errors)
                         mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
                         mig_report.id_migration = migration.id
                         mig_report.cd_step = mig_step

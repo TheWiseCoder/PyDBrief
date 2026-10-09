@@ -252,7 +252,6 @@ CREATE TABLE migration_work (
       ('CL'::character varying)::text,
 	  ('CP'::character varying)::text,
       ('ML'::character varying)::text,
-	  ('MM'::character varying)::text,
       ('MP'::character varying)::text,
 	  ('SP'::character varying)::text]))),
     CONSTRAINT fk_migration_work_migration FOREIGN KEY (id_migration) REFERENCES migration(id),
