@@ -37,7 +37,8 @@ def synchronize_plaindata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
+        mig_key: str = f"{mig_step}-{migration.id}"
+        if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
         # obtain the corresponding MigrationTable instance

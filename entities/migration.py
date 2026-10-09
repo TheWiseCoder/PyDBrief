@@ -19,6 +19,7 @@ SPAN_CHANNEL_COUNT: Final[tuple[int, int, int]] = (1, 127, 1)
 SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 1000000, 100000)
 
 
+# key is '<AA>-<migration-id>' ('AA' is the 2-letter migration step)
 minded_migrations: dict[str, MigState] = {}
 
 

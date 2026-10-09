@@ -74,7 +74,8 @@ def migrate_plaindata(session: Session,
             break
 
         # verify whether current migration is marked for abortion
-        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
+        mig_key: str = f"{mig_step}-{migration.id}"
+        if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
         target_db: str = session.get_target_db().cd_engine

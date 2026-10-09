@@ -51,7 +51,8 @@ def migrate(migration: Migration,
     errors: list[str] = []
 
     # establish the migration state
-    minded_migrations[migration.nm_badge] = MigState.MIGRATING
+    mig_key: str = f"{mig_step}-{migration.id}"
+    minded_migrations[mig_key] = MigState.MIGRATING
 
     # initialize the operation report
     env_keys: list[str] = get_env_keys()
@@ -94,7 +95,7 @@ def migrate(migration: Migration,
         migration.update(db_engine=PYDB_DB_ENGINE)
 
     # log the migration start
-    logger.info(msg=json.dumps(obj=dict_jsonify(source=op_report),
+    logger.info(msg=json.dumps(obj=dict_jsonify(op_report),
                                ensure_ascii=False))
     logger.info(msg="Started discovering the metadata")
     migrated_tables: dict[str, Any] = migrate_metadata(migration=migration,
@@ -238,12 +239,13 @@ def migrate(migration: Migration,
                               ds_issues=errors)
 
     # establish the migration state
+    mig_key: str = f"{mig_step}-{migration.id}"
     if errors:
-        minded_migrations[migration.nm_badge] = MigState.ERROR
-    elif minded_migrations.get(migration.nm_badge) != MigState.ABORTING:
-        minded_migrations[migration.nm_badge] = MigState.MIGRATED
+        minded_migrations[mig_key] = MigState.ERROR
+    elif minded_migrations.get(mig_key) != MigState.ABORTING:
+        minded_migrations[mig_key] = MigState.MIGRATED
     else:
-        minded_migrations[migration.nm_badge] = MigState.ABORTED
+        minded_migrations[mig_key] = MigState.ABORTED
 
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({

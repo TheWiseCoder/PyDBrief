@@ -74,7 +74,8 @@ def migrate_lobdata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
+        mig_key: str = f"{mig_step}-{migration.id}"
+        if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
         source_schema: str = session.nm_source_schema
@@ -232,7 +233,8 @@ def migrate_lob_columns(migration: Migration,
     for lob_column, reference_column in lob_columns:
 
         # verify whether current migration is marked for abortion
-        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
+        mig_key: str = f"{mig_step}-{migration.id}"
+        if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
         where_clause: str | list[str]

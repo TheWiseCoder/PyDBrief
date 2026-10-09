@@ -814,7 +814,7 @@ def type_to_name(col_type: Type,
                  db_type: DbEngine) -> str:
 
     types: dict[str, Type] = __get_types(db_type=db_type)
-    return dict_get_key(source=types,
+    return dict_get_key(types,
                         value=col_type)
 
 

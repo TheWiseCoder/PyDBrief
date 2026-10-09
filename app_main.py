@@ -44,7 +44,7 @@ from storage.database_actions import (
 )
 from storage.migration_actions import (
     create_migration, update_migration, delete_migration,
-    retrieve_migrations, verify_migration
+    retrieve_migrations, abort_migration, verify_migration
 )
 from storage.migration_issue_actions import (
     create_migration_issue, update_migration_issue,
@@ -158,7 +158,7 @@ def service_version() -> Response:
         "foundations": pypomes_versions(),
         "environment": {key: value for key, value in os.environ.items()
                         if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
-        "logging": dict_jsonify(source=logging_get_params()),
+        "logging": dict_jsonify(logging_get_params()),
         "persistence": [
             {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "_PWD" not in k}
         ]
@@ -218,7 +218,7 @@ def service_database(engine_id: str = None) -> Response:
 
     # log the request
     msg: str = __log_init(request=request,
-                          input_params=dict_clone(source=input_params,
+                          input_params=dict_clone(input_params,
                                                   from_to_keys=[key for key in input_params
                                                                 if key != InputParam.DB_PWD]))
     PYPOMES_LOGGER.info(msg=msg)
@@ -278,7 +278,7 @@ def service_s3(engine_id: str = None) -> Response:
 
     # log the request
     msg: str = __log_init(request=request,
-                          input_params=dict_clone(source=input_params,
+                          input_params=dict_clone(input_params,
                                                   from_to_keys=[key for key in input_params
                                                                 if key != InputParam.S3_SECRET_KEY]))
     PYPOMES_LOGGER.info(msg=msg)
@@ -367,11 +367,12 @@ def service_session(session_id: str = None) -> Response:
                  methods=[HttpMethod.GET, HttpMethod.POST])
 @flask_app.route(rule="/migration/<migration_id>",
                  methods=[HttpMethod.DELETE, HttpMethod.PATCH])
-@flask_app.route(rule="/migration:abort/<migration_id>",
+@flask_app.route(rule="/migration:abort/<migration_id>/<mig_step>",
                  methods=[HttpMethod.GET])
-@flask_app.route(rule="/migration:verify/<migration_id>",
+@flask_app.route(rule="/migration:verify/<migration_id>/<mig_step>",
                  methods=[HttpMethod.GET])
-def service_migration(migration_id: str = None) -> Response:
+def service_migration(migration_id: str = None,
+                      mig_step: str = None) -> Response:
     """
     Entry point for handling migrations.
 
@@ -402,6 +403,7 @@ def service_migration(migration_id: str = None) -> Response:
       - *syncronize-plaindata*: make sure tables in target and source databases have the same tuple content
 
     :param migration_id: the identification of the migration instance
+    :param mig_step: the migration step
     :return: the operation outcome
     """
     # initialize the errors list
@@ -411,6 +413,8 @@ def service_migration(migration_id: str = None) -> Response:
     input_params: dict[str, Any] = __get_parameters(request=request)
     if migration_id:
         input_params[InputParam.MIGRATION_ID] = migration_id
+    if mig_step:
+        input_params[InputParam.STEP] = mig_step
 
     # log the request
     msg: str = __log_init(request=request,
@@ -419,13 +423,8 @@ def service_migration(migration_id: str = None) -> Response:
 
     reply: dict[StrEnum | str, Any] | None = None
     if request.path.startswith("/migration:abort"):
-        if minded_migrations.get(migration_id) == MigState.MIGRATING:
-            minded_migrations[migration_id] = MigState.ABORTING
-        else:
-            # 141: Invalid value {}: {}
-            errors.append(validate_format_error(141,
-                                                migration_id,
-                                                "not a running migration"))
+        abort_migration(input_params=input_params,
+                        errors=errors)
     elif request.path.startswith("/migration:verify"):
         verify_migration(input_params=input_params,
                          errors=errors,
@@ -750,7 +749,8 @@ def service_migrate() -> Response:
                             errors.append(validate_format_error(100,
                                                                 f"Error launching migration "
                                                                 f"'{mig_badge}': '{exc_err}'"))
-                            minded_migrations[migration.id] = MigState.ERROR
+                            mig_key: str = f"{mig_step}-{migration.id}"
+                            minded_migrations[mig_key] = MigState.ERROR
     # build the response
     result: Response = _build_response(reply=None,
                                        errors=errors)

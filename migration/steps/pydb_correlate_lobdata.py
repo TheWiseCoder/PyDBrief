@@ -82,7 +82,8 @@ def correlate_lobdata(migration: Migration,
     for table_name, table_data in migrated_tables.items():
 
         # verify whether current migration is marked for abortion
-        if minded_migrations.get(migration.nm_badge) == MigState.ABORTING:
+        mig_key: str = f"{mig_step}-{migration.id}"
+        if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
         source_table: str = f"{session.nm_source_schema}.{table_name}"
@@ -228,13 +229,13 @@ def correlate_lobdata(migration: Migration,
                             col_s3_full = table_data.get(f"{reference_column}-s3-full")
 
                     col_db_names.sort()
-                    list_prune_duplicates(target=col_db_names,
+                    list_prune_duplicates(col_db_names,
                                           is_sorted=True)
                     col_s3_names.sort()
-                    list_prune_duplicates(target=col_s3_names,
+                    list_prune_duplicates(col_s3_names,
                                           is_sorted=True)
-                    correlations: tuple = list_correlate(list_first=col_db_names,
-                                                         list_second=col_s3_names,
+                    correlations: tuple = list_correlate(col_db_names,
+                                                         col_s3_names,
                                                          only_in_first=True,
                                                          only_in_second=True,
                                                          is_sorted=True)
@@ -301,7 +302,7 @@ def correlate_lobdata(migration: Migration,
                 # remove LOBs
                 if lob_deletes:
                     lob_deletes.sort()
-                    list_prune_duplicates(target=lob_deletes,
+                    list_prune_duplicates(lob_deletes,
                                           is_sorted=True)
                     s3_items_remove(identifiers=lob_deletes,
                                     errors=errors)
@@ -380,8 +381,8 @@ def _compute_lob_lists(session: Session,
                     lobs_s3_full[name] = full_name
                 s3_items.clear()
                 # no need to keep items existing in both lists
-                correlations: tuple = list_correlate(list_first=lobs_db_names,
-                                                     list_second=lobs_s3_names,
+                correlations: tuple = list_correlate(lobs_db_names,
+                                                     lobs_s3_names,
                                                      only_in_first=True,
                                                      only_in_second=True,
                                                      is_sorted=True)

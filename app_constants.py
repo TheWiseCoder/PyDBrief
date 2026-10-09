@@ -110,7 +110,7 @@ class InputParam(StrEnum):
     SPANS = "spans"
     SPECS = "specs"
     START = "start"
-    STATE = "state"
+    STATES = "states"
     TABLE = "table"
     TABLE_SPECS = "tables-specs"
     TABLES = "tables"
@@ -121,6 +121,7 @@ class OpType(StrEnum):
     """
     Tipos de operação.
     """
+    ABORT = auto()
     CREATE = auto()
     DELETE = auto()
     RETRIEVE = auto()

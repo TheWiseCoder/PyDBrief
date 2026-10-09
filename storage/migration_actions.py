@@ -1,7 +1,7 @@
 from logging import Logger
 from typing import Any
 from pypomes_core import (
-    validate_format_error, validate_bool, validate_int, validate_str, validate_strs
+    validate_format_error, validate_bool, validate_enum, validate_int, validate_str, validate_strs
 )
 from pypomes_db import (
     DbEngine, DbConnectionPool, DbPoolEvent,
@@ -10,7 +10,7 @@ from pypomes_db import (
 )
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigState, OpType
+from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep, OpType
 from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.database import Database
 from entities.migration_table import MigrationTable
@@ -159,8 +159,14 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                            errors=errors)
                     if errors:
                         break
+                    # display the known states
                     mig_data[InputParam.SESSION] = values[0]
-                    mig_data[InputParam.STATE] = minded_migrations.get(migration.nm_badge, MigState.IDLE)
+                    mig_states: dict[str, MigState] = {}
+                    for k, v in minded_migrations:
+                        if k[3:] == str(migration.id):
+                            mig_states[k[:2]] = v
+                    if mig_states:
+                        mig_data[InputParam.STATES] = mig_states
 
                     mig_tables: list[dict[str, Any]] = []
                     migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
@@ -194,6 +200,33 @@ def retrieve_migrations(input_params: dict[str, Any],
     return result
 
 
+def abort_migration(input_params: dict[str, Any] | Session,
+                    errors: list[str]) -> None:
+
+    # obtain DB connection
+    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                              errors=errors)
+    if db_conn:
+        # validate the input data
+        vald_params: list[InputParam] = [InputParam.MIGRATION_ID, InputParam.STEP]
+        migration_params: dict[str, Any] = __validate_input(input_params=input_params,
+                                                            valid_params=vald_params,
+                                                            op=OpType.VERIFY,
+                                                            db_conn=db_conn,
+                                                            errors=errors)
+        if not errors:
+            migration: Migration = migration_params.get(InputParam.MIGRATION)
+            mig_step: MigStep = migration_params.get(InputParam.STEP)
+            mig_key = f"{mig_step}-{migration.nm_badge}"
+            if minded_migrations.get(mig_key) == MigState.MIGRATING:
+                minded_migrations[mig_key] = MigState.ABORTING
+            else:
+                # 100: {}
+                errors.append(validate_format_error(100,
+                                                    f"Migration '{migration.nm_badge}', "
+                                                    f"step '{mig_step}',not running"))
+
+
 def verify_migration(input_params: dict[str, Any] | Session,
                      errors: list[str],
                      logger: Logger) -> None:
@@ -205,8 +238,9 @@ def verify_migration(input_params: dict[str, Any] | Session,
         session: Session | None = None
         if isinstance(input_params, dict):
             # validate the input data
+            vald_params: list[InputParam] = [InputParam.MIGRATION_ID, InputParam.STEP]
             migration_params: dict[str, Any] = __validate_input(input_params=input_params,
-                                                                valid_params=[InputParam.MIGRATION_ID],
+                                                                valid_params=vald_params,
                                                                 op=OpType.VERIFY,
                                                                 db_conn=db_conn,
                                                                 errors=errors)
@@ -286,13 +320,22 @@ def __validate_input(input_params: dict[str, Any],
     # identify the migration instance (UPDATE and DELETE operations)
     migration_id: str = validate_str(source=input_params,
                                      attr=InputParam.MIGRATION_ID,
-                                     required=op in [OpType.UPDATE, OpType.DELETE],
+                                     required=op in [OpType.ABORT, OpType.DELETE, OpType.UPDATE, OpType.VERIFY],
                                      errors=errors)
     if migration_id:
         result[InputParam.MIGRATION] = Migration(nm_badge=migration_id,
                                                  db_engine=PYDB_DB_ENGINE,
                                                  db_conn=db_conn,
                                                  errors=errors)
+
+    # identity the step
+    mig_step: MigStep = validate_enum(source=input_params,
+                                      attr=InputParam.STEP,
+                                      enum_class=MigStep,
+                                      required=op in [OpType.ABORT, OpType.VERIFY],
+                                      errors=errors)
+    if mig_step:
+        result[InputParam.STEP] = mig_step
 
     # identify the session instance (CREATE and UPDATE operations)
     cd_session: str = validate_str(source=input_params,
