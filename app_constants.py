@@ -112,7 +112,7 @@ class InputParam(StrEnum):
     START = "start"
     STATES = "states"
     TABLE = "table"
-    TABLE_SPECS = "tables-specs"
+    TABLE_SPECS = "table-specs"
     TABLES = "tables"
     TYPE = "type"
 

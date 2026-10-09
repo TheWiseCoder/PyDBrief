@@ -137,11 +137,14 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                             db_conn=db_conn,
                                                             errors=errors)
         if not errors:
+            cd_session: str | None = None
             where_data: dict[str, Any] | None = None
             if Migration.Db.NM_BADGE in migration_params:
                 where_data = {Migration.Db.NM_BADGE: migration_params[Migration.Db.NM_BADGE]}
             elif InputParam.SESSION in migration_params:
-                where_data = {Migration.Db.ID_SESSION: migration_params[InputParam.SESSION].id}
+                session: Session = migration_params.get(InputParam.SESSION)
+                cd_session = session.cd_session
+                where_data = {Migration.Db.ID_SESSION: session.id}
 
             if where_data:
                 migrations: list[Migration] = Migration.get_instances(where_data=where_data,
@@ -149,18 +152,19 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                                       db_conn=db_conn,
                                                                       errors=errors)
                 for migration in migrations or []:
+                    if not cd_session:
+                        values: list[str] = Session.get_values(attrs=Session.Db.CD_SESSION,
+                                                               where_data={Session.Db.ID: migration.id_session},
+                                                               max_count=1,
+                                                               min_count=1,
+                                                               db_engine=PYDB_DB_ENGINE,
+                                                               db_conn=db_conn,
+                                                               errors=errors)
+                        if errors:
+                            break
+                        cd_session = values[0]
                     mig_data: dict[str, Any] = migration.get_inputs()
-                    values: list[int] = Session.get_values(attrs=Session.Db.CD_SESSION,
-                                                           where_data={Session.Db.ID: migration.id_session},
-                                                           max_count=1,
-                                                           min_count=1,
-                                                           db_engine=PYDB_DB_ENGINE,
-                                                           db_conn=db_conn,
-                                                           errors=errors)
-                    if errors:
-                        break
                     # display the known states
-                    mig_data[InputParam.SESSION] = values[0]
                     mig_states: dict[str, MigState] = {}
                     for k, v in minded_migrations.items():
                         if k[3:] == str(migration.id):
@@ -182,6 +186,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                         break
                     mig_data[InputParam.TABLE_SPECS] = mig_tables
                     result[migration.nm_badge] = mig_data
+                result[InputParam.SESSION] = cd_session
             else:
                 # 100: {} (omits the attribute "code")
                 errors.append(validate_format_error(100,
