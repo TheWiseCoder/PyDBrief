@@ -342,18 +342,20 @@ def __reify_mview(migration: Migration,
                 if table_pk else None
             target_cols_metadata: list[tuple] = []
             for col_metadata in source_cols_metadata:
-                type_equivalent: str = \
-                    convert_column_type(col_type=col_metadata[1].lower(),
-                                        db_source_type=source_db.cd_type,
-                                        db_target_type=target_db.cd_type)
-                # col_metadata[6] has the column's default value
-                def_value = db_convert_default(value=col_metadata[6],
-                                               source_engine=source_db.cd_engine,
-                                               target_engine=target_db.cd_engine)
-                target_cols_metadata.append(
-                    (col_metadata[0].lower(), type_equivalent,
-                     col_metadata[2], col_metadata[3],
-                     col_metadata[4], col_metadata[5], def_value))
+                # skip LOB columns
+                if not is_lob_column(col_type=col_metadata[1].upper()):
+                    type_equivalent: str = \
+                        convert_column_type(col_type=col_metadata[1].lower(),
+                                            db_source_type=source_db.cd_type,
+                                            db_target_type=target_db.cd_type)
+                    # col_metadata[6] has the column's default value
+                    def_value = db_convert_default(value=col_metadata[6],
+                                                   source_engine=source_db.cd_engine,
+                                                   target_engine=target_db.cd_engine)
+                    target_cols_metadata.append(
+                        (col_metadata[0].lower(), type_equivalent,
+                         col_metadata[2], col_metadata[3],
+                         col_metadata[4], col_metadata[5], def_value))
 
             if (mig_step == MigStep.MIGRATE_METADATA and
                 not db_table_exists(table_name=f"{to_schema}.{mview}",
