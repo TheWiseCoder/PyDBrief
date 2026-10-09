@@ -12,7 +12,7 @@ from pypomes_core import (
     dict_jsonify, str_sanitize, exc_format
 )
 from pypomes_logging import logging_get_entries, logging_get_params
-from pypomes_s3 import s3_get_client, s3_file_store
+from pypomes_s3 import s3_get_client, s3_file_store, s3_item_exists
 from pathlib import Path
 from typing import Any
 from urlobject import URLObject
@@ -302,24 +302,34 @@ def __log_migration(migration: Migration,
                     errors: list[str],
                     logger: Logger) -> None:
 
-    # define the base path
+    # define the needed data
+    database: Database = session.get_target_db()
     nm_badge: str = migration.nm_badge.replace("-", "/")
     pos: int = nm_badge.rfind("/")
     badge_path: Path = Path(nm_badge[:pos])
     badge_name: str = f"{nm_badge[pos+1:]}_{mig_step.lower()}"
     base_path: Path = Path(REGISTRY_DOCKER if REGISTRY_DOCKER and env_is_docker() else REGISTRY_HOST,
                            badge_path)
-    seq: int = 1
+
+    # obtain the S3 client (errors will be added to JSON report)
+    s3_client: Any = s3_get_client(engine=PYDB_S3_ENGINE,
+                                   errors=errors) if PYDB_S3_ENGINE and PYDB_S3_BASE_FOLDER else None
+
+    # create intermediate missing folders in host filesystem
     log_file: Path = Path(base_path,
-                          f"{badge_name}_{seq}.log")
-    # create intermediate missing folders
+                          f"{badge_name}.log")
     log_file.parent.mkdir(parents=True,
                           exist_ok=True)
-    # write the log file (previous log is preserved)
-    while log_file.exists():
-        seq += 1
-        log_file = Path(base_path,
-                        f"{badge_name}_{seq}.log")
+
+    # establish the version, to avoid overwriting existing documents (errors will be added to JSON report)
+    seq: int = __establish_version(s3_client=s3_client,
+                                   database=database,
+                                   base_path=base_path,
+                                   badge_path=badge_path,
+                                   badge_name=badge_name,
+                                   errors=errors)
+
+    # write the log file to the host filesystem
     log_content: bytes = b""
     log_entries: BytesIO = logging_get_entries(log_threads=list(map(str, set(threads))),
                                                errors=errors)
@@ -329,7 +339,7 @@ def __log_migration(migration: Migration,
     with log_file.open("wb") as f:
         f.write(log_content)
 
-    # write the JSON file
+    # write the JSON file to the host filesystem
     if errors:
         log_json = log_json.copy()
         log_json["errors"] = errors
@@ -340,32 +350,48 @@ def __log_migration(migration: Migration,
                            f"{badge_name}_{seq}.json")
     with json_file.open("w") as f:
         f.write(json_data)
-
-    # send the files to the S3 storage, if configured
     errors.clear()
-    if PYDB_S3_ENGINE and PYDB_S3_BASE_FOLDER:
-        s3_client = s3_get_client(engine=PYDB_S3_ENGINE,
+
+    # send the files to the S3 storage
+    if s3_client:
+        url: URLObject = URLObject(database.nm_host)
+        # 'url.hostname' returns 'None' for 'localhost'
+        host: str = f"{database.cd_type}@{url.hostname or str(url)}"
+        s3_prefix: Path = Path(host,
+                               PYDB_S3_BASE_FOLDER,
+                               badge_path)
+        s3_file_store(identifier=log_file.name,
+                      filepath=log_file,
+                      mimetype=Mimetype.TEXT,
+                      prefix=s3_prefix,
+                      engine=PYDB_S3_ENGINE,
+                      client=s3_client,
+                      errors=errors)
+        if not errors:
+            # HAZARD: 'ds_path' is a UNIQUE attribute
+            ds_path: str = Path(s3_prefix,
+                                log_file.name).as_posix()
+            # uncondionally delete entry, ignoring errors
+            MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
+                                  db_engine=PYDB_DB_ENGINE,
                                   errors=errors)
-        if s3_client:
-            database: Database = session.get_target_db()
-            url: URLObject = URLObject(database.nm_host)
-            # 'url.hostname' returns 'None' for 'localhost'
-            host: str = f"{database.cd_type}@{url.hostname or str(url)}"
-            s3_prefix: Path = Path(host,
-                                   PYDB_S3_BASE_FOLDER,
-                                   badge_path)
-            s3_file_store(identifier=log_file.name,
-                          filepath=log_file,
-                          mimetype=Mimetype.TEXT,
-                          prefix=s3_prefix,
-                          engine=PYDB_S3_ENGINE,
-                          client=s3_client,
-                          errors=errors)
-            if not errors:
+            mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
+            mig_report.id_migration = migration.id
+            mig_report.cd_step = mig_step
+            mig_report.ds_path = ds_path
+            if (mig_report.insert(db_engine=PYDB_DB_ENGINE,
+                                  errors=errors) and
+                s3_file_store(identifier=json_file.name,
+                              filepath=json_file,
+                              mimetype=Mimetype.JSON,
+                              prefix=s3_prefix,
+                              engine=PYDB_S3_ENGINE,
+                              client=s3_client,
+                              errors=errors)):
                 # HAZARD: 'ds_path' is a UNIQUE attribute
                 ds_path: str = Path(s3_prefix,
-                                    log_file.name).as_posix()
-                # uncondionally delete entry, ignoring errors
+                                    json_file.name).as_posix()
+                # uncondionally delete entry (errors are logged)
                 MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
                                       db_engine=PYDB_DB_ENGINE,
                                       errors=errors)
@@ -373,32 +399,50 @@ def __log_migration(migration: Migration,
                 mig_report.id_migration = migration.id
                 mig_report.cd_step = mig_step
                 mig_report.ds_path = ds_path
-                if mig_report.insert(db_engine=PYDB_DB_ENGINE,
-                                     errors=errors):
-                    s3_file_store(identifier=json_file.name,
-                                  filepath=json_file,
-                                  mimetype=Mimetype.JSON,
-                                  prefix=s3_prefix,
-                                  engine=PYDB_S3_ENGINE,
-                                  client=s3_client,
+                mig_report.insert(db_engine=PYDB_DB_ENGINE,
                                   errors=errors)
-                    if not errors:
-                        # HAZARD: 'ds_path' is a UNIQUE attribute
-                        ds_path: str = Path(s3_prefix,
-                                            json_file.name).as_posix()
-                        # uncondionally delete entry, disregarding errors
-                        MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
-                                              db_engine=PYDB_DB_ENGINE,
-                                              errors=errors)
-                        mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
-                        mig_report.id_migration = migration.id
-                        mig_report.cd_step = mig_step
-                        mig_report.ds_path = ds_path
-                        mig_report.insert(db_engine=PYDB_DB_ENGINE,
-                                          errors=errors)
         for error in errors:
             MigrationIssue.new_issue(id_migration=migration.id,
                                      cd_step=mig_step,
                                      cd_type=IssueType.ERROR,
                                      ds_issue=error)
             logger.error(errors)
+
+
+def __establish_version(s3_client: Any,
+                        database: Database,
+                        base_path: Path,
+                        badge_path: Path,
+                        badge_name: str,
+                        errors: list[str]) -> int:
+
+    # initialize the return variable
+    result: int = 1
+
+    log_file: Path = Path(base_path,
+                          f"{badge_name}_1.log")
+    if s3_client:
+        # S3 storage has precedence
+        url: URLObject = URLObject(database.nm_host)
+        # 'url.hostname' returns 'None' for 'localhost'
+        host: str = f"{database.cd_type}@{url.hostname or str(url)}"
+        s3_prefix: Path = Path(host,
+                               PYDB_S3_BASE_FOLDER,
+                               badge_path)
+        curr_errors: list[str] = []
+        while s3_item_exists(identifier=log_file.name,
+                             prefix=s3_prefix,
+                             engine=PYDB_S3_ENGINE,
+                             client=s3_client,
+                             errors=curr_errors) and not curr_errors:
+            result += 1
+            log_file = Path(base_path,
+                            f"{badge_name}_{result}.log")
+        errors.extend(curr_errors)
+    else:
+        # host filesystem is the alternative
+        while log_file.exists():
+            result += 1
+            log_file = Path(base_path,
+                            f"{badge_name}_{result}.log")
+    return result
