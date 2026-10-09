@@ -96,9 +96,10 @@ def correlate_lobdata(migration: Migration,
             }
 
         # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
-
+        migration_table: MigrationTable = MigrationTable.for_table(
+            table=table_name,
+            migration_tables=migration.get_migration_tables()
+        )
         # organize the information, using LOB types from the columns list
         pk_columns: list[str] = []
         lob_columns: list[tuple[str, str]] = []

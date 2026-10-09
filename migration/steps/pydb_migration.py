@@ -26,7 +26,6 @@ from entities.session import Session
 def prune_metadata(migration: Migration,
                    session: Session,
                    mig_step: MigStep,
-                   migration_tables: list[MigrationTable],
                    source_metadata: MetaData,
                    logger: Logger) -> None:
 
@@ -39,7 +38,10 @@ def prune_metadata(migration: Migration,
 
         if source_table.schema == session.nm_source_schema:
             # prune table
-            migration_table: MigrationTable = next((t for t in migration_tables if t.nm_table == table_name), None)
+            migration_table: MigrationTable = MigrationTable.for_table(
+                table=table_name,
+                migration_tables=migration.get_migration_tables()
+            )
             target_columns: list[str] = str_as_list(migration_table.ds_exclude_columns) if migration_table else None
             if target_columns:
                 # look for columns to exclude
@@ -185,7 +187,6 @@ def setup_schema(target_db: DbEngine | str,
 def setup_tables(migration: Migration,
                  session: Session,
                  mig_step: MigStep,
-                 migration_tables: list[MigrationTable],
                  target_tables: list[Table],
                  migration_warnings: list[str],
                  errors: list[str],
@@ -202,8 +203,10 @@ def setup_tables(migration: Migration,
     # setup target tables
     for target_table in target_tables:
         # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in migration_tables if t.nm_table == target_table.name), None)
+        migration_table: MigrationTable = MigrationTable.for_table(
+            table=target_table.name,
+            migration_tables=migration.get_migration_tables()
+        )
         # initialize the local errors list
         curr_errors: list[str] = []
         # build the list of migrated columns for this table

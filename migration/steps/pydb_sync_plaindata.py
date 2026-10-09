@@ -42,9 +42,10 @@ def synchronize_plaindata(migration: Migration,
             break
 
         # obtain the corresponding MigrationTable instance
-        migration_table: MigrationTable = \
-            next((t for t in (migration.get_migration_tables() or []) if t.nm_table == table_name), None)
-
+        migration_table: MigrationTable = MigrationTable.for_table(
+            table=table_name,
+            migration_tables=migration.get_migration_tables()
+        )
         # obtain input batch size, limit and offset
         batch_size_in: int = migration_table.nr_batch_size_in
         limit_count: int = (migration_table.nr_incremental_count if migration_table else 0) or 0

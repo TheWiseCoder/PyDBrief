@@ -38,7 +38,6 @@ def migrate_metadata(migration: Migration,
 
     source_db: Database = session.get_source_db()
     target_db: Database = session.get_target_db()
-    migration_tables: list[MigrationTable] | None = migration.get_migration_tables() or []
     if migration.ds_pre_sql:
         execute_sql(migration=migration,
                     mig_step=mig_step,
@@ -87,7 +86,7 @@ def migrate_metadata(migration: Migration,
                     only_tables.append(table_name)
                     migration_table: MigrationTable = MigrationTable.for_table(
                         table=table_name.lower(),
-                        migration_tables=migration_tables
+                        migration_tables=migration.get_migration_tables()
                     )
                     if migration_table and migration_table.ds_pre_sql:
                         execute_sql(migration=migration,
@@ -146,7 +145,6 @@ def migrate_metadata(migration: Migration,
                 prune_metadata(migration=migration,
                                session=session,
                                mig_step=mig_step,
-                               migration_tables=migration_tables,
                                source_metadata=source_metadata,
                                logger=logger)
 
@@ -198,7 +196,6 @@ def migrate_metadata(migration: Migration,
                     result = setup_tables(migration=migration,
                                           session=session,
                                           mig_step=mig_step,
-                                          migration_tables=migration_tables,
                                           target_tables=target_tables,
                                           migration_warnings=migration_warnings,
                                           errors=errors,
