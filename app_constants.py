@@ -98,7 +98,6 @@ class InputParam(StrEnum):
     STEP = "step"
     TARGET_SCHEMA = "target-schema"
 
-    CUSTOM_TABLES = "custom-tables"
     DESCRIPTION = "description"
     DURATION = "duration"
     DONE = "done"
@@ -113,9 +112,9 @@ class InputParam(StrEnum):
     START = "start"
     STATE = "state"
     TABLE = "table"
+    TABLE_SPECS = "tables-specs"
     TABLES = "tables"
     TYPE = "type"
-    WORK_TABLES = "custom-tables"
 
 
 class OpType(StrEnum):

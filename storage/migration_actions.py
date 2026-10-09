@@ -174,7 +174,7 @@ def retrieve_migrations(input_params: dict[str, Any],
 
                     if errors:
                         break
-                    mig_data[InputParam.CUSTOM_TABLES] = mig_tables
+                    mig_data[InputParam.TABLE_SPECS] = mig_tables
                     result[migration.nm_badge] = mig_data
             else:
                 # 100: {} (omits the attribute "code")

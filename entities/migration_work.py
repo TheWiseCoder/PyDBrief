@@ -115,6 +115,7 @@ class MigrationWork(PySob):
                     elif self.__id_migration_spans != self.id:
                         self.__migration_spans = MigrationSpan.get_instances(
                             where_data={MigrationSpan.Db.ID_MIGRATION_WORK: self.id},
+                            orderby_clause=MigrationSpan.Db.NR_FIRST_ROW,
                             db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,

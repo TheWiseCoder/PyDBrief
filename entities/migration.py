@@ -125,11 +125,13 @@ class Migration(PySob):
                          errors=errors)
 
     def get_migration_issues(self,
+                             refresh: bool = False,
                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
                              db_conn: Any = None,
                              committable: bool = None,
                              errors: list[str] = None) -> list[MigrationIssue] | None:
-
+        if refresh:
+            self.__migration_issues = None
         self.load_references(list[MigrationIssue],
                              db_engine=db_engine,
                              db_conn=db_conn,
@@ -138,11 +140,13 @@ class Migration(PySob):
         return self.__migration_issues
 
     def get_migration_reports(self,
+                              refresh: bool = False,
                               db_engine: DbEngine | str = PYDB_DB_ENGINE,
                               db_conn: Any = None,
                               committable: bool = None,
                               errors: list[str] = None) -> list[MigrationReport] | None:
-
+        if refresh:
+            self.__migration_reports = None
         self.load_references(list[MigrationReport],
                              db_engine=db_engine,
                              db_conn=db_conn,
@@ -151,11 +155,13 @@ class Migration(PySob):
         return self.__migration_reports
 
     def get_migration_tables(self,
+                             refresh: bool = False,
                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
                              db_conn: Any = None,
                              committable: bool = None,
                              errors: list[str] = None) -> list[MigrationTable] | None:
-
+        if refresh:
+            self.__migration_tables = None
         self.load_references(list[MigrationTable],
                              db_engine=db_engine,
                              db_conn=db_conn,
@@ -165,6 +171,7 @@ class Migration(PySob):
 
     def get_migration_works(self,
                             __references: list[type[MigrationSpan]] = None,
+                            /,
                             refresh: bool = False,
                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
                             db_conn: Any = None,
@@ -210,6 +217,7 @@ class Migration(PySob):
                     elif self.__id_migration_issues != self.id:
                         self.__migration_issues = MigrationIssue.get_instances(
                             where_data={MigrationIssue.Db.ID_MIGRATION: self.id},
+                            orderby_clause=[MigrationIssue.Db.CD_STEP, MigrationIssue.Db.TS_ONSET],
                             db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
@@ -224,6 +232,7 @@ class Migration(PySob):
                     elif self.__id_migration_reports != self.id:
                         self.__migration_reports = MigrationReport.get_instances(
                             where_data={MigrationReport.Db.ID_MIGRATION: self.id},
+                            orderby_clause=[MigrationReport.Db.CD_STEP, MigrationReport.Db.TS_CREATION],
                             db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
@@ -238,6 +247,7 @@ class Migration(PySob):
                     elif self.__id_migration_tables != self.id:
                         self.__migration_tables = MigrationTable.get_instances(
                             where_data={MigrationTable.Db.ID_MIGRATION: self.id},
+                            orderby_clause=MigrationTable.Db.NM_TABLE,
                             db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
@@ -252,6 +262,7 @@ class Migration(PySob):
                     elif self.__id_migration_works != self.id:
                         self.__migration_works = MigrationWork.get_instances(
                             where_data={MigrationWork.Db.ID_MIGRATION: self.id},
+                            orderby_clause=[MigrationWork.Db.CD_STEP, MigrationWork.Db.NM_TABLE],
                             db_engine=db_engine,
                             db_conn=db_conn,
                             committable=committable,
