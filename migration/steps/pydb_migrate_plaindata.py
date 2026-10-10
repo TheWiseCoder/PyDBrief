@@ -69,10 +69,6 @@ def migrate_plaindata(session: Session,
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
 
-        # abort the plaindata migration on error from previous cycle
-        if errors:
-            break
-
         # verify whether current migration is marked for abortion
         mig_key: str = f"{mig_step}-{migration.id}"
         if minded_migrations.get(mig_key) == MigState.ABORTING:
@@ -97,7 +93,7 @@ def migrate_plaindata(session: Session,
             # obtain migration table data
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
-                migration_tables=migration.get_migration_tables() or []
+                migration_tables=migration.get_migration_tables()
             ) or MigrationTable()
             if migration_table.ds_pre_sql:
                 execute_sql(migration=migration,
@@ -145,6 +141,9 @@ def migrate_plaindata(session: Session,
             # 101: {}
             errors.append(validate_format_error(101,
                                                 err_msg))
+        # abort the plaindata migration
+        if errors:
+            break
 
     with plaindata_lock:
         migration_threads.extend(plaindata_registry[mother_thread]["child-threads"])

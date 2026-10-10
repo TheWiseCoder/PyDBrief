@@ -106,7 +106,7 @@ class MigrationTable(PySob):
         result: MigrationTable | None = None
 
         # traverse the migration table list
-        for migration_table in migration_tables:
+        for migration_table in migration_tables or []:
             if migration_table.nm_table == table:
                 result = migration_table
                 break

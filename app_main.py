@@ -159,13 +159,13 @@ def service_version() -> Response:
         "environment": {key: value for key, value in os.environ.items()
                         if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
         "logging": dict_jsonify(logging_get_params()),
-        "persistence": [
-            {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "_PWD" not in k}
+        "stateful": [
+            {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "pwd" not in k}
         ]
     }
     if PYDB_S3_ENGINE:
-        versions["persistence"].append({k: v for k, v in s3_get_params(engine=PYDB_S3_ENGINE).items()
-                                        if "_SECRET" not in k})
+        versions["stateful"].append({k: v for k, v in s3_get_params(engine=PYDB_S3_ENGINE).items()
+                                     if "secret" not in k})
     # assign to the return variable
     result: Response = jsonify(versions)
 
