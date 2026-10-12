@@ -17,7 +17,7 @@ from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep
 from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
-from entities.migration_table import MigrationTable
+from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
 from entities.migration_work import MigrationWork
 from entities.session import Session
 from migration.pydb_common import (
@@ -105,6 +105,7 @@ def migrate_lobdata(session: Session,
                 migration_tables=migration.get_migration_tables()
             ) or MigrationTable()
             # obtain limit and offset
+            chunk_size: int = migration_table.nr_chunk_size or SPAN_CHUNK_SIZE[2]
             limit_count: int = migration_table.nr_incremental_count or 0
             offset_count: int = migration_table.nr_incremental_offset or 0
 
@@ -175,7 +176,7 @@ def migrate_lobdata(session: Session,
                                     lob_tuples=None,
                                     offset_count=offset_count,
                                     limit_count=limit_count,
-                                    chunk_size=migration_table.nr_chunk_size,
+                                    chunk_size=chunk_size,
                                     migration_warnings=migration_warnings,
                                     errors=errors,
                                     logger=logger)
