@@ -14,7 +14,7 @@ from pypomes_s3 import s3_get_client, s3_item_exists
 from typing import Any
 
 from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep
-from entities.migration import Migration, minded_migrations
+from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable
@@ -235,8 +235,8 @@ def migrate_lob_columns(session: Session,
     # retrieve needed specs
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
     target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
-    channel_count: int = migration.nr_channel_count
-    channel_size: int = migration.nr_channel_size
+    channel_count: int = migration.nr_channel_count or SPAN_CHANNEL_COUNT[2]
+    channel_size: int = migration.nr_channel_size or SPAN_CHANNEL_SIZE[2]
     source_db: str = session.get_source_db().cd_engine
     target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None
 

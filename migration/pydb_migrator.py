@@ -112,7 +112,6 @@ def migrate(migration: Migration,
         if assert_relation(migration=migration,
                            relation=reified_view):
             migrated_tables[reified_view] = reified_views.pop(reified_view)
-
     logger.info(msg="Finished discovering the metadata")
 
     # initialize the thread registration
