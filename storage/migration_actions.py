@@ -282,7 +282,7 @@ def verify_migration(input_params: dict[str, Any] | Session,
                                            db_conn=db_conn,
                                            errors=errors)
             if s3:
-                if s3 in s3_engines:
+                if s3.cd_engine in s3_engines:
                     s3_startup(engine=s3.cd_engine,
                                errors=errors)
                 else:
