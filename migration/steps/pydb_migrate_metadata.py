@@ -202,7 +202,7 @@ def migrate_metadata(migration: Migration,
                                           logger=logger)
                     # initialize the list of tables created in the current migration run
                     result["created-tables"] = []
-                    result["reified_views"] = {}
+                    result["reified-views"] = {}
 
                     # reify materialized views
                     if not errors:
