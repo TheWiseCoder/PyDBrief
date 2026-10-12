@@ -201,7 +201,8 @@ def migrate_metadata(migration: Migration,
                                           errors=errors,
                                           logger=logger)
                     # initialize the list of tables created in the current migration run
-                    result["effected-tables"] = []
+                    result["created-tables"] = []
+                    result["reified_views"] = {}
 
                     # reify materialized views
                     if not errors:
@@ -255,7 +256,7 @@ def migrate_metadata(migration: Migration,
                                                                     column=name,
                                                                     errors=errors)
                                     # table was successfully created
-                                    result["effected-tables"].append(target_table.name)
+                                    result["created-tables"].append(target_table.name)
                                 except (Exception, SAWarning) as e:
                                     # unable to fully compile the schema with a single table
                                     exc_err: str = str_sanitize(exc_format(exc=e,
@@ -327,11 +328,12 @@ def __reify_mview(migration: Migration,
     if db_table_exists(table_name=f"{from_schema}.{mview}",
                        engine=source_db.cd_engine,
                        errors=errors):
-        table_name: str = f"{from_schema}.{mview}"
-        source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=table_name,
+        source_table: str = f"{from_schema}.{mview}"
+        target_table: str = f"{to_schema}.{mview}"
+        source_cols_metadata: list[tuple] = db_get_columns_metadata(table_name=source_table,
                                                                     engine=source_db.cd_engine,
                                                                     errors=errors)
-        table_pk: tuple[str, str] = db_get_table_pk(table_name=table_name,
+        table_pk: tuple[str, str] = db_get_table_pk(table_name=source_table,
                                                     engine=source_db.cd_engine,
                                                     errors=errors)
         if not errors:
@@ -355,18 +357,18 @@ def __reify_mview(migration: Migration,
                          col_metadata[4], col_metadata[5], def_value))
 
             if (mig_step == MigStep.MIGRATE_METADATA and
-                not db_table_exists(table_name=f"{to_schema}.{mview}",
+                not db_table_exists(table_name=target_table,
                                     engine=target_db.cd_engine,
                                     errors=errors) and not errors):
                 try:
                     # noinspection PyTypeChecker
-                    db_create_table(table_name=table_name,
+                    db_create_table(table_name=source_table,
                                     column_data=target_cols_metadata,
                                     constraints=pk_constraint,
                                     engine=target_db.cd_engine,
                                     errors=errors)
                     if not errors:
-                        migrated_tables["effected-tables"].append(mview)
+                        migrated_tables["created-tables"].append(mview)
                 except (Exception, SAWarning) as e:
                     # unable to create table
                     exc_err: str = str_sanitize(exc_format(exc=e,
@@ -396,7 +398,7 @@ def __reify_mview(migration: Migration,
                     }
                     if table_pk and target_clause[0] in str_as_list(table_pk[1].lower()):
                         columns[target_clause[0]]["features"] = "primary-key"
-                migrated_tables[mview] = {"columns": columns}
+                migrated_tables["reified-views"][mview] = {"columns": columns}
     elif not errors:
         warn_msg: str = f"Materialized view '{mview}' not found in database '{source_db.cd_engine}'"
         migration_warnings.append(warn_msg)

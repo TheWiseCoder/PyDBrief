@@ -32,6 +32,7 @@ from migration.steps.pydb_correlate_lobdata import correlate_lobdata
 from migration.steps.pydb_migrate_lobdata import migrate_lobdata
 from migration.steps.pydb_migrate_metadata import migrate_metadata
 from migration.steps.pydb_migrate_plaindata import migrate_plaindata
+from migration.steps.pydb_migration import assert_relation
 from migration.steps.pydb_sync_plaindata import synchronize_plaindata
 
 
@@ -104,8 +105,15 @@ def migrate(migration: Migration,
                                                        migration_warnings=migration_warnings,
                                                        errors=errors,
                                                        logger=logger) or {}
+    # determine reified views for migration
+    created_tables: list[str] = migrated_tables.pop("created-tables", [])
+    reified_views: dict[str, Any] = migrated_tables.pop("reified-views")
+    for reified_view in list(reified_views.keys()):
+        if assert_relation(migration=migration,
+                           relation=reified_view):
+            migrated_tables[reified_view] = reified_views.pop(reified_view)
+
     logger.info(msg="Finished discovering the metadata")
-    effected_tables: list[str] = migrated_tables.pop("effected-tables", [])
 
     # initialize the thread registration
     migration_threads: list[int] = [threading.get_ident()]
@@ -256,8 +264,12 @@ def migrate(migration: Migration,
     })
 
     # prune the migrated tables list
-    display_tables: dict[str, Any] = {k: v for k, v in migrated_tables.items() if k in effected_tables} \
-        if mig_step == MigStep.MIGRATE_METADATA else migrated_tables
+    display_tables: dict[str, Any]
+    if mig_step == MigStep.MIGRATE_METADATA:
+        display_tables = {k: v for k, v in migrated_tables.items() if k in created_tables}
+        display_tables.update({k: v for k, v in reified_views.items() if k in created_tables})
+    else:
+        display_tables = migrated_tables
     op_report["total-tables"] = len(display_tables)
 
     # prune the display
