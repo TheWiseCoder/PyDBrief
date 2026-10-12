@@ -205,7 +205,7 @@ def migrate_metadata(migration: Migration,
 
                     # reify materialized views
                     if not errors:
-                        reify_mviews: list[str] = str_as_list((migration.ds_reify_mviews or "").lower())
+                        reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
                         if reify_mviews:
                             # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
                             target_names: list[str] = [t.name for t in target_tables]

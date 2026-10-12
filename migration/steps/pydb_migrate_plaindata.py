@@ -75,9 +75,10 @@ def migrate_plaindata(session: Session,
             break
 
         target_db: str = session.get_target_db().cd_engine
+        source_table: str = f"{session.nm_target_schema}.{table_name}"
         target_table: str = f"{session.nm_target_schema}.{table_name}"
         with plaindata_lock:
-            plaindata_registry[mother_thread][table_name] = {
+            plaindata_registry[mother_thread][source_table] = {
                 "table-count": 0,
                 "errors": []
             }
@@ -274,8 +275,8 @@ def __migrate_plaindata(session: Session,
                 executor.shutdown(wait=False)
 
         with plaindata_lock:
-            result = plaindata_registry[mother_thread][migration_work.nm_table]["table-count"]
-            curr_errors: list[str] = plaindata_registry[mother_thread][migration_work.nm_table]["errors"]
+            result = plaindata_registry[mother_thread][source_table]["table-count"]
+            curr_errors: list[str] = plaindata_registry[mother_thread][source_table]["errors"]
             if curr_errors:
                 status = "error"
                 errors.extend(curr_errors)
@@ -296,7 +297,7 @@ def __migrate_plaindata(session: Session,
         "plain-performance": f"{result/secs:.2f} tuples/s"
     })
     logger.debug(msg=f"Migrated {result} plaindata from table {source_db}.{source_table} to "
-                     f"f{target_db}.{target_table}, status {status}, duration {duration}")
+                     f"{target_db}.{target_table}, status {status}, duration {duration}")
     return result
 
 
@@ -320,6 +321,9 @@ def _migrate_plain(session: Session,
     with plaindata_lock:
         plaindata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
+    source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
+    target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
+
     # determine whether the migration needs to be carried out
     count: int = 0
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
@@ -329,8 +333,6 @@ def _migrate_plain(session: Session,
 
         source_db: str = session.get_source_db().cd_engine
         target_db: str = session.get_target_db().cd_engine
-        source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
-        target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
 
         count = db_migrate_data(source_engine=source_db,
                                 source_table=source_table,
@@ -347,19 +349,20 @@ def _migrate_plain(session: Session,
                                 has_ctrlchars=has_ctrlchars,
                                 errors=errors)
         # acknowledge the migration
-        migration_span.nr_row_count = count
-        migration_span.is_done = True
-        migration_span.update(db_engine=PYDB_DB_ENGINE,
-                              errors=errors)
-        migration_work.nr_row_count += count
-        migration_work.update(db_engine=PYDB_DB_ENGINE,
-                              errors=errors)
+        if not errors:
+            migration_span.nr_row_count = count
+            migration_span.is_done = True
+            migration_span.update(db_engine=PYDB_DB_ENGINE,
+                                  errors=errors)
+            migration_work.nr_row_count += count
+            migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                  errors=errors)
     with plaindata_lock:
         if errors:
             MigrationIssue.new_issues(id_migration=migration_work.id_migration,
                                       cd_step=mig_step,
                                       cd_type=IssueType.ERROR,
                                       ds_issues=errors)
-            plaindata_registry[mother_thread][migration_work.nm_table]["errors"].extend(errors)
+            plaindata_registry[mother_thread][source_table]["errors"].extend(errors)
         else:
-            plaindata_registry[mother_thread][migration_work.nm_table]["table-count"] += count
+            plaindata_registry[mother_thread][source_table]["table-count"] += count

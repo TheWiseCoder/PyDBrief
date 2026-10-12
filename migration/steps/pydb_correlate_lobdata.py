@@ -18,9 +18,12 @@ from app_constants import MigState, MigStep
 from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
+from entities.migration_work import MigrationWork
 from entities.session import Session
 import migration.steps.pydb_migrate_lobdata as lobdata_ctrl
-from migration.pydb_common import build_channel_data, build_lob_prefix
+from migration.pydb_common import (
+    build_channel_data, build_lob_prefix, get_migration_work
+)
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 
@@ -48,9 +51,9 @@ from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 # }
 
 
-def correlate_lobdata(migration: Migration,
-                      session: Session,
+def correlate_lobdata(session: Session,
                       mig_step: MigStep,
+                      migration: Migration,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       migration_warnings: list[str],
@@ -99,24 +102,32 @@ def correlate_lobdata(migration: Migration,
         migration_table: MigrationTable = MigrationTable.for_table(
             table=table_name,
             migration_tables=migration.get_migration_tables()
-        )
-        # organize the information, using LOB types from the columns list
+        ) or MigrationTable()
+        chunk_size: int = migration_table.nr_chunk_size or SPAN_CHUNK_SIZE[2]
         pk_columns: list[str] = []
         lob_columns: list[tuple[str, str]] = []
-        table_columns = table_data.get("columns", {})
-        for column_name, column_data in table_columns.items():
-            column_type: str = column_data.get("source-type")
-            if is_lob_column(col_type=column_type):
-                # synchronizing to S3 requires the lob column be mapped in 'named-lobdata'
-                named_lobdata: list[str] = str_as_list(migration_table.ds_named_lobdata)
-                for item in named_lobdata:
-                    # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
-                    if item.startswith(f"{table_name}.{column_name}="):
-                        lob_columns.append((column_name, item[item.index("=")+1:]))
-                        break
-            features: list[str] = column_data.get("features", [])
-            if "primary-key" in features:
-                pk_columns.append(column_name)
+
+        # obtain the corresponding MigrationWork instance
+        migration_work: MigrationWork = get_migration_work(migration=migration,
+                                                           step=mig_step,
+                                                           table=table_name,
+                                                           errors=errors)
+        if not errors:
+            # organize the information, using LOB types from the columns list
+            table_columns = table_data.get("columns", {})
+            for column_name, column_data in table_columns.items():
+                column_type: str = column_data.get("source-type")
+                if is_lob_column(col_type=column_type):
+                    # synchronizing to S3 requires the lob column be mapped in 'named-lobdata'
+                    named_lobdata: list[str] = str_as_list(migration_table.ds_named_lobdata)
+                    for item in named_lobdata:
+                        # format of item is '<table-name>.<column-name>=<named-column>[.<filetype>]'
+                        if item.startswith(f"{table_name}.{column_name}="):
+                            lob_columns.append((column_name, item[item.index("=")+1:]))
+                            break
+                features: list[str] = column_data.get("features", [])
+                if "primary-key" in features:
+                    pk_columns.append(column_name)
 
         if lob_columns:
             # start synchronizing the LOBs in the S3 folder with its corresponding source table column
@@ -181,14 +192,15 @@ def correlate_lobdata(migration: Migration,
                                      f"using {max_workers} channels")
                     if max_workers == 1:
                         # execute single task in current thread
-                        _compute_lob_lists(session=session,
-                                           mother_thread=mother_thread,
-                                           source_table=source_table,
-                                           reference_column=reference_column,
-                                           where_clause=where_clause,
-                                           lob_prefix=lob_prefix,
-                                           offset_count=channel_data[0][0],
-                                           limit_count=tot_count)
+                        for channel_datum in channel_data:
+                            _compute_lob_lists(session=session,
+                                               mother_thread=mother_thread,
+                                               source_table=source_table,
+                                               reference_column=reference_column,
+                                               where_clause=where_clause,
+                                               lob_prefix=lob_prefix,
+                                               offset_count=channel_datum[0],
+                                               limit_count=channel_datum[1])
                     else:
                         # execute tasks concurrently
                         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -278,18 +290,17 @@ def correlate_lobdata(migration: Migration,
 
             # migrate the LOBs in 'table_inserts'
             if lob_columns:
-                migrate_lob_columns(migration=migration,
-                                    session=session,
+                migrate_lob_columns(session=session,
                                     mig_step=mig_step,
+                                    migration=migration,
+                                    migration_work=migration_work,
                                     mother_thread=mother_thread,
-                                    source_table=source_table,
-                                    target_table=target_table,
                                     pk_columns=pk_columns,
                                     lob_columns=lob_columns,
                                     lob_tuples=table_inserts,
                                     offset_count=0,
                                     limit_count=0,
-                                    chunk_size=migration_table.nr_chunk_size or SPAN_CHUNK_SIZE[1],
+                                    chunk_size=chunk_size,
                                     migration_warnings=migration_warnings,
                                     errors=errors,
                                     logger=logger)

@@ -145,9 +145,9 @@ def migrate(migration: Migration,
                 warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int] = migrate_lobdata(migration=migration,
-                                                      session=session,
+            counts: tuple[int, int] = migrate_lobdata(session=session,
                                                       mig_step=mig_step,
+                                                      migration=migration,
                                                       migration_threads=migration_threads,
                                                       migrated_tables=migrated_tables,
                                                       migration_warnings=migration_warnings,
@@ -179,9 +179,9 @@ def migrate(migration: Migration,
             warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int, int] = correlate_lobdata(migration=migration,
-                                                             session=session,
+            counts: tuple[int, int, int] = correlate_lobdata(session=session,
                                                              mig_step=mig_step,
+                                                             migration=migration,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              migration_warnings=migration_warnings,
@@ -203,9 +203,9 @@ def migrate(migration: Migration,
             op: str = "correlating" if mig_step == MigStep.CORRELATE_PLAINDATA else "synchronizing"
             logger.info(msg=f"Started {op} the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int, int] = synchronize_plaindata(migration=migration,
-                                                                 session=session,
+            counts: tuple[int, int, int] = synchronize_plaindata(session=session,
                                                                  mig_step=mig_step,
+                                                                 migration=migration,
                                                                  migration_threads=migration_threads,
                                                                  migrated_tables=migrated_tables,
                                                                  # migration_warnings=migration_warnings,
