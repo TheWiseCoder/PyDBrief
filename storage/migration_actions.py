@@ -11,7 +11,10 @@ from pypomes_db import (
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
 from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep, OpType
-from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
+from entities.migration import (
+    SPAN_CHANNEL_COUNT, SPAN_LOBDATA_SIZE, SPAN_PLAINDATA_SIZE,
+    Migration, minded_migrations
+)
 from entities.database import Database
 from entities.migration_table import MigrationTable
 from entities.s3 import S3
@@ -222,7 +225,7 @@ def abort_migration(input_params: dict[str, Any] | Session,
         if not errors:
             migration: Migration = migration_params.get(InputParam.MIGRATION)
             mig_step: MigStep = migration_params.get(InputParam.STEP)
-            mig_key = f"{mig_step}-{migration.nm_badge}"
+            mig_key: str = f"{mig_step}-{migration.id}"
             if minded_migrations.get(mig_key) == MigState.MIGRATING:
                 minded_migrations[mig_key] = MigState.ABORTING
             else:
@@ -232,7 +235,7 @@ def abort_migration(input_params: dict[str, Any] | Session,
                                                     f"step '{mig_step}',not running"))
 
 
-def verify_migration(input_params: dict[str, Any] | Session,
+def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                      errors: list[str],
                      logger: Logger) -> None:
 
@@ -240,6 +243,7 @@ def verify_migration(input_params: dict[str, Any] | Session,
     db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
                               errors=errors)
     if db_conn:
+        mig_step: MigStep | None = None
         session: Session | None = None
         if isinstance(input_params, dict):
             # validate the input data
@@ -250,12 +254,14 @@ def verify_migration(input_params: dict[str, Any] | Session,
                                                                 db_conn=db_conn,
                                                                 errors=errors)
             if not errors:
+                mig_step: MigStep = migration_params.get(InputParam.STEP)
                 session = Session(migration_params[InputParam.MIGRATION].id_session,
                                   db_engine=PYDB_DB_ENGINE,
                                   db_conn=db_conn,
                                   errors=errors)
         else:
-            session = input_params
+            session = input_params[0]
+            mig_step = input_params[1]
 
         if not errors:
             db_engines: list[str] = db_get_engines()
@@ -276,7 +282,8 @@ def verify_migration(input_params: dict[str, Any] | Session,
                                      db_engines=db_engines,
                                      errors=errors,
                                      logger=logger)
-        if not errors:
+
+        if not errors and mig_step in [MigStep.CORRELATE_LOBDATA, MigStep.MIGRATE_LOBDATA]:
             s3_engines: list[str] = s3_get_engines()
             s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
                                            db_conn=db_conn,
@@ -420,14 +427,23 @@ def __validate_input(input_params: dict[str, Any],
             (InputParam.CHANNEL_COUNT in input_params and nr_channel_count is None):
         result[Migration.Db.NR_CHANNEL_COUNT] = nr_channel_count
 
-    nr_channel_size: int = validate_int(source=input_params,
-                                        attr=InputParam.CHANNEL_SIZE,
-                                        min_val=SPAN_CHANNEL_SIZE[0],
-                                        max_val=SPAN_CHANNEL_SIZE[1],
+    nr_lobdata_size: int = validate_int(source=input_params,
+                                        attr=InputParam.LOBDATA_SIZE,
+                                        min_val=SPAN_LOBDATA_SIZE[0],
+                                        max_val=SPAN_LOBDATA_SIZE[1],
                                         errors=errors)
-    if nr_channel_size or \
-            (InputParam.CHANNEL_SIZE in input_params and nr_channel_size is None):
-        result[Migration.Db.NR_CHANNEL_SIZE] = nr_channel_size
+    if nr_lobdata_size or \
+            (InputParam.LOBDATA_SIZE in input_params and nr_lobdata_size is None):
+        result[Migration.Db.NR_LOBDATA_SIZE] = nr_lobdata_size
+
+    nr_plaindata_size: int = validate_int(source=input_params,
+                                          attr=InputParam.PLAINDATA_SIZE,
+                                          min_val=SPAN_PLAINDATA_SIZE[0],
+                                          max_val=SPAN_PLAINDATA_SIZE[1],
+                                          errors=errors)
+    if nr_plaindata_size or \
+            (InputParam.PLAINDATA_SIZE in input_params and nr_plaindata_size is None):
+        result[Migration.Db.NR_PLAINDATA_SIZE] = nr_plaindata_size
 
     exclude_relations: list[str] = validate_strs(source=input_params,
                                                  attr=InputParam.EXCLUDE_RELATIONS,

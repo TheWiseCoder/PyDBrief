@@ -713,7 +713,7 @@ def service_migrate() -> Response:
                                            errors=errors)
                 if not errors:
                     # make sure database migration is possible
-                    verify_migration(input_params=session,
+                    verify_migration(input_params=(session, mig_step),
                                      errors=errors,
                                      logger=PYPOMES_LOGGER)
                     if not errors:

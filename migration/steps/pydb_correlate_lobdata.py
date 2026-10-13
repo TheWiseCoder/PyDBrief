@@ -15,7 +15,7 @@ from pypomes_s3 import (
 from typing import Any
 
 from app_constants import MigState, MigStep
-from entities.migration import Migration, minded_migrations
+from entities.migration import SPAN_LOBDATA_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_table import MigrationTable, SPAN_CHUNK_SIZE
 from entities.migration_work import MigrationWork
@@ -174,10 +174,11 @@ def correlate_lobdata(session: Session,
                     lob_prefix: Path = build_lob_prefix(session=session,
                                                         target_table=target_table,
                                                         column_name=reference_column)
+                    channel_size: int = migration.nr_lobdata_size or SPAN_LOBDATA_SIZE[2]
 
                     # build migration channel data ([(offset, limit),...])
                     channel_data: list[tuple[int, int]] = \
-                        build_channel_data(channel_size=migration.nr_channel_size,
+                        build_channel_data(channel_size=channel_size,
                                            table_count=table_count,
                                            offset_count=0,
                                            limit_count=0)

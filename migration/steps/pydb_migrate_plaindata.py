@@ -12,7 +12,7 @@ from pypomes_db import (
 from typing import Any
 
 from app_constants import PYDB_DB_ENGINE, MigState, MigStep
-from entities.migration import SPAN_CHANNEL_COUNT, SPAN_CHANNEL_SIZE, Migration, minded_migrations
+from entities.migration import SPAN_CHANNEL_COUNT, SPAN_PLAINDATA_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
 from entities.migration_table import MigrationTable, SPAN_BATCH_SIZE_IN, SPAN_BATCH_SIZE_OUT
@@ -181,7 +181,7 @@ def __migrate_plaindata(session: Session,
                                  errors=errors) or 0) - offset_count
     if table_count > 0:
         channel_count: int = migration.nr_channel_count or SPAN_CHANNEL_COUNT[2]
-        channel_size: int = migration.nr_channel_size or SPAN_CHANNEL_SIZE[2]
+        channel_size: int = migration.nr_plaindata_size or SPAN_PLAINDATA_SIZE[2]
         identity_column: str | None = None
         orderby_columns: list[str] = []
         source_columns: list[str] = []

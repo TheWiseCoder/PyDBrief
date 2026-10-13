@@ -16,7 +16,8 @@ from entities.migration_work import MigrationWork
 
 # values are (min, max, default)
 SPAN_CHANNEL_COUNT: Final[tuple[int, int, int]] = (1, 127, 1)
-SPAN_CHANNEL_SIZE: Final[tuple[int, int, int]] = (1000, 1000000, 100000)
+SPAN_PLAINDATA_SIZE: Final[tuple[int, int, int]] = (1000, 1000000, 100000)
+SPAN_LOBDATA_SIZE: Final[tuple[int, int, int]] = (100, 100000, 10000)
 
 
 # key is '<AA>-<migration-id>' ('AA' is the 2-letter migration step)
@@ -44,7 +45,8 @@ class Migration(PySob):
         IS_SKIP_NONEMPTY = auto()
         NM_BADGE = auto()
         NR_CHANNEL_COUNT = auto()
-        NR_CHANNEL_SIZE = auto()
+        NR_LOBDATA_SIZE = auto()
+        NR_PLAINDATA_SIZE = auto()
         TS_START = auto()
         TS_FINISH = auto()
 
@@ -54,11 +56,12 @@ class Migration(PySob):
     ATTRS_INPUT: Final[list[tuple[InputParam, Db]]] = [
         (InputParam.BADGE, Db.NM_BADGE),
         (InputParam.CHANNEL_COUNT, Db.NR_CHANNEL_COUNT),
-        (InputParam.CHANNEL_SIZE, Db.NR_CHANNEL_SIZE),
         (InputParam.EXCLUDE_RELATIONS, Db.DS_EXCLUDE_RELATIONS),
         (InputParam.FLATTEN_STORAGE, Db.IS_FLATTEN_STORAGE),
         (InputParam.INCLUDE_RELATIONS, Db.DS_INCLUDE_RELATIONS),
+        (InputParam.LOBDATA_SIZE, Db.NR_LOBDATA_SIZE),
         (InputParam.OPTIMIZE_PKS, Db.IS_OPTIMIZE_PKS),
+        (InputParam.PLAINDATA_SIZE, Db.NR_PLAINDATA_SIZE),
         (InputParam.PRE_SQL, Db.DS_PRE_SQL),
         (InputParam.PROCESS_INDEXES, Db.IS_PROCESS_INDEXES),
         (InputParam.PROCESS_VIEWS, Db.IS_PROCESS_VIEWS),
@@ -98,7 +101,8 @@ class Migration(PySob):
         self.is_relax_reflection: bool | None = None
         self.is_skip_nonempty: bool | None = None
         self.nr_channel_count: int | None = None
-        self.nr_channel_size: int | None = None
+        self.nr_lobdata_size: int | None = None
+        self.nr_plaindata_size: int | None = None
         self.ts_start: datetime | None = None
         self.ts_finish: datetime | None = None
 
