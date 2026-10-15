@@ -33,7 +33,7 @@ def retrieve_migration_works(input_params: dict[str, Any],
             migration_works: list[MigrationWork] = MigrationWork.get_instances(
                 joins=[(Migration, (Migration.Db.ID, MigrationWork.Db.ID_MIGRATION))],
                 where_data=where_data,
-                orderby_clause=MigrationWork.Db.NM_TABLE,
+                orderby_clause=(MigrationWork.Db.ID_MIGRATION, MigrationWork.Db.NM_TABLE),
                 db_engine=PYDB_DB_ENGINE,
                 errors=errors
             )

@@ -107,7 +107,7 @@ def migrate(migration: Migration,
                                                        logger=logger) or {}
     # determine reified views for migration
     created_tables: list[str] = migrated_tables.pop("created-tables", [])
-    reified_views: dict[str, Any] = migrated_tables.pop("reified-views", [])
+    reified_views: dict[str, Any] = migrated_tables.pop("reified-views", {})
     for reified_view in list(reified_views.keys()):
         if assert_relation(migration=migration,
                            relation=reified_view):

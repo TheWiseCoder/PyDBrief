@@ -135,6 +135,7 @@ def retrieve_databases(input_params: dict[str, Any],
                 where_data = {Database.Db.CD_TYPE: database_params[Database.Db.CD_TYPE]}
             databases: list[Database] = Database.get_instances(where_data=where_data,
                                                                db_engine=PYDB_DB_ENGINE,
+                                                               orderby_clause=Database.Db.CD_ENGINE,
                                                                db_conn=db_conn,
                                                                errors=errors)
             for database in databases or []:

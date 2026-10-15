@@ -146,16 +146,18 @@ def retrieve_migration_tables(input_params: dict[str, Any],
                 where_data: dict[str, Any] | None = {MigrationTable.Db.ID_MIGRATION: id_migration}
                 if InputParam.TABLE in migration_table_params:
                     where_data[MigrationTable.Db.NM_TABLE] = migration_table_params.get(InputParam.TABLE)
+                orderby: tuple(str) = (MigrationTable.Db.ID_MIGRATION, MigrationTable.Db.NM_TABLE)
 
                 migration_tables: list[MigrationTable] = MigrationTable.get_instances(where_data=where_data,
+                                                                                      orderby_clause=orderby,
                                                                                       db_engine=PYDB_DB_ENGINE,
                                                                                       db_conn=db_conn,
                                                                                       errors=errors)
                 for migration_table in migration_tables or []:
                     mig_table_data: dict[str, Any] = migration_table.get_inputs()
                     mig_table_data.pop(InputParam.TABLE, None)
-
                     result[migration_table.nm_table] = mig_table_data
+
         # conclude the operation
         if errors:
             db_rollback(connection=db_conn,

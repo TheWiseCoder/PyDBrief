@@ -139,6 +139,7 @@ def retrieve_sessions(input_params: dict[str, Any],
             if Session.Db.CD_SESSION in session_params:
                 where_data = {Session.Db.CD_SESSION: session_params.get(Session.Db.CD_SESSION)}
             sessions: list[Session] = Session.get_instances(where_data=where_data,
+                                                            orderby_clause=Session.Db.CD_SESSION,
                                                             db_engine=PYDB_DB_ENGINE,
                                                             db_conn=db_conn,
                                                             errors=errors)

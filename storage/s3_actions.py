@@ -135,6 +135,7 @@ def retrieve_s3s(input_params: dict[str, Any],
             elif S3.Db.CD_TYPE in s3_params:
                 where_data = {S3.Db.CD_TYPE: s3_params.get(S3.Db.CD_TYPE)}
             s3s: list[S3] = S3.get_instances(where_data=where_data,
+                                             orderby_clause=S3.Db.CD_ENGINE,
                                              db_engine=PYDB_DB_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)

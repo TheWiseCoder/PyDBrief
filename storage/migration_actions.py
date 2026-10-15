@@ -151,6 +151,7 @@ def retrieve_migrations(input_params: dict[str, Any],
 
             if where_data:
                 migrations: list[Migration] = Migration.get_instances(where_data=where_data,
+                                                                      orderby_clause=Migration.Db.NM_BADGE,
                                                                       db_engine=PYDB_DB_ENGINE,
                                                                       db_conn=db_conn,
                                                                       errors=errors)

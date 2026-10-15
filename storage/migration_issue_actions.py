@@ -139,7 +139,9 @@ def retrieve_migration_issues(input_params: dict[str, Any],
 
                 result[InputParam.MIGRATION] = migration_issue_params.get(InputParam.BADGE)
                 result[InputParam.ISSUES]: list[dict[str, Any]] = []
+                orderby: tuple[str, str] = (MigrationIssue.Db.ID_MIGRATION, MigrationIssue.Db.CD_STEP)
                 migration_issues: list[MigrationIssue] = MigrationIssue.get_instances(where_data=where_data,
+                                                                                      orderby_clause=orderby,
                                                                                       db_engine=PYDB_DB_ENGINE,
                                                                                       db_conn=db_conn,
                                                                                       errors=errors)
