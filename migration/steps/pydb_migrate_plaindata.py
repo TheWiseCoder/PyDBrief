@@ -7,6 +7,7 @@ from pypomes_core import (
     TZ_LOCAL, timestamp_duration, validate_format_error
 )
 from pypomes_db import (
+    db_connect, db_commit, db_rollback, db_close,
     db_is_reserved_word, db_count, db_table_exists, db_migrate_data
 )
 from typing import Any
@@ -330,33 +331,60 @@ def _migrate_plain(session: Session,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
-
+        # obtain target DB connection
         source_db: str = session.get_source_db().cd_engine
         target_db: str = session.get_target_db().cd_engine
+        target_conn: Any = db_connect(engine=target_db,
+                                      errors=errors)
+        if target_conn:
+            count = db_migrate_data(source_engine=source_db,
+                                    source_table=source_table,
+                                    source_columns=source_columns,
+                                    target_engine=target_db,
+                                    target_table=target_table,
+                                    target_columns=target_columns,
+                                    orderby_clause=orderby_clause,
+                                    offset_count=offset_count,
+                                    limit_count=limit_count,
+                                    identity_column=identity_column,
+                                    batch_size_in=batch_size_in,
+                                    batch_size_out=batch_size_out,
+                                    target_conn=target_conn,
+                                    has_ctrlchars=has_ctrlchars,
+                                    errors=errors)
+            # acknowledge the migration
+            if not errors:
+                # obtain state DB connection
+                pydb_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                                            errors=errors)
+                if pydb_conn:
+                    migration_span.nr_row_count = count
+                    migration_span.is_done = True
+                    migration_span.update(db_engine=PYDB_DB_ENGINE,
+                                          errors=errors)
+                    if not errors:
+                        migration_work.nr_row_count += count
+                        migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                              errors=errors)
+                    if errors:
+                        db_rollback(connection=pydb_conn,
+                                    engine=PYDB_DB_ENGINE)
+                    else:
+                        db_commit(connection=pydb_conn,
+                                  engine=PYDB_DB_ENGINE,
+                                  errors=errors)
+                    db_close(connection=pydb_conn,
+                             engine=PYDB_DB_ENGINE)
+            if errors:
+                db_rollback(connection=target_conn,
+                            engine=target_db)
+            else:
+                db_commit(connection=target_conn,
+                          engine=target_db,
+                          errors=errors)
+            db_close(connection=target_conn,
+                     engine=target_db)
 
-        count = db_migrate_data(source_engine=source_db,
-                                source_table=source_table,
-                                source_columns=source_columns,
-                                target_engine=target_db,
-                                target_table=target_table,
-                                target_columns=target_columns,
-                                orderby_clause=orderby_clause,
-                                offset_count=offset_count,
-                                limit_count=limit_count,
-                                identity_column=identity_column,
-                                batch_size_in=batch_size_in,
-                                batch_size_out=batch_size_out,
-                                has_ctrlchars=has_ctrlchars,
-                                errors=errors)
-        # acknowledge the migration
-        if not errors:
-            migration_span.nr_row_count = count
-            migration_span.is_done = True
-            migration_span.update(db_engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-            migration_work.nr_row_count += count
-            migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                  errors=errors)
     with plaindata_lock:
         if errors:
             MigrationIssue.new_issues(id_migration=migration_work.id_migration,

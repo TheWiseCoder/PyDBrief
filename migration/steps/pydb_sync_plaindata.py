@@ -1,7 +1,7 @@
 import threading
 from logging import Logger
 from typing import Any
-from pypomes_db import db_connect, db_commit, db_sync_data
+from pypomes_db import db_connect, db_commit, db_rollback, db_close, db_sync_data
 
 from entities.migration import Migration, minded_migrations
 from app_constants import PYDB_DB_ENGINE, MigState, MigStep
@@ -70,7 +70,6 @@ def synchronize_plaindata(session: Session,
                 has_ctrlchars: bool = migration_table.is_remove_ctrlchars
 
                 # identify identity column and build the lists of PK and sync columns
-                curr_errors: list[str] = []
                 pk_columns: list[str] = []
                 sync_columns: list[str] = []
                 identity_column: str | None = None
@@ -86,11 +85,11 @@ def synchronize_plaindata(session: Session,
                         if "identity" in features:
                             identity_column = column_name
 
-                # obtain target DB connection
-                db_conn: Any = db_connect(engine=target_db,
-                                          errors=curr_errors)
                 counts: tuple[int, int, int] = (0,  0, 0)
-                if not curr_errors:
+                # obtain target DB connection
+                target_conn: Any = db_connect(engine=target_db,
+                                              errors=errors)
+                if target_conn:
                     counts = db_sync_data(source_engine=source_db,
                                           source_table=source_table,
                                           target_engine=target_db,
@@ -103,37 +102,56 @@ def synchronize_plaindata(session: Session,
                                           limit_count=limit_count,
                                           batch_size=batch_size_in,
                                           has_nulls=has_ctrlchars,
-                                          target_conn=db_conn,
-                                          errors=curr_errors) or (0, 0, 0)
+                                          target_conn=target_conn,
+                                          errors=errors) or (0, 0, 0)
                     # acknowledge the migration
-                    if curr_errors:
+                    if errors:
                         table_embedded_nulls(db_engine=target_db,
                                              table=target_table,
-                                             errors=curr_errors,
+                                             errors=errors,
                                              logger=logger)
                         MigrationIssue.new_issues(id_migration=migration.id,
                                                   cd_step=mig_step,
                                                   cd_type=IssueType.ERROR,
-                                                  ds_issues=curr_errors)
-                        errors.extend(curr_errors)
+                                                  ds_issues=errors)
                     else:
-                        migration_span.nr_row_count = counts[0] + counts[1] + counts[2]
-                        migration_span.is_done = True
-                        migration_span.update(db_engine=PYDB_DB_ENGINE,
-                                              errors=errors)
-                        migration_work.nr_row_count = counts[0] + counts[1] + counts[2]
-                        migration_work.update(db_engine=PYDB_DB_ENGINE,
-                                              errors=errors)
-
-                    # unconditionally commit the transaction
-                    db_commit(connection=db_conn,
-                              engine=target_db,
-                              errors=errors)
+                        # obtain state DB connection
+                        pydb_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                                                    errors=errors)
+                        if pydb_conn:
+                            migration_span.nr_row_count = counts[0] + counts[1] + counts[2]
+                            migration_span.is_done = True
+                            migration_span.update(db_engine=PYDB_DB_ENGINE,
+                                                  db_conn=pydb_conn,
+                                                  errors=errors)
+                            if not errors:
+                                migration_work.nr_row_count = counts[0] + counts[1] + counts[2]
+                                migration_work.update(db_engine=PYDB_DB_ENGINE,
+                                                      db_conn=pydb_conn,
+                                                      errors=errors)
+                            if errors:
+                                db_rollback(connection=pydb_conn,
+                                            engine=PYDB_DB_ENGINE)
+                            else:
+                                db_commit(connection=pydb_conn,
+                                          engine=PYDB_DB_ENGINE,
+                                          errors=errors)
+                            db_close(connection=pydb_conn,
+                                     engine=PYDB_DB_ENGINE)
+                    if errors:
+                        db_rollback(connection=target_conn,
+                                    engine=target_db)
+                    else:
+                        db_commit(connection=target_conn,
+                                  engine=target_db,
+                                  errors=errors)
+                    db_close(connection=target_conn,
+                             engine=target_db)
 
                 deletes: int = counts[0]
                 inserts: int = counts[1]
                 updates: int = counts[2]
-                if curr_errors:
+                if errors:
                     status: str = "partial"
                 else:
                     status: str = "full"

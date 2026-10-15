@@ -471,18 +471,23 @@ def _db_migrate_lobs(session: Session,
                                               db_conn=pydb_conn,
                                               errors=errors)
                     if errors:
-                        db_rollback(connection=pydb_conn)
+                        db_rollback(connection=pydb_conn,
+                                    engine=PYDB_DB_ENGINE)
                     else:
                         db_commit(connection=pydb_conn,
+                                  engine=PYDB_DB_ENGINE,
                                   errors=errors)
-                    db_close(connection=pydb_conn)
-
+                    db_close(connection=pydb_conn,
+                             engine=PYDB_DB_ENGINE)
             if errors:
-                db_rollback(connection=db_conn)
+                db_rollback(connection=db_conn,
+                            engine=target_db)
             else:
                 db_commit(connection=db_conn,
+                          engine=target_db,
                           errors=errors)
-            db_close(connection=db_conn)
+            db_close(connection=db_conn,
+                     engine=target_db)
 
     with lobdata_lock:
         if errors:
@@ -526,9 +531,9 @@ def _s3_migrate_lobs(session: Session,
     source_db: str = session.get_source_db().cd_engine
 
     # obtain database connection
-    db_conn: Any = db_connect(engine=source_db,
-                              errors=errors)
-    if db_conn:
+    source_conn: Any = db_connect(engine=source_db,
+                                  errors=errors)
+    if source_conn:
         # determine whether the migration needs to be carried out
         migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
                                                            first_row=offset_count,
@@ -538,7 +543,6 @@ def _s3_migrate_lobs(session: Session,
             s3_client = s3_get_client(engine=session.get_target_s3().cd_engine,
                                       errors=errors)
             if s3_client:
-                db_conn: Any = None
                 temp_table: str | None = None
                 if isinstance(where_clause, list):
                     # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
@@ -546,7 +550,7 @@ def _s3_migrate_lobs(session: Session,
                                  f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
                     temp_column: str = f"id_{reference_column}"[:30]
                     db_create_session_table(engine=source_db,
-                                            connection=db_conn,
+                                            connection=source_conn,
                                             table_name=temp_table,
                                             column_data=[f"{temp_column} VARCHAR2(64) PRIMARY KEY"],
                                             errors=errors)
@@ -565,14 +569,14 @@ def _s3_migrate_lobs(session: Session,
                                        insert_attrs=[temp_column],
                                        insert_vals=insert_vals,
                                        engine=source_db,
-                                       connection=db_conn,
+                                       connection=source_conn,
                                        errors=errors)
                 if not errors:
                     # 'target_table' is documentational, only
                     totals: tuple[int, int] = s3_migrate_lobs(migration=migration,
                                                               session=session,
                                                               mig_step=mig_step,
-                                                              db_conn=db_conn,
+                                                              source_conn=source_conn,
                                                               s3_client=s3_client,
                                                               source_table=source_table,
                                                               target_table=target_table,
@@ -607,21 +611,28 @@ def _s3_migrate_lobs(session: Session,
                                                       db_conn=pydb_conn,
                                                       errors=errors)
                             if errors:
-                                db_rollback(connection=pydb_conn)
+                                db_rollback(connection=pydb_conn,
+                                            engine=PYDB_DB_ENGINE)
                             else:
                                 db_commit(connection=pydb_conn,
+                                          engine=PYDB_DB_ENGINE,
                                           errors=errors)
-                            db_close(connection=pydb_conn)
+                            db_close(connection=pydb_conn,
+                                     engine=PYDB_DB_ENGINE)
                 if temp_table:
                     # disregard errors on dropping table
                     db_drop_table(table_name=temp_table,
-                                  connection=db_conn)
+                                  engine=source_db,
+                                  connection=source_conn)
         if errors:
-            db_rollback(connection=db_conn)
+            db_rollback(connection=source_conn,
+                        engine=source_db)
         else:
-            db_commit(connection=db_conn,
+            db_commit(connection=source_conn,
+                      engine=source_db,
                       errors=errors)
-        db_close(connection=db_conn)
+        db_close(connection=source_conn,
+                 engine=source_db)
 
     with lobdata_lock:
         if errors:
