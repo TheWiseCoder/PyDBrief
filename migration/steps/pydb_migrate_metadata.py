@@ -41,8 +41,8 @@ def migrate_metadata(migration: Migration,
     if migration.ds_pre_sql:
         execute_sql(migration=migration,
                     mig_step=mig_step,
-                    db_engine=source_db.cd_engine,
-                    sql_text=migration.ds_pre_sql)
+                    sql_text=migration.ds_pre_sql,
+                    db_engine=source_db.cd_engine)
 
     # create engines
     sa_source_engine: Engine | None = None
@@ -91,8 +91,8 @@ def migrate_metadata(migration: Migration,
                     if migration_table and migration_table.ds_pre_sql:
                         execute_sql(migration=migration,
                                     mig_step=mig_step,
-                                    db_engine=source_db.cd_engine,
-                                    sql_text=migration_table.ds_pre_sql)
+                                    sql_text=migration_table.ds_pre_sql,
+                                    db_engine=source_db.cd_engine)
                 logger.debug(msg=f"Relation '{table_name}' asserted '{ok}' on inspection")
 
             # obtain the source schema metadata

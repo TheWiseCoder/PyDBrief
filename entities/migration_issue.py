@@ -78,7 +78,6 @@ class MigrationIssue(PySob):
                   ds_issue: str,
                   db_engine: DbEngine | str = PYDB_DB_ENGINE,
                   db_conn: Any = None,
-                  committable: bool = None,
                   errors: list[str] = None) -> None:
 
         if ds_issue:
@@ -90,7 +89,6 @@ class MigrationIssue(PySob):
             migration_issue.ts_onset = datetime.now(tz=TZ_LOCAL)
             migration_issue.insert(db_engine=db_engine,
                                    db_conn=db_conn,
-                                   committable=committable,
                                    errors=errors)
 
     @classmethod
@@ -101,7 +99,6 @@ class MigrationIssue(PySob):
                    ds_issues: list[str],
                    db_engine: DbEngine | str = PYDB_DB_ENGINE,
                    db_conn: Any = None,
-                   committable: bool = None,
                    errors: list[str] = None) -> None:
 
         curr_errors: list[str] = []
@@ -112,7 +109,6 @@ class MigrationIssue(PySob):
                                      ds_issue=ds_issue,
                                      db_engine=db_engine,
                                      db_conn=db_conn,
-                                     committable=committable,
                                      errors=curr_errors)
             if curr_errors:
                 if isinstance(errors, list):

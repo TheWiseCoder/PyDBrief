@@ -67,8 +67,8 @@ def build_lob_prefix(session: Session,
 
 def execute_sql(migration: Migration,
                 mig_step: MigStep,
-                db_engine: str,
                 sql_text: str,
+                db_engine: str,
                 db_conn: Any = None) -> None:
 
     sql_stmts: list[str] = sql_text.split(sep="//")

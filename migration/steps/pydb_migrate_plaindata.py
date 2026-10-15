@@ -100,8 +100,8 @@ def migrate_plaindata(session: Session,
             if migration_table.ds_pre_sql:
                 execute_sql(migration=migration,
                             mig_step=mig_step,
-                            db_engine=session.get_source_db().cd_engine,
-                            sql_text=migration_table.ds_pre_sql)
+                            sql_text=migration_table.ds_pre_sql,
+                            db_engine=session.get_source_db().cd_engine)
 
             batch_size_in: int = migration_table.nr_batch_size_in or SPAN_BATCH_SIZE_IN[2]
             batch_size_out: int = migration_table.nr_batch_size_out or SPAN_BATCH_SIZE_OUT[2]
