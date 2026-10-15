@@ -134,7 +134,7 @@ def s3_migrate_lobs(migration: Migration,
                 # determine LOB's mimetype and file extension
                 if not mimetype:
                     if migration.is_reflect_filetype:
-                        mimetype = file_get_mimetype(file_data=lob_data)
+                        mimetype = file_get_mimetype(lob_data)
                         if mimetype:
                             extension = file_get_extension(mimetype=mimetype)
                     else:

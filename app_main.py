@@ -163,9 +163,11 @@ def service_version() -> Response:
             {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "pwd" not in k}
         ]
     }
+    versions["stateful"][0]["db-engine"] = PYDB_DB_ENGINE
     if PYDB_S3_ENGINE:
         versions["stateful"].append({k: v for k, v in s3_get_params(engine=PYDB_S3_ENGINE).items()
                                      if "secret" not in k})
+        versions["stateful"][1]["s3-engine"] = PYDB_S3_ENGINE
     # assign to the return variable
     result: Response = jsonify(versions)
 
@@ -779,12 +781,11 @@ def handle_exception(exc: Exception) -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    # is the exception an instance of werkzeug.exceptions.NotFound ?
     if isinstance(exc, NotFound):
-        # yes, disregard it
+        # exception is an instance of werkzeug.exceptions.NotFound
         result = Response(status=HttpStatus.NO_CONTENT)
     else:
-        # no, report the problem
+        # report the problem
         err_msg: str = exc_format(exc=exc,
                                   exc_info=sys.exc_info())
         PYPOMES_LOGGER.error(msg=err_msg)
