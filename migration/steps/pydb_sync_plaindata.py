@@ -64,9 +64,9 @@ def synchronize_plaindata(session: Session,
             migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
                                                                first_row=offset_count,
                                                                errors=errors)
+            source_table: str = f"{session.nm_source_schema}.{table_name}"
+            target_table: str = f"{session.nm_target_schema}.{table_name}"
             if not errors and not migration_span.is_done:
-                source_table: str = f"{session.nm_source_schema}.{table_name}"
-                target_table: str = f"{session.nm_target_schema}.{table_name}"
                 has_ctrlchars: bool = migration_table.is_remove_ctrlchars
 
                 # identify identity column and build the lists of PK and sync columns
@@ -168,5 +168,10 @@ def synchronize_plaindata(session: Session,
                 result_deletes += deletes
                 result_inserts += inserts
                 result_updates += updates
+            elif migration_span.is_done:
+                op = "correlation" if mig_step == MigStep.CORRELATE_PLAINDATA else "synchronization"
+                logger.debug(f"Plaindata {op} from {source_db}.{source_table} to "
+                             f"{target_db}.{target_table}, "
+                             f"offset {offset_count}, limit {limit_count}, already done")
 
     return result_deletes, result_inserts, result_updates

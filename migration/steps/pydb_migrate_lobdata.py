@@ -358,7 +358,8 @@ def migrate_lob_columns(session: Session,
                                          where_clause=where_clause,
                                          offset_count=channel_datum[0],
                                          limit_count=channel_datum[1],
-                                         chunk_size=chunk_size)
+                                         chunk_size=chunk_size,
+                                         logger=logger)
             else:
                 # execute tasks concurrently
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -396,7 +397,8 @@ def migrate_lob_columns(session: Session,
                                                              where_clause=where_clause,
                                                              offset_count=channel_datum[0],
                                                              limit_count=channel_datum[1],
-                                                             chunk_size=chunk_size)
+                                                             chunk_size=chunk_size,
+                                                             logger=logger)
                         task_futures.append(future)
 
                     # wait for all task futures to complete, then shutdown down the executor
@@ -414,13 +416,16 @@ def _db_migrate_lobs(session: Session,
                      where_clause: str,
                      offset_count: int,
                      limit_count: int,
-                     chunk_size: int) -> None:
+                     chunk_size: int,
+                     logger: Logger) -> None:
 
     # register the operation thread (might be same as the mother thread)
     with lobdata_lock:
         lobdata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
+    source_db: str = session.get_source_db().cd_engine
+    target_db: str = session.get_target_db().cd_engine
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
     target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
 
@@ -431,9 +436,6 @@ def _db_migrate_lobs(session: Session,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
-
-        source_db: str = session.get_source_db().cd_engine
-        target_db: str = session.get_target_db().cd_engine
 
         # obtain target database connection
         db_conn: Any = db_connect(engine=target_db,
@@ -488,6 +490,11 @@ def _db_migrate_lobs(session: Session,
                           errors=errors)
             db_close(connection=db_conn,
                      engine=target_db)
+    elif migration_span.is_done:
+        op = "migration" if mig_step == MigStep.MIGRATE_LOBDATA else "correlation"
+        logger.debug(f"LOB {op} from {source_db}.{source_table}.{lob_column} to "
+                     f"{target_db}.{target_table}, "
+                     f"offset {offset_count}, limit {limit_count}, already done")
 
     with lobdata_lock:
         if errors:
@@ -529,6 +536,7 @@ def _s3_migrate_lobs(session: Session,
     lob_count: int = 0
     lob_bytes: int = 0
     source_db: str = session.get_source_db().cd_engine
+    target_s3: str = session.get_target_s3().cd_engine
 
     # obtain database connection
     source_conn: Any = db_connect(engine=source_db,
@@ -624,6 +632,9 @@ def _s3_migrate_lobs(session: Session,
                     db_drop_table(table_name=temp_table,
                                   engine=source_db,
                                   connection=source_conn)
+        elif migration_span.is_done:
+            logger.debug(f"LOB migration from {source_db}.{source_table}.{lob_column} to "
+                         f"{target_s3}, offset {offset_count}, limit {limit_count}, already done")
         if errors:
             db_rollback(connection=source_conn,
                         engine=source_db)

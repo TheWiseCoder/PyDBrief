@@ -249,7 +249,8 @@ def __migrate_plaindata(session: Session,
                                identity_column=identity_column,
                                batch_size_in=batch_size_in,
                                batch_size_out=batch_size_out,
-                               has_ctrlchars=is_remove_ctrlchars)
+                               has_ctrlchars=is_remove_ctrlchars,
+                               logger=logger)
         else:
             # execute tasks concurrently
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -268,7 +269,8 @@ def __migrate_plaindata(session: Session,
                                                      identity_column=identity_column,
                                                      batch_size_in=batch_size_in,
                                                      batch_size_out=batch_size_out,
-                                                     has_ctrlchars=is_remove_ctrlchars)
+                                                     has_ctrlchars=is_remove_ctrlchars,
+                                                     logger=logger)
                     task_futures.append(future)
 
                 # wait for all task futures to complete, then shutdown down the executor
@@ -314,7 +316,8 @@ def _migrate_plain(session: Session,
                    identity_column: str,
                    batch_size_in: int,
                    batch_size_out: int,
-                   has_ctrlchars: bool) -> None:
+                   has_ctrlchars: bool,
+                   logger: Logger) -> None:
 
     errors: list[str] = []
 
@@ -322,6 +325,8 @@ def _migrate_plain(session: Session,
     with plaindata_lock:
         plaindata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
+    source_db: str = session.get_source_db().cd_engine
+    target_db: str = session.get_target_db().cd_engine
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
     target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
 
@@ -332,8 +337,6 @@ def _migrate_plain(session: Session,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
         # obtain target DB connection
-        source_db: str = session.get_source_db().cd_engine
-        target_db: str = session.get_target_db().cd_engine
         target_conn: Any = db_connect(engine=target_db,
                                       errors=errors)
         if target_conn:
@@ -384,6 +387,10 @@ def _migrate_plain(session: Session,
                           errors=errors)
             db_close(connection=target_conn,
                      engine=target_db)
+    elif migration_span.is_done:
+        logger.debug(f"Plaindata migration from {source_db}.{source_table} to "
+                     f"{target_db}.{target_table}, "
+                     f"offset {offset_count}, limit {limit_count}, already done")
 
     with plaindata_lock:
         if errors:
