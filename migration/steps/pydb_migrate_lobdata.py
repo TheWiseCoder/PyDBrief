@@ -324,7 +324,7 @@ def migrate_lob_columns(session: Session,
                 if target_s3 else f"{session.get_target_db().cd_engine}.{target_table}.{lob_column}"
             logger.debug(msg=f"Started migrating {tot_count} LOBs from "
                              f"{source_db}.{source_table}.{lob_column} to {target}, "
-                             f"using {max_workers} channels")
+                             f"in {len(channel_data)} steps, using {max_workers} channels")
             if max_workers == 1:
                 # execute single task in current thread
                 for channel_datum in channel_data:
