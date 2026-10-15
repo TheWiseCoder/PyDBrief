@@ -98,9 +98,9 @@ def prune_metadata(migration: Migration,
                 elif isinstance(constraint, ForeignKeyConstraint):
                     for elem in constraint.elements or []:
                         if isinstance(elem, ForeignKey) and hasattr(elem, "target_fullname"):
-                            fk_names: list[str] = elem.target_fullname.split(sep=".")
-                            if fk_names[1] == source_table.name or \
-                                    fk_names[0] != session.nm_source_schema:
+                            fk_parts: list[str] = elem.target_fullname.split(sep=".")
+                            if fk_parts[1] == source_table.name or \
+                                    fk_parts[0] != session.nm_source_schema:
                                 tainted_constraints.append(constraint)
 
             # drop the tainted constraints
