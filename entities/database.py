@@ -62,7 +62,6 @@ class Database(PySob):
                  errors: list[str] = None) -> None:
 
         # non-nullables in DB
-        self.bn_pwd: bytes | None = None
         self.cd_engine: str | None = None
         self.cd_name: str | None = None
         self.cd_type: DbEngine | None = None
@@ -71,6 +70,7 @@ class Database(PySob):
         self.nr_port: int | None = None
 
         # nullables in DB
+        self.bn_pwd: bytes | None = None
         self.ds_driver: str | None = None
         self.ds_version: str | None = None
         self.nm_client: str | None = None
@@ -109,12 +109,14 @@ class Database(PySob):
             # postgres 'bytea' requires explicit conversion to Python 'bytes'
             db_type: DbEngine = db_get_param(key=DbParam.TYPE,
                                              engine=db_engine)
-            if db_type == DbEngine.POSTGRES:
-                self.bn_pwd = bytes(self.bn_pwd)
-            # decrypt password for all engines
-            plaintext: bytes = crypto_decrypt(ciphertext=self.bn_pwd,
-                                              key=ENCRYPTION_KEY,
-                                              errors=errors)
+            plaintext: bytes | None = None
+            if self.bn_pwd is not None:
+                if db_type == DbEngine.POSTGRES:
+                    self.bn_pwd = bytes(self.bn_pwd)
+                # decrypt password for all engines
+                plaintext: bytes = crypto_decrypt(ciphertext=self.bn_pwd,
+                                                  key=ENCRYPTION_KEY,
+                                                  errors=errors)
             if plaintext:
                 try:
                     self._nm_pwd = plaintext.decode(encoding="utf-8")
@@ -134,9 +136,12 @@ class Database(PySob):
 
         result: bool = False
 
-        self.bn_pwd = crypto_encrypt(plaintext=self._nm_pwd,
-                                     key=ENCRYPTION_KEY,
-                                     errors=errors)
+        if self._nm_pwd is None:
+            self.bn_pwd = None
+        else:
+            self.bn_pwd = crypto_encrypt(plaintext=self._nm_pwd,
+                                         key=ENCRYPTION_KEY,
+                                         errors=errors)
         if not errors:
             result = super().insert(db_engine=db_engine,
                                     db_conn=db_conn,

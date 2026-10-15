@@ -29,7 +29,7 @@ CREATE SEQUENCE sq_database
 
 CREATE TABLE database (
 	id int4 DEFAULT nextval('sq_database'::regclass) NOT NULL,
-	bn_pwd bytea NOT NULL,
+	bn_pwd bytea,
 	cd_engine varchar(64) NOT NULL,
 	cd_name varchar(64) NOT NULL,
 	cd_type varchar(10) NOT NULL,
