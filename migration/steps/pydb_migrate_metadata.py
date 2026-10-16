@@ -7,7 +7,7 @@ from pypomes_db import (
 )
 from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
-from sqlalchemy.schema import sort_tables_and_constraints
+from sqlalchemy.schema import sort_tables
 from typing import Any
 
 from entities.database import Database
@@ -150,11 +150,11 @@ def migrate_metadata(migration: Migration,
 
                 # proceed with the appropriate tables
                 try:
-                    # noinspection PyProtectedMember
-                    sorted_pairs: list[tuple[Table | None, Any]] = sort_tables_and_constraints(
-                        tables=source_tables,
-                        filter_fn=lambda fkc: any(fk._referred_table not in source_tables for fk in fkc.elements))
-                    sorted_tables = [table for table, _any in sorted_pairs if table is not None]
+                    table_names: list[str] = [t.name for t in source_tables]
+                    sorted_tables = sort_tables(tables=source_tables,
+                                                skip_fn=lambda fk: fk.target_tokens[0] != schema_name or
+                                                                   fk.target_tokens[1] not in table_names)  # noqa
+                    del table_names
                 except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence, probably caused by:
                     #   - cross-dependencies between tables, resulted from mutually dependent FKs, or
