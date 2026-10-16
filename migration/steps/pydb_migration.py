@@ -30,16 +30,16 @@ def prune_metadata(migration: Migration,
                    logger: Logger) -> None:
 
     # traverse list of candidate tables in reverse order, to allow for element removal
-    for i in range(len(source_tables) - 1, -1, -1):  # range(start, stop, step)
-        source_table = source_tables[1]
+    for inx in range(len(source_tables) - 1, -1, -1):  # range(start, stop, step)
+        source_table = source_tables[inx]
         if source_table.schema == session.nm_source_schema:
             table_name: str = source_table.name
             # prune table
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
                 migration_tables=migration.get_migration_tables()
-            )
-            target_columns: list[str] = str_as_list(migration_table.ds_exclude_columns) if migration_table else None
+            ) or MigrationTable()
+            target_columns: list[str] = str_as_list(migration_table.ds_exclude_columns)
             if target_columns:
                 # look for columns to exclude
                 # noinspection PyProtectedMember
@@ -78,8 +78,7 @@ def prune_metadata(migration: Migration,
             #   - constraints listed in 'exclude_constraints'
             #   - fKs pointing to elements in the same table
             #   - fKs pointing to elements in other schemas
-            target_constraints: list[str] = str_as_list(migration_table.ds_exclude_constraints) \
-                if migration_table else []
+            target_constraints: list[str] = str_as_list(migration_table.ds_exclude_constraints)
             table_cks: list[str] = []
             tainted_constraints: list[Constraint] = []
             for constraint in source_table.constraints:
@@ -133,7 +132,7 @@ def prune_metadata(migration: Migration,
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
-            source_tables.pop(i)
+            source_tables.pop(inx)
 
 
 def setup_schema(target_db: DbEngine | str,
