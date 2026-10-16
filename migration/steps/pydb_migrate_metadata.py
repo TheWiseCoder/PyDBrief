@@ -153,7 +153,7 @@ def migrate_metadata(migration: Migration,
                     # noinspection PyProtectedMember
                     sorted_pairs: list[tuple[Table | None, Any]] = sort_tables_and_constraints(
                         tables=source_tables,
-                        skip_fn=lambda fkc: any(fk._referred_table not in source_tables for fk in fkc.elements))
+                        filter_fn=lambda fkc: any(fk._referred_table not in source_tables for fk in fkc.elements))
                     sorted_tables = [table for table, _any in sorted_pairs if table is not None]
                 except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence, probably caused by:
