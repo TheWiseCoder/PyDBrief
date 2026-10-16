@@ -25,18 +25,15 @@ from entities.session import Session
 
 def prune_metadata(migration: Migration,
                    session: Session,
-                   mig_step: MigStep,
                    source_metadata: MetaData,
+                   source_tables: list[Table],
                    logger: Logger) -> None:
 
-    # build list of migration candidates
-    source_tables: list[Table] = list(source_metadata.tables.values())
-
-    # traverse list of candidate tables
-    for source_table in source_tables:
-        table_name: str = source_table.name
-
+    # traverse list of candidate tables in reverse order, to allow for element removal
+    for i in range(len(source_tables) - 1, -1, -1):  # range(start, stop, step)
+        source_table = source_tables[1]
         if source_table.schema == session.nm_source_schema:
+            table_name: str = source_table.name
             # prune table
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
@@ -57,10 +54,6 @@ def prune_metadata(migration: Migration,
                     source_table._columns.remove(excluded_column)
                     logger.info(msg=f"Column '{excluded_column.name}' "
                                     f"removed from table '{source_table.name}'")
-
-            if mig_step != MigStep.MIGRATE_METADATA:
-                # nothing else to do here for 'table_name', as metadata are not being migrated
-                continue
 
             # handle indexes for 'source_table' (migration step is 'MIGRATE_METADATA')
             if migration.is_process_indexes:
@@ -140,6 +133,7 @@ def prune_metadata(migration: Migration,
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
+            del source_tables[i]
 
 
 def setup_schema(target_db: DbEngine | str,
@@ -189,7 +183,7 @@ def setup_schema(target_db: DbEngine | str,
 def setup_tables(migration: Migration,
                  session: Session,
                  mig_step: MigStep,
-                 target_tables: list[Table],
+                 source_tables: list[Table],
                  migration_warnings: list[str],
                  errors: list[str],
                  logger: Logger) -> dict[str, Any]:
@@ -197,25 +191,19 @@ def setup_tables(migration: Migration,
     # iinitialize the return variable
     result: dict[str, Any] = {}
 
-    # assign the target schema to all migration candidate tables
-    # (to all tables at once, before their individual transformations)
-    for target_table in target_tables:
-        target_table.schema = session.nm_target_schema
-
-    # setup target tables
-    for target_table in target_tables:
+    for source_table in source_tables:
         # obtain the corresponding MigrationTable instance
         migration_table: MigrationTable = MigrationTable.for_table(
-            table=target_table.name,
+            table=source_table.name,
             migration_tables=migration.get_migration_tables()
-        )
+        ) or MigrationTable()
         # initialize the local errors list
         curr_errors: list[str] = []
         # build the list of migrated columns for this table
         table_display: dict[str, Any] = {}
         # noinspection PyProtectedMember
         # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-        columns: Iterable[Column] = target_table._columns
+        columns: Iterable[Column] = source_table._columns
 
         # register the source column types and prepare for S3 migration
         s3_columns: list[Column] = []
@@ -233,7 +221,7 @@ def setup_tables(migration: Migration,
         for s3_column in s3_columns:
             # noinspection PyProtectedMember
             # ruff: noqa: SLF001 (checks for accesses on "private" class members)
-            target_table._columns.remove(s3_column)
+            source_table._columns.remove(s3_column)
 
         # migrate the columns
         if mig_step == MigStep.MIGRATE_METADATA:
@@ -252,7 +240,7 @@ def setup_tables(migration: Migration,
                 if hasattr(column, "identity") and column.identity:
                     if "identity" in features:
                         err_msg: str = (f"Table {session.get_source_db().cd_engine}."
-                                        f"{session.nm_source_schema}.{target_table.name} "
+                                        f"{session.nm_source_schema}.{source_table.name} "
                                         "has more than one identity column")
                         logger.error(msg=err_msg)
                         # 102: Unexpected error: {}
@@ -287,7 +275,7 @@ def setup_tables(migration: Migration,
                 "lob-duration": "0h0m0s",
                 "lob-status": "none"
             }
-            result[target_table.name] = migrated_table
+            result[source_table.name] = migrated_table
 
     return result
 
@@ -295,14 +283,14 @@ def setup_tables(migration: Migration,
 def setup_columns(migration: Migration,
                   session: Session,
                   target_columns: Iterable[Column],
-                  migration_table: MigrationTable | None,
+                  migration_table: MigrationTable,
                   migration_warnings: list[str],
                   table_display: dict[str, Any],
                   errors: list[str],
                   logger: Logger) -> None:
 
     # set the target columns
-    override_columns: list[str] = str_as_list(migration_table.ds_override_columns) if migration_table else []
+    override_columns: list[str] = str_as_list(migration_table.ds_override_columns)
     for target_column in target_columns:
         try:
             # convert the type
@@ -338,7 +326,7 @@ def setup_columns(migration: Migration,
 
             # convert column's default value
             if hasattr(target_column, "server_default") and target_column.server_default is not None:
-                omit_defaults: list[str] = str_as_list(migration_table.ds_omit_defaults) if migration_table else []
+                omit_defaults: list[str] = str_as_list(migration_table.ds_omit_defaults)
                 if column_name in omit_defaults:
                     target_column.server_default = None
                 elif isinstance(target_column.server_default, DefaultClause):

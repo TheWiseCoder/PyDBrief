@@ -5,10 +5,9 @@ from pypomes_db import (
     db_create_table, db_table_exists, db_execute, db_convert_default,
     db_get_columns_metadata, db_get_table_pk, db_build_column_clause
 )
-from sqlalchemy import (
-    Engine, Inspector, MetaData, Table, inspect
-)
+from sqlalchemy import Engine, Inspector, MetaData, Table, inspect
 from sqlalchemy.exc import SAWarning
+from sqlalchemy.schema import sort_tables_and_constraints
 from typing import Any
 
 from entities.database import Database
@@ -141,17 +140,21 @@ def migrate_metadata(migration: Migration,
                         target_views = schema_views
 
                 # prepare the source metadata for migration
-                target_tables: list[Table] = []
+                sorted_tables: list[Table] | None = None
+                source_tables: list[Table] = list(source_metadata.tables.values())
                 prune_metadata(migration=migration,
                                session=session,
-                               mig_step=mig_step,
                                source_metadata=source_metadata,
+                               source_tables=source_tables,
                                logger=logger)
 
                 # proceed with the appropriate tables
                 try:
-                    # 'target_tables' will contain no views (as per 'prune_metadata()')
-                    target_tables = source_metadata.sorted_tables
+                    # noinspection PyProtectedMember
+                    sorted_pairs: list[tuple[Table | None, Any]] = sort_tables_and_constraints(
+                        tables=source_tables,
+                        skip_fn=lambda fkc: any(fk._referred_table not in source_tables for fk in fkc.elements))
+                    sorted_tables = [table for table, _any in sorted_pairs if table is not None]
                 except (Exception, SAWarning) as e:
                     # - unable to organize the tables in the proper sequence, probably caused by:
                     #   - cross-dependencies between tables, resulted from mutually dependent FKs, or
@@ -196,7 +199,7 @@ def migrate_metadata(migration: Migration,
                     result = setup_tables(migration=migration,
                                           session=session,
                                           mig_step=mig_step,
-                                          target_tables=target_tables,
+                                          source_tables=sorted_tables,
                                           migration_warnings=migration_warnings,
                                           errors=errors,
                                           logger=logger)
@@ -209,7 +212,7 @@ def migrate_metadata(migration: Migration,
                         reify_mviews: list[str] = str_as_list(migration.ds_reify_mviews)
                         if reify_mviews:
                             # BUG HANDLING: SqlAlchemy may add materialized views to the sorted tables list
-                            target_names: list[str] = [t.name for t in target_tables]
+                            target_names: list[str] = [t.name for t in sorted_tables]
                             for reify_mview in reify_mviews:
                                 if reify_mview in target_names:
                                     warn_msg: str = (f"Materialized view '{reify_mview}' "
@@ -233,7 +236,7 @@ def migrate_metadata(migration: Migration,
 
                     # create the tables
                     if not errors and mig_step == MigStep.MIGRATE_METADATA:
-                        for target_table in target_tables:
+                        for target_table in sorted_tables:
                             if not db_table_exists(table_name=f"{to_schema}.{target_table.name}",
                                                    engine=target_db.cd_engine,
                                                    errors=errors) and not errors:
