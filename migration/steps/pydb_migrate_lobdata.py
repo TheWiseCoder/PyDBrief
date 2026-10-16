@@ -6,7 +6,7 @@ from logging import Logger
 from pathlib import Path
 from pypomes_core import TZ_LOCAL, str_as_list, timestamp_duration
 from pypomes_db import (
-    db_connect, db_commit, db_rollback, db_close, db_count,
+    db_connect, db_commit_and_close, db_rollback_and_close, db_count,
     db_migrate_lobs, db_table_exists, db_drop_table,
     db_bulk_insert, db_create_session_table, db_get_session_table_prefix
 )
@@ -473,23 +473,19 @@ def _db_migrate_lobs(session: Session,
                                               db_conn=pydb_conn,
                                               errors=errors)
                     if errors:
-                        db_rollback(connection=pydb_conn,
-                                    engine=PYDB_DB_ENGINE)
+                        db_rollback_and_close(connection=pydb_conn,
+                                              engine=PYDB_DB_ENGINE)
                     else:
-                        db_commit(connection=pydb_conn,
-                                  engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-                    db_close(connection=pydb_conn,
-                             engine=PYDB_DB_ENGINE)
+                        db_commit_and_close(connection=pydb_conn,
+                                            engine=PYDB_DB_ENGINE,
+                                            errors=errors)
             if errors:
-                db_rollback(connection=db_conn,
-                            engine=target_db)
+                db_rollback_and_close(connection=db_conn,
+                                      engine=target_db)
             else:
-                db_commit(connection=db_conn,
-                          engine=target_db,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=target_db)
+                db_commit_and_close(connection=db_conn,
+                                    engine=target_db,
+                                    errors=errors)
     elif migration_span.is_done:
         op = "migration" if mig_step == MigStep.MIGRATE_LOBDATA else "correlation"
         logger.debug(f"LOB {op} from {source_db}.{source_table}.{lob_column} to "
@@ -619,14 +615,12 @@ def _s3_migrate_lobs(session: Session,
                                                       db_conn=pydb_conn,
                                                       errors=errors)
                             if errors:
-                                db_rollback(connection=pydb_conn,
-                                            engine=PYDB_DB_ENGINE)
+                                db_rollback_and_close(connection=pydb_conn,
+                                                      engine=PYDB_DB_ENGINE)
                             else:
-                                db_commit(connection=pydb_conn,
-                                          engine=PYDB_DB_ENGINE,
-                                          errors=errors)
-                            db_close(connection=pydb_conn,
-                                     engine=PYDB_DB_ENGINE)
+                                db_commit_and_close(connection=pydb_conn,
+                                                    engine=PYDB_DB_ENGINE,
+                                                    errors=errors)
                 if temp_table:
                     # disregard errors on dropping table
                     db_drop_table(table_name=temp_table,
@@ -636,15 +630,12 @@ def _s3_migrate_lobs(session: Session,
             logger.debug(f"LOB migration from {source_db}.{source_table}.{lob_column} to "
                          f"{target_s3}, offset {offset_count}, limit {limit_count}, already done")
         if errors:
-            db_rollback(connection=source_conn,
-                        engine=source_db)
+            db_rollback_and_close(connection=source_conn,
+                                  engine=source_db)
         else:
-            db_commit(connection=source_conn,
-                      engine=source_db,
-                      errors=errors)
-        db_close(connection=source_conn,
-                 engine=source_db)
-
+            db_commit_and_close(connection=source_conn,
+                                engine=source_db,
+                                errors=errors)
     with lobdata_lock:
         if errors:
             MigrationIssue.new_issues(id_migration=migration.id,

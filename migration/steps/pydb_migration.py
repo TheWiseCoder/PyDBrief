@@ -133,7 +133,7 @@ def prune_metadata(migration: Migration,
         else:
             # 'source_table' is not a table to migrate, remove it from metadata
             source_metadata.remove(table=source_table)
-            del source_tables[i]
+            source_tables.pop(i)
 
 
 def setup_schema(target_db: DbEngine | str,

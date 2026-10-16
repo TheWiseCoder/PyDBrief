@@ -7,7 +7,7 @@ from pypomes_core import (
     TZ_LOCAL, timestamp_duration, validate_format_error
 )
 from pypomes_db import (
-    db_connect, db_commit, db_rollback, db_close,
+    db_connect, db_commit_and_close, db_rollback_and_close,
     db_is_reserved_word, db_count, db_table_exists, db_migrate_data
 )
 from typing import Any
@@ -370,23 +370,19 @@ def _migrate_plain(session: Session,
                         migration_work.update(db_engine=PYDB_DB_ENGINE,
                                               errors=errors)
                     if errors:
-                        db_rollback(connection=pydb_conn,
-                                    engine=PYDB_DB_ENGINE)
+                        db_rollback_and_close(connection=pydb_conn,
+                                              engine=PYDB_DB_ENGINE)
                     else:
-                        db_commit(connection=pydb_conn,
-                                  engine=PYDB_DB_ENGINE,
-                                  errors=errors)
-                    db_close(connection=pydb_conn,
-                             engine=PYDB_DB_ENGINE)
+                        db_commit_and_close(connection=pydb_conn,
+                                            engine=PYDB_DB_ENGINE,
+                                            errors=errors)
             if errors:
-                db_rollback(connection=target_conn,
-                            engine=target_db)
+                db_rollback_and_close(connection=target_conn,
+                                      engine=target_db)
             else:
-                db_commit(connection=target_conn,
-                          engine=target_db,
-                          errors=errors)
-            db_close(connection=target_conn,
-                     engine=target_db)
+                db_commit_and_close(connection=target_conn,
+                                    engine=target_db,
+                                    errors=errors)
     elif migration_span.is_done:
         logger.debug(f"Plaindata migration from {source_db}.{source_table} to "
                      f"{target_db}.{target_table}, "

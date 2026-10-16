@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import (
     validate_int, validate_enum, validate_str, validate_format_error
 )
-from pypomes_db import DbEngine, db_connect, db_commit, db_rollback, db_close
+from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.database import Database
@@ -33,14 +33,12 @@ def create_database(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def update_database(input_params: dict[str, Any],
@@ -68,14 +66,12 @@ def update_database(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def delete_database(input_params: dict[str, Any],
@@ -100,14 +96,12 @@ def delete_database(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def retrieve_databases(input_params: dict[str, Any],

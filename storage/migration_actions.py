@@ -6,7 +6,7 @@ from pypomes_core import (
 from pypomes_db import (
     DbEngine, DbConnectionPool, DbPoolEvent,
     db_get_pool, db_get_engines, db_get_type,
-    db_setup, db_startup, db_connect, db_commit, db_rollback, db_close
+    db_setup, db_startup, db_connect, db_commit_and_close, db_rollback_and_close,
 )
 from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
@@ -45,14 +45,12 @@ def create_migration(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def update_migration(input_params: dict[str, Any],
@@ -80,14 +78,12 @@ def update_migration(input_params: dict[str, Any],
 
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
+                db_rollback_and_close(connection=db_conn,
+                                      engine=PYDB_DB_ENGINE)
             else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+                db_commit_and_close(connection=db_conn,
+                                    engine=PYDB_DB_ENGINE,
+                                    errors=errors)
 
 
 def delete_migration(input_params: dict[str, Any],
@@ -112,14 +108,12 @@ def delete_migration(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def retrieve_migrations(input_params: dict[str, Any],
@@ -197,15 +191,12 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                     "Either 'BADGE' or 'SESSION' must be specified"))
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
-
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
     return result
 
 
@@ -306,14 +297,12 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                                                            errors=errors)
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def __validate_input(input_params: dict[str, Any],

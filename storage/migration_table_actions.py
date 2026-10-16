@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import (
     validate_format_error, validate_bool, validate_int, validate_str, validate_strs
 )
-from pypomes_db import db_connect, db_commit, db_rollback, db_close
+from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.migration import Migration
@@ -40,14 +40,12 @@ def create_migration_table(input_params: dict[str, Any],
                                        errors=errors)
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def update_migration_table(input_params: dict[str, Any],
@@ -74,14 +72,12 @@ def update_migration_table(input_params: dict[str, Any],
                                    errors=errors)
             # conclude the operation
             if errors:
-                db_rollback(connection=db_conn,
-                            engine=PYDB_DB_ENGINE)
+                db_rollback_and_close(connection=db_conn,
+                                      engine=PYDB_DB_ENGINE)
             else:
-                db_commit(connection=db_conn,
-                          engine=PYDB_DB_ENGINE,
-                          errors=errors)
-            db_close(connection=db_conn,
-                     engine=PYDB_DB_ENGINE)
+                db_commit_and_close(connection=db_conn,
+                                    engine=PYDB_DB_ENGINE,
+                                    errors=errors)
 
 
 def delete_migration_table(input_params: dict[str, Any],
@@ -106,14 +102,12 @@ def delete_migration_table(input_params: dict[str, Any],
                                    errors=errors)
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
 
 
 def retrieve_migration_tables(input_params: dict[str, Any],
@@ -160,15 +154,12 @@ def retrieve_migration_tables(input_params: dict[str, Any],
 
         # conclude the operation
         if errors:
-            db_rollback(connection=db_conn,
-                        engine=PYDB_DB_ENGINE)
+            db_rollback_and_close(connection=db_conn,
+                                  engine=PYDB_DB_ENGINE)
         else:
-            db_commit(connection=db_conn,
-                      engine=PYDB_DB_ENGINE,
-                      errors=errors)
-        db_close(connection=db_conn,
-                 engine=PYDB_DB_ENGINE)
-
+            db_commit_and_close(connection=db_conn,
+                                engine=PYDB_DB_ENGINE,
+                                errors=errors)
     return result
 
 

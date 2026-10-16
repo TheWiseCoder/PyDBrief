@@ -6,7 +6,7 @@ from typing import Final
 
 # establish the app's name and current version
 APP_NAME: str = "PyDBrief"
-APP_VERSION: Final[str] = "2.4.0"
+APP_VERSION: Final[str] = "2.4.1"
 
 # load environment variables for local execution
 # (this must precede importing 'pypomes-core')

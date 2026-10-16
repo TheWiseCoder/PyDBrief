@@ -1,7 +1,7 @@
 import threading
 from logging import Logger
 from typing import Any
-from pypomes_db import db_connect, db_commit, db_rollback, db_close, db_sync_data
+from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close, db_sync_data
 
 from entities.migration import Migration, minded_migrations
 from app_constants import PYDB_DB_ENGINE, MigState, MigStep
@@ -130,24 +130,19 @@ def synchronize_plaindata(session: Session,
                                                       db_conn=pydb_conn,
                                                       errors=errors)
                             if errors:
-                                db_rollback(connection=pydb_conn,
-                                            engine=PYDB_DB_ENGINE)
+                                db_rollback_and_close(connection=pydb_conn,
+                                                      engine=PYDB_DB_ENGINE)
                             else:
-                                db_commit(connection=pydb_conn,
-                                          engine=PYDB_DB_ENGINE,
-                                          errors=errors)
-                            db_close(connection=pydb_conn,
-                                     engine=PYDB_DB_ENGINE)
+                                db_commit_and_close(connection=pydb_conn,
+                                                    engine=PYDB_DB_ENGINE,
+                                                    errors=errors)
                     if errors:
-                        db_rollback(connection=target_conn,
-                                    engine=target_db)
+                        db_rollback_and_close(connection=target_conn,
+                                              engine=target_db)
                     else:
-                        db_commit(connection=target_conn,
-                                  engine=target_db,
-                                  errors=errors)
-                    db_close(connection=target_conn,
-                             engine=target_db)
-
+                        db_commit_and_close(connection=target_conn,
+                                            engine=target_db,
+                                            errors=errors)
                 deletes: int = counts[0]
                 inserts: int = counts[1]
                 updates: int = counts[2]
