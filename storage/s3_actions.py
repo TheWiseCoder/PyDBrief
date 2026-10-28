@@ -3,8 +3,8 @@ from typing import Any
 from pypomes_core import (
     validate_bool, validate_enum, validate_str, validate_format_error
 )
+from pypomes_cs import CsEngine
 from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
-from pypomes_s3 import S3Engine
 
 from app_constants import PYDB_DB_ENGINE, InputParam, OpType
 from entities.s3 import S3
@@ -182,7 +182,7 @@ def __validate_input(input_params: dict[str, Any],
 
     s3_type: DbEngine = validate_enum(source=input_params,
                                       attr=InputParam.S3_TYPE,
-                                      enum_class=S3Engine,
+                                      enum_class=CsEngine,
                                       required=op == OpType.CREATE,
                                       errors=errors)
     if s3_type:

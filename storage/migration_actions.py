@@ -3,12 +3,12 @@ from typing import Any
 from pypomes_core import (
     validate_format_error, validate_bool, validate_enum, validate_int, validate_str, validate_strs
 )
+from pypomes_cs import cs_get_engines, cs_setup, cs_startup
 from pypomes_db import (
     DbEngine, DbConnectionPool, DbPoolEvent,
     db_get_pool, db_get_engines, db_get_type,
     db_setup, db_startup, db_connect, db_commit_and_close, db_rollback_and_close,
 )
-from pypomes_s3 import s3_get_engines, s3_setup, s3_startup
 
 from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep, OpType
 from entities.migration import (
@@ -276,25 +276,25 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                                      logger=logger)
 
         if not errors and mig_step in [MigStep.CORRELATE_LOBDATA, MigStep.MIGRATE_LOBDATA]:
-            s3_engines: list[str] = s3_get_engines()
+            s3_engines: list[str] = cs_get_engines()
             s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
                                            db_conn=db_conn,
                                            errors=errors)
             if s3:
                 if s3.cd_engine in s3_engines:
-                    s3_startup(engine=s3.cd_engine,
+                    cs_startup(engine=s3.cd_engine,
                                errors=errors)
                 else:
                     # noinspection PyProtectedMember
-                    s3_setup(engine=s3.cd_engine,
+                    cs_setup(engine=s3.cd_engine,
                              endpoint_url=s3.ds_endpoint_url,
                              bucket_name=s3.nm_bucket,
                              access_key=s3.nm_access_key,
                              secret_key=s3._nm_secret_key,
-                             s3_type=s3.cd_type,
+                             engine_type=s3.cd_type,
                              region_name=s3.nm_region,
                              secure_access=s3.is_secure_access,
-                             logger=logger) and s3_startup(engine=s3.cd_engine,
+                             logger=logger) and cs_startup(engine=s3.cd_engine,
                                                            errors=errors)
         # conclude the operation
         if errors:

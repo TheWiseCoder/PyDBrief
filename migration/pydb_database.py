@@ -42,7 +42,7 @@ def schema_create(schema: str,
     if db_get_type(engine=db_engine) == DbEngine.ORACLE:
         stmt: str = f"CREATE USER {schema} IDENTIFIED BY {schema}"
     else:
-        user: str = db_get_param(key=DbParam.USER,
+        user: str = db_get_param(DbParam.USER,
                                  engine=db_engine)
         stmt = f"CREATE SCHEMA {schema} AUTHORIZATION {user}"
     db_execute(exc_stmt=stmt,

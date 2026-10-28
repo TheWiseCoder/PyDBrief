@@ -194,7 +194,7 @@ def __migrate_plaindata(session: Session,
             if not is_lob_column(col_type=column_type):
                 features: list[str] = column_data.get("features", [])
                 source_columns.append(column_name)
-                if db_is_reserved_word(word=column_name,
+                if db_is_reserved_word(column_name,
                                        engine=target_db):
                     target_columns.append(f'"{column_name}"')
                 else:

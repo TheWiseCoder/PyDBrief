@@ -21,6 +21,7 @@ from pypomes_core import (
     dict_clone, dict_jsonify, validate_str, validate_enum,
     exc_format, validate_format_error, validate_format_errors
 )
+from pypomes_cs import cs_get_params
 from pypomes_db import db_get_params
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
@@ -29,10 +30,9 @@ from pypomes_logging import (
     PYPOMES_LOGGER,
     logging_get_params, logging_log_forward, service_logging
 )
-from pypomes_s3 import s3_get_params
 
 from app_constants import (
-    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
+    PYDB_DB_ENGINE, PYDB_CS_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
 )
 from app_init import init_app
 from entities.migration import Migration, minded_migrations
@@ -164,10 +164,10 @@ def service_version() -> Response:
         ]
     }
     versions["stateful"][0]["db-engine"] = PYDB_DB_ENGINE
-    if PYDB_S3_ENGINE:
-        versions["stateful"].append({k: v for k, v in s3_get_params(engine=PYDB_S3_ENGINE).items()
+    if PYDB_CS_ENGINE:
+        versions["stateful"].append({k: v for k, v in cs_get_params(engine=PYDB_CS_ENGINE).items()
                                      if "secret" not in k})
-        versions["stateful"][1]["s3-engine"] = PYDB_S3_ENGINE
+        versions["stateful"][1]["s3-engine"] = PYDB_CS_ENGINE
     # assign to the return variable
     result: Response = jsonify(versions)
 

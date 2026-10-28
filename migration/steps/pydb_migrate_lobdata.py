@@ -5,12 +5,12 @@ from datetime import datetime
 from logging import Logger
 from pathlib import Path
 from pypomes_core import TZ_LOCAL, str_as_list, timestamp_duration
+from pypomes_cs import cs_get_client, cs_item_exists
 from pypomes_db import (
     db_connect, db_commit_and_close, db_rollback_and_close, db_count,
     db_migrate_lobs, db_table_exists, db_drop_table,
     db_bulk_insert, db_create_session_table, db_get_session_table_prefix
 )
-from pypomes_s3 import s3_get_client, s3_item_exists
 from typing import Any
 
 from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep
@@ -285,7 +285,7 @@ def migrate_lob_columns(session: Session,
                 # skip nonempty S3 prefixes
                 if (mig_step != MigStep.CORRELATE_LOBDATA and
                     migration.is_skip_nonempty and
-                    s3_item_exists(identifier=lob_prefix.as_posix(),
+                    cs_item_exists(identifier=lob_prefix.as_posix(),
                                    errors=errors)):
                     warn_msg: str = ("Skipped migrating LOBs in column "
                                      f"{source_db}.{source_table}.{lob_column}: "
@@ -544,7 +544,7 @@ def _s3_migrate_lobs(session: Session,
                                                            errors=errors)
         if not errors and not migration_span.is_done:
             # obtain an S3 client
-            s3_client = s3_get_client(engine=session.get_target_s3().cd_engine,
+            s3_client = cs_get_client(engine=session.get_target_s3().cd_engine,
                                       errors=errors)
             if s3_client:
                 temp_table: str | None = None

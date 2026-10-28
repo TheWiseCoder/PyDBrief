@@ -2,11 +2,12 @@ from __future__ import annotations  # allow forward references
 import sys
 from enum import StrEnum, auto
 from logging import Logger
+
 from pypomes_core import exc_format
 from pypomes_crypto import crypto_decrypt, crypto_encrypt
 from pypomes_db import DbEngine, DbParam, db_get_param
 from pypomes_logging import PYPOMES_LOGGER
-from pypomes_s3 import S3Engine
+from pypomes_cs import CsEngine
 from pypomes_sob import PySob, Sob
 from typing import Any, Final
 
@@ -34,7 +35,7 @@ class S3(PySob):
         NM_REGION = auto()
 
     ATTRS_ENUM: Final[dict[Db, type[StrEnum]]] = {
-        Db.CD_TYPE: S3Engine
+        Db.CD_TYPE: CsEngine
     }
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
         (Db.CD_ENGINE,)
@@ -63,7 +64,7 @@ class S3(PySob):
         # non-nullables in DB
         self.bn_secret_key: bytes | None = None
         self.cd_engine: str | None = None
-        self.cd_type: S3Engine | None = None
+        self.cd_type: CsEngine | None = None
         self.ds_endpoint_url: str | None = None
         self.is_secure_access: bool = False
         self.nm_access_key: str | None = None
@@ -92,7 +93,9 @@ class S3(PySob):
     def load(self,
              __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]] = None,
              /,
+             new_data: dict[str, Any] = None,
              omit_nulls: bool = True,
+             db_retrieval: bool = True,
              db_engine: DbEngine | str = PYDB_DB_ENGINE,
              db_conn: Any = None,
              committable: bool = None,
@@ -101,13 +104,15 @@ class S3(PySob):
         result: bool = False
 
         if super().load(__references,
+                        new_data=new_data,
                         omit_nulls=omit_nulls,
+                        db_retrieval=db_retrieval,
                         db_engine=db_engine,
                         db_conn=db_conn,
                         committable=committable,
                         errors=errors):
             # postgres 'bytea' requires explicit conversion to Python 'bytes'
-            db_type: DbEngine = db_get_param(key=DbParam.TYPE,
+            db_type: DbEngine = db_get_param(DbParam.TYPE,
                                              engine=db_engine)
             if db_type == DbEngine.POSTGRES:
                 self.bn_secret_key = bytes(self.bn_secret_key)

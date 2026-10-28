@@ -93,21 +93,25 @@ class Database(PySob):
     def load(self,
              __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]] = None,
              /,
+             new_data: dict[str, Any] = None,
              omit_nulls: bool = True,
+             db_retrieval: bool = True,
              db_engine: DbEngine = PYDB_DB_ENGINE,
              db_conn: Any = None,
              committable: bool = None,
              errors: list[str] = None) -> bool:
 
         result: bool = super().load(__references,
+                                    new_data=new_data,
                                     omit_nulls=omit_nulls,
+                                    db_retrieval=db_retrieval,
                                     db_engine=db_engine,
                                     db_conn=db_conn,
                                     committable=committable,
                                     errors=errors)
         if result:
             # postgres 'bytea' requires explicit conversion to Python 'bytes'
-            db_type: DbEngine = db_get_param(key=DbParam.TYPE,
+            db_type: DbEngine = db_get_param(DbParam.TYPE,
                                              engine=db_engine)
             plaintext: bytes | None = None
             if self.bn_pwd is not None:

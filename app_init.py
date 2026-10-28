@@ -17,11 +17,11 @@ def init_app(logger: Logger) -> bool:
 def __initialize_state_storage(errors: list[str]):
 
     from pypomes_db import db_startup
-    from app_constants import PYDB_DB_ENGINE, PYDB_S3_ENGINE
+    from app_constants import PYDB_DB_ENGINE, PYDB_CS_ENGINE
 
     db_startup(engine=PYDB_DB_ENGINE,
                errors=errors)
-    if not errors and PYDB_S3_ENGINE:
-        from pypomes_s3 import s3_startup
-        s3_startup(engine=PYDB_S3_ENGINE,
+    if not errors and PYDB_CS_ENGINE:
+        from pypomes_cs import cs_startup
+        cs_startup(engine=PYDB_CS_ENGINE,
                    errors=errors)

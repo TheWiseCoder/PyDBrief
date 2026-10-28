@@ -338,7 +338,7 @@ def setup_columns(migration: Migration,
                         # remove control chars in default values (known bug in some older DB engines)
                         if any(ord(ch) < 32 for ch in def_val):
                             def_val = "".join(ch if ord(ch) > 31 else "" for ch in def_val)
-                        def_conv: str = db_convert_default(value=def_val,
+                        def_conv: str = db_convert_default(def_val,
                                                            source_engine=session.get_source_db().cd_engine,
                                                            target_engine=session.get_target_db().cd_engine)
                         if def_conv:

@@ -3,8 +3,8 @@ import mimetypes
 import pickle
 from logging import Logger
 from pypomes_core import Mimetype, file_get_mimetype, file_get_extension, str_from_any
+from pypomes_cs import cs_data_store
 from pypomes_db import db_stream_lobs
-from pypomes_s3 import s3_data_store
 from pathlib import Path
 from typing import Any
 
@@ -152,7 +152,7 @@ def s3_migrate_lobs(migration: Migration,
                 #    "etag": <string>,
                 #    "size": <int>             (AWS only)
                 # }
-                reply: dict[str, Any] = s3_data_store(identifier=identifier,
+                reply: dict[str, Any] = cs_data_store(identifier=identifier,
                                                       data=lob_data,
                                                       length=len(lob_data),
                                                       mimetype=mimetype,

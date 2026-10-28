@@ -8,10 +8,10 @@ from pypomes_core import (
     TZ_LOCAL, timestamp_duration,
     str_as_list, list_correlate, list_prune_duplicates
 )
-from pypomes_db import db_count, db_select
-from pypomes_s3 import (
-    S3Engine, s3_get_client, s3_items_get_info, s3_items_remove
+from pypomes_cs import (
+    CsEngine, cs_get_client, cs_items_get_info, cs_items_remove
 )
+from pypomes_db import db_count, db_select
 from typing import Any
 
 from app_constants import MigState, MigStep
@@ -317,7 +317,7 @@ def correlate_lobdata(session: Session,
                     lob_deletes.sort()
                     list_prune_duplicates(lob_deletes,
                                           is_sorted=True)
-                    s3_items_remove(identifiers=lob_deletes,
+                    cs_items_remove(identifiers=lob_deletes,
                                     errors=errors)
     with lobdata_ctrl.lobdata_lock:
         migration_threads.extend(lobdata_ctrl.lobdata_registry[mother_thread]["child-threads"])
@@ -347,7 +347,7 @@ def _compute_lob_lists(session: Session,
 
     # obtain an S3 client
     errors: list[str] = []
-    s3_client: Any = s3_get_client(engine=session.get_target_s3().cd_engine,
+    s3_client: Any = cs_get_client(engine=session.get_target_s3().cd_engine,
                                    errors=errors)
     if not errors:
         db_items: list[tuple[str]] = db_select(sel_stmt=f"SELECT {reference_column} FROM {source_table}",
@@ -366,13 +366,13 @@ def _compute_lob_lists(session: Session,
 
             obj_id: str | None = None
             match session.get_target_s3().cd_type:
-                case S3Engine.AWS:
+                case CsEngine.AWS:
                     obj_id = "Key"
-                case S3Engine.MINIO:
+                case CsEngine.MINIO:
                     obj_id = "object_name"
-                case S3Engine.GCS:
+                case CsEngine.GCS:
                     obj_id = "name"
-            s3_items: list[dict[str, Any]] = s3_items_get_info(attrs=[obj_id],
+            s3_items: list[dict[str, Any]] = cs_items_get_info(attrs=[obj_id],
                                                                prefix=lob_prefix,
                                                                max_count=limit_count,
                                                                client=s3_client,

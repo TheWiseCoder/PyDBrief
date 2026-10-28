@@ -11,15 +11,15 @@ from pypomes_core import (
     timestamp_duration, env_is_docker, pypomes_versions,
     dict_jsonify, str_sanitize, exc_format
 )
+from pypomes_cs import cs_get_client, cs_file_store, cs_item_exists
 from pypomes_logging import logging_get_entries, logging_get_params
-from pypomes_s3 import s3_get_client, s3_file_store, s3_item_exists
 from pathlib import Path
 from typing import Any
 from urlobject import URLObject
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    PYDB_DB_ENGINE, PYDB_S3_ENGINE, PYDB_S3_BASE_FOLDER, InputParam, MigState, MigStep
+    PYDB_DB_ENGINE, PYDB_CS_ENGINE, PYDB_CS_BASE_FOLDER, InputParam, MigState, MigStep
 )
 from app_ident import get_env_keys
 from entities.database import Database
@@ -323,8 +323,8 @@ def __log_migration(migration: Migration,
                            badge_path)
 
     # obtain the S3 client (errors will be added to JSON report)
-    s3_client: Any = s3_get_client(engine=PYDB_S3_ENGINE,
-                                   errors=errors) if PYDB_S3_ENGINE and PYDB_S3_BASE_FOLDER else None
+    s3_client: Any = cs_get_client(engine=PYDB_CS_ENGINE,
+                                   errors=errors) if PYDB_CS_ENGINE and PYDB_CS_BASE_FOLDER else None
 
     # create intermediate missing folders in host filesystem
     log_file: Path = Path(base_path,
@@ -371,13 +371,13 @@ def __log_migration(migration: Migration,
         # 'url.hostname' returns 'None' for 'localhost'
         host: str = f"{database.cd_type}@{url.hostname or str(url)}"
         s3_prefix: Path = Path(host,
-                               PYDB_S3_BASE_FOLDER,
+                               PYDB_CS_BASE_FOLDER,
                                badge_path)
-        s3_file_store(identifier=log_file.name,
+        cs_file_store(identifier=log_file.name,
                       filepath=log_file,
                       mimetype=Mimetype.TEXT,
                       prefix=s3_prefix,
-                      engine=PYDB_S3_ENGINE,
+                      engine=PYDB_CS_ENGINE,
                       client=s3_client,
                       errors=errors)
         if not errors:
@@ -394,11 +394,11 @@ def __log_migration(migration: Migration,
             mig_report.ds_path = ds_path
             if (mig_report.insert(db_engine=PYDB_DB_ENGINE,
                                   errors=errors) and
-                s3_file_store(identifier=json_file.name,
+                cs_file_store(identifier=json_file.name,
                               filepath=json_file,
                               mimetype=Mimetype.JSON,
                               prefix=s3_prefix,
-                              engine=PYDB_S3_ENGINE,
+                              engine=PYDB_CS_ENGINE,
                               client=s3_client,
                               errors=errors)):
                 # HAZARD: 'ds_path' is a UNIQUE attribute
@@ -440,12 +440,12 @@ def __establish_version(s3_client: Any,
         # 'url.hostname' returns 'None' for 'localhost'
         host: str = f"{database.cd_type}@{url.hostname or str(url)}"
         s3_prefix: Path = Path(host,
-                               PYDB_S3_BASE_FOLDER,
+                               PYDB_CS_BASE_FOLDER,
                                badge_path)
         curr_errors: list[str] = []
-        while s3_item_exists(identifier=log_file.name,
+        while cs_item_exists(identifier=log_file.name,
                              prefix=s3_prefix,
-                             engine=PYDB_S3_ENGINE,
+                             engine=PYDB_CS_ENGINE,
                              client=s3_client,
                              errors=curr_errors) and not curr_errors:
             result += 1

@@ -351,7 +351,7 @@ def __reify_mview(migration: Migration,
                                             db_source_type=source_db.cd_type,
                                             db_target_type=target_db.cd_type)
                     # col_metadata[6] has the column's default value
-                    def_value = db_convert_default(value=col_metadata[6],
+                    def_value = db_convert_default(col_metadata[6],
                                                    source_engine=source_db.cd_engine,
                                                    target_engine=target_db.cd_engine)
                     target_cols_metadata.append(
