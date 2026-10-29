@@ -3,7 +3,7 @@
 .idea
 .vscode
 _docker
-env
+.env_local
 venv
 temp
 tmp
@@ -11,4 +11,3 @@ tmp
 *.py[cod]
 *.sh
 *.ps1
-envs.bat
