@@ -12,7 +12,7 @@ from entities.database import Database
 from entities.migration import Migration
 from entities.s3 import S3
 
-from app_constants import PYDB_DB_ENGINE, InputParam
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam
 
 
 class Session(PySob):
@@ -48,7 +48,7 @@ class Session(PySob):
                  __references: type[S3 | list[Migration]] = None,  # 'type[Database]' would apply to source DB, only
                  /,
                  cd_session: str = None,
-                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                 db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -90,7 +90,7 @@ class Session(PySob):
                          errors=errors)
 
     def get_source_db(self,
-                      db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                      db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                       db_conn: Any = None,
                       committable: bool = None,
                       errors: list[str] = None) -> Database | None:
@@ -104,7 +104,7 @@ class Session(PySob):
         return self.__source_db
 
     def get_target_db(self,
-                      db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                      db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                       db_conn: Any = None,
                       committable: bool = None,
                       errors: list[str] = None) -> Database | None:
@@ -118,7 +118,7 @@ class Session(PySob):
         return self.__target_db
 
     def get_target_s3(self,
-                      db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                      db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                       db_conn: Any = None,
                       committable: bool = None,
                       errors: list[str] = None) -> S3 | None:
@@ -132,7 +132,7 @@ class Session(PySob):
 
     def get_migrations(self,
                        refresh: bool = False,
-                       db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                       db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                        db_conn: Any = None,
                        committable: bool = None,
                        errors: list[str] = None):
@@ -150,7 +150,7 @@ class Session(PySob):
                         # HAZARD: may fail on direct external invocations
                         __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
                         /,
-                        db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                        db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                         db_conn: Any = None,
                         committable: bool = None,
                         errors: list[str] = None) -> None:

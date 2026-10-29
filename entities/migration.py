@@ -7,7 +7,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigState
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigState
 from entities.migration_issue import MigrationIssue
 from entities.migration_report import MigrationReport
 from entities.migration_table import MigrationTable
@@ -79,7 +79,7 @@ class Migration(PySob):
                                     list[MigrationTable] | list[MigrationWork]] | list[type] = None,
                  /,
                  nm_badge: str = None,
-                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                 db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -131,7 +131,7 @@ class Migration(PySob):
 
     def get_migration_issues(self,
                              refresh: bool = False,
-                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                             db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                              db_conn: Any = None,
                              committable: bool = None,
                              errors: list[str] = None) -> list[MigrationIssue] | None:
@@ -146,7 +146,7 @@ class Migration(PySob):
 
     def get_migration_reports(self,
                               refresh: bool = False,
-                              db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                              db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                               db_conn: Any = None,
                               committable: bool = None,
                               errors: list[str] = None) -> list[MigrationReport] | None:
@@ -161,7 +161,7 @@ class Migration(PySob):
 
     def get_migration_tables(self,
                              refresh: bool = False,
-                             db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                             db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                              db_conn: Any = None,
                              committable: bool = None,
                              errors: list[str] = None) -> list[MigrationTable] | None:
@@ -178,7 +178,7 @@ class Migration(PySob):
                             __references: list[type[MigrationSpan]] = None,
                             /,
                             refresh: bool = False,
-                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                            db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None) -> list[MigrationWork] | None:
@@ -204,7 +204,7 @@ class Migration(PySob):
                         # HAZARD: may fail on direct external invocations
                         __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
                         /,
-                        db_engine: Any = PYDB_DB_ENGINE,
+                        db_engine: Any = PYDB_DBCTRL_ENGINE,
                         db_conn: Any = None,
                         committable: bool = None,
                         errors: list[str] = None) -> None:

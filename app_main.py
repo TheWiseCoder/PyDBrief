@@ -32,7 +32,7 @@ from pypomes_logging import (
 )
 
 from app_constants import (
-    PYDB_DB_ENGINE, PYDB_CS_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
+    PYDB_DBCTRL_ENGINE, PYDB_CSCTRL_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
 )
 from app_init import init_app
 from entities.migration import Migration, minded_migrations
@@ -160,14 +160,14 @@ def service_version() -> Response:
                         if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
         "logging": dict_jsonify(logging_get_params()),
         "stateful": [
-            {k: v for k, v in db_get_params(engine=PYDB_DB_ENGINE).items() if "pwd" not in k}
+            {k: v for k, v in db_get_params(engine=PYDB_DBCTRL_ENGINE).items() if "pwd" not in k}
         ]
     }
-    versions["stateful"][0]["db-engine"] = PYDB_DB_ENGINE
-    if PYDB_CS_ENGINE:
-        versions["stateful"].append({k: v for k, v in cs_get_params(engine=PYDB_CS_ENGINE).items()
+    versions["stateful"][0]["db-engine"] = PYDB_DBCTRL_ENGINE
+    if PYDB_CSCTRL_ENGINE:
+        versions["stateful"].append({k: v for k, v in cs_get_params(engine=PYDB_CSCTRL_ENGINE).items()
                                      if "secret" not in k})
-        versions["stateful"][1]["s3-engine"] = PYDB_CS_ENGINE
+        versions["stateful"][1]["s3-engine"] = PYDB_CSCTRL_ENGINE
     # assign to the return variable
     result: Response = jsonify(versions)
 
@@ -707,11 +707,11 @@ def service_migrate() -> Response:
             migration: Migration = Migration(None,
                                              list[MigrationTable],
                                              nm_badge=mig_badge,
-                                             db_engine=PYDB_DB_ENGINE,
+                                             db_engine=PYDB_DBCTRL_ENGINE,
                                              errors=errors)
             if not errors:
                 session: Session = Session(migration.id_session,
-                                           db_engine=PYDB_DB_ENGINE,
+                                           db_engine=PYDB_DBCTRL_ENGINE,
                                            errors=errors)
                 if not errors:
                     # make sure database migration is possible

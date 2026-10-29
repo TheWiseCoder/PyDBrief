@@ -12,7 +12,7 @@ from pypomes_db import (
 )
 from typing import Any
 
-from app_constants import PYDB_DB_ENGINE, MigState, MigStep
+from app_constants import PYDB_DBCTRL_ENGINE, MigState, MigStep
 from entities.migration import SPAN_CHANNEL_COUNT, SPAN_PLAINDATA_SIZE, Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
 from entities.migration_span import MigrationSpan
@@ -358,23 +358,23 @@ def _migrate_plain(session: Session,
             # acknowledge the migration
             if not errors:
                 # obtain state DB connection
-                pydb_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+                pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                             errors=errors)
                 if pydb_conn:
                     migration_span.nr_row_count = count
                     migration_span.is_done = True
-                    migration_span.update(db_engine=PYDB_DB_ENGINE,
+                    migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                           errors=errors)
                     if not errors:
                         migration_work.nr_row_count += count
-                        migration_work.update(db_engine=PYDB_DB_ENGINE,
+                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               errors=errors)
                     if errors:
                         db_rollback_and_close(connection=pydb_conn,
-                                              engine=PYDB_DB_ENGINE)
+                                              engine=PYDB_DBCTRL_ENGINE)
                     else:
                         db_commit_and_close(connection=pydb_conn,
-                                            engine=PYDB_DB_ENGINE,
+                                            engine=PYDB_DBCTRL_ENGINE,
                                             errors=errors)
             if errors:
                 db_rollback_and_close(connection=target_conn,

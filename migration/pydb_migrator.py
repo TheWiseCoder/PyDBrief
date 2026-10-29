@@ -19,7 +19,7 @@ from urlobject import URLObject
 
 from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
-    PYDB_DB_ENGINE, PYDB_CS_ENGINE, PYDB_CS_BASE_FOLDER, InputParam, MigState, MigStep
+    PYDB_DBCTRL_ENGINE, PYDB_CSCTRL_ENGINE, PYDB_CSCTRL_BASE_FOLDER, InputParam, MigState, MigStep
 )
 from app_ident import get_env_keys
 from entities.database import Database
@@ -93,7 +93,7 @@ def migrate(migration: Migration,
 
     if not migration.ts_start:
         migration.ts_start = migration_started
-        migration.update(db_engine=PYDB_DB_ENGINE)
+        migration.update(db_engine=PYDB_DBCTRL_ENGINE)
 
     # log the migration start
     logger.info(msg=json.dumps(obj=dict_jsonify(op_report),
@@ -233,11 +233,11 @@ def migrate(migration: Migration,
     curr_errors: list[str] = []
     if not errors:
         migration.ts_finish = datetime.now(tz=TZ_LOCAL)
-        migration.update(db_engine=PYDB_DB_ENGINE,
+        migration.update(db_engine=PYDB_DBCTRL_ENGINE,
                          errors=curr_errors)
         errors.extend(curr_errors)
     if not errors:
-        session.update(db_engine=PYDB_DB_ENGINE,
+        session.update(db_engine=PYDB_DBCTRL_ENGINE,
                        errors=curr_errors)
         errors.extend(curr_errors)
     MigrationIssue.new_issues(id_migration=migration.id,
@@ -323,8 +323,8 @@ def __log_migration(migration: Migration,
                            badge_path)
 
     # obtain the S3 client (errors will be added to JSON report)
-    s3_client: Any = cs_get_client(engine=PYDB_CS_ENGINE,
-                                   errors=errors) if PYDB_CS_ENGINE and PYDB_CS_BASE_FOLDER else None
+    s3_client: Any = cs_get_client(engine=PYDB_CSCTRL_ENGINE,
+                                   errors=errors) if PYDB_CSCTRL_ENGINE and PYDB_CSCTRL_BASE_FOLDER else None
 
     # create intermediate missing folders in host filesystem
     log_file: Path = Path(base_path,
@@ -371,13 +371,13 @@ def __log_migration(migration: Migration,
         # 'url.hostname' returns 'None' for 'localhost'
         host: str = f"{database.cd_type}@{url.hostname or str(url)}"
         s3_prefix: Path = Path(host,
-                               PYDB_CS_BASE_FOLDER,
+                               PYDB_CSCTRL_BASE_FOLDER,
                                badge_path)
         cs_file_store(identifier=log_file.name,
                       filepath=log_file,
                       mimetype=Mimetype.TEXT,
                       prefix=s3_prefix,
-                      engine=PYDB_CS_ENGINE,
+                      engine=PYDB_CSCTRL_ENGINE,
                       client=s3_client,
                       errors=errors)
         if not errors:
@@ -386,19 +386,19 @@ def __log_migration(migration: Migration,
                                 log_file.name).as_posix()
             # uncondionally delete entry, ignoring errors
             MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
-                                  db_engine=PYDB_DB_ENGINE,
+                                  db_engine=PYDB_DBCTRL_ENGINE,
                                   errors=errors)
-            mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
+            mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DBCTRL_ENGINE)
             mig_report.id_migration = migration.id
             mig_report.cd_step = mig_step
             mig_report.ds_path = ds_path
-            if (mig_report.insert(db_engine=PYDB_DB_ENGINE,
+            if (mig_report.insert(db_engine=PYDB_DBCTRL_ENGINE,
                                   errors=errors) and
                 cs_file_store(identifier=json_file.name,
                               filepath=json_file,
                               mimetype=Mimetype.JSON,
                               prefix=s3_prefix,
-                              engine=PYDB_CS_ENGINE,
+                              engine=PYDB_CSCTRL_ENGINE,
                               client=s3_client,
                               errors=errors)):
                 # HAZARD: 'ds_path' is a UNIQUE attribute
@@ -406,13 +406,13 @@ def __log_migration(migration: Migration,
                                     json_file.name).as_posix()
                 # uncondionally delete entry (errors are logged)
                 MigrationReport.erase(where_data={MigrationReport.Db.DS_PATH: ds_path},
-                                      db_engine=PYDB_DB_ENGINE,
+                                      db_engine=PYDB_DBCTRL_ENGINE,
                                       errors=errors)
-                mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DB_ENGINE)
+                mig_report: MigrationReport = MigrationReport(db_engine=PYDB_DBCTRL_ENGINE)
                 mig_report.id_migration = migration.id
                 mig_report.cd_step = mig_step
                 mig_report.ds_path = ds_path
-                mig_report.insert(db_engine=PYDB_DB_ENGINE,
+                mig_report.insert(db_engine=PYDB_DBCTRL_ENGINE,
                                   errors=errors)
         for error in errors:
             MigrationIssue.new_issue(id_migration=migration.id,
@@ -440,12 +440,12 @@ def __establish_version(s3_client: Any,
         # 'url.hostname' returns 'None' for 'localhost'
         host: str = f"{database.cd_type}@{url.hostname or str(url)}"
         s3_prefix: Path = Path(host,
-                               PYDB_CS_BASE_FOLDER,
+                               PYDB_CSCTRL_BASE_FOLDER,
                                badge_path)
         curr_errors: list[str] = []
         while cs_item_exists(identifier=log_file.name,
                              prefix=s3_prefix,
-                             engine=PYDB_CS_ENGINE,
+                             engine=PYDB_CSCTRL_ENGINE,
                              client=s3_client,
                              errors=curr_errors) and not curr_errors:
             result += 1

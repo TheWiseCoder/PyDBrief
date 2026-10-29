@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigStep
 from entities.migration import Migration
 from entities.migration_span import MigrationSpan
 from entities.migration_work import MigrationWork
@@ -23,7 +23,7 @@ def retrieve_migration_works(input_params: dict[str, Any],
                                                              errors=errors)
     if not errors:
         # obtain DB connection
-        db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+        db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                   errors=errors)
         if db_conn:
             where_data: dict[str, Any] = {Migration.Db.NM_BADGE: migration_work_params.get(InputParam.BADGE),
@@ -34,7 +34,7 @@ def retrieve_migration_works(input_params: dict[str, Any],
                 joins=[(Migration, (Migration.Db.ID, MigrationWork.Db.ID_MIGRATION))],
                 where_data=where_data,
                 orderby_clause=(MigrationWork.Db.ID_MIGRATION, MigrationWork.Db.NM_TABLE),
-                db_engine=PYDB_DB_ENGINE,
+                db_engine=PYDB_DBCTRL_ENGINE,
                 errors=errors
             )
             if migration_works:
@@ -46,7 +46,7 @@ def retrieve_migration_works(input_params: dict[str, Any],
                         InputParam.ROW_COUNT:  migration_work.nr_row_count
                     }
                     migration_spans: list[MigrationSpan] = \
-                        migration_work.get_migration_spans(db_engine=PYDB_DB_ENGINE,
+                        migration_work.get_migration_spans(db_engine=PYDB_DBCTRL_ENGINE,
                                                            db_conn=db_conn,
                                                            errors=errors)
                     if errors:
@@ -68,10 +68,10 @@ def retrieve_migration_works(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
     return result
 

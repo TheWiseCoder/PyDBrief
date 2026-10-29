@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigStep
 
 
 class IssueType(StrEnum):
@@ -48,7 +48,7 @@ class MigrationIssue(PySob):
     def __init__(self,
                  __id: int = None,
                  /,
-                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                 db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -76,7 +76,7 @@ class MigrationIssue(PySob):
                   cd_step: MigStep,
                   cd_type: IssueType,
                   ds_issue: str,
-                  db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                  db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                   db_conn: Any = None,
                   errors: list[str] = None) -> None:
 
@@ -97,7 +97,7 @@ class MigrationIssue(PySob):
                    cd_step: MigStep,
                    cd_type: IssueType,
                    ds_issues: list[str],
-                   db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                   db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                    db_conn: Any = None,
                    errors: list[str] = None) -> None:
 

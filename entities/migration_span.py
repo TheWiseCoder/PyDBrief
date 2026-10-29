@@ -6,7 +6,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob
 from typing import Any, Final
 
-from app_constants import PYDB_DB_ENGINE
+from app_constants import PYDB_DBCTRL_ENGINE
 
 
 class MigrationSpan(PySob):
@@ -31,7 +31,7 @@ class MigrationSpan(PySob):
                  /,
                  id_migration_work: int = None,
                  nr_first_row: int = None,
-                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                 db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:

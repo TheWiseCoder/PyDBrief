@@ -4,7 +4,7 @@ from pypomes_core import (
 )
 from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, OpType
 from entities.database import Database
 
 
@@ -12,7 +12,7 @@ def create_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -27,17 +27,17 @@ def create_database(input_params: dict[str, Any],
             # attribute 'bn_pwd' to be assigned an encrypted values at INSERT time
             database._nm_pwd = database_params.pop(InputParam.DB_PWD)
             database.set(database_params)
-            database.insert(db_engine=PYDB_DB_ENGINE,
+            database.insert(db_engine=PYDB_DBCTRL_ENGINE,
                             db_conn=db_conn,
                             errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -45,7 +45,7 @@ def update_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -67,10 +67,10 @@ def update_database(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -78,7 +78,7 @@ def delete_database(input_params: dict[str, Any],
                     errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -90,17 +90,17 @@ def delete_database(input_params: dict[str, Any],
         if not errors:
             # obtain and delete the database
             database: Database = database_params[InputParam.DATABASE]
-            database.delete(db_engine=PYDB_DB_ENGINE,
+            database.delete(db_engine=PYDB_DBCTRL_ENGINE,
                             db_conn=db_conn,
                             errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -111,7 +111,7 @@ def retrieve_databases(input_params: dict[str, Any],
     result: dict[str, Any] = {}
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -128,7 +128,7 @@ def retrieve_databases(input_params: dict[str, Any],
             elif Database.Db.CD_TYPE in database_params:
                 where_data = {Database.Db.CD_TYPE: database_params[Database.Db.CD_TYPE]}
             databases: list[Database] = Database.get_instances(where_data=where_data,
-                                                               db_engine=PYDB_DB_ENGINE,
+                                                               db_engine=PYDB_DBCTRL_ENGINE,
                                                                orderby_clause=Database.Db.CD_ENGINE,
                                                                db_conn=db_conn,
                                                                errors=errors)
@@ -159,7 +159,7 @@ def __validate_input(input_params: dict[str, Any],
                                   errors=errors)
     if engine_id:
         result[InputParam.DATABASE] = Database(cd_engine=engine_id.lower(),
-                                               db_engine=PYDB_DB_ENGINE,
+                                               db_engine=PYDB_DBCTRL_ENGINE,
                                                db_conn=db_conn,
                                                errors=errors)
 

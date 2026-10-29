@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import DatetimeFormat, validate_str, validate_format_error
 from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, OpType
 from entities.database import Database
 from entities.s3 import S3
 from entities.session import Session
@@ -12,7 +12,7 @@ def create_session(input_params: dict[str, Any],
                    errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -30,17 +30,17 @@ def create_session(input_params: dict[str, Any],
             if InputParam.TARGET_S3 in session_params:
                 session.id_target_s3 = session_params.pop(InputParam.TARGET_S3).id
             session.set(session_params)
-            session.insert(db_engine=PYDB_DB_ENGINE,
+            session.insert(db_engine=PYDB_DBCTRL_ENGINE,
                            db_conn=db_conn,
                            errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -48,7 +48,7 @@ def update_session(input_params: dict[str, Any],
                    errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -74,10 +74,10 @@ def update_session(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -85,7 +85,7 @@ def delete_session(input_params: dict[str, Any],
                    errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -97,17 +97,17 @@ def delete_session(input_params: dict[str, Any],
         if not errors:
             # obtain and delete the database
             session: Session = session_params[InputParam.SESSION]
-            session.delete(db_engine=PYDB_DB_ENGINE,
+            session.delete(db_engine=PYDB_DBCTRL_ENGINE,
                            db_conn=db_conn,
                            errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -118,7 +118,7 @@ def retrieve_sessions(input_params: dict[str, Any],
     result: dict[str, Any] = {}
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -134,28 +134,28 @@ def retrieve_sessions(input_params: dict[str, Any],
                 where_data = {Session.Db.CD_SESSION: session_params.get(Session.Db.CD_SESSION)}
             sessions: list[Session] = Session.get_instances(where_data=where_data,
                                                             orderby_clause=Session.Db.CD_SESSION,
-                                                            db_engine=PYDB_DB_ENGINE,
+                                                            db_engine=PYDB_DBCTRL_ENGINE,
                                                             db_conn=db_conn,
                                                             errors=errors)
             for session in sessions or []:
                 session_data: dict[str, Any] = session.get_inputs()
                 session_data[InputParam.CREATION] = session.ts_creation.strftime(format=DatetimeFormat.LATIN)
 
-                source_db: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+                source_db: Database = session.get_source_db(db_engine=PYDB_DBCTRL_ENGINE,
                                                             db_conn=db_conn,
                                                             errors=errors)
                 if errors:
                     break
                 session_data[InputParam.SOURCE_DB] = source_db.get_inputs()
 
-                target_db: Database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+                target_db: Database = session.get_target_db(db_engine=PYDB_DBCTRL_ENGINE,
                                                             db_conn=db_conn,
                                                             errors=errors)
                 if errors:
                     break
                 session_data[InputParam.TARGET_DB] = target_db.get_inputs()
 
-                target_s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
+                target_s3: S3 = session.get_target_s3(db_engine=PYDB_DBCTRL_ENGINE,
                                                       db_conn=db_conn,
                                                       errors=errors)
                 if errors:
@@ -168,10 +168,10 @@ def retrieve_sessions(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
     return result
 
@@ -198,7 +198,7 @@ def __validate_input(input_params: dict[str, Any],
                                    errors=errors)
     if session_id:
         result[InputParam.SESSION] = Session(cd_session=session_id,
-                                             db_engine=PYDB_DB_ENGINE,
+                                             db_engine=PYDB_DBCTRL_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
 
@@ -217,7 +217,7 @@ def __validate_input(input_params: dict[str, Any],
                                   errors=errors)
     if source_db:
         result[InputParam.SOURCE_DB] = Database(cd_engine=source_db,
-                                                db_engine=PYDB_DB_ENGINE,
+                                                db_engine=PYDB_DBCTRL_ENGINE,
                                                 db_conn=db_conn,
                                                 errors=errors)
 
@@ -233,7 +233,7 @@ def __validate_input(input_params: dict[str, Any],
                                                 "Source and target databases cannot be the same"))
         else:
             result[InputParam.TARGET_DB] = Database(cd_engine=target_db.lower(),
-                                                    db_engine=PYDB_DB_ENGINE,
+                                                    db_engine=PYDB_DBCTRL_ENGINE,
                                                     db_conn=db_conn,
                                                     errors=errors)
 
@@ -242,7 +242,7 @@ def __validate_input(input_params: dict[str, Any],
                                   errors=errors)
     if target_s3:
         result[InputParam.TARGET_S3] = S3(cd_engine=target_s3.lower(),
-                                          db_engine=PYDB_DB_ENGINE,
+                                          db_engine=PYDB_DBCTRL_ENGINE,
                                           db_conn=db_conn,
                                           errors=errors)
 

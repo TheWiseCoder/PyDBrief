@@ -5,7 +5,7 @@ from pypomes_db import db_execute
 from urlobject import URLObject
 from typing import Any
 
-from app_constants import PYDB_DB_ENGINE, MigStep
+from app_constants import PYDB_DBCTRL_ENGINE, MigStep
 from entities.database import Database
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
@@ -83,7 +83,7 @@ def execute_sql(migration: Migration,
                                      cd_step=mig_step,
                                      cd_type=IssueType.ERROR,
                                      ds_issue=f"SQL: {sql_stmt}; Error: {error}",
-                                     db_engine=PYDB_DB_ENGINE)
+                                     db_engine=PYDB_DBCTRL_ENGINE)
 
 
 def get_migration_work(migration: Migration,
@@ -111,7 +111,7 @@ def get_migration_work(migration: Migration,
         where_data={MigrationWork.Db.ID_MIGRATION: migration.id,
                     MigrationWork.Db.CD_STEP: step,
                     MigrationWork.Db.NM_TABLE: table},
-        db_engine=PYDB_DB_ENGINE,
+        db_engine=PYDB_DBCTRL_ENGINE,
         db_conn=db_conn,
         errors=errors)
 
@@ -121,7 +121,7 @@ def get_migration_work(migration: Migration,
         result.cd_step = step
         result.nm_table = table
         result.ts_start = datetime.now(tz=TZ_LOCAL)
-        result.insert(db_engine=PYDB_DB_ENGINE,
+        result.insert(db_engine=PYDB_DBCTRL_ENGINE,
                       db_conn=db_conn,
                       errors=errors)
 
@@ -140,7 +140,7 @@ def get_migration_span(migration_work: MigrationWork,
     result: MigrationSpan = MigrationSpan.get_instance(
         where_data={MigrationSpan.Db.ID_MIGRATION_WORK: migration_work.id,
                     MigrationSpan.Db.NR_FIRST_ROW: first_row},
-        db_engine=PYDB_DB_ENGINE,
+        db_engine=PYDB_DBCTRL_ENGINE,
         db_conn=db_conn,
         errors=errors)
 
@@ -148,7 +148,7 @@ def get_migration_span(migration_work: MigrationWork,
         result = MigrationSpan()
         result.id_migration_work = migration_work.id
         result.nr_first_row = first_row
-        result.insert(db_engine=PYDB_DB_ENGINE,
+        result.insert(db_engine=PYDB_DBCTRL_ENGINE,
                       db_conn=db_conn,
                       errors=errors)
 

@@ -4,9 +4,9 @@ from enum import StrEnum, auto
 from pypomes_core import APP_PREFIX, env_get_bool, env_get_str, EnumUseAny, StrEnumAny
 from typing import Final
 
-PYDB_DB_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINE")
-PYDB_CS_ENGINE: Final[str] = env_get_str(key="PYDB_CS_ENGINE")
-PYDB_CS_BASE_FOLDER: Final[str] = env_get_str(key="PYDB_CS_BASE_FOLDER")
+PYDB_DBCTRL_ENGINE: Final[str] = env_get_str(key="PYDB_DB_ENGINES")
+PYDB_CSCTRL_ENGINE: Final[str] = env_get_str(key="PYDB_CS_ENGINES")
+PYDB_CSCTRL_BASE_FOLDER: Final[str] = env_get_str(key="PYDB_CSCTRL_BASE_FOLDER")
 PYDB_SYNC_LOCAL: Final[bool] = env_get_bool(key="PYDB_SYNC_LOCAL")
 REGISTRY_DOCKER: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_DOCKER")
 REGISTRY_HOST: Final[str] = env_get_str(key=f"{APP_PREFIX}_REGISTRY_HOST")

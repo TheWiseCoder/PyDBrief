@@ -8,7 +8,7 @@ from pypomes_logging import PYPOMES_LOGGER
 from pypomes_sob import PySob, Sob
 from typing import Any, Final, get_args, get_origin
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigStep
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigStep
 from entities.migration_span import MigrationSpan
 
 
@@ -47,7 +47,7 @@ class MigrationWork(PySob):
                  id_migration: int = None,
                  cd_step: MigStep = None,
                  nm_table: str = None,
-                 db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                 db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
                  committable: bool = None,
                  errors: list[str] = None) -> None:
@@ -81,7 +81,7 @@ class MigrationWork(PySob):
 
     def get_migration_spans(self,
                             refresh: bool = False,
-                            db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                            db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                             db_conn: Any = None,
                             committable: bool = None,
                             errors: list[str] = None):
@@ -97,7 +97,7 @@ class MigrationWork(PySob):
     def load_references(self,
                         __references: type[Sob | list[Sob]] | list[type[Sob | list[Sob]]],
                         /,
-                        db_engine: DbEngine | str = PYDB_DB_ENGINE,
+                        db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                         db_conn: Any = None,
                         committable: bool = None,
                         errors: list[str] = None) -> None:

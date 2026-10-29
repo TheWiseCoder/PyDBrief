@@ -6,7 +6,7 @@ from pypomes_core import (
 from pypomes_cs import CsEngine
 from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, OpType
 from entities.s3 import S3
 
 
@@ -14,7 +14,7 @@ def create_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -28,17 +28,17 @@ def create_s3(input_params: dict[str, Any],
             s3: S3 = S3()
             s3._nm_secret_key = s3_params.pop(InputParam.S3_SECRET_KEY)
             s3.set(s3_params)
-            s3.insert(db_engine=PYDB_DB_ENGINE,
+            s3.insert(db_engine=PYDB_DBCTRL_ENGINE,
                       db_conn=db_conn,
                       errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -46,7 +46,7 @@ def update_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -68,10 +68,10 @@ def update_s3(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -79,7 +79,7 @@ def delete_s3(input_params: dict[str, Any],
               errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -91,17 +91,17 @@ def delete_s3(input_params: dict[str, Any],
         if not errors:
             # obtain and delete the database
             s3: S3 = s3_params[InputParam.S3]
-            s3.delete(db_engine=PYDB_DB_ENGINE,
+            s3.delete(db_engine=PYDB_DBCTRL_ENGINE,
                       db_conn=db_conn,
                       errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -112,7 +112,7 @@ def retrieve_s3s(input_params: dict[str, Any],
     result: dict[str, Any] = {}
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -130,7 +130,7 @@ def retrieve_s3s(input_params: dict[str, Any],
                 where_data = {S3.Db.CD_TYPE: s3_params.get(S3.Db.CD_TYPE)}
             s3s: list[S3] = S3.get_instances(where_data=where_data,
                                              orderby_clause=S3.Db.CD_ENGINE,
-                                             db_engine=PYDB_DB_ENGINE,
+                                             db_engine=PYDB_DBCTRL_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
             for s3 in s3s or []:
@@ -139,10 +139,10 @@ def retrieve_s3s(input_params: dict[str, Any],
             # conclude the operation
             if errors:
                 db_rollback_and_close(connection=db_conn,
-                                      engine=PYDB_DB_ENGINE)
+                                      engine=PYDB_DBCTRL_ENGINE)
             else:
                 db_commit_and_close(connection=db_conn,
-                                    engine=PYDB_DB_ENGINE,
+                                    engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
     return result
 
@@ -168,7 +168,7 @@ def __validate_input(input_params: dict[str, Any],
                                   errors=errors)
     if engine_id:
         result[InputParam.S3] = S3(cd_engine=engine_id.lower(),
-                                   db_engine=PYDB_DB_ENGINE,
+                                   db_engine=PYDB_DBCTRL_ENGINE,
                                    db_conn=db_conn,
                                    errors=errors)
 

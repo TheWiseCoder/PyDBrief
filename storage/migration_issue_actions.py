@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import validate_format_error, validate_int, validate_str, validate_enum
 from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigStep, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigStep, OpType
 from entities.migration import Migration
 from entities.migration_issue import MigrationIssue, IssueType
 
@@ -10,7 +10,7 @@ from entities.migration_issue import MigrationIssue, IssueType
 def create_migration_issue(input_params: dict[str, Any],
                            errors: list[str]) -> None:
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -23,23 +23,23 @@ def create_migration_issue(input_params: dict[str, Any],
         if not errors:
             # create and persist the migration issue instance
             migration: Migration = Migration(nm_badge=migration_issue_params.pop(InputParam.BADGE),
-                                             db_engine=PYDB_DB_ENGINE,
+                                             db_engine=PYDB_DBCTRL_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
             if not errors:
                 migration_issue: MigrationIssue = MigrationIssue()
                 migration_issue.id_migration = migration.id
                 migration_issue.set(migration_issue_params)
-                migration_issue.insert(db_engine=PYDB_DB_ENGINE,
+                migration_issue.insert(db_engine=PYDB_DBCTRL_ENGINE,
                                        db_conn=db_conn,
                                        errors=errors)
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -47,7 +47,7 @@ def update_migration_issue(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -61,16 +61,16 @@ def update_migration_issue(input_params: dict[str, Any],
             # obtain and update the migration issue instance
             migration_issue: MigrationIssue = migration_issue_params.pop(InputParam.MIGRATION_ISSUE)
             migration_issue.set(data=migration_issue_params)
-            migration_issue.update(db_engine=PYDB_DB_ENGINE,
+            migration_issue.update(db_engine=PYDB_DBCTRL_ENGINE,
                                    db_conn=db_conn,
                                    errors=errors)
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -78,7 +78,7 @@ def delete_migration_issue(input_params: dict[str, Any],
                            errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -89,16 +89,16 @@ def delete_migration_issue(input_params: dict[str, Any],
                                                                   errors=errors)
         if not errors:
             migration_issue: MigrationIssue = migration_issue_params.pop(InputParam.MIGRATION_ISSUE)
-            migration_issue.delete(db_engine=PYDB_DB_ENGINE,
+            migration_issue.delete(db_engine=PYDB_DBCTRL_ENGINE,
                                    db_conn=db_conn,
                                    errors=errors)
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -109,7 +109,7 @@ def retrieve_migration_issues(input_params: dict[str, Any],
     result: dict[str, Any] = {}
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -123,7 +123,7 @@ def retrieve_migration_issues(input_params: dict[str, Any],
             values: list[int] = Migration.get_values(
                 attrs=Migration.Db.ID,
                 where_data={Migration.Db.NM_BADGE: migration_issue_params.get(InputParam.BADGE)},
-                db_engine=PYDB_DB_ENGINE,
+                db_engine=PYDB_DBCTRL_ENGINE,
                 db_conn=db_conn,
                 errors=errors)
             if values:
@@ -136,7 +136,7 @@ def retrieve_migration_issues(input_params: dict[str, Any],
                 orderby: tuple[str, str] = (MigrationIssue.Db.ID_MIGRATION, MigrationIssue.Db.CD_STEP)
                 migration_issues: list[MigrationIssue] = MigrationIssue.get_instances(where_data=where_data,
                                                                                       orderby_clause=orderby,
-                                                                                      db_engine=PYDB_DB_ENGINE,
+                                                                                      db_engine=PYDB_DBCTRL_ENGINE,
                                                                                       db_conn=db_conn,
                                                                                       errors=errors)
                 for migration_issue in migration_issues or []:
@@ -145,10 +145,10 @@ def retrieve_migration_issues(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
     return result
 
@@ -174,7 +174,7 @@ def __validate_input(input_params: dict[str, Any],
                                  errors=errors)
     if issue_id:
         result[InputParam.ISSUE] = MigrationIssue(issue_id,
-                                                  db_engine=PYDB_DB_ENGINE,
+                                                  db_engine=PYDB_DBCTRL_ENGINE,
                                                   db_conn=db_conn,
                                                   errors=errors)
 

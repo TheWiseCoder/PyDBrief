@@ -2,11 +2,10 @@
 .idea/
 tmp/
 **/__pycache__
+.env_local
 .gitignore
 .gitlab-ci.yml
 _docker/
-dockertips.txt
-envs.bat
 README.md
 *.sh
 *.ps1

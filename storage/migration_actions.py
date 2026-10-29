@@ -10,7 +10,7 @@ from pypomes_db import (
     db_setup, db_startup, db_connect, db_commit_and_close, db_rollback_and_close,
 )
 
-from app_constants import PYDB_DB_ENGINE, InputParam, MigState, MigStep, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigState, MigStep, OpType
 from entities.migration import (
     SPAN_CHANNEL_COUNT, SPAN_LOBDATA_SIZE, SPAN_PLAINDATA_SIZE,
     Migration, minded_migrations
@@ -25,7 +25,7 @@ def create_migration(input_params: dict[str, Any],
                      errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -39,17 +39,17 @@ def create_migration(input_params: dict[str, Any],
             migration: Migration = Migration()
             migration.id_session = migration_params.pop(InputParam.SESSION).id
             migration.set(migration_params)
-            migration.insert(db_engine=PYDB_DB_ENGINE,
+            migration.insert(db_engine=PYDB_DBCTRL_ENGINE,
                              db_conn=db_conn,
                              errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -57,7 +57,7 @@ def update_migration(input_params: dict[str, Any],
                      errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -72,17 +72,17 @@ def update_migration(input_params: dict[str, Any],
             if InputParam.SESSION in migration_params:
                 migration.id_session = migration_params.pop(InputParam.SESSION).id
             migration.set(data=migration_params)
-            migration.update(db_engine=PYDB_DB_ENGINE,
+            migration.update(db_engine=PYDB_DBCTRL_ENGINE,
                              db_conn=db_conn,
                              errors=errors)
 
             # conclude the operation
             if errors:
                 db_rollback_and_close(connection=db_conn,
-                                      engine=PYDB_DB_ENGINE)
+                                      engine=PYDB_DBCTRL_ENGINE)
             else:
                 db_commit_and_close(connection=db_conn,
-                                    engine=PYDB_DB_ENGINE,
+                                    engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
 
 
@@ -90,7 +90,7 @@ def delete_migration(input_params: dict[str, Any],
                      errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -102,17 +102,17 @@ def delete_migration(input_params: dict[str, Any],
         if not errors:
             # obtain and delete the migration
             migration: Migration = migration_params[InputParam.MIGRATION]
-            migration.delete(db_engine=PYDB_DB_ENGINE,
+            migration.delete(db_engine=PYDB_DBCTRL_ENGINE,
                              db_conn=db_conn,
                              errors=errors)
 
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -123,7 +123,7 @@ def retrieve_migrations(input_params: dict[str, Any],
     result: dict[str, Any] = {}
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -146,7 +146,7 @@ def retrieve_migrations(input_params: dict[str, Any],
             if where_data:
                 migrations: list[Migration] = Migration.get_instances(where_data=where_data,
                                                                       orderby_clause=Migration.Db.NM_BADGE,
-                                                                      db_engine=PYDB_DB_ENGINE,
+                                                                      db_engine=PYDB_DBCTRL_ENGINE,
                                                                       db_conn=db_conn,
                                                                       errors=errors)
                 for migration in migrations or []:
@@ -155,7 +155,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                                                                where_data={Session.Db.ID: migration.id_session},
                                                                max_count=1,
                                                                min_count=1,
-                                                               db_engine=PYDB_DB_ENGINE,
+                                                               db_engine=PYDB_DBCTRL_ENGINE,
                                                                db_conn=db_conn,
                                                                errors=errors)
                         if errors:
@@ -171,9 +171,10 @@ def retrieve_migrations(input_params: dict[str, Any],
                         mig_data[InputParam.STATES] = mig_states
 
                     mig_tables: list[dict[str, Any]] = []
-                    migration_tables: list[MigrationTable] = migration.get_migration_tables(db_engine=PYDB_DB_ENGINE,
-                                                                                            db_conn=db_conn,
-                                                                                            errors=errors)
+                    migration_tables: list[MigrationTable] = \
+                        migration.get_migration_tables(db_engine=PYDB_DBCTRL_ENGINE,
+                                                       db_conn=db_conn,
+                                                       errors=errors)
                     if errors:
                         break
                     for migration_table in migration_tables:
@@ -192,10 +193,10 @@ def retrieve_migrations(input_params: dict[str, Any],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
     return result
 
@@ -204,7 +205,7 @@ def abort_migration(input_params: dict[str, Any] | Session,
                     errors: list[str]) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         # validate the input data
@@ -232,7 +233,7 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                      logger: Logger) -> None:
 
     # obtain DB connection
-    db_conn: Any = db_connect(engine=PYDB_DB_ENGINE,
+    db_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                               errors=errors)
     if db_conn:
         mig_step: MigStep | None = None
@@ -248,7 +249,7 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
             if not errors:
                 mig_step: MigStep = migration_params.get(InputParam.STEP)
                 session = Session(migration_params[InputParam.MIGRATION].id_session,
-                                  db_engine=PYDB_DB_ENGINE,
+                                  db_engine=PYDB_DBCTRL_ENGINE,
                                   db_conn=db_conn,
                                   errors=errors)
         else:
@@ -257,7 +258,7 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
 
         if not errors:
             db_engines: list[str] = db_get_engines()
-            database: Database = session.get_source_db(db_engine=PYDB_DB_ENGINE,
+            database: Database = session.get_source_db(db_engine=PYDB_DBCTRL_ENGINE,
                                                        db_conn=db_conn,
                                                        errors=errors)
             if database:
@@ -266,7 +267,7 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                                      errors=errors,
                                      logger=logger)
             # validate target db regardless of source db validation
-            database = session.get_target_db(db_engine=PYDB_DB_ENGINE,
+            database = session.get_target_db(db_engine=PYDB_DBCTRL_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
             if database:
@@ -277,7 +278,7 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
 
         if not errors and mig_step in [MigStep.CORRELATE_LOBDATA, MigStep.MIGRATE_LOBDATA]:
             s3_engines: list[str] = cs_get_engines()
-            s3: S3 = session.get_target_s3(db_engine=PYDB_DB_ENGINE,
+            s3: S3 = session.get_target_s3(db_engine=PYDB_DBCTRL_ENGINE,
                                            db_conn=db_conn,
                                            errors=errors)
             if s3:
@@ -299,10 +300,10 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
-                                  engine=PYDB_DB_ENGINE)
+                                  engine=PYDB_DBCTRL_ENGINE)
         else:
             db_commit_and_close(connection=db_conn,
-                                engine=PYDB_DB_ENGINE,
+                                engine=PYDB_DBCTRL_ENGINE,
                                 errors=errors)
 
 
@@ -327,7 +328,7 @@ def __validate_input(input_params: dict[str, Any],
                                      errors=errors)
     if migration_id:
         result[InputParam.MIGRATION] = Migration(nm_badge=migration_id,
-                                                 db_engine=PYDB_DB_ENGINE,
+                                                 db_engine=PYDB_DBCTRL_ENGINE,
                                                  db_conn=db_conn,
                                                  errors=errors)
 
@@ -348,7 +349,7 @@ def __validate_input(input_params: dict[str, Any],
                                    errors=errors)
     if cd_session:
         result[InputParam.SESSION] = Session(cd_session=cd_session,
-                                             db_engine=PYDB_DB_ENGINE,
+                                             db_engine=PYDB_DBCTRL_ENGINE,
                                              db_conn=db_conn,
                                              errors=errors)
 
@@ -505,6 +506,9 @@ def __pool_setup(db_engine: str,
     pool: DbConnectionPool = (db_get_pool(engine=db_engine) or
                               DbConnectionPool(db_engine,
                                                pool_size=20,
+                                               pool_timeout=60,
+                                               pool_recycle=3600,
+                                               pool_verify=True,
                                                errors=curr_errors))
     if not curr_errors:
         stmts: list[str] = []
