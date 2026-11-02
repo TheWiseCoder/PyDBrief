@@ -62,6 +62,7 @@ def synchronize_plaindata(session: Session,
 
             # determine whether the synchronization needs to be carried out
             migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
+                                                               ref_column=None,
                                                                first_row=offset_count,
                                                                errors=errors)
             source_table: str = f"{session.nm_source_schema}.{table_name}"

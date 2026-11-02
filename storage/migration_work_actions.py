@@ -53,7 +53,8 @@ def retrieve_migration_works(input_params: dict[str, Any],
                         break
                     mig_spans: list[dict[str, Any]] = []
                     for migration_span in migration_spans:
-                        mig_spans.append({InputParam.FIRST_ROW: migration_span.nr_first_row,
+                        mig_spans.append({InputParam.REF_COLUMN: migration_span.nm_ref_column,
+                                          InputParam.FIRST_ROW: migration_span.nr_first_row,
                                           InputParam.ROW_COUNT: migration_span.nr_row_count,
                                           InputParam.DONE: migration_span.is_done})
                     mig_tables[migration_work.nm_table][InputParam.SPANS] = mig_spans

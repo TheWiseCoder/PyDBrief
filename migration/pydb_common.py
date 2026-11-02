@@ -129,6 +129,7 @@ def get_migration_work(migration: Migration,
 
 
 def get_migration_span(migration_work: MigrationWork,
+                       ref_column: str | None,
                        first_row: int,
                        db_conn: Any = None,
                        errors: list[str] = None) -> MigrationSpan | None:
@@ -139,6 +140,7 @@ def get_migration_span(migration_work: MigrationWork,
 
     result: MigrationSpan = MigrationSpan.get_instance(
         where_data={MigrationSpan.Db.ID_MIGRATION_WORK: migration_work.id,
+                    MigrationSpan.Db.NM_REF_COLUMN: ref_column,
                     MigrationSpan.Db.NR_FIRST_ROW: first_row},
         db_engine=PYDB_DBCTRL_ENGINE,
         db_conn=db_conn,
@@ -147,6 +149,7 @@ def get_migration_span(migration_work: MigrationWork,
     if not errors and not result:
         result = MigrationSpan()
         result.id_migration_work = migration_work.id
+        result.nm_ref_column = ref_column
         result.nr_first_row = first_row
         result.insert(db_engine=PYDB_DBCTRL_ENGINE,
                       db_conn=db_conn,

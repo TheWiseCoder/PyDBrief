@@ -107,6 +107,7 @@ class InputParam(StrEnum):
     ISSUES = "issues"
     NAME = "name"
     ONSET = "onset"
+    REF_COLUMN = "ref-column"
     ROW_COUNT = "row-count"
     SPANS = "spans"
     SPECS = "specs"

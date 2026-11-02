@@ -333,6 +333,7 @@ def _migrate_plain(session: Session,
     # determine whether the migration needs to be carried out
     count: int = 0
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
+                                                       ref_column=None,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:

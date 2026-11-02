@@ -247,7 +247,7 @@ CREATE TABLE migration_work (
 	nm_table varchar(64) NOT NULL,
     nr_duration_millis int8 NOT NULL,
     nr_row_count int8 NOT NULL,
-	ts_start timestamp NOT NULL,,
+	ts_start timestamp NOT NULL,
     CONSTRAINT ck_migration_work_count CHECK (nr_row_count >= 0),
     CONSTRAINT ck_migration_work_duration CHECK (nr_duration_millis >= 0),
 	CONSTRAINT ck_migration_work_step CHECK (((cd_step)::text = ANY (ARRAY[
@@ -273,11 +273,12 @@ CREATE SEQUENCE sq_migration_span
 CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
 	id_migration_work int8 NOT NULL,
+    nm_ref_column varchar(64),
     is_done bool DEFAULT false NOT NULL,
     nr_first_row int8 NOT NULL,
     nr_row_count int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_row_count >= 0),
     CONSTRAINT fk_migration_span_table FOREIGN KEY (id_migration_work) REFERENCES migration_work(id),
 	CONSTRAINT pk_migration_span PRIMARY KEY (id),
-	CONSTRAINT uk_migration_span UNIQUE (id_migration_work, nr_first_row)
+	CONSTRAINT uk_migration_span UNIQUE (id_migration_work, nm_ref_column, nr_first_row)
 );

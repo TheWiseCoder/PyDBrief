@@ -1,7 +1,7 @@
-boto3==1.43.121
+boto3==1.43.123
 Flask==3.1.3
 Flask-Cors==6.0.5
-flask-swagger-ui==5.34.0
+flask-swagger-ui==5.34.1
 # minio==7.2.20
 # mysql-connector-python==26.10.0
 oracledb==26.1.0

@@ -18,11 +18,12 @@ class MigrationSpan(PySob):
         ID = auto()
         ID_MIGRATION_WORK = auto()
         IS_DONE = auto()
+        NM_REF_COLUMN = auto()
         NR_FIRST_ROW = auto()
         NR_ROW_COUNT = auto()
 
     ATTRS_UNIQUE: Final[list[tuple[Db]]] = [
-        (Db.ID_MIGRATION_WORK, Db.NR_FIRST_ROW)
+        (Db.ID_MIGRATION_WORK, Db.NM_REF_COLUMN, Db.NR_FIRST_ROW)
     ]
     LOGGER: Final[Logger] = PYPOMES_LOGGER
 
@@ -30,6 +31,7 @@ class MigrationSpan(PySob):
                  __id: int = None,
                  /,
                  id_migration_work: int = None,
+                 nm_ref_column: str = None,
                  nr_first_row: int = None,
                  db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
                  db_conn: Any = None,
@@ -42,11 +44,15 @@ class MigrationSpan(PySob):
         self.nr_first_row: int | None = None
         self.nr_row_count: int = 0
 
+        # nullables in DB
+        self.nm_ref_column: str | None = None
+
         where_data: dict[str, Any] | None = None
         if __id:
             where_data = {MigrationSpan.Db.ID: __id}
         elif id_migration_work and isinstance(nr_first_row, int):
             where_data = {MigrationSpan.Db.ID_MIGRATION_WORK: id_migration_work,
+                          MigrationSpan.Db.NM_REF_COLUMN: nm_ref_column,
                           MigrationSpan.Db.NR_FIRST_ROW: nr_first_row}
 
         super().__init__(where_data=where_data,

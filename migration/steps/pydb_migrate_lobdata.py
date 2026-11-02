@@ -433,6 +433,7 @@ def _db_migrate_lobs(session: Session,
     lob_count: int = 0
     lob_bytes: int = 0
     migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
+                                                       ref_column=lob_column,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
@@ -540,6 +541,7 @@ def _s3_migrate_lobs(session: Session,
     if source_conn:
         # determine whether the migration needs to be carried out
         migration_span: MigrationSpan = get_migration_span(migration_work=migration_work,
+                                                           ref_column=lob_column,
                                                            first_row=offset_count,
                                                            errors=errors)
         if not errors and not migration_span.is_done:
