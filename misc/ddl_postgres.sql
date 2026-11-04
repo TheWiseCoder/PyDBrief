@@ -90,7 +90,7 @@ CREATE TABLE session (
 	cd_session varchar(64) NOT NULL,
 	id_source_db int4 NOT NULL,
 	id_target_db int4 NOT NULL,
-	id_target_s3 int4,
+	id_target_s3 int4 NOT NULL,
     nm_source_schema varchar(16) NOT NULL,
     nm_target_schema varchar(16) NOT NULL,
 	ts_creation timestamp NOT NULL,
@@ -273,8 +273,8 @@ CREATE SEQUENCE sq_migration_span
 CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
 	id_migration_work int8 NOT NULL,
-    nm_ref_column varchar(64),
     is_done bool DEFAULT false NOT NULL,
+    nm_ref_column varchar(64),
     nr_first_row int8 NOT NULL,
     nr_row_count int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_row_count >= 0),

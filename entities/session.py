@@ -57,12 +57,10 @@ class Session(PySob):
         self.cd_session: str | None = None
         self.id_source_db: int | None = None
         self.id_target_db: int | None = None
+        self.id_target_s3: int | None = None
         self.nm_source_schema: str | None = None
         self.nm_target_schema: str | None = None
         self.ts_creation: datetime | None = datetime.now(tz=TZ_LOCAL)
-
-        # nullables in DB
-        self.id_target_s3: int | None = None
 
         # references (scalars)
         self.__source_db: Database | None = None

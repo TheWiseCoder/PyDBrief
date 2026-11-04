@@ -15,7 +15,7 @@ pypomes-http==0.9.4
 pypomes-logging==0.8.3
 pypomes-sob==1.4.0
 python-dotenv==1.2.4
-SQLAlchemy==2.1.6
+SQLAlchemy==2.1.8
 URLObject==3.0.0
 Werkzeug==3.1.9
 zope.interface==8.7

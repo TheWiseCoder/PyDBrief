@@ -62,12 +62,12 @@ def s3_migrate_lobs(migration: Migration,
                                          ds_issue=warn_msg)
 
     # initialize the remaining properties
-    identifier: str | None = None
     mimetype: Mimetype | str | None = None
     extension: str | None = None
     lob_data: bytes | None = None
     metadata: dict[str, str] = {}
     first_chunk: bool = True
+    identifier: str | None = None
 
     # get data from the LOB streamer Generator as follows:
     #   - 'row_data' hold the streamed data (LOB identification or LOB payload)
@@ -179,6 +179,7 @@ def s3_migrate_lobs(migration: Migration,
 
             # proceed to the next LOB
             first_chunk = True
+            identifier = None
 
     # log the migration
     logger.debug(msg=f"{result_count} LOBs migrated from "
