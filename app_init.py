@@ -19,6 +19,5 @@ def init_app(logger: Logger) -> bool:
     for error in errors:
         logger.critical(msg=error)
         sys.stderr.write(error)
-        logger.error(msg=error)
 
     return not errors
