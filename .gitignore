@@ -3,7 +3,6 @@
 .idea
 .vscode
 _docker
-.env_local
 venv
 temp
 tmp

@@ -14,10 +14,10 @@ from threading import Thread
 from typing import Any, Final
 
 # must be imported before PyPomes and local packages
-from app_ident import APP_NAME, APP_VERSION, get_env_keys
+from app_ident import APP_NAME, APP_VERSION
 
 from pypomes_core import (
-    Mimetype, pypomes_versions,
+    APP_PREFIX, Mimetype, pypomes_versions,
     dict_clone, dict_jsonify, validate_str, validate_enum,
     exc_format, validate_format_error, validate_format_errors
 )
@@ -146,8 +146,7 @@ def service_version() -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    # retrieve the versions
-    env_keys: list[str] = get_env_keys()
+    prefixes: list[str] = [APP_PREFIX, "FLASK", 'PYPOMES', "TZ"]
     versions: dict[str, Any] = {
         APP_NAME: {
             "version": APP_VERSION,
@@ -157,7 +156,7 @@ def service_version() -> Response:
         },
         "foundations": pypomes_versions(),
         "environment": {key: value for key, value in os.environ.items()
-                        if key in env_keys and not ("_PWD" in key or "_SECRET" in key)},
+                        if key in prefixes and not ("_PWD" in key or "_SECRET" in key)},
         "logging": dict_jsonify(logging_get_params()),
         "stateful": [
             {k: v for k, v in db_get_params(engine=PYDB_DBCTRL_ENGINE).items() if "pwd" not in k}
