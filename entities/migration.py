@@ -107,6 +107,7 @@ class Migration(PySob):
         self.ts_finish: datetime | None = None
 
         # references (lists)
+        self.__session: Any = None      # Session
         self.__migration_issues: list[MigrationIssue] | None = None
         self.__id_migration_issues: int | None = None
         self.__migration_reports: list[MigrationTable] | None = None
@@ -128,6 +129,27 @@ class Migration(PySob):
                          db_conn=db_conn,
                          committable=committable,
                          errors=errors)
+
+    # cannot declare type 'Session'
+    def get_session(self,
+                    refresh: bool = False,
+                    db_engine: DbEngine | str = PYDB_DBCTRL_ENGINE,
+                    db_conn: Any = None,
+                    committable: bool = None,
+                    errors: list[str] = None) -> Any:
+
+        if refresh or not self.__session:
+            if self.id_session:
+                from .session import Session
+                self.__session = Session(self.id_session,
+                                         db_engine=db_engine,
+                                         db_conn=db_conn,
+                                         committable=committable,
+                                         errors=errors)
+            else:
+                self.__session = None
+
+        return self.__session
 
     def get_migration_issues(self,
                              refresh: bool = False,

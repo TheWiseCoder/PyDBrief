@@ -46,9 +46,8 @@ plaindata_registry: dict[int, dict[str, Any]] = {}
 plaindata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_plaindata(session: Session,
+def migrate_plaindata(migration: Migration,
                       mig_step: MigStep,
-                      migration: Migration,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       migration_warnings: list[str],
@@ -75,6 +74,7 @@ def migrate_plaindata(session: Session,
         if minded_migrations.get(mig_key) == MigState.ABORTING:
             break
 
+        session: Session = migration.get_session()
         target_db: str = session.get_target_db().cd_engine
         source_table: str = f"{session.nm_target_schema}.{table_name}"
         target_table: str = f"{session.nm_target_schema}.{table_name}"

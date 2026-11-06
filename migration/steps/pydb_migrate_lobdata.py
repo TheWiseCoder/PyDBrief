@@ -48,9 +48,8 @@ lobdata_registry: dict[int, dict[str, Any]] = {}
 lobdata_lock: threading.Lock = threading.Lock()
 
 
-def migrate_lobdata(session: Session,
+def migrate_lobdata(migration: Migration,
                     mig_step: MigStep,
-                    migration: Migration,
                     migration_threads: list[int],
                     migrated_tables: dict[str, Any],
                     migration_warnings: list[str],
@@ -70,6 +69,7 @@ def migrate_lobdata(session: Session,
         }
 
     # retrieve the source and target RDBMS engines, and the channel count
+    session: Session = migration.get_session()
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
     target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None

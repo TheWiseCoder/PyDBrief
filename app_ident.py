@@ -6,7 +6,7 @@ from typing import Final
 
 # establish the app's name and current version
 APP_NAME: str = "PyDBrief"
-APP_VERSION: Final[str] = "2.4.3"
+APP_VERSION: Final[str] = "2.4.4"
 
 # load environment variables for local execution
 # (this must precede importing 'pypomes-core')
@@ -15,6 +15,7 @@ if os.getenv("PYDB_DEPLOY_LOCAL") == "1":
                 override=True)
 
 
+# strictly for local usage
 def get_env_keys() -> list[str]:
     """
     Return the keys defined in the file *.env_local*.

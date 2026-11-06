@@ -26,7 +26,6 @@ from migration.steps.pydb_migration import (
 
 
 def migrate_metadata(migration: Migration,
-                     session: Session,
                      mig_step: MigStep,
                      migration_warnings: list[str],
                      errors: list[str],
@@ -35,6 +34,7 @@ def migrate_metadata(migration: Migration,
     # initialize the return variable
     result: dict[str, Any] | None = None
 
+    session: Session = migration.get_session()
     source_db: Database = session.get_source_db()
     target_db: Database = session.get_target_db()
     if migration.ds_pre_sql:

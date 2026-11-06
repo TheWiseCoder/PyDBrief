@@ -7,7 +7,7 @@ from datetime import datetime
 from io import BytesIO
 from logging import Logger
 from pypomes_core import (
-    TZ_LOCAL, DatetimeFormat, Mimetype,
+    APP_PREFIX, TZ_LOCAL, DatetimeFormat, Mimetype,
     timestamp_duration, env_is_docker, pypomes_versions,
     dict_jsonify, str_sanitize, exc_format
 )
@@ -21,7 +21,6 @@ from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
     PYDB_DBCTRL_ENGINE, PYDB_CSCTRL_ENGINE, PYDB_CSCTRL_BASE_FOLDER, InputParam, MigState, MigStep
 )
-from app_ident import get_env_keys
 from entities.database import Database
 from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
@@ -37,7 +36,6 @@ from migration.steps.pydb_sync_plaindata import synchronize_plaindata
 
 
 def migrate(migration: Migration,
-            session: Session,
             mig_step: MigStep,
             app_name: str,
             app_version: str,
@@ -56,7 +54,8 @@ def migrate(migration: Migration,
     minded_migrations[mig_key] = MigState.MIGRATING
 
     # initialize the operation report
-    env_keys: list[str] = get_env_keys()
+    prefixes: list[str] = [APP_PREFIX, "FLASK", 'PYPOMES', "TZ"]
+    session: Session = migration.get_session(errors=errors)
     op_report: dict[str, Any] = {
         "colophon": {
             app_name: {
@@ -66,7 +65,7 @@ def migrate(migration: Migration,
             },
             "foundations": pypomes_versions(),
             "environment": {key: value for key, value in os.environ.items()
-                            if key in env_keys and not ("_PWD" in key or "_SECRET" in key)}
+                            if key in prefixes and not ("_PWD" in key or "_SECRET" in key)}
         },
         InputParam.STEP: mig_step.anyval,
         InputParam.SESSION: session.get_inputs(),
@@ -100,7 +99,6 @@ def migrate(migration: Migration,
                                ensure_ascii=False))
     logger.info(msg="Started discovering the metadata")
     migrated_tables: dict[str, Any] = migrate_metadata(migration=migration,
-                                                       session=session,
                                                        mig_step=mig_step,
                                                        migration_warnings=migration_warnings,
                                                        errors=errors,
@@ -125,7 +123,6 @@ def migrate(migration: Migration,
             logger.info("Started migrating the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
             count: int = migrate_plaindata(migration=migration,
-                                           session=session,
                                            mig_step=mig_step,
                                            migration_threads=migration_threads,
                                            migrated_tables=migrated_tables,
@@ -152,9 +149,8 @@ def migrate(migration: Migration,
                 warnings.filterwarnings(action="ignore")
 
             started: datetime = datetime.now(tz=TZ_LOCAL)
-            counts: tuple[int, int] = migrate_lobdata(session=session,
+            counts: tuple[int, int] = migrate_lobdata(migration=migration,
                                                       mig_step=mig_step,
-                                                      migration=migration,
                                                       migration_threads=migration_threads,
                                                       migrated_tables=migrated_tables,
                                                       migration_warnings=migration_warnings,

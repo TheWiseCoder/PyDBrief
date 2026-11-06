@@ -228,7 +228,7 @@ def abort_migration(input_params: dict[str, Any] | Session,
                                                     f"step '{mig_step}',not running"))
 
 
-def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
+def verify_migration(input_params: dict[str, Any] | tuple[Migration, MigStep],
                      errors: list[str],
                      logger: Logger) -> None:
 
@@ -253,9 +253,11 @@ def verify_migration(input_params: dict[str, Any] | tuple[Session, MigStep],
                                   db_conn=db_conn,
                                   errors=errors)
         else:
-            session = input_params[0]
             mig_step = input_params[1]
-
+            migration: Migration = input_params[0]
+            session: Session = migration.get_session(db_engine=PYDB_DBCTRL_ENGINE,
+                                                     db_conn=db_conn,
+                                                     errors=errors)
         if not errors:
             db_engines: list[str] = db_get_engines()
             database: Database = session.get_source_db(db_engine=PYDB_DBCTRL_ENGINE,
