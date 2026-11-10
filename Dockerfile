@@ -51,10 +51,6 @@ ENV SSL_CERT_DIR=/etc/ssl/certs
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -r requirements.txt
 COPY . .
 
-ENV FLASK_APP=app_main.py
-ENV PYPOMES_APP_PREFIX=PYDB
-ENV TZ=America/Sao_Paulo
-
 ARG PYDB_REGISTRY_DOCKER
 ENV PYDB_REGISTRY_DOCKER=$PYDB_REGISTRY_DOCKER
 ARG PYDB_REGISTRY_HOST
