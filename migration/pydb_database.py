@@ -1,9 +1,11 @@
 import sys
 from logging import Logger
 from pypomes_core import validate_format_error, str_sanitize, exc_format
+from pypomes_crypto import HashAlgorithm, crypto_hash
 from pypomes_db import (
     DbEngine, DbParam,
-    db_get_param, db_get_type, db_get_view_ddl, db_execute, db_get_connection_string
+    db_get_param, db_get_type, db_get_view_ddl,
+    db_select, db_execute, db_get_connection_string
 )
 from sqlalchemy import Engine, create_engine
 from typing import Literal
@@ -142,3 +144,28 @@ def table_embedded_nulls(db_engine: str,
         # 101: {}
         errors.append(validate_format_error(101,
                                             err_msg))
+
+
+def hash_columns(db_engine: str,
+                 table: str,
+                 columns: list[str],
+                 offset: int,
+                 errors: list[str]) -> str:
+
+    # initilize the return variable
+    result: str | None = None
+
+    stmt: str = f"SELECT {','.join(columns)} FROM {table}"
+    recs: list[tuple] = db_select(stmt,
+                                  offset_count=offset,
+                                  limit_count=1,
+                                  engine=db_engine,
+                                  errors=errors)
+    if recs:
+        payload: list = list(recs[0])
+        hash_bytes: bytes = crypto_hash(payload=payload,
+                                        alg=HashAlgorithm.SHA256)
+        if hash_bytes:
+            result = hash_bytes.hex()
+
+    return result

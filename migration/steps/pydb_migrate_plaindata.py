@@ -22,7 +22,7 @@ from entities.session import Session
 from migration.pydb_common import (
     build_channel_data, execute_sql, get_migration_span, get_migration_work
 )
-from migration.pydb_database import table_embedded_nulls
+from migration.pydb_database import table_embedded_nulls, hash_columns
 from migration.pydb_types import is_lob_column
 
 # structure of the thread registry:
@@ -69,6 +69,9 @@ def migrate_plaindata(migration: Migration,
     # traverse list of migrated tables to copy the plain data
     for table_name, table_data in migrated_tables.items():
 
+        # initialize the local error count
+        curr_errors: list[str] = []
+
         # verify whether current migration is marked for abortion
         mig_key: str = f"{mig_step}-{migration.id}"
         if minded_migrations.get(mig_key) == MigState.ABORTING:
@@ -88,10 +91,10 @@ def migrate_plaindata(migration: Migration,
         migration_work: MigrationWork = get_migration_work(migration=migration,
                                                            step=mig_step,
                                                            table=table_name,
-                                                           errors=errors)
-        if not errors and db_table_exists(table_name=target_table,
-                                          engine=target_db,
-                                          errors=errors):
+                                                           errors=curr_errors)
+        if not curr_errors and db_table_exists(table_name=target_table,
+                                               engine=target_db,
+                                               errors=curr_errors):
             # obtain migration table data
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
@@ -111,15 +114,14 @@ def migrate_plaindata(migration: Migration,
             if (migration.is_skip_nonempty and
                     not limit_count and (db_count(table=target_table,
                                                   engine=target_db,
-                                                  errors=errors) or 0) > 0):
+                                                  errors=curr_errors) or 0) > 0):
                 # yes, skip it
                 logger.debug(msg=f"Skipped nonempty {target_db}.{target_table}")
                 table_data["plain-status"] = "skipped"
 
-            elif not errors:
-                result += __migrate_plaindata(session=session,
+            elif not curr_errors:
+                result += __migrate_plaindata(migration=migration,
                                               mig_step=mig_step,
-                                              migration=migration,
                                               migration_work=migration_work,
                                               mother_thread=mother_thread,
                                               table_data=table_data,
@@ -130,8 +132,8 @@ def migrate_plaindata(migration: Migration,
                                               is_remove_ctrlchars=migration_table.is_remove_ctrlchars or False,
                                               migration_warnings=migration_warnings,
                                               logger=logger,
-                                              errors=errors)
-        elif not errors:
+                                              errors=curr_errors)
+        elif not curr_errors:
             # target table does not exist
             err_msg: str = ("Unable to migrate plaindata, "
                             f"table {target_db}.{target_table} was not found")
@@ -141,11 +143,10 @@ def migrate_plaindata(migration: Migration,
                                      cd_type=IssueType.ERROR,
                                      ds_issue=err_msg)
             # 101: {}
-            errors.append(validate_format_error(101,
-                                                err_msg))
-        # abort the plaindata migration
-        if errors:
-            break
+            curr_errors.append(validate_format_error(101,
+                                                     err_msg))
+        # save the local errors
+        errors.extend(curr_errors)
 
     with plaindata_lock:
         migration_threads.extend(plaindata_registry[mother_thread]["child-threads"])
@@ -154,9 +155,8 @@ def migrate_plaindata(migration: Migration,
     return result
 
 
-def __migrate_plaindata(session: Session,
+def __migrate_plaindata(migration: Migration,
                         mig_step: MigStep,
-                        migration: Migration,
                         migration_work: MigrationWork,
                         mother_thread: int,
                         table_data: dict[str, Any],
@@ -171,6 +171,7 @@ def __migrate_plaindata(session: Session,
     result: int = 0
     status: str = "ok"
     started: datetime = datetime.now(tz=TZ_LOCAL)
+    session: Session = migration.get_session()
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
@@ -201,7 +202,7 @@ def __migrate_plaindata(session: Session,
                     target_columns.append(column_name)
                 if "identity" in features:
                     identity_column = column_name
-                elif "primary-key" in features and (limit_count or batch_size_in):
+                elif "primary-key" in features:
                     orderby_columns.append(column_name)
 
         if not orderby_columns:
@@ -237,13 +238,13 @@ def __migrate_plaindata(session: Session,
         if max_workers == 1:
             for channel_datum in channel_data:
                 # execute single task in current thread
-                _migrate_plain(session=session,
+                _migrate_plain(migration=migration,
                                mig_step=mig_step,
                                migration_work=migration_work,
                                mother_thread=mother_thread,
                                source_columns=source_columns,
                                target_columns=target_columns,
-                               orderby_clause=", ".join(orderby_columns),
+                               orderby_columns=orderby_columns,
                                offset_count=channel_datum[0],
                                limit_count=channel_datum[1],
                                identity_column=identity_column,
@@ -257,13 +258,13 @@ def __migrate_plaindata(session: Session,
                 task_futures: list[Future] = []
                 for channel_datum in channel_data:
                     future: Future = executor.submit(_migrate_plain,
-                                                     session=session,
+                                                     migration=migration,
                                                      mig_step=mig_step,
                                                      migration_work=migration_work,
                                                      mother_thread=mother_thread,
                                                      source_columns=source_columns,
                                                      target_columns=target_columns,
-                                                     orderby_clause=", ".join(orderby_columns),
+                                                     orderby_columns=orderby_columns,
                                                      offset_count=channel_datum[0],
                                                      limit_count=channel_datum[1],
                                                      identity_column=identity_column,
@@ -304,13 +305,13 @@ def __migrate_plaindata(session: Session,
     return result
 
 
-def _migrate_plain(session: Session,
+def _migrate_plain(migration: Migration,
                    mig_step: MigStep,
                    migration_work: MigrationWork,
                    mother_thread: int,
                    source_columns: list[str],
                    target_columns: list[str],
-                   orderby_clause: str,
+                   orderby_columns: list[str],
                    offset_count: int,
                    limit_count: int,
                    identity_column: str,
@@ -325,6 +326,7 @@ def _migrate_plain(session: Session,
     with plaindata_lock:
         plaindata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
+    session: Session = migration.get_session()
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
@@ -337,25 +339,41 @@ def _migrate_plain(session: Session,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
-        # obtain target DB connection
-        target_conn: Any = db_connect(engine=target_db,
-                                      errors=errors)
-        if target_conn:
-            count = db_migrate_data(source_engine=source_db,
-                                    source_table=source_table,
-                                    source_columns=source_columns,
-                                    target_engine=target_db,
-                                    target_table=target_table,
-                                    target_columns=target_columns,
-                                    orderby_clause=orderby_clause,
-                                    offset_count=offset_count,
-                                    limit_count=limit_count,
-                                    identity_column=identity_column,
-                                    batch_size_in=batch_size_in,
-                                    batch_size_out=batch_size_out,
-                                    target_conn=target_conn,
-                                    has_ctrlchars=has_ctrlchars,
-                                    errors=errors)
+        # make sure initial row in resume operation is the same as in previously failed attempt
+        row_hash: str = hash_columns(db_engine=source_db,
+                                     table=source_table,
+                                     columns=orderby_columns,
+                                     offset=offset_count,
+                                     errors=errors)
+        if not errors:
+            if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                err_msg: str = (f"Unable to synchronize plaindata from "
+                                f"{source_db}.{source_table} at offset {offset_count}")
+                logger.error(msg=err_msg)
+                errors.append(err_msg)
+            else:
+                migration_span.ds_row_hash = row_hash
+
+        if not errors:
+            # obtain target DB connection
+            target_conn: Any = db_connect(engine=target_db,
+                                          errors=errors)
+            if target_conn:
+                count = db_migrate_data(source_engine=source_db,
+                                        source_table=source_table,
+                                        source_columns=source_columns,
+                                        target_engine=target_db,
+                                        target_table=target_table,
+                                        target_columns=target_columns,
+                                        orderby_clause=", ".join(orderby_columns),
+                                        offset_count=offset_count,
+                                        limit_count=limit_count,
+                                        identity_column=identity_column,
+                                        batch_size_in=batch_size_in,
+                                        batch_size_out=batch_size_out,
+                                        target_conn=target_conn,
+                                        has_ctrlchars=has_ctrlchars,
+                                        errors=errors)
             # acknowledge the migration
             if not errors:
                 # obtain state DB connection
@@ -365,10 +383,12 @@ def _migrate_plain(session: Session,
                     migration_span.nr_row_count = count
                     migration_span.is_done = True
                     migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                          db_conn=pydb_conn,
                                           errors=errors)
                     if not errors:
                         migration_work.nr_row_count += count
                         migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                              db_conn=pydb_conn,
                                               errors=errors)
                     if errors:
                         db_rollback_and_close(connection=pydb_conn,

@@ -95,7 +95,7 @@ else:
     # abort the execution
     err_msg: str = "Execution aborted"
     PYPOMES_LOGGER.critical(msg=err_msg)
-    sys.stderr.write(err_msg)
+    sys.stderr.write(f"\n{err_msg}")
     sys.exit(1)
 
 

@@ -16,6 +16,7 @@ class MigrationSpan(PySob):
     class Db(StrEnum):
         TABLE = "migration_span"
         ID = auto()
+        DS_ROW_HASH = auto()
         ID_MIGRATION_WORK = auto()
         IS_DONE = auto()
         NM_REF_COLUMN = auto()
@@ -45,6 +46,7 @@ class MigrationSpan(PySob):
         self.nr_row_count: int = 0
 
         # nullables in DB
+        self.ds_row_hash: str | None = None  # SHA256 hash of select columns in source database table
         self.nm_ref_column: str | None = None
 
         where_data: dict[str, Any] | None = None

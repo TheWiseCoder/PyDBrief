@@ -188,7 +188,7 @@ def migrate(migration: Migration,
                                                              migration_threads=migration_threads,
                                                              migrated_tables=migrated_tables,
                                                              migration_warnings=migration_warnings,
-                                                             errors=errors,
+                                                             curr_errors=errors,
                                                              logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,
@@ -212,7 +212,7 @@ def migrate(migration: Migration,
                                                                  migration_threads=migration_threads,
                                                                  migrated_tables=migrated_tables,
                                                                  # migration_warnings=migration_warnings,
-                                                                 errors=errors,
+                                                                 curr_errors=errors,
                                                                  logger=logger)
             finished: datetime = datetime.now(tz=TZ_LOCAL)
             duration: str = timestamp_duration(start=started,

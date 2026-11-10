@@ -274,6 +274,7 @@ CREATE TABLE migration_span (
 	id int8 DEFAULT nextval('sq_migration_span'::regclass) NOT NULL,
 	id_migration_work int8 NOT NULL,
     is_done bool DEFAULT false NOT NULL,
+    ds_row_hash varchar(64),
     nm_ref_column varchar(64),
     nr_first_row int8 NOT NULL,
     nr_row_count int8 NOT NULL,

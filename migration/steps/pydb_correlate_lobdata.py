@@ -51,9 +51,8 @@ from migration.steps.pydb_migrate_lobdata import migrate_lob_columns
 # }
 
 
-def correlate_lobdata(session: Session,
+def correlate_lobdata(migration: Migration,
                       mig_step: MigStep,
-                      migration: Migration,
                       migration_threads: list[int],
                       migrated_tables: dict[str, Any],
                       migration_warnings: list[str],
@@ -74,6 +73,7 @@ def correlate_lobdata(session: Session,
         }
 
     # retrieve the source and target DB and S3 engines
+    session: Session = migration.get_session()
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
     target_s3: str = session.get_target_s3().cd_engine if session.id_target_s3 else None
@@ -83,6 +83,9 @@ def correlate_lobdata(session: Session,
 
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
+
+        # initialize the local error count
+        curr_errors: list[str] = []
 
         # verify whether current migration is marked for abortion
         mig_key: str = f"{mig_step}-{migration.id}"
@@ -111,8 +114,8 @@ def correlate_lobdata(session: Session,
         migration_work: MigrationWork = get_migration_work(migration=migration,
                                                            step=mig_step,
                                                            table=table_name,
-                                                           errors=errors)
-        if not errors:
+                                                           errors=curr_errors)
+        if not curr_errors:
             # organize the information, using LOB types from the columns list
             table_columns = table_data.get("columns", {})
             for column_name, column_data in table_columns.items():
@@ -152,7 +155,7 @@ def correlate_lobdata(session: Session,
                 table_count: int = db_count(table=source_table,
                                             where_clause=where_clause,
                                             engine=source_db,
-                                            errors=errors) or 0
+                                            errors=curr_errors) or 0
                 if table_count > 0:
                     warn_msg: str = ("Expecting an index to exist on column "
                                      f"{source_db}.{source_table}.{reference_column}")
@@ -231,7 +234,7 @@ def correlate_lobdata(session: Session,
                         curr_errors: list[str] = table_data.get("errors")
                         if curr_errors:
                             status = "error"
-                            errors.extend(curr_errors)
+                            curr_errors.extend(curr_errors)
                             MigrationIssue.new_issues(id_migration=migration.id,
                                                       cd_step=mig_step,
                                                       cd_type=IssueType.ERROR,
@@ -303,11 +306,11 @@ def correlate_lobdata(session: Session,
                                     limit_count=0,
                                     chunk_size=chunk_size,
                                     migration_warnings=migration_warnings,
-                                    errors=errors,
+                                    errors=curr_errors,
                                     logger=logger)
 
             # process LOBs in 'table_deletes'
-            if not errors:
+            if not curr_errors:
                 # aggregate in 'lob_deletes' all LOBs slotted for removal from S3 storage
                 lob_deletes: list[str] = []
                 for deletes in list(table_deletes.values()):
@@ -318,7 +321,10 @@ def correlate_lobdata(session: Session,
                     list_prune_duplicates(lob_deletes,
                                           is_sorted=True)
                     cs_items_remove(identifiers=lob_deletes,
-                                    errors=errors)
+                                    errors=curr_errors)
+        # save the local errors
+        errors.extend(curr_errors)
+
     with lobdata_ctrl.lobdata_lock:
         migration_threads.extend(lobdata_ctrl.lobdata_registry[mother_thread]["child-threads"])
         lobdata_ctrl.lobdata_registry.pop(mother_thread)

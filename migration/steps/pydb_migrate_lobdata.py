@@ -23,6 +23,7 @@ from entities.session import Session
 from migration.pydb_common import (
     build_channel_data, build_lob_prefix, get_migration_work, get_migration_span
 )
+from migration.pydb_database import hash_columns
 from migration.pydb_types import is_lob_column
 from migration.steps.pydb_to_s3 import s3_migrate_lobs
 
@@ -77,6 +78,9 @@ def migrate_lobdata(migration: Migration,
     # traverse list of migrated tables to copy the LOB data
     for table_name, table_data in migrated_tables.items():
 
+        # initialize the local error count
+        curr_errors: list[str] = []
+
         # verify whether current migration is marked for abortion
         mig_key: str = f"{mig_step}-{migration.id}"
         if minded_migrations.get(mig_key) == MigState.ABORTING:
@@ -97,8 +101,8 @@ def migrate_lobdata(migration: Migration,
         migration_work: MigrationWork = get_migration_work(migration=migration,
                                                            step=mig_step,
                                                            table=table_name,
-                                                           errors=errors)
-        if not errors:
+                                                           errors=curr_errors)
+        if not curr_errors:
             # obtain the corresponding MigrationTable instance
             migration_table: MigrationTable = MigrationTable.for_table(
                 table=table_name,
@@ -150,7 +154,7 @@ def migrate_lobdata(migration: Migration,
                 # specific condition for migrating table LOBs to database
                 if not session.id_target_s3 and not db_table_exists(table_name=target_table,
                                                                     engine=target_db,
-                                                                    errors=errors):
+                                                                    errors=curr_errors):
                     # target table could not be found (might be due to error)
                     warn_msg: str = ("Unable to migrate LOBs, "
                                      f"table {target_db}.{target_table} was not found")
@@ -178,7 +182,7 @@ def migrate_lobdata(migration: Migration,
                                     limit_count=limit_count,
                                     chunk_size=chunk_size,
                                     migration_warnings=migration_warnings,
-                                    errors=errors,
+                                    errors=curr_errors,
                                     logger=logger)
                 with lobdata_lock:
                     lob_count: int = lobdata_registry[mother_thread][source_table]["table-count"]
@@ -186,7 +190,7 @@ def migrate_lobdata(migration: Migration,
                     curr_errors: list[str] = lobdata_registry[mother_thread][source_table]["errors"]
                     if curr_errors:
                         status = "error"
-                        errors.extend(curr_errors)
+                        curr_errors.extend(curr_errors)
                         MigrationIssue.new_issues(id_migration=migration.id,
                                                   cd_step=mig_step,
                                                   cd_type=IssueType.ERROR,
@@ -210,6 +214,9 @@ def migrate_lobdata(migration: Migration,
                                  f"from {source_db}.{table_name} to {target}, status {status}")
                 result_count += lob_count
                 result_bytes += lob_bytes
+
+        # save the local errors
+        errors.extend(curr_errors)
 
     with lobdata_lock:
         migration_threads.extend(lobdata_registry[mother_thread]["child-threads"])
@@ -330,9 +337,8 @@ def migrate_lob_columns(session: Session,
                 for channel_datum in channel_data:
                     if target_s3:
                         # migration target is S3
-                        _s3_migrate_lobs(session=session,
+                        _s3_migrate_lobs(migration=migration,
                                          mig_step=mig_step,
-                                         migration=migration,
                                          migration_work=migration_work,
                                          mother_thread=mother_thread,
                                          lob_prefix=lob_prefix,
@@ -348,9 +354,8 @@ def migrate_lob_columns(session: Session,
                                          logger=logger)
                     else:
                         # migration target is database
-                        _db_migrate_lobs(session=session,
+                        _db_migrate_lobs(migration=migration,
                                          mig_step=mig_step,
-                                         migration=migration,
                                          migration_work=migration_work,
                                          mother_thread=mother_thread,
                                          lob_column=lob_column,
@@ -368,9 +373,8 @@ def migrate_lob_columns(session: Session,
                         if target_s3:
                             # migration target is S3
                             future: Future = executor.submit(_s3_migrate_lobs,
-                                                             session=session,
-                                                             mig_step=mig_step,
                                                              migration=migration,
+                                                             mig_step=mig_step,
                                                              migration_work=migration_work,
                                                              mother_thread=mother_thread,
                                                              lob_prefix=lob_prefix,
@@ -387,9 +391,8 @@ def migrate_lob_columns(session: Session,
                         else:
                             # migration target is database
                             future: Future = executor.submit(_db_migrate_lobs,
-                                                             session=session,
-                                                             mig_step=mig_step,
                                                              migration=migration,
+                                                             mig_step=mig_step,
                                                              migration_work=migration_work,
                                                              mother_thread=mother_thread,
                                                              lob_column=lob_column,
@@ -406,9 +409,8 @@ def migrate_lob_columns(session: Session,
                     executor.shutdown(wait=False)
 
 
-def _db_migrate_lobs(session: Session,
+def _db_migrate_lobs(migration: Migration,
                      mig_step: MigStep,
-                     migration: Migration,
                      migration_work: MigrationWork,
                      mother_thread: int,
                      lob_column: str,
@@ -424,6 +426,7 @@ def _db_migrate_lobs(session: Session,
         lobdata_registry[mother_thread]["child-threads"].append(threading.get_ident())
 
     errors: list[str] = []
+    session: Session = migration.get_session()
     source_db: str = session.get_source_db().cd_engine
     target_db: str = session.get_target_db().cd_engine
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
@@ -437,49 +440,64 @@ def _db_migrate_lobs(session: Session,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
+        # make sure initial row in resume operation is the same as in previously failed attempt
+        row_hash: str = hash_columns(db_engine=source_db,
+                                     table=source_table,
+                                     columns=pk_columns,
+                                     offset=offset_count,
+                                     errors=errors)
+        if not errors:
+            if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                err_msg: str = (f"Unable to synchronize plaindata from "
+                                f"{source_db}.{source_table} at offset {offset_count}")
+                logger.error(msg=err_msg)
+                errors.append(err_msg)
+            else:
+                migration_span.ds_row_hash = row_hash
 
-        # obtain target database connection
-        db_conn: Any = db_connect(engine=target_db,
-                                  errors=errors)
-        if db_conn:
-            totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
-                                                      source_table=source_table,
-                                                      source_lob_column=lob_column,
-                                                      source_pk_columns=pk_columns,
-                                                      target_engine=target_db,
-                                                      target_table=target_table,
-                                                      where_clause=where_clause,
-                                                      offset_count=offset_count,
-                                                      limit_count=limit_count,
-                                                      chunk_size=chunk_size,
-                                                      target_conn=db_conn,
-                                                      log_trigger=int(limit_count / 2),
-                                                      errors=errors)
-            # acknowledge the migration
-            if not errors:
-                # obtain state DB connection
-                pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
-                                            errors=errors)
-                if pydb_conn:
-                    lob_count = totals[0]
-                    lob_bytes = totals[1]
-                    migration_span.nr_row_count = lob_count
-                    migration_span.is_done = True
-                    migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                          db_conn=pydb_conn,
-                                          errors=errors)
-                    if not errors:
-                        migration_work.nr_row_count += lob_count
-                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+        if not errors:
+            # obtain target database connection
+            db_conn: Any = db_connect(engine=target_db,
+                                      errors=errors)
+            if db_conn:
+                totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
+                                                          source_table=source_table,
+                                                          source_lob_column=lob_column,
+                                                          source_pk_columns=pk_columns,
+                                                          target_engine=target_db,
+                                                          target_table=target_table,
+                                                          where_clause=where_clause,
+                                                          offset_count=offset_count,
+                                                          limit_count=limit_count,
+                                                          chunk_size=chunk_size,
+                                                          target_conn=db_conn,
+                                                          log_trigger=int(limit_count / 2),
+                                                          errors=errors)
+                # acknowledge the migration
+                if not errors:
+                    # obtain state DB connection
+                    pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
+                                                errors=errors)
+                    if pydb_conn:
+                        lob_count = totals[0]
+                        lob_bytes = totals[1]
+                        migration_span.nr_row_count = lob_count
+                        migration_span.is_done = True
+                        migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               db_conn=pydb_conn,
                                               errors=errors)
-                    if errors:
-                        db_rollback_and_close(connection=pydb_conn,
-                                              engine=PYDB_DBCTRL_ENGINE)
-                    else:
-                        db_commit_and_close(connection=pydb_conn,
-                                            engine=PYDB_DBCTRL_ENGINE,
-                                            errors=errors)
+                        if not errors:
+                            migration_work.nr_row_count += lob_count
+                            migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                                  db_conn=pydb_conn,
+                                                  errors=errors)
+                        if errors:
+                            db_rollback_and_close(connection=pydb_conn,
+                                                  engine=PYDB_DBCTRL_ENGINE)
+                        else:
+                            db_commit_and_close(connection=pydb_conn,
+                                                engine=PYDB_DBCTRL_ENGINE,
+                                                errors=errors)
             if errors:
                 db_rollback_and_close(connection=db_conn,
                                       engine=target_db)
@@ -505,9 +523,8 @@ def _db_migrate_lobs(session: Session,
             lobdata_registry[mother_thread][source_table]["table-bytes"] += lob_bytes
 
 
-def _s3_migrate_lobs(session: Session,
+def _s3_migrate_lobs(migration: Migration,
                      mig_step: MigStep,
-                     migration: Migration,
                      migration_work: MigrationWork,
                      mother_thread: int,
                      lob_prefix: Path,
@@ -523,6 +540,7 @@ def _s3_migrate_lobs(session: Session,
                      logger: Logger) -> None:
 
     errors: list[str] = []
+    session: Session = migration.get_session()
     source_table: str = f"{session.nm_source_schema}.{migration_work.nm_table}"
     target_table: str = f"{session.nm_target_schema}.{migration_work.nm_table}"
 
@@ -545,9 +563,24 @@ def _s3_migrate_lobs(session: Session,
                                                            first_row=offset_count,
                                                            errors=errors)
         if not errors and not migration_span.is_done:
+            # make sure initial row in resume operation is the same as in previously failed attempt
+            row_hash: str = hash_columns(db_engine=source_db,
+                                         table=source_table,
+                                         columns=pk_columns,
+                                         offset=offset_count,
+                                         errors=errors)
+            if not errors:
+                if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                    err_msg: str = (f"Unable to synchronize lobdata from "
+                                    f"{source_db}.{source_table} at offset {offset_count}")
+                    logger.error(msg=err_msg)
+                    errors.append(err_msg)
+                else:
+                    migration_span.ds_row_hash = row_hash
             # obtain an S3 client
-            s3_client = cs_get_client(engine=session.get_target_s3().cd_engine,
-                                      errors=errors)
+            s3_client = None if errors else \
+                cs_get_client(engine=session.get_target_s3().cd_engine,
+                              errors=errors)
             if s3_client:
                 temp_table: str | None = None
                 if isinstance(where_clause, list):
