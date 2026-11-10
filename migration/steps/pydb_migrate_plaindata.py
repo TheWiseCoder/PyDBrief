@@ -339,21 +339,28 @@ def _migrate_plain(migration: Migration,
                                                        first_row=offset_count,
                                                        errors=errors)
     if not errors and not migration_span.is_done:
-        # make sure initial row in resume operation is the same as in previously failed attempt
-        row_hash: str = hash_columns(db_engine=source_db,
-                                     table=source_table,
-                                     columns=orderby_columns,
-                                     offset=offset_count,
-                                     errors=errors)
-        if not errors:
-            if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
-                err_msg: str = (f"Unable to synchronize plaindata from "
-                                f"{source_db}.{source_table} at offset {offset_count}")
-                logger.error(msg=err_msg)
-                errors.append(err_msg)
-            else:
-                migration_span.ds_row_hash = row_hash
-
+        # obtain state DB connection
+        pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
+                                    errors=errors)
+        if pydb_conn:
+            # make sure initial row in resume operation is the same as in previously failed attempt
+            row_hash: str = hash_columns(db_engine=source_db,
+                                         db_conn=pydb_conn,
+                                         table=source_table,
+                                         columns=orderby_columns,
+                                         offset=offset_count,
+                                         errors=errors)
+            if not errors:
+                if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                    err_msg: str = (f"Unable to synchronize plaindata from "
+                                    f"{source_db}.{source_table} at offset {offset_count}")
+                    logger.error(msg=err_msg)
+                    errors.append(err_msg)
+                else:
+                    migration_span.ds_row_hash = row_hash
+                    migration_span.update(db_engine=source_db,
+                                          db_conn=pydb_conn,
+                                          errors=errors)
         if not errors:
             # obtain target DB connection
             target_conn: Any = db_connect(engine=target_db,
@@ -374,12 +381,8 @@ def _migrate_plain(migration: Migration,
                                         target_conn=target_conn,
                                         has_ctrlchars=has_ctrlchars,
                                         errors=errors)
-            # acknowledge the migration
-            if not errors:
-                # obtain state DB connection
-                pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
-                                            errors=errors)
-                if pydb_conn:
+                # acknowledge the migration
+                if not errors:
                     migration_span.nr_row_count = count
                     migration_span.is_done = True
                     migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,

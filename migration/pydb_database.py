@@ -8,7 +8,7 @@ from pypomes_db import (
     db_select, db_execute, db_get_connection_string
 )
 from sqlalchemy import Engine, create_engine
-from typing import Literal
+from typing import Any, Literal
 
 
 def build_engine(db_engine: DbEngine | str,
@@ -147,6 +147,7 @@ def table_embedded_nulls(db_engine: str,
 
 
 def hash_columns(db_engine: str,
+                 db_conn: Any,
                  table: str,
                  columns: list[str],
                  offset: int,
@@ -160,6 +161,7 @@ def hash_columns(db_engine: str,
                                   offset_count=offset,
                                   limit_count=1,
                                   engine=db_engine,
+                                  connection=db_conn,
                                   errors=errors)
     if recs:
         payload: list = list(recs[0])
