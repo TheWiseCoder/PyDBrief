@@ -22,7 +22,7 @@ def get_env_keys() -> list[str]:
 
     :return: keys defined in file *.env_local*
     """
-    # initialize the retun variable
+    # initialize the return variable
     result: list[str] = []
 
     env_path: Path = Path.cwd() / ".env_local"
