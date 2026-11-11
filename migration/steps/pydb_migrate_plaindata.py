@@ -345,7 +345,6 @@ def _migrate_plain(migration: Migration,
         if pydb_conn:
             # make sure initial row in resume operation is the same as in previously failed attempt
             row_hash: str = hash_columns(db_engine=source_db,
-                                         db_conn=pydb_conn,
                                          table=source_table,
                                          columns=orderby_columns,
                                          offset=offset_count,
