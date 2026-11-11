@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 import threading
 import warnings
@@ -7,9 +6,8 @@ from datetime import datetime
 from io import BytesIO
 from logging import Logger
 from pypomes_core import (
-    APP_PREFIX, TZ_LOCAL, DatetimeFormat, Mimetype,
-    timestamp_duration, env_is_docker, pypomes_versions,
-    dict_jsonify, str_sanitize, exc_format
+    TZ_LOCAL, DatetimeFormat, Mimetype,
+    timestamp_duration, env_is_docker, dict_jsonify, str_sanitize, exc_format
 )
 from pypomes_cs import cs_get_client, cs_file_store, cs_item_exists
 from pypomes_logging import logging_get_entries, logging_get_params
@@ -21,6 +19,7 @@ from app_constants import (
     REGISTRY_DOCKER, REGISTRY_HOST,
     PYDB_DBCTRL_ENGINE, PYDB_CSCTRL_ENGINE, PYDB_CSCTRL_BASE_FOLDER, InputParam, MigState, MigStep
 )
+from app_init import build_version_info
 from entities.database import Database
 from entities.migration import Migration, minded_migrations
 from entities.migration_issue import MigrationIssue, IssueType
@@ -54,19 +53,15 @@ def migrate(migration: Migration,
     minded_migrations[mig_key] = MigState.MIGRATING
 
     # initialize the operation report
-    prefixes: list[str] = [APP_PREFIX, "FLASK", 'PYPOMES', "TZ"]
     session: Session = migration.get_session(errors=errors)
+    version_info: dict[str, Any] = build_version_info(app_name=app_name,
+                                                      app_version=app_version)
+    version_info[app_name].update({
+        "base-url": base_url,
+        "requester": requester
+    })
     op_report: dict[str, Any] = {
-        "colophon": {
-            app_name: {
-                "version": app_version,
-                "base-url": base_url,
-                "requester": requester
-            },
-            "foundations": pypomes_versions(),
-            "environment": {key: value for key, value in os.environ.items()
-                            if key in prefixes and not ("_PWD" in key or "_SECRET" in key)}
-        },
+        "colophon": version_info,
         InputParam.STEP: mig_step.anyval,
         InputParam.SESSION: session.get_inputs(),
         InputParam.SOURCE_DB: session.get_source_db().get_inputs(),

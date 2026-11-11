@@ -17,24 +17,21 @@ from typing import Any, Final
 from app_ident import APP_NAME, APP_VERSION
 
 from pypomes_core import (
-    APP_PREFIX, Mimetype, pypomes_versions,
+    Mimetype,
     dict_clone, dict_jsonify, validate_str, validate_enum,
     exc_format, validate_format_error, validate_format_errors
 )
-from pypomes_cs import cs_get_params
-from pypomes_db import db_get_params
 from pypomes_http import (
     HttpMethod, HttpStatus, http_get_parameters
 )
 from pypomes_logging import (
-    PYPOMES_LOGGER,
-    logging_get_params, logging_log_forward, service_logging
+    PYPOMES_LOGGER, logging_log_forward, service_logging
 )
 
 from app_constants import (
-    PYDB_DBCTRL_ENGINE, PYDB_CSCTRL_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
+    PYDB_DBCTRL_ENGINE, PYDB_SYNC_LOCAL, InputParam, MigState, MigStep
 )
-from app_init import init_app
+from app_init import init_app, build_version_info
 from entities.migration import Migration, minded_migrations
 from entities.migration_table import MigrationTable
 from migration.pydb_migrator import migrate
@@ -82,6 +79,12 @@ if init_app(logger=PYPOMES_LOGGER):
         config={"defaultModelsExpandDepth": -1}
     )
     flask_app.register_blueprint(blueprint=swagger_blueprint)
+
+    # log the version info
+    version_info: dict[str, Any] = build_version_info(app_name=APP_NAME,
+                                                      app_version=APP_VERSION)
+    PYPOMES_LOGGER.info(msg=json.dumps(obj=dict_jsonify(version_info),
+                                       ensure_ascii=False))
 
     # forward SQLAlchemy's logging activity to PYPOMES_LOGGER
     if os.getenv("PYDB_LOG_SQLALCHEMY") == "1":
@@ -145,29 +148,16 @@ def service_version() -> Response:
                           input_params=input_params)
     PYPOMES_LOGGER.info(msg=msg)
 
-    prefixes: list[str] = [APP_PREFIX, "FLASK", 'PYPOMES', "TZ"]
-    versions: dict[str, Any] = {
-        APP_NAME: {
-            "version": APP_VERSION,
-            "base-url": f"{request.scheme}://{request.host}",
-            "requester": request.headers.get("X-Forwarded-For",
-                                             request.remote_addr)
-        },
-        "foundations": pypomes_versions(),
-        "environment": {key: value for key, value in os.environ.items()
-                        if key in prefixes and not ("_PWD" in key or "_SECRET" in key)},
-        "logging": dict_jsonify(logging_get_params()),
-        "stateful": [
-            {k: v for k, v in db_get_params(engine=PYDB_DBCTRL_ENGINE).items() if "pwd" not in k}
-        ]
-    }
-    versions["stateful"][0]["db-engine"] = PYDB_DBCTRL_ENGINE
-    if PYDB_CSCTRL_ENGINE:
-        versions["stateful"].append({k: v for k, v in cs_get_params(engine=PYDB_CSCTRL_ENGINE).items()
-                                     if "secret" not in k})
-        versions["stateful"][1]["s3-engine"] = PYDB_CSCTRL_ENGINE
+    # build the info
+    version_info: dict[str, Any] = build_version_info(app_name=APP_NAME,
+                                                      app_version=APP_VERSION)
+    version_info[APP_NAME].update({
+        "base-url": f"{request.scheme}://{request.host}",
+        "requester": request.headers.get("X-Forwarded-For",
+                                         request.remote_addr)
+    })
     # assign to the return variable
-    result: Response = jsonify(versions)
+    result: Response = jsonify(version_info)
 
     # log the response
     PYPOMES_LOGGER.info(msg=f"Response {result}")
