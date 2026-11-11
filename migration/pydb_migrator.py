@@ -39,7 +39,7 @@ def migrate(migration: Migration,
             app_name: str,
             app_version: str,
             base_url: str,
-            requester: str,
+            requestor: str,
             logger: Logger) -> None:
 
     # time the migration start
@@ -58,7 +58,7 @@ def migrate(migration: Migration,
                                                       app_version=app_version)
     version_info[app_name].update({
         "base-url": base_url,
-        "requester": requester
+        "requestor": requestor
     })
     op_report: dict[str, Any] = {
         "colophon": version_info,

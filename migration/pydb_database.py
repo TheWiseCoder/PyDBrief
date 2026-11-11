@@ -164,9 +164,8 @@ def hash_columns(db_engine: str,
                                       errors=errors)
         if recs:
             payload: list = list(recs[0])
-            hash_bytes: bytes = crypto_hash(payload=payload,
-                                            alg=HashAlgorithm.SHA256)
-            if hash_bytes:
-                result = hash_bytes.hex()
+            result = crypto_hash(payload=payload,
+                                 alg=HashAlgorithm.SHA256,
+                                 hexify=True)
 
     return result

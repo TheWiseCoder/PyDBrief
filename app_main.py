@@ -153,7 +153,7 @@ def service_version() -> Response:
                                                       app_version=APP_VERSION)
     version_info[APP_NAME].update({
         "base-url": f"{request.scheme}://{request.host}",
-        "requester": request.headers.get("X-Forwarded-For",
+        "requestor": request.headers.get("X-Forwarded-For",
                                          request.remote_addr)
     })
     # assign to the return variable
@@ -713,7 +713,7 @@ def service_migrate() -> Response:
                                     app_name=APP_NAME,
                                     app_version=APP_VERSION,
                                     base_url=f"{request.scheme}://{request.host}",
-                                    requester=request.headers.get(key="X-Forwarded-For",
+                                    requestor=request.headers.get(key="X-Forwarded-For",
                                                                   default=request.remote_addr),
                                     logger=PYPOMES_LOGGER)
                         else:
@@ -724,7 +724,7 @@ def service_migrate() -> Response:
                                         "app_name": APP_NAME,
                                         "app_version": APP_VERSION,
                                         "base_url": f"{request.scheme}://{request.host}",
-                                        "requester": request.headers.get(key="X-Forwarded-For",
+                                        "requestor": request.headers.get(key="X-Forwarded-For",
                                                                          default=request.remote_addr),
                                         "logger": PYPOMES_LOGGER})
                             mig_thread.start()
