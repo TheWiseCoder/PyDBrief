@@ -155,17 +155,18 @@ def hash_columns(db_engine: str,
     # initialize the return variable
     result: str | None = None
 
-    stmt: str = f"SELECT {','.join(columns)} FROM {table}"
-    recs: list[tuple] = db_select(stmt,
-                                  offset_count=offset,
-                                  limit_count=1,
-                                  engine=db_engine,
-                                  errors=errors)
-    if recs:
-        payload: list = list(recs[0])
-        hash_bytes: bytes = crypto_hash(payload=payload,
-                                        alg=HashAlgorithm.SHA256)
-        if hash_bytes:
-            result = hash_bytes.hex()
+    if columns:
+        stmt: str = f"SELECT {','.join(columns)} FROM {table}"
+        recs: list[tuple] = db_select(stmt,
+                                      offset_count=offset,
+                                      limit_count=1,
+                                      engine=db_engine,
+                                      errors=errors)
+        if recs:
+            payload: list = list(recs[0])
+            hash_bytes: bytes = crypto_hash(payload=payload,
+                                            alg=HashAlgorithm.SHA256)
+            if hash_bytes:
+                result = hash_bytes.hex()
 
     return result

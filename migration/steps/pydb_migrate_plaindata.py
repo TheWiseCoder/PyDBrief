@@ -349,7 +349,7 @@ def _migrate_plain(migration: Migration,
                                          columns=orderby_columns,
                                          offset=offset_count,
                                          errors=errors)
-            if not errors:
+            if row_hash:
                 if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
                     err_msg: str = (f"Unable to synchronize plaindata from "
                                     f"{source_db}.{source_table} at offset {offset_count}")

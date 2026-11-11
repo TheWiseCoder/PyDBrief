@@ -450,7 +450,7 @@ def _db_migrate_lobs(migration: Migration,
                                          columns=pk_columns,
                                          offset=offset_count,
                                          errors=errors)
-            if not errors:
+            if row_hash:
                 if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
                     err_msg: str = (f"Unable to synchronize lobdata from "
                                     f"{source_db}.{source_table} at offset {offset_count}")
@@ -576,7 +576,7 @@ def _s3_migrate_lobs(migration: Migration,
                                              columns=pk_columns,
                                              offset=offset_count,
                                              errors=errors)
-                if not errors:
+                if row_hash:
                     if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
                         err_msg: str = (f"Unable to synchronize lobdata from "
                                         f"{source_db}.{source_table} at offset {offset_count}")
