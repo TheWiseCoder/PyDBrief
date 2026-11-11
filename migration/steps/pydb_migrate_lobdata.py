@@ -451,7 +451,8 @@ def _db_migrate_lobs(migration: Migration,
                                          offset=offset_count,
                                          errors=errors)
             if row_hash:
-                if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                if offset_count > 0 and \
+                        migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
                     err_msg: str = (f"Unable to synchronize lobdata from "
                                     f"{source_db}.{source_table} at offset {offset_count}")
                     logger.error(msg=err_msg)
@@ -460,6 +461,7 @@ def _db_migrate_lobs(migration: Migration,
                     migration_span.ds_row_hash = row_hash
                     migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                           db_conn=pydb_conn,
+                                          committable=True,
                                           errors=errors)
         if not errors:
             # obtain target database connection
@@ -577,15 +579,17 @@ def _s3_migrate_lobs(migration: Migration,
                                              offset=offset_count,
                                              errors=errors)
                 if row_hash:
-                    if migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
+                    if offset_count > 0 and \
+                            migration_span.ds_row_hash and migration_span.ds_row_hash != row_hash:
                         err_msg: str = (f"Unable to synchronize lobdata from "
                                         f"{source_db}.{source_table} at offset {offset_count}")
                         logger.error(msg=err_msg)
                         errors.append(err_msg)
                     else:
                         migration_span.ds_row_hash = row_hash
-                        migration_span.update(db_engine=source_db,
+                        migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               db_conn=pydb_conn,
+                                              committable=True,
                                               errors=errors)
             # obtain an S3 client
             if not errors:
