@@ -357,7 +357,7 @@ def _migrate_plain(migration: Migration,
                     errors.append(err_msg)
                 else:
                     migration_span.ds_row_hash = row_hash
-                    migration_span.update(db_engine=source_db,
+                    migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                           db_conn=pydb_conn,
                                           errors=errors)
         if not errors:

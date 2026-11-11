@@ -138,8 +138,8 @@ def table_embedded_nulls(db_engine: str,
     if " contain NUL " in " ".join(errors):
         # yes, provide instructions on how to handle the problem
         err_msg: str = (f"Table {db_engine}.{table} has control characters embedded in string data, "
-                        f"which are not accepted by the destination database. Please add this "
-                        f"table to the 'remove-ctrlchars' migration parameter, and try again.")
+                        f"which are not accepted by the destination database. Please set this "
+                        f"table to have those characters removed automatically, and try again.")
         logger.error(msg=err_msg)
         # 101: {}
         errors.append(validate_format_error(101,
@@ -152,7 +152,7 @@ def hash_columns(db_engine: str,
                  offset: int,
                  errors: list[str]) -> str:
 
-    # initilize the return variable
+    # initialize the return variable
     result: str | None = None
 
     stmt: str = f"SELECT {','.join(columns)} FROM {table}"
