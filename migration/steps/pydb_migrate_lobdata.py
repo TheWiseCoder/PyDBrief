@@ -470,9 +470,9 @@ def _db_migrate_lobs(migration: Migration,
                                           errors=errors)
             if not errors:
                 # obtain target database connection
-                db_conn: Any = db_connect(engine=target_db,
-                                          errors=errors)
-                if db_conn:
+                target_conn: Any = db_connect(engine=target_db,
+                                              errors=errors)
+                if target_conn:
                     totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
                                                               source_table=source_table,
                                                               source_lob_column=lob_column,
@@ -483,7 +483,7 @@ def _db_migrate_lobs(migration: Migration,
                                                               offset_count=offset_count,
                                                               limit_count=limit_count,
                                                               chunk_size=chunk_size,
-                                                              target_conn=db_conn,
+                                                              target_conn=target_conn,
                                                               log_trigger=int(limit_count / 2),
                                                               errors=errors)
                     # acknowledge the migration
@@ -501,18 +501,18 @@ def _db_migrate_lobs(migration: Migration,
                                                   db_conn=pydb_conn,
                                                   errors=errors)
                     if errors:
-                        db_rollback_and_close(connection=pydb_conn,
-                                              engine=PYDB_DBCTRL_ENGINE)
+                        db_rollback_and_close(connection=target_conn,
+                                              engine=target_db)
                     else:
-                        db_commit_and_close(connection=pydb_conn,
-                                            engine=PYDB_DBCTRL_ENGINE,
+                        db_commit_and_close(connection=target_conn,
+                                            engine=target_db,
                                             errors=errors)
             if errors:
                 db_rollback_and_close(connection=pydb_conn,
-                                      engine=target_db)
+                                      engine=PYDB_DBCTRL_ENGINE)
             else:
                 db_commit_and_close(connection=pydb_conn,
-                                    engine=target_db,
+                                    engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
     with lobdata_lock:
         if errors:
