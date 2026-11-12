@@ -569,7 +569,7 @@ def _s3_migrate_lobs(migration: Migration,
         if migration_span and migration_span.is_done:
             logger.debug(f"LOB migration from {source_db}.{source_table}.{lob_column} to "
                          f"{target_s3}, offset {offset_count}, limit {limit_count}, already done")
-        if not errors:
+        elif not errors:
             # obtain state DB connection
             pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                         errors=errors)
