@@ -118,4 +118,5 @@ class MigrationIssue(PySob):
 
 MigrationIssue.initialize(db_specs=(MigrationIssue.Db, int),
                           attrs_enum=MigrationIssue.ATTRS_ENUM,
+                          attrs_input=MigrationIssue.ATTRS_INPUT,
                           logger=MigrationIssue.LOGGER)

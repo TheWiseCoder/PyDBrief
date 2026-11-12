@@ -207,6 +207,7 @@ def __validate_input(input_params: dict[str, Any],
                               max_length=2048,
                               required=op == OpType.CREATE,
                               errors=errors)
+    # prevent empty strings
     if issue or issue is None:
         result[MigrationIssue.Db.DS_ISSUE] = issue
 
