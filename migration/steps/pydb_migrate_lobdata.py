@@ -439,7 +439,7 @@ def _db_migrate_lobs(migration: Migration,
                                                        ref_column=lob_column,
                                                        first_row=offset_count,
                                                        errors=errors)
-    if migration_span.is_done:
+    if migration_span and migration_span.is_done:
         op = "migration" if mig_step == MigStep.MIGRATE_LOBDATA else "correlation"
         logger.debug(f"LOB {op} from {source_db}.{source_table}.{lob_column} to "
                      f"{target_db}.{target_table}, "
