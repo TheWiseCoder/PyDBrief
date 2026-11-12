@@ -408,7 +408,7 @@ def _migrate_plain(migration: Migration,
                 db_commit_and_close(connection=target_conn,
                                     engine=target_db,
                                     errors=errors)
-    elif migration_span.is_done:
+    elif migration_span and migration_span.is_done:
         logger.debug(f"Plaindata migration from {source_db}.{source_table} to "
                      f"{target_db}.{target_table}, "
                      f"offset {offset_count}, limit {limit_count}, already done")

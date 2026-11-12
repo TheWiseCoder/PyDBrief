@@ -142,6 +142,13 @@ def retrieve_migrations(input_params: dict[str, Any],
                 session: Session = migration_params.get(InputParam.SESSION)
                 cd_session = session.cd_session
                 where_data = {Migration.Db.ID_SESSION: session.id}
+            else:
+                mig_ids: list[int] = []
+                mig_keys: list[str] = list(minded_migrations.keys())
+                for mig_key in mig_keys:
+                    mig_ids.append(int(mig_key[2:]))
+                if mig_ids:
+                    where_data = {Migration.Db.ID: mig_ids}
 
             if where_data:
                 migrations: list[Migration] = Migration.get_instances(where_data=where_data,
@@ -186,10 +193,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                     mig_data[InputParam.TABLE_SPECS] = mig_tables
                     result[migration.nm_badge] = mig_data
                 result[InputParam.SESSION] = cd_session
-            else:
-                # 100: {} (omits the attribute "code")
-                errors.append(validate_format_error(100,
-                                                    "Either 'BADGE' or 'SESSION' must be specified"))
+
         # conclude the operation
         if errors:
             db_rollback_and_close(connection=db_conn,
