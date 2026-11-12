@@ -619,8 +619,8 @@ def _s3_migrate_lobs(migration: Migration,
                                 where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
 
                                 # insert the exact sublist of LOBs to be migrated by this thread
-                                insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
-                                    if limit_count else [tuple(where_clause[offset_count:])]
+                                insert_vals: list[tuple] = ([tuple(where_clause[offset_count:offset_count+limit_count])]
+                                                            if limit_count else [tuple(where_clause[offset_count:])])
                                 db_bulk_insert(target_table=temp_table,
                                                insert_attrs=[temp_column],
                                                insert_vals=insert_vals,
