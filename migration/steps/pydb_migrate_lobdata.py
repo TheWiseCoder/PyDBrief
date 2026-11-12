@@ -593,81 +593,82 @@ def _s3_migrate_lobs(migration: Migration,
                                               db_conn=pydb_conn,
                                               committable=True,
                                               errors=errors)
-            # obtain an S3 client
-            if not errors:
-                s3_client = None if errors else \
-                    cs_get_client(engine=session.get_target_s3().cd_engine,
-                                  errors=errors)
-                if s3_client:
-                    if isinstance(where_clause, list):
-                        # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
-                        temp_table = f"{session.nm_source_schema}." + \
-                                     f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
-                        temp_column: str = f"id_{reference_column}"[:30]
-                        db_create_session_table(engine=source_db,
-                                                connection=source_conn,
-                                                table_name=temp_table,
-                                                column_data=[f"{temp_column} VARCHAR2(64) PRIMARY KEY"],
-                                                errors=errors)
-                        if errors:
-                            temp_table = None
-                        else:
-                            # no offset/limit apply herefrom, as 'where_clause' precisely filters the appropriate LOBs
-                            offset_count = 0
-                            limit_count = 0
-                            where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
-
-                            # insert the exact sublist of LOBs to be migrated by this thread
-                            insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
-                                if limit_count else [tuple(where_clause[offset_count:])]
-                            db_bulk_insert(target_table=temp_table,
-                                           insert_attrs=[temp_column],
-                                           insert_vals=insert_vals,
-                                           engine=source_db,
-                                           connection=source_conn,
-                                           errors=errors)
-                    if not errors:
-                        # 'target_table' is documentational, only
-                        totals: tuple[int, int] = s3_migrate_lobs(migration=migration,
-                                                                  session=session,
-                                                                  mig_step=mig_step,
-                                                                  source_conn=source_conn,
-                                                                  s3_client=s3_client,
-                                                                  source_table=source_table,
-                                                                  target_table=target_table,
-                                                                  lob_prefix=lob_prefix,
-                                                                  lob_column=lob_column,
-                                                                  pk_columns=pk_columns,
-                                                                  where_clause=where_clause,
-                                                                  offset_count=offset_count,
-                                                                  limit_count=limit_count,
-                                                                  forced_filetype=forced_filetype,
-                                                                  reference_column=reference_column,
-                                                                  chunk_size=chunk_size,
-                                                                  migration_warnings=migration_warnings,
-                                                                  errors=errors,
-                                                                  logger=logger)
-                        # acknowledge the migration
-                        if not errors:
-                            lob_count = totals[0]
-                            lob_bytes = totals[1]
-                            migration_span.nr_row_count = lob_count
-                            migration_span.is_done = True
-                            migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                                  db_conn=pydb_conn,
-                                                  errors=errors)
-            if not errors:
-                migration_work.nr_row_count += lob_count
-                migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                      db_conn=pydb_conn,
+                # obtain an S3 client
+                if not errors:
+                    s3_client: Any = None if errors else \
+                        cs_get_client(engine=session.get_target_s3().cd_engine,
                                       errors=errors)
-            if errors:
-                db_rollback_and_close(connection=pydb_conn,
-                                      engine=PYDB_DBCTRL_ENGINE)
-            else:
-                db_commit_and_close(connection=pydb_conn,
-                                    engine=PYDB_DBCTRL_ENGINE,
-                                    errors=errors)
+                    if s3_client:
+                        if isinstance(where_clause, list):
+                            # 'where_clause' is a list of 'reference_column' values indicating the LOBs to migrate
+                            temp_table = f"{session.nm_source_schema}." + \
+                                         f"{db_get_session_table_prefix(engine=source_db)}T_{lob_column}"[:30]
+                            temp_column: str = f"id_{reference_column}"[:30]
+                            db_create_session_table(engine=source_db,
+                                                    connection=source_conn,
+                                                    table_name=temp_table,
+                                                    column_data=[f"{temp_column} VARCHAR2(64) PRIMARY KEY"],
+                                                    errors=errors)
+                            if errors:
+                                temp_table = None
+                            else:
+                                # no offset/limit apply herefrom,
+                                # as 'where_clause' precisely filters the appropriate LOBs
+                                offset_count = 0
+                                limit_count = 0
+                                where_clause = f"{reference_column} IN (SELECT {temp_column} FROM {temp_table})"
+
+                                # insert the exact sublist of LOBs to be migrated by this thread
+                                insert_vals: list[tuple] = [tuple(where_clause[offset_count:offset_count+limit_count])] \
+                                    if limit_count else [tuple(where_clause[offset_count:])]
+                                db_bulk_insert(target_table=temp_table,
+                                               insert_attrs=[temp_column],
+                                               insert_vals=insert_vals,
+                                               engine=source_db,
+                                               connection=source_conn,
+                                               errors=errors)
+                        if not errors:
+                            # 'target_table' is documentational, only
+                            totals: tuple[int, int] = s3_migrate_lobs(migration=migration,
+                                                                      session=session,
+                                                                      mig_step=mig_step,
+                                                                      source_conn=source_conn,
+                                                                      s3_client=s3_client,
+                                                                      source_table=source_table,
+                                                                      target_table=target_table,
+                                                                      lob_prefix=lob_prefix,
+                                                                      lob_column=lob_column,
+                                                                      pk_columns=pk_columns,
+                                                                      where_clause=where_clause,
+                                                                      offset_count=offset_count,
+                                                                      limit_count=limit_count,
+                                                                      forced_filetype=forced_filetype,
+                                                                      reference_column=reference_column,
+                                                                      chunk_size=chunk_size,
+                                                                      migration_warnings=migration_warnings,
+                                                                      errors=errors,
+                                                                      logger=logger)
+                            # acknowledge the migration
+                            if not errors:
+                                lob_count = totals[0]
+                                lob_bytes = totals[1]
+                                migration_span.nr_row_count = lob_count
+                                migration_span.is_done = True
+                                migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                                      db_conn=pydb_conn,
+                                                      errors=errors)
+                    if not errors:
+                        migration_work.nr_row_count += lob_count
+                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                              db_conn=pydb_conn,
+                                              errors=errors)
+                if errors:
+                    db_rollback_and_close(connection=pydb_conn,
+                                          engine=PYDB_DBCTRL_ENGINE)
+                else:
+                    db_commit_and_close(connection=pydb_conn,
+                                        engine=PYDB_DBCTRL_ENGINE,
+                                        errors=errors)
         if errors:
             db_rollback_and_close(connection=source_conn,
                                   engine=source_db)

@@ -366,51 +366,51 @@ def _migrate_plain(migration: Migration,
                                           db_conn=pydb_conn,
                                           committable=True,
                                           errors=errors)
-        if not errors:
-            # obtain target DB connection
-            target_conn: Any = db_connect(engine=target_db,
-                                          errors=errors)
-            if target_conn:
-                count = db_migrate_data(source_engine=source_db,
-                                        source_table=source_table,
-                                        source_columns=source_columns,
-                                        target_engine=target_db,
-                                        target_table=target_table,
-                                        target_columns=target_columns,
-                                        orderby_clause=", ".join(orderby_columns),
-                                        offset_count=offset_count,
-                                        limit_count=limit_count,
-                                        identity_column=identity_column,
-                                        batch_size_in=batch_size_in,
-                                        batch_size_out=batch_size_out,
-                                        target_conn=target_conn,
-                                        has_ctrlchars=has_ctrlchars,
-                                        errors=errors)
-                # acknowledge the migration
-                if not errors:
-                    migration_span.nr_row_count = count
-                    migration_span.is_done = True
-                    migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                          db_conn=pydb_conn,
-                                          errors=errors)
+            if not errors:
+                # obtain target DB connection
+                target_conn: Any = db_connect(engine=target_db,
+                                              errors=errors)
+                if target_conn:
+                    count = db_migrate_data(source_engine=source_db,
+                                            source_table=source_table,
+                                            source_columns=source_columns,
+                                            target_engine=target_db,
+                                            target_table=target_table,
+                                            target_columns=target_columns,
+                                            orderby_clause=", ".join(orderby_columns),
+                                            offset_count=offset_count,
+                                            limit_count=limit_count,
+                                            identity_column=identity_column,
+                                            batch_size_in=batch_size_in,
+                                            batch_size_out=batch_size_out,
+                                            target_conn=target_conn,
+                                            has_ctrlchars=has_ctrlchars,
+                                            errors=errors)
+                    # acknowledge the migration
                     if not errors:
-                        migration_work.nr_row_count += count
-                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                        migration_span.nr_row_count = count
+                        migration_span.is_done = True
+                        migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               db_conn=pydb_conn,
                                               errors=errors)
+                        if not errors:
+                            migration_work.nr_row_count += count
+                            migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                                  db_conn=pydb_conn,
+                                                  errors=errors)
                     if errors:
-                        db_rollback_and_close(connection=pydb_conn,
-                                              engine=PYDB_DBCTRL_ENGINE)
+                        db_rollback_and_close(connection=target_conn,
+                                              engine=target_db)
                     else:
-                        db_commit_and_close(connection=pydb_conn,
-                                            engine=PYDB_DBCTRL_ENGINE,
+                        db_commit_and_close(connection=target_conn,
+                                            engine=target_db,
                                             errors=errors)
             if errors:
-                db_rollback_and_close(connection=target_conn,
-                                      engine=target_db)
+                db_rollback_and_close(connection=pydb_conn,
+                                      engine=PYDB_DBCTRL_ENGINE)
             else:
-                db_commit_and_close(connection=target_conn,
-                                    engine=target_db,
+                db_commit_and_close(connection=pydb_conn,
+                                    engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
 
     with plaindata_lock:
