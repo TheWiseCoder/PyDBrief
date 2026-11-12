@@ -338,7 +338,11 @@ def _migrate_plain(migration: Migration,
                                                        ref_column=None,
                                                        first_row=offset_count,
                                                        errors=errors)
-    if not errors and not migration_span.is_done:
+    if migration_span and migration_span.is_done:
+        logger.debug(f"Plaindata migration from {source_db}.{source_table} to "
+                     f"{target_db}.{target_table}, "
+                     f"offset {offset_count}, limit {limit_count}, already done")
+    elif not errors:
         # obtain state DB connection
         pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
@@ -408,10 +412,6 @@ def _migrate_plain(migration: Migration,
                 db_commit_and_close(connection=target_conn,
                                     engine=target_db,
                                     errors=errors)
-    elif migration_span and migration_span.is_done:
-        logger.debug(f"Plaindata migration from {source_db}.{source_table} to "
-                     f"{target_db}.{target_table}, "
-                     f"offset {offset_count}, limit {limit_count}, already done")
 
     with plaindata_lock:
         if errors:

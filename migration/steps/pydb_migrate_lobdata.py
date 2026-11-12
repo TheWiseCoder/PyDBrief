@@ -439,7 +439,12 @@ def _db_migrate_lobs(migration: Migration,
                                                        ref_column=lob_column,
                                                        first_row=offset_count,
                                                        errors=errors)
-    if not errors and not migration_span.is_done:
+    if migration_span.is_done:
+        op = "migration" if mig_step == MigStep.MIGRATE_LOBDATA else "correlation"
+        logger.debug(f"LOB {op} from {source_db}.{source_table}.{lob_column} to "
+                     f"{target_db}.{target_table}, "
+                     f"offset {offset_count}, limit {limit_count}, already done")
+    elif not errors:
         # obtain state DB connection
         pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
@@ -463,38 +468,38 @@ def _db_migrate_lobs(migration: Migration,
                                           db_conn=pydb_conn,
                                           committable=True,
                                           errors=errors)
-        if not errors:
-            # obtain target database connection
-            db_conn: Any = db_connect(engine=target_db,
-                                      errors=errors)
-            if db_conn:
-                totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
-                                                          source_table=source_table,
-                                                          source_lob_column=lob_column,
-                                                          source_pk_columns=pk_columns,
-                                                          target_engine=target_db,
-                                                          target_table=target_table,
-                                                          where_clause=where_clause,
-                                                          offset_count=offset_count,
-                                                          limit_count=limit_count,
-                                                          chunk_size=chunk_size,
-                                                          target_conn=db_conn,
-                                                          log_trigger=int(limit_count / 2),
-                                                          errors=errors)
-                # acknowledge the migration
-                if not errors:
-                    lob_count = totals[0]
-                    lob_bytes = totals[1]
-                    migration_span.nr_row_count = lob_count
-                    migration_span.is_done = True
-                    migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                          db_conn=pydb_conn,
+            if not errors:
+                # obtain target database connection
+                db_conn: Any = db_connect(engine=target_db,
                                           errors=errors)
+                if db_conn:
+                    totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
+                                                              source_table=source_table,
+                                                              source_lob_column=lob_column,
+                                                              source_pk_columns=pk_columns,
+                                                              target_engine=target_db,
+                                                              target_table=target_table,
+                                                              where_clause=where_clause,
+                                                              offset_count=offset_count,
+                                                              limit_count=limit_count,
+                                                              chunk_size=chunk_size,
+                                                              target_conn=db_conn,
+                                                              log_trigger=int(limit_count / 2),
+                                                              errors=errors)
+                    # acknowledge the migration
                     if not errors:
-                        migration_work.nr_row_count += lob_count
-                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                        lob_count = totals[0]
+                        lob_bytes = totals[1]
+                        migration_span.nr_row_count = lob_count
+                        migration_span.is_done = True
+                        migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               db_conn=pydb_conn,
                                               errors=errors)
+                        if not errors:
+                            migration_work.nr_row_count += lob_count
+                            migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                                  db_conn=pydb_conn,
+                                                  errors=errors)
                     if errors:
                         db_rollback_and_close(connection=pydb_conn,
                                               engine=PYDB_DBCTRL_ENGINE)
@@ -503,18 +508,12 @@ def _db_migrate_lobs(migration: Migration,
                                             engine=PYDB_DBCTRL_ENGINE,
                                             errors=errors)
             if errors:
-                db_rollback_and_close(connection=db_conn,
+                db_rollback_and_close(connection=pydb_conn,
                                       engine=target_db)
             else:
-                db_commit_and_close(connection=db_conn,
+                db_commit_and_close(connection=pydb_conn,
                                     engine=target_db,
                                     errors=errors)
-    elif migration_span.is_done:
-        op = "migration" if mig_step == MigStep.MIGRATE_LOBDATA else "correlation"
-        logger.debug(f"LOB {op} from {source_db}.{source_table}.{lob_column} to "
-                     f"{target_db}.{target_table}, "
-                     f"offset {offset_count}, limit {limit_count}, already done")
-
     with lobdata_lock:
         if errors:
             MigrationIssue.new_issues(id_migration=migration.id,
@@ -567,7 +566,10 @@ def _s3_migrate_lobs(migration: Migration,
                                                            ref_column=lob_column,
                                                            first_row=offset_count,
                                                            errors=errors)
-        if not errors and not migration_span.is_done:
+        if migration_span and migration_span.is_done:
+            logger.debug(f"LOB migration from {source_db}.{source_table}.{lob_column} to "
+                         f"{target_s3}, offset {offset_count}, limit {limit_count}, already done")
+        if not errors:
             # obtain state DB connection
             pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                         errors=errors)
@@ -666,9 +668,6 @@ def _s3_migrate_lobs(migration: Migration,
                 db_commit_and_close(connection=pydb_conn,
                                     engine=PYDB_DBCTRL_ENGINE,
                                     errors=errors)
-        elif migration_span.is_done:
-            logger.debug(f"LOB migration from {source_db}.{source_table}.{lob_column} to "
-                         f"{target_s3}, offset {offset_count}, limit {limit_count}, already done")
         if errors:
             db_rollback_and_close(connection=source_conn,
                                   engine=source_db)
