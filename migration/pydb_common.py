@@ -149,6 +149,7 @@ def get_migration_span(migration_work: MigrationWork,
     if not errors and not result:
         result = MigrationSpan()
         result.id_migration_work = migration_work.id
+        result.is_done = False
         result.nm_ref_column = ref_column
         result.nr_first_row = first_row
         result.insert(db_engine=PYDB_DBCTRL_ENGINE,
