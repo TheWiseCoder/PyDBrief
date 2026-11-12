@@ -146,7 +146,7 @@ def retrieve_migrations(input_params: dict[str, Any],
                 mig_ids: list[int] = []
                 mig_keys: list[str] = list(minded_migrations.keys())
                 for mig_key in mig_keys:
-                    mig_ids.append(int(mig_key[2:]))
+                    mig_ids.append(int(mig_key[3:]))
                 if mig_ids:
                     where_data = {Migration.Db.ID: mig_ids}
 
