@@ -279,7 +279,7 @@ CREATE TABLE migration_span (
     nr_first_row int8 NOT NULL,
     nr_row_count int8 NOT NULL,
     CONSTRAINT ck_migration_span CHECK (nr_first_row >= 0 AND nr_row_count >= 0),
-    CONSTRAINT fk_migration_span_table FOREIGN KEY (id_migration_work) REFERENCES migration_work(id),
+    CONSTRAINT fk_migration_span_work FOREIGN KEY (id_migration_work) REFERENCES migration_work(id),
 	CONSTRAINT pk_migration_span PRIMARY KEY (id),
 	CONSTRAINT uk_migration_span UNIQUE (id_migration_work, nm_ref_column, nr_first_row)
 );

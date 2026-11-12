@@ -62,22 +62,25 @@ def migrate(migration: Migration,
     })
     op_report: dict[str, Any] = {
         "colophon": version_info,
-        InputParam.STEP: mig_step.anyval,
-        InputParam.SESSION: session.get_inputs(),
+        InputParam.MIGRATION: migration.get_inputs(),
         InputParam.SOURCE_DB: session.get_source_db().get_inputs(),
         InputParam.TARGET_DB: session.get_target_db().get_inputs(),
-        InputParam.SPECS: migration.get_inputs(),
         "logging": logging_get_params(),
     }
+    op_report[InputParam.MIGRATION].update({
+        InputParam.STEP: mig_step.anyval,
+        InputParam.SESSION: session.get_inputs(),
+    })
     if session.get_target_s3():
         op_report[InputParam.TARGET_S3] = session.get_target_s3().get_inputs()
 
     migration_tables: list[MigrationTable] = migration.get_migration_tables()
     if migration_tables:
-        table_specs: list[dict[str, Any]] = []
+        table_constraints: list[dict[str, Any]] = []
         for migration_table in migration_tables:
-            table_specs.append(migration_table.get_inputs())
-        op_report["table-specs"] = table_specs
+            table_inputs: dict[str, Any] = migration_table.get_inputs()
+            table_constraints.append(table_inputs)
+        op_report[InputParam.MIGRATION]["table-constraints"] = table_constraints
 
     # handle warnings as errors
     warnings.filterwarnings(action="error")

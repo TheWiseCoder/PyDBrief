@@ -110,7 +110,6 @@ class InputParam(StrEnum):
     REF_COLUMN = "ref-column"
     ROW_COUNT = "row-count"
     SPANS = "spans"
-    SPECS = "specs"
     START = "start"
     STATES = "states"
     TABLE = "table"
