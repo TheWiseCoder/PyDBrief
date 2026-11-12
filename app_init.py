@@ -35,7 +35,7 @@ def build_version_info(app_name: str,
         app_name: {
             "version": app_version
         },
-        "foundations": pypomes_versions(),
+        "foundation": pypomes_versions(),
         "environment": {key: value for key, value in os.environ.items()
                         if (key.startswith(APP_PREFIX) or
                             key.startswith("FLASK") or
