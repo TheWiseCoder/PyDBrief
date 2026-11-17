@@ -22,7 +22,7 @@ def init_app(logger: Logger) -> bool:
 
     for error in errors:
         logger.critical(msg=error)
-        sys.stderr.write(error)
+        sys.stderr.write(f"\n{error}")
 
     return not errors
 
