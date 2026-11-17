@@ -115,6 +115,7 @@ class InputParam(StrEnum):
     TABLE = "table"
     TABLE_SPECS = "table-specs"
     TABLES = "tables"
+    TIMESTAMP = "timestamp"
     TYPE = "type"
 
 

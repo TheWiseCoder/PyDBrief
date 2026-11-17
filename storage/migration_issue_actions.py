@@ -140,7 +140,9 @@ def retrieve_migration_issues(input_params: dict[str, Any],
                                                                                       db_conn=db_conn,
                                                                                       errors=errors)
                 for migration_issue in migration_issues or []:
-                    result[InputParam.ISSUES].append(migration_issue.get_inputs())
+                    issue_data: dict[str, Any] = migration_issue.get_inputs()
+                    issue_data[InputParam.TIMESTAMP] = migration_issue.ts_onset.isoformat()
+                    result[InputParam.ISSUES].append(issue_data)
 
         # conclude the operation
         if errors:

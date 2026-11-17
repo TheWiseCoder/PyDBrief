@@ -138,7 +138,7 @@ def migrate(migration: Migration,
             logger.info(msg="Finished migrating the plain data")
 
         # migrate the LOB data
-        if not errors and mig_step == MigStep.MIGRATE_LOBDATA:
+        elif not errors and mig_step == MigStep.MIGRATE_LOBDATA:
             logger.info("Started migrating the LOBs")
 
             # ignore warnings from 'boto3' and 'minio' packages
@@ -172,7 +172,7 @@ def migrate(migration: Migration,
                              f"{lob_bytes} bytes, in {duration} ({performance})")
 
         # correlate the LOBs
-        if not errors and mig_step == MigStep.CORRELATE_LOBDATA:
+        elif not errors and mig_step == MigStep.CORRELATE_LOBDATA:
             logger.info(msg="Started correlating the LOBs")
 
             # ignore warnings from 'boto3' and 'minio' packages
@@ -199,7 +199,7 @@ def migrate(migration: Migration,
             logger.info(msg="Finished correlating the LOBs")
 
         # correlate/synchronize the plain data
-        if not errors and mig_step in [MigStep.CORRELATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
+        elif not errors and mig_step in [MigStep.CORRELATE_PLAINDATA, MigStep.SYNCHRONIZE_PLAINDATA]:
             op: str = "correlating" if mig_step == MigStep.CORRELATE_PLAINDATA else "synchronizing"
             logger.info(msg=f"Started {op} the plain data")
             started: datetime = datetime.now(tz=TZ_LOCAL)
@@ -241,10 +241,10 @@ def migrate(migration: Migration,
     mig_key: str = f"{mig_step}-{migration.id}"
     if errors:
         minded_migrations[mig_key] = MigState.ERROR
-    elif minded_migrations.get(mig_key) != MigState.ABORTING:
-        minded_migrations[mig_key] = MigState.MIGRATED
-    else:
+    elif minded_migrations.get(mig_key) == MigState.ABORTING:
         minded_migrations[mig_key] = MigState.ABORTED
+    else:
+        minded_migrations[mig_key] = MigState.MIGRATED
 
     migration_finished: datetime = datetime.now(tz=TZ_LOCAL)
     op_report.update({
