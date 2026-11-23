@@ -169,6 +169,10 @@ def retrieve_migrations(input_params: dict[str, Any],
                             break
                         cd_session = values[0]
                     mig_data: dict[str, Any] = migration.get_inputs()
+                    if migration.ts_start:
+                        mig_data[InputParam.START] = migration.ts_start.isoformat()
+                    if migration.ts_finish:
+                        mig_data[InputParam.FINISH] = migration.ts_finish.isoformat()
                     # display the known states
                     mig_states: dict[str, MigState] = {}
                     for k, v in minded_migrations.items():
