@@ -343,7 +343,6 @@ def service_session(session_id: str = None) -> Response:
         case HttpMethod.DELETE:
             delete_session(input_params=input_params,
                            errors=errors)
-
     # build the response
     result: Response = _build_response(reply=reply,
                                        errors=errors)

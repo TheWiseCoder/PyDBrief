@@ -341,7 +341,6 @@ def __validate_input(input_params: dict[str, Any],
                                                  db_engine=PYDB_DBCTRL_ENGINE,
                                                  db_conn=db_conn,
                                                  errors=errors)
-
     # identity the step
     mig_step: MigStep = validate_enum(source=input_params,
                                       attr=InputParam.STEP,

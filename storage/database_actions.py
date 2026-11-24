@@ -4,8 +4,10 @@ from pypomes_core import (
 )
 from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
 
-from app_constants import PYDB_DBCTRL_ENGINE, InputParam, OpType
+from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigState, OpType
 from entities.database import Database
+from entities.session import Session
+from entities.migration import Migration, minded_migrations
 
 
 def create_database(input_params: dict[str, Any],
@@ -57,12 +59,14 @@ def update_database(input_params: dict[str, Any],
                                                            errors=errors)
         if not errors:
             database: Database = database_params.pop(InputParam.DATABASE)
-            if InputParam.DB_PWD in database_params:
-                # attribute 'bn_pwd' to be assigned an encrypted values at UPDATE time
-                database._nm_pwd = database_params.pop(InputParam.DB_PWD)
-            database.set(data=database_params)
-            database.update(db_conn=db_conn,
-                            errors=errors)
+            if __verify_migration_state(database=database,
+                                        errors=errors):
+                if InputParam.DB_PWD in database_params:
+                    # attribute 'bn_pwd' to be assigned an encrypted values at UPDATE time
+                    database._nm_pwd = database_params.pop(InputParam.DB_PWD)
+                database.set(data=database_params)
+                database.update(db_conn=db_conn,
+                                errors=errors)
 
         # conclude the operation
         if errors:
@@ -90,9 +94,11 @@ def delete_database(input_params: dict[str, Any],
         if not errors:
             # obtain and delete the database
             database: Database = database_params[InputParam.DATABASE]
-            database.delete(db_engine=PYDB_DBCTRL_ENGINE,
-                            db_conn=db_conn,
-                            errors=errors)
+            if __verify_migration_state(database=database,
+                                        errors=errors):
+                database.delete(db_engine=PYDB_DBCTRL_ENGINE,
+                                db_conn=db_conn,
+                                errors=errors)
 
         # conclude the operation
         if errors:
@@ -253,3 +259,26 @@ def __validate_input(input_params: dict[str, Any],
             result[Database.Db.DS_DRIVER] = db_driver
 
     return result
+
+
+def __verify_migration_state(database: Database,
+                             errors: list[str]) -> bool:
+
+    for mig_tag, mig_state in minded_migrations.items():
+        if mig_state in [MigState.ABORTING, MigState.MIGRATING]:
+            mig_id: int = int(mig_tag[3:])
+            migs: list = Migration.get_values(
+                attrs=Migration.Db.NM_BADGE,
+                joins=[(Session, Migration, (Session.Db.ID, Migration.Db.ID_SESSION)),
+                       (Database, Session, (Database.Db.ID, [Session.Db.ID_SOURCE_DB, Session.Db.ID_TARGET_DB]))],
+                where_data={Migration.Db.ID: mig_id,
+                            Database.Db.ID: database.id},
+                db_engine=PYDB_DBCTRL_ENGINE,
+                errors=errors)
+            if migs:
+                # 142: Invalid value {}: {}
+                errors.append(validate_format_error(142,
+                                                    database.cd_engine,
+                                                    f"engine in use in active migration '{migs[0]}'",
+                                                    f"@{InputParam.DB_TYPE}"))
+    return not errors
