@@ -271,10 +271,10 @@ def __verify_migration_state(database: Database,
     for mig_tag, mig_state in minded_migrations.items():
         if mig_state in [MigState.ABORTING, MigState.MIGRATING]:
             mig_id: int = int(mig_tag[3:])
-            migs: list = Migration.get_values(
+            migs: list[str] = Migration.get_values(
                 attrs=Migration.Db.NM_BADGE,
-                joins=[(Session, Migration, (Session.Db.ID, Migration.Db.ID_SESSION)),
-                       (Database, Session, (Database.Db.ID, [Session.Db.ID_SOURCE_DB, Session.Db.ID_TARGET_DB]))],
+                joins=[(Session, (Session.Db.ID, Migration.Db.ID_SESSION)),
+                       (Database, (Database.Db.ID, [Session.Db.ID_SOURCE_DB, Session.Db.ID_TARGET_DB]))],
                 where_data={Migration.Db.ID: mig_id,
                             Database.Db.ID: database.id},
                 db_engine=PYDB_DBCTRL_ENGINE,
@@ -284,5 +284,5 @@ def __verify_migration_state(database: Database,
                 errors.append(validate_format_error(142,
                                                     database.cd_engine,
                                                     f"engine in use in active migration '{migs[0]}'",
-                                                    f"@{InputParam.DB_TYPE}"))
+                                                    f"@{InputParam.DB_ENGINE}"))
     return not errors
