@@ -2,7 +2,7 @@ from typing import Any
 from pypomes_core import (
     validate_int, validate_enum, validate_str, validate_format_error
 )
-from pypomes_db import DbEngine, db_connect, db_commit_and_close, db_rollback_and_close
+from pypomes_db import DbEngine, db_connect, db_remove, db_commit_and_close, db_rollback_and_close
 
 from app_constants import PYDB_DBCTRL_ENGINE, InputParam, MigState, OpType
 from entities.database import Database
@@ -67,6 +67,8 @@ def update_database(input_params: dict[str, Any],
                 database.set(data=database_params)
                 database.update(db_conn=db_conn,
                                 errors=errors)
+                if not errors:
+                    db_remove(engine=database.cd_engine)
 
         # conclude the operation
         if errors:
@@ -99,6 +101,8 @@ def delete_database(input_params: dict[str, Any],
                 database.delete(db_engine=PYDB_DBCTRL_ENGINE,
                                 db_conn=db_conn,
                                 errors=errors)
+                if not errors:
+                    db_remove(engine=database.cd_engine)
 
         # conclude the operation
         if errors:
