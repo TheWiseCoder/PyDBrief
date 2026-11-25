@@ -4,7 +4,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from logging import Logger
 from pypomes_core import (
-    TZ_LOCAL, timestamp_duration, validate_format_error
+    TZ_LOCAL, timestamp_duration, timestamp_interval, validate_format_error
 )
 from pypomes_db import (
     db_connect, db_commit_and_close, db_rollback_and_close,
@@ -371,6 +371,7 @@ def _migrate_plain(migration: Migration,
                 target_conn: Any = db_connect(engine=target_db,
                                               errors=errors)
                 if target_conn:
+                    start: datetime = datetime.now()
                     count = db_migrate_data(source_engine=source_db,
                                             source_table=source_table,
                                             source_columns=source_columns,
@@ -388,12 +389,17 @@ def _migrate_plain(migration: Migration,
                                             errors=errors)
                     # acknowledge the migration
                     if not errors:
+                        finish: datetime = datetime.now()
                         migration_span.nr_row_count = count
                         migration_span.is_done = True
                         migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                               db_conn=pydb_conn,
                                               errors=errors)
                         if not errors:
+                            duration_millis: int = int(timestamp_interval(start=start,
+                                                                          finish=finish,
+                                                                          microsecs=True) / 1000)
+                            migration_work.nr_duration_millis += duration_millis
                             migration_work.nr_row_count += count
                             migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
                                                   db_conn=pydb_conn,

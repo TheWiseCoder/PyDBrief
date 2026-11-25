@@ -1,6 +1,8 @@
 import threading
+from datetime import datetime
 from logging import Logger
 from typing import Any
+from pypomes_core import timestamp_interval
 from pypomes_db import db_connect, db_commit_and_close, db_rollback_and_close, db_sync_data
 
 from entities.migration import Migration, minded_migrations
@@ -94,6 +96,7 @@ def synchronize_plaindata(migration: Migration,
                 target_conn: Any = db_connect(engine=target_db,
                                               errors=curr_errors)
                 if target_conn:
+                    start: datetime = datetime.now()
                     counts = db_sync_data(source_engine=source_db,
                                           source_table=source_table,
                                           target_engine=target_db,
@@ -119,10 +122,15 @@ def synchronize_plaindata(migration: Migration,
                                                   cd_type=IssueType.ERROR,
                                                   ds_issues=curr_errors)
                     else:
+                        finish: datetime = datetime.now()
                         # obtain state DB connection
                         pydb_conn: Any = db_connect(engine=PYDB_DBCTRL_ENGINE,
                                                     errors=curr_errors)
                         if pydb_conn:
+                            duration_millis: int = int(timestamp_interval(start=start,
+                                                                          finish=finish,
+                                                                          microsecs=True) / 1000)
+                            migration_work.nr_duration_millis += duration_millis
                             migration_span.nr_row_count = counts[0] + counts[1] + counts[2]
                             migration_span.is_done = True
                             migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,

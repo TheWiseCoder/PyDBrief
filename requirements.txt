@@ -7,7 +7,7 @@ flask-swagger-ui==5.36.0
 oracledb==26.2.0
 psycopg2-binary==2.9.13
 # pyodbc==5.5.0
-pypomes-core==3.3.4
+pypomes-core==3.3.5
 pypomes-crypto==0.9.1
 pypomes-cs==1.0.6
 pypomes-db==3.4.2

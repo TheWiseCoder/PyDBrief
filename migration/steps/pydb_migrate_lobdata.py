@@ -4,7 +4,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
-from pypomes_core import TZ_LOCAL, str_as_list, timestamp_duration
+from pypomes_core import TZ_LOCAL, str_as_list, timestamp_duration, timestamp_interval
 from pypomes_cs import cs_get_client, cs_item_exists
 from pypomes_db import (
     db_connect, db_commit_and_close, db_rollback_and_close, db_count,
@@ -473,6 +473,7 @@ def _db_migrate_lobs(migration: Migration,
                 target_conn: Any = db_connect(engine=target_db,
                                               errors=errors)
                 if target_conn:
+                    start: datetime = datetime.now()
                     totals: tuple[int, int] = db_migrate_lobs(source_engine=source_db,
                                                               source_table=source_table,
                                                               source_lob_column=lob_column,
@@ -488,6 +489,7 @@ def _db_migrate_lobs(migration: Migration,
                                                               errors=errors)
                     # acknowledge the migration
                     if not errors:
+                        finish: datetime = datetime.now()
                         lob_count = totals[0]
                         lob_bytes = totals[1]
                         migration_span.nr_row_count = lob_count
@@ -496,6 +498,10 @@ def _db_migrate_lobs(migration: Migration,
                                               db_conn=pydb_conn,
                                               errors=errors)
                         if not errors:
+                            duration_millis: int = int(timestamp_interval(start=start,
+                                                                          finish=finish,
+                                                                          microsecs=True) / 1000)
+                            migration_work.nr_duration_millis += duration_millis
                             migration_work.nr_row_count += lob_count
                             migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
                                                   db_conn=pydb_conn,
@@ -628,6 +634,7 @@ def _s3_migrate_lobs(migration: Migration,
                                                connection=source_conn,
                                                errors=errors)
                         if not errors:
+                            start: datetime = datetime.now()
                             # 'target_table' is documentational, only
                             totals: tuple[int, int] = s3_migrate_lobs(migration=migration,
                                                                       session=session,
@@ -650,6 +657,7 @@ def _s3_migrate_lobs(migration: Migration,
                                                                       logger=logger)
                             # acknowledge the migration
                             if not errors:
+                                finish: datetime = datetime.now()
                                 lob_count = totals[0]
                                 lob_bytes = totals[1]
                                 migration_span.nr_row_count = lob_count
@@ -657,11 +665,15 @@ def _s3_migrate_lobs(migration: Migration,
                                 migration_span.update(db_engine=PYDB_DBCTRL_ENGINE,
                                                       db_conn=pydb_conn,
                                                       errors=errors)
-                    if not errors:
-                        migration_work.nr_row_count += lob_count
-                        migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
-                                              db_conn=pydb_conn,
-                                              errors=errors)
+                                if not errors:
+                                    duration_millis: int = int(timestamp_interval(start=start,
+                                                                                  finish=finish,
+                                                                                  microsecs=True) / 1000)
+                                    migration_work.nr_duration_millis += duration_millis
+                                    migration_work.nr_row_count += lob_count
+                                    migration_work.update(db_engine=PYDB_DBCTRL_ENGINE,
+                                                          db_conn=pydb_conn,
+                                                          errors=errors)
                 if errors:
                     db_rollback_and_close(connection=pydb_conn,
                                           engine=PYDB_DBCTRL_ENGINE)
