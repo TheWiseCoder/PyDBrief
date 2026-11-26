@@ -335,6 +335,12 @@ def migrate_lob_columns(session: Session,
             if max_workers == 1:
                 # execute single task in current thread
                 for channel_datum in channel_data:
+
+                    # verify whether current migration is marked for abortion
+                    mig_key: str = f"{mig_step}-{migration.id}"
+                    if minded_migrations.get(mig_key) == MigState.ABORTING:
+                        break
+
                     if target_s3:
                         # migration target is S3
                         _s3_migrate_lobs(migration=migration,
@@ -370,6 +376,12 @@ def migrate_lob_columns(session: Session,
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     task_futures: list[Future] = []
                     for channel_datum in channel_data:
+
+                        # verify whether current migration is marked for abortion
+                        mig_key: str = f"{mig_step}-{migration.id}"
+                        if minded_migrations.get(mig_key) == MigState.ABORTING:
+                            break
+
                         if target_s3:
                             # migration target is S3
                             future: Future = executor.submit(_s3_migrate_lobs,

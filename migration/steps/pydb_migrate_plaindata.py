@@ -237,6 +237,12 @@ def __migrate_plaindata(migration: Migration,
                          f"in {len(channel_data)} steps, using {max_workers} channels")
         if max_workers == 1:
             for channel_datum in channel_data:
+
+                # verify whether current migration is marked for abortion
+                mig_key: str = f"{mig_step}-{migration.id}"
+                if minded_migrations.get(mig_key) == MigState.ABORTING:
+                    break
+
                 # execute single task in current thread
                 _migrate_plain(migration=migration,
                                mig_step=mig_step,
@@ -257,6 +263,12 @@ def __migrate_plaindata(migration: Migration,
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 task_futures: list[Future] = []
                 for channel_datum in channel_data:
+
+                    # verify whether current migration is marked for abortion
+                    mig_key: str = f"{mig_step}-{migration.id}"
+                    if minded_migrations.get(mig_key) == MigState.ABORTING:
+                        break
+
                     future: Future = executor.submit(_migrate_plain,
                                                      migration=migration,
                                                      mig_step=mig_step,
